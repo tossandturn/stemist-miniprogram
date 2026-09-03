@@ -3,7 +3,12 @@ const { computeCropRect, resizedCropSize } = require('../../utils/crop')
 
 Page({
   data: deviceState({ src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1 }),
-  onLoad(options) { options = options || {}; this.setData({ src: options.src ? decodeURIComponent(options.src) : '' }) },
+  onLoad(options) {
+    options = options || {}
+    let src = ''
+    try { src = options.src ? decodeURIComponent(options.src) : '' } catch { src = '' }
+    this.setData({ src })
+  },
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },
   onMove(e) { this.setData({ x: e.detail.x, y: e.detail.y }) },
@@ -24,8 +29,12 @@ Page({
             this.setData({ busy: false, error: '裁剪区域尚未准备好，请重试' })
             return
           }
-          const crop = computeCropRect({ viewport: imageRect, box: boxRect, imageWidth: info.width, imageHeight: info.height })
-          this.exportCrop(crop.sx, crop.sy, crop.sw, crop.sh)
+          try {
+            const crop = computeCropRect({ viewport: imageRect, box: boxRect, imageWidth: info.width, imageHeight: info.height })
+            this.exportCrop(crop.sx, crop.sy, crop.sw, crop.sh)
+          } catch (error) {
+            this.setData({ busy: false, error: error.message || '裁剪区域无效，请重新拍摄' })
+          }
         })
       },
       fail: (error) => this.setData({ busy: false, error: error.errMsg || '图片读取失败' }),

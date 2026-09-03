@@ -6,7 +6,8 @@ Page({
   data: deviceState({ imagePath: '', message: '', loading: false, error: '', answer: '', context: {}, contextLabel: 'STEM route pending' }),
   onLoad(options) {
     options = options || {}
-    const path = options.src ? decodeURIComponent(options.src) : wx.getStorageSync('stemistCroppedImage')
+    let path = wx.getStorageSync('stemistCroppedImage')
+    try { if (options.src) path = decodeURIComponent(options.src) } catch { path = '' }
     const context = wx.getStorageSync('stemistCoachContext') || {}
     const label = context.subjectCode ? `${context.subject || context.subjectCode} · ${context.stage || 'stage pending'} · ${context.routeId || ''}` : 'STEM route pending'
     this.setData({ imagePath: path || '', context, contextLabel: label })
