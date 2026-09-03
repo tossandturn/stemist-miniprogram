@@ -22,5 +22,5 @@
     <button class="secondary" data-id="{{item.id}}" bindtap="openIelts">开始练习</button>
   </view>
 
-  <view class="notice">账号、题库、AI 和学习记录最终与 IELTSist 共用；当前 MVP 不在客户端保存任何模型密钥。</view>
+  <view class="notice">AI Coach 保留在 STEM、Listening、Reading、Writing 四条路径；Speaking 使用 IELTSist 千问口语。账号、题库和学习记录最终与 IELTSist 共用，客户端不保存模型密钥。</view>
 </view>

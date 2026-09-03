@@ -8,6 +8,7 @@ Photo-first WeChat Mini Program MVP for the unified IELTSist + STEM product.
 - IELTS Listening / Reading: typed answer and review text fields.
 - IELTS Writing: typed essay or one-question photo upload, then AI feedback.
 - IELTS Speaking: opens the existing IELTSist Qwen speaking experience in `web-view`.
+- AI Coach remains available for STEM, Listening, Reading and Writing; Speaking keeps its dedicated realtime Qwen examiner instead of being forced through the text Coach.
 - No Apple Pencil in the Mini Program. Full PDF annotation and PencilKit remain in the iOS app.
 
 ## Run locally
