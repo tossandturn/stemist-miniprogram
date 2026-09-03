@@ -116,15 +116,30 @@ textarea { min-height: 300rpx; }
 .hidden-canvas { position: fixed; left: -9999px; top: -9999px; opacity: 0; }
 
 @media (min-width: 768px) {
-  .page { max-width: 1440rpx; margin: 0 auto; padding: 42rpx 60rpx calc(72rpx + env(safe-area-inset-bottom)); }
-  .title { font-size: 62rpx; }
-  .subtitle { max-width: 760rpx; }
+  .page { max-width: 1440px; margin: 0 auto; padding: 32px 48px calc(48px + env(safe-area-inset-bottom)); }
+  .title { font-size: 48px; letter-spacing: 0; }
+  .subtitle { max-width: 760px; font-size: 16px; }
+  .card, .panel { padding: 24px; border-radius: 12px; }
+  .card-title { font-size: 22px; }
+  .card-detail { font-size: 14px; }
+  .context-card { padding: 18px; border-radius: 12px; }
+  .context-card-title { font-size: 20px; }
+  .context-card-text { font-size: 14px; }
+  .route-label, .selected-route, .route-pill { font-size: 14px; }
+  .route-chip, .task-chip { min-height: 40px; padding: 0 14px; font-size: 14px; }
+  .skill-tags text { padding: 6px 12px; font-size: 13px; }
+  .crop-hint { font-size: 14px; }
+  .primary, .secondary { min-height: 48px; margin-top: 16px; padding: 0 18px; font-size: 16px; }
+  .section-title { margin-top: 30px; font-size: 22px; }
   .tablet-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 28rpx; padding: 8rpx; border: 1rpx solid #e4e7f0; border-radius: 16rpx; background: #fff; box-shadow: 0 8rpx 22rpx rgba(42, 31, 89, .05); }
-  .tablet-nav-item { min-height: 72rpx; color: #6f7892; background: transparent; font-size: 23rpx; font-weight: 750; }
+  .tablet-nav-item { min-height: 44px; color: #6f7892; background: transparent; font-size: 15px; font-weight: 750; }
   .tablet-nav-item.active { color: #5b43c7; border-radius: 12rpx; background: #f0ecff; }
   .bottom-nav { display: none; }
-  .hero-card { padding: 46rpx 44rpx 40rpx; }
+  .hero-card { padding: 40px 42px 34px; }
   .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .metric { min-height: 108px; margin: 8px 8px 0 0; padding: 18px; border-radius: 10px; }
+  .metric-label, .metric-detail { font-size: 13px; }
+  .metric-value { margin-top: 8px; font-size: 28px; }
   .metric, .metric:nth-child(even) { margin: 8rpx 8rpx 0 0; }
   .metric:last-child { margin-right: 0; }
   .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-right: -12rpx; }
@@ -132,8 +147,8 @@ textarea { min-height: 300rpx; }
   .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(360rpx, .9fr); align-items: start; margin: 0 -10rpx; }
   .workspace-grid > .context-card, .workspace-grid > .panel { margin: 12rpx 10rpx 0; }
   .workspace-grid > .panel { position: sticky; top: 18rpx; }
-  .photo-preview { height: 540rpx; }
-  .crop-stage { height: 900rpx; }
+  .photo-preview { height: 420px; }
+  .crop-stage { height: 600px; }
   .crop-page .primary, .crop-page .secondary { max-width: 620rpx; margin-left: auto; margin-right: auto; }
 }
 @media (min-width: 768px) and (orientation: portrait) {

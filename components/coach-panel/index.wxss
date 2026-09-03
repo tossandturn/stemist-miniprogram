@@ -7,3 +7,12 @@
 .coach-panel .primary { margin-top: 16rpx; }
 .coach-helper { margin-top: 14rpx; color: #6f7892; font-size: 21rpx; line-height: 1.45; }
 .coach-panel .result { margin-top: 18rpx; }
+@media (min-width: 768px) {
+  .coach-panel { padding: 20px; border-radius: 12px; }
+  .coach-panel-head { margin-bottom: 12px; }
+  .coach-title { font-size: 20px; }
+  .coach-status { font-size: 13px; }
+  .coach-panel textarea { min-height: 240px; padding: 16px; font-size: 16px; }
+  .coach-panel .primary { min-height: 48px; margin-top: 14px; font-size: 16px; }
+  .coach-helper { font-size: 13px; }
+}

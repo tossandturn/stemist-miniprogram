@@ -9,3 +9,12 @@
 .text-practice .error { margin-top: 16rpx; padding: 16rpx; border-radius: 12rpx; color: #b33b55; background: #fff0f2; font-size: 23rpx; }
 .text-practice .result { margin-top: 18rpx; padding: 22rpx; border: 1rpx solid #dceee7; border-radius: 14rpx; color: #18213d; background: #fff; white-space: pre-wrap; font-size: 26rpx; line-height: 1.6; }
 @media (min-width: 768px) { .text-practice textarea { min-height: 420rpx; } }
+@media (min-width: 768px) {
+  .text-practice .context-card { padding: 18px; border-radius: 12px; }
+  .text-practice .context-card-title { font-size: 20px; }
+  .text-practice .context-card-text { font-size: 14px; }
+  .text-practice .field-label { font-size: 14px; }
+  .text-practice textarea { min-height: 320px; padding: 16px; font-size: 16px; }
+  .text-practice-meta { font-size: 12px; }
+  .text-practice .primary, .text-practice .secondary { min-height: 48px; font-size: 16px; }
+}
