@@ -14,7 +14,11 @@
     <view class="chip-grid stage-grid">
       <button wx:for="{{stages}}" wx:key="*this" class="route-chip {{item === stage ? 'active' : ''}}" data-stage="{{item}}" bindtap="chooseStage">{{item}}</button>
     </view>
-    <view class="selected-route">当前路线：{{subjectLabel}} · {{stage}} · {{subjectCode}}-{{stage}}</view>
+    <view wx:if="{{routeOptions.length > 1}}" class="route-label">Route / paper components</view>
+    <view wx:if="{{routeOptions.length > 1}}" class="chip-grid route-grid">
+      <button wx:for="{{routeOptions}}" wx:key="routeId" class="route-chip route-chip-wide {{item.routeId === routeId ? 'active' : ''}}" data-route="{{item.routeId}}" bindtap="chooseRoute">{{item.components}}</button>
+    </view>
+    <view class="selected-route">当前路线：{{routeOptions[0] ? routeOptions[0].subjectLabel : subjectLabel}} · {{stage}} · {{routeId || '待选择'}}</view>
   </view>
 
   <view class="card camera-card">

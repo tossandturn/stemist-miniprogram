@@ -1,4 +1,5 @@
 const { deviceState, syncDevice } = require('../../utils/page')
+const { routesForSubjectStage } = require('../../utils/stemRoutes')
 
 const SUBJECTS = [
   { code: '9702', label: 'Physics', short: '物理' },
@@ -23,6 +24,8 @@ Page({
     subjectCode: '9702',
     subjectLabel: 'Physics',
     stage: 'AS',
+    routeId: 'cie-9702-as-physics',
+    routeOptions: routesForSubjectStage('9702', 'AS'),
     subjects: SUBJECTS,
     stages: STAGES,
   }),
@@ -37,12 +40,21 @@ Page({
   chooseSubject(event) {
     const code = event.currentTarget.dataset.code
     const subject = SUBJECTS.find((item) => item.code === code)
-    if (subject) this.setData({ subjectCode: subject.code, subjectLabel: subject.label, error: '' })
+    if (subject) {
+      const routes = routesForSubjectStage(subject.code, this.data.stage)
+      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', error: '' })
+    }
   },
-  chooseStage(event) { this.setData({ stage: event.currentTarget.dataset.stage, error: '' }) },
+  chooseStage(event) {
+    const stage = event.currentTarget.dataset.stage
+    const routes = routesForSubjectStage(this.data.subjectCode, stage)
+    this.setData({ stage, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', error: '' })
+  },
+  chooseRoute(event) { this.setData({ routeId: event.currentTarget.dataset.route, error: '' }) },
   captureContext() {
     if (this.data.isWriting) return { product: 'IELTSist', skill: 'writing', mode: 'photo', stage: 'practice' }
-    const stageId = String(this.data.stage).toLowerCase()
+    const routes = routesForSubjectStage(this.data.subjectCode, this.data.stage)
+    const selectedRoute = routes.find((route) => route.routeId === this.data.routeId) || routes[0]
     return {
       product: 'STEM Studio',
       skill: 'stem-photo',
@@ -50,7 +62,8 @@ Page({
       subject: this.data.subjectLabel,
       stage: this.data.stage,
       qualification: this.data.stage === 'IGCSE' ? 'IGCSE' : (this.data.stage === 'Competition' || this.data.stage === 'Admissions' ? this.data.stage : 'Cambridge A Level'),
-      routeId: `${this.data.subjectCode}-${stageId}`,
+      routeId: selectedRoute ? selectedRoute.routeId : '',
+      paperComponents: selectedRoute ? selectedRoute.components : '',
       mode: 'photo-question',
       source: 'stemist-miniprogram',
     }
