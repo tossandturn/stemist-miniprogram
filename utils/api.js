@@ -1,6 +1,6 @@
 function baseUrl() {
   const app = getApp()
-  return String(app?.globalData?.apiBaseUrl || 'https://stem.ieltsist.com').replace(/\/+$/, '')
+  return String((app && app.globalData && app.globalData.apiBaseUrl) || 'https://stem.ieltsist.com').replace(/\/+$/, '')
 }
 
 function requestJson(path, data, { timeout = 30000 } = {}) {

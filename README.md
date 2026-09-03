@@ -18,7 +18,7 @@ Photo-first WeChat Mini Program MVP for the unified IELTSist + STEM product.
 4. Configure `stem.ieltsist.com` as a business/server domain and enable HTTPS checks before release.
 5. Run `npm test` for the repository contract check.
 
-The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint. A production build should add the WeChat `wx.login` exchange endpoint and store only a short-lived application session token in `stemistSessionToken`.
+The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint. The MVP includes an account screen that uses the existing `/api/auth/login` and `/api/auth/register` contract and stores only the short-lived `accessToken` in `stemistSessionToken`. A production WeChat release should replace or augment this with a server-side `wx.login` exchange and never send `session_key` to the client.
 
 ## Photo pipeline
 

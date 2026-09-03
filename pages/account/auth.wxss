@@ -1,0 +1,1 @@
+.input { width: 100%; box-sizing: border-box; padding: 22rpx; background: #fff; border: 1rpx solid #dfe4ef; border-radius: 18rpx; font-size: 29rpx; }

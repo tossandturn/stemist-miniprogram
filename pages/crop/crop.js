@@ -13,8 +13,8 @@ Page({
         query.select('.crop-image').boundingClientRect()
         query.select('.crop-box').boundingClientRect()
         query.exec((rects) => {
-          const imageRect = rects?.[0]
-          const boxRect = rects?.[1]
+          const imageRect = rects && rects[0]
+          const boxRect = rects && rects[1]
           if (!imageRect || !boxRect) {
             this.setData({ busy: false, error: '裁剪区域尚未准备好，请重试' })
             return

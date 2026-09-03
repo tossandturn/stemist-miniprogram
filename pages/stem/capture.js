@@ -13,7 +13,7 @@ Page({
       camera: 'back',
       sizeType: ['compressed'],
       success: ({ tempFiles }) => {
-        const path = tempFiles?.[0]?.tempFilePath
+        const path = tempFiles && tempFiles[0] && tempFiles[0].tempFilePath
         if (!path) {
           this.setData({ error: '没有获得照片，请重试' })
           return

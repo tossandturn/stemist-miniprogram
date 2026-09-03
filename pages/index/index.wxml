@@ -9,6 +9,12 @@
     <button class="primary" bindtap="openStem">拍一题</button>
   </view>
 
+  <view class="card account-card">
+    <view class="card-title">{{user ? '已登录 · ' + user.username : '连接你的学习记录'}}</view>
+    <view class="card-detail">{{user ? '现在可以直接使用 STEM 和 IELTSist 的 AI Coach。' : '登录已有账号后，AI 评分和学习记录才能回到同一账户。'}}</view>
+    <button class="secondary" bindtap="openAccount">{{user ? '切换账号' : '登录 / 注册'}}</button>
+  </view>
+
   <view class="section-title">IELTS skills</view>
   <view class="card" wx:for="{{ieltsCards}}" wx:key="id">
     <view class="card-title">{{item.title}}</view>
