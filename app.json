@@ -17,6 +17,11 @@
     "backgroundColor": "#f5f7fb"
   },
   "pageOrientation": "auto",
+  "permission": {
+    "scope.camera": { "desc": "用于拍摄 STEM 题目和 IELTS 手写作文" },
+    "scope.record": { "desc": "用于 IELTSist 实时口语练习" }
+  },
+  "__usePrivacyCheck__": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }
