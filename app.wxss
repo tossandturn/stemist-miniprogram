@@ -22,6 +22,8 @@ button[disabled] { opacity: .55; }
 .brand-subtitle { display: block; margin-top: 6rpx; color: #6f7892; font-size: 20rpx; line-height: 1.25; }
 .topbar-status { color: #0f8668; font-size: 21rpx; font-weight: 700; }
 .topbar-status::before { display: inline-block; width: 12rpx; height: 12rpx; margin-right: 8rpx; border-radius: 50%; background: #20b486; content: ''; }
+.topbar-status.needs-auth { color: #7357e8; }
+.topbar-status.needs-auth::before { background: #f19a3e; }
 
 .eyebrow { color: #7357e8; font-size: 22rpx; font-weight: 800; letter-spacing: 2rpx; text-transform: uppercase; }
 .title { margin-top: 14rpx; color: #18213d; font-size: 54rpx; line-height: 1.12; font-weight: 800; letter-spacing: -.5rpx; }

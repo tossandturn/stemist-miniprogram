@@ -3,6 +3,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 Page({
   data: deviceState({
     user: null,
+    aiStatus: 'Sign in for AI',
     activeTab: 'today',
     recentActivity: null,
     loopSteps: [
@@ -44,7 +45,7 @@ Page({
         { label: 'Coach', detail: '看诊断与证据', state: 'locked' },
         { label: 'Retest', detail: '修正后再练', state: 'locked' },
       ]
-    this.setData({ user, recentActivity, loopSteps, 'metrics[1].value': String(drafts) })
+    this.setData({ user, aiStatus: wx.getStorageSync('stemistSessionToken') ? 'Coach ready' : 'Sign in for AI', recentActivity, loopSteps, 'metrics[1].value': String(drafts) })
   },
   onResize() { syncDevice(this) },
 

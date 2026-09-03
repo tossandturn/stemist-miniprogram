@@ -7,7 +7,7 @@
         <text class="brand-subtitle">IELTSist learning studio</text>
       </view>
     </view>
-    <text class="topbar-status">AI online</text>
+    <text class="topbar-status {{user ? 'ready' : 'needs-auth'}}">{{aiStatus}}</text>
   </view>
 
   <view wx:if="{{isTablet}}" class="tablet-nav" aria-label="Tablet navigation">
