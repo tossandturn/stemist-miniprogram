@@ -20,11 +20,22 @@ const compile = (executable, args, label) => {
   if (result.status !== 0) throw new Error(`${label} exited with ${result.status}`)
 }
 
+function walk(directory) {
+  const files = []
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name)
+    if (entry.isDirectory()) files.push(...walk(absolute))
+    else files.push(absolute)
+  }
+  return files
+}
+
 try {
-  for (const file of fs.readdirSync(root, { recursive: true })) {
-    const absolute = path.join(root, file)
-    if (file.endsWith('.wxml')) compile(wcc, [absolute, '-o', path.join(tempRoot, `${path.basename(file)}.js`)], `WXML ${file}`)
-    if (file.endsWith('.wxss')) compile(wcsc, ['-lc', absolute, '-o', path.join(tempRoot, `${path.basename(file)}.js`)], `WXSS ${file}`)
+  for (const absolute of walk(root)) {
+    const relative = path.relative(root, absolute)
+    if (relative.includes(`${path.sep}node_modules${path.sep}`)) continue
+    if (absolute.endsWith('.wxml')) compile(wcc, [absolute, '-o', path.join(tempRoot, `${path.basename(absolute)}.js`)], `WXML ${relative}`)
+    if (absolute.endsWith('.wxss')) compile(wcsc, ['-lc', absolute, '-o', path.join(tempRoot, `${path.basename(absolute)}.js`)], `WXSS ${relative}`)
   }
   console.log('WeChat WXML/WXSS compiler checks passed.')
 } finally {
