@@ -1,21 +1,37 @@
 <view class="page {{deviceClass}} capture-page">
-  <stemist-header eyebrow="STEM STUDIO · PRACTICE" title="拍一题" subtitle="One question · one evidence set" action-text="返回" bind:action="goBack" />
-  <view class="subtitle capture-intro">每次只处理一道题。拍照后先裁剪，确认清晰再交给 AI Coach。</view>
+  <stemist-header eyebrow="{{isWriting ? 'IELTSIST · WRITING PHOTO' : 'STEM STUDIO · PRACTICE'}}" title="{{isWriting ? '拍照上传作文' : '拍一题'}}" subtitle="{{isWriting ? 'One page · handwriting evidence' : 'One question · one evidence set'}}" action-text="返回" bind:action="goBack" />
+  <view class="subtitle capture-intro">{{isWriting ? '拍一页清晰的手写作文，裁剪后交给 IELTSist AI Coach。' : '每次只处理一道题。先选择准确的学科和阶段，再拍照、裁剪并交给 AI Coach。'}}</view>
+
+  <view wx:if="{{!isWriting}}" class="route-setup card">
+    <view class="section-kicker">STEM ROUTE · REQUIRED CONTEXT</view>
+    <view class="card-title">先确定这道题属于哪里</view>
+    <view class="card-detail">选择会随照片一起传给 Coach，避免把 Physics、Mathematics、IGCSE 和竞赛题混在同一条分析里。</view>
+    <view class="route-label">Subject</view>
+    <view class="chip-grid">
+      <button wx:for="{{subjects}}" wx:key="code" class="route-chip {{item.code === subjectCode ? 'active' : ''}}" data-code="{{item.code}}" bindtap="chooseSubject">{{item.short}}</button>
+    </view>
+    <view class="route-label">Stage</view>
+    <view class="chip-grid stage-grid">
+      <button wx:for="{{stages}}" wx:key="*this" class="route-chip {{item === stage ? 'active' : ''}}" data-stage="{{item}}" bindtap="chooseStage">{{item}}</button>
+    </view>
+    <view class="selected-route">当前路线：{{subjectLabel}} · {{stage}} · {{subjectCode}}-{{stage}}</view>
+  </view>
+
   <view class="card camera-card">
     <view class="camera-icon">⌁</view>
-    <view class="section-kicker">PHOTO WORKSPACE</view>
-    <view class="card-title">后置摄像头 · 单题模式</view>
-    <view class="card-detail">让题目、图表和你的答案尽量完整出现在同一张照片里；不要把多道题拼在一张图中。</view>
-    <button class="primary" bindtap="takePhoto" loading="{{busy}}">{{busy ? '准备照片…' : '打开相机拍题'}}</button>
+    <view class="section-kicker">{{isWriting ? 'WRITING PHOTO WORKSPACE' : 'PHOTO WORKSPACE'}}</view>
+    <view class="card-title">{{isWriting ? '后置摄像头 · 手写作文' : '后置摄像头 · 单题模式'}}</view>
+    <view class="card-detail">{{isWriting ? '保持整页纸张平整、光线均匀，裁剪掉桌面和其他题目。' : '让题目、图表和你的答案尽量完整出现在同一张照片里；不要把多道题拼在一张图中。'}}</view>
+    <button class="primary" bindtap="takePhoto" loading="{{busy}}">{{busy ? '准备照片…' : (isWriting ? '拍照上传作文' : '打开相机拍题')}}</button>
   </view>
   <view wx:if="{{isTablet}}" class="context-card tablet-capture-guide">
     <view class="context-card-title">iPad 布局</view>
-    <view class="context-card-text">宽屏下保留更大的取景和说明区域，横屏适合拍摄含图表的题目；仍然只提交当前这一题。</view>
+    <view class="context-card-text">横屏适合包含图表的题目和整页作文；宽屏只扩展取景区，不改变一题一证据规则。</view>
   </view>
   <view wx:else class="context-card phone-capture-guide">
     <view class="context-card-title">手机布局</view>
-    <view class="context-card-text">竖屏单列，拍照按钮固定在主要内容之后，方便单手操作。</view>
+    <view class="context-card-text">竖屏单列，先选路线再拍照，避免在小屏上误选学科。</view>
   </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view class="notice">小程序版不接 Apple Pencil；需要连续手写、PDF 批注时请使用 iOS App。</view>
+  <view class="notice">{{isWriting ? '小程序只负责拍照和裁剪；正式 IELTS 写作评分仍由 IELTSist AI Coach 返回。' : '小程序版不接 Apple Pencil；需要连续手写、PDF 批注和完整题库时请使用 iOS App。'}}</view>
 </view>

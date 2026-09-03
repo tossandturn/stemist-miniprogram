@@ -2,7 +2,14 @@
 .capture-page .camera-card { margin-top: 24rpx; }
 .capture-page .tablet-capture-guide { border-left-color: #7357e8; }
 .capture-page .phone-capture-guide { border-left-color: #3a9d85; }
+.route-setup { border-top: 6rpx solid #7357e8; }
+.route-label { display: block; margin-top: 20rpx; color: #4e5a76; font-size: 23rpx; font-weight: 750; }
+.chip-grid { display: flex; flex-wrap: wrap; margin-top: 10rpx; }
+.route-chip { width: auto; min-height: 68rpx; margin: 0 10rpx 10rpx 0; padding: 0 16rpx; border: 1rpx solid #e4e7f0; border-radius: 34rpx; color: #6f7892; background: #fff; font-size: 22rpx; font-weight: 700; }
+.route-chip.active { border-color: #7357e8; color: #5b43c7; background: #f0ecff; box-shadow: 0 0 0 3rpx rgba(115, 87, 232, .12); }
+.selected-route { margin-top: 8rpx; color: #5b43c7; font-size: 22rpx; font-weight: 700; }
 @media (min-width: 768px) {
   .capture-page .camera-card { max-width: 860rpx; margin-left: auto; margin-right: auto; padding: 58rpx 80rpx; }
   .capture-page .camera-card .primary { max-width: 520rpx; margin-left: auto; margin-right: auto; }
+  .route-setup { max-width: 1120rpx; margin-left: auto; margin-right: auto; }
 }

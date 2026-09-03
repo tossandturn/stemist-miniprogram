@@ -72,6 +72,7 @@ Page({
       wx.navigateBack({ delta: 2 })
       return
     }
+    wx.setStorageSync('stemistCoachContext', returnInfo.context || {})
     wx.setStorageSync('stemistCroppedImage', path)
     wx.redirectTo({ url: `/pages/stem/coach?src=${encodeURIComponent(path)}` })
   },

@@ -41,6 +41,8 @@
 
 共性由组件提供，技能页面只传入标题、上下文、占位文案、请求上下文和提交策略。
 
+STEM 拍照在相机前必须选择 `subjectCode + stage`。这组字段生成 `routeId` 并随照片进入 Coach，防止 Physics、Mathematics、IGCSE、A-Level 和 Competition 内容被错误合并。Writing 拍照使用独立的 IELTS 上下文，不复用 STEM 路由。
+
 ## 3. 统一视觉系统
 
 视觉 token 与现有生产网页对齐：

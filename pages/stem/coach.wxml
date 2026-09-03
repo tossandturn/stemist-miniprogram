@@ -1,5 +1,6 @@
 <view class="page {{deviceClass}} coach-page">
   <stemist-header eyebrow="STEM STUDIO · AI COACH" title="检查这道题" subtitle="Question evidence → diagnosis → next action" action-text="重拍" bind:action="retake" />
+  <view class="route-pill">{{contextLabel}}</view>
   <view class="workspace-grid">
     <view class="context-card evidence-card">
       <view class="context-card-title">当前证据</view>
