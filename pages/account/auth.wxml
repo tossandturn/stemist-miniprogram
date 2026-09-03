@@ -7,6 +7,7 @@
       <view class="account-points"><text>✓ AI Coach</text><text>✓ 学习记录</text><text>✓ 短期会话</text></view>
     </view>
     <view class="panel account-form">
+      <view wx:if="{{user}}" class="signed-in-banner"><view class="context-card-title">当前账号：{{user.username}}</view><view class="context-card-text">AI Coach 会使用此账号的短期会话。</view><button class="text-button" bindtap="logout">退出登录</button></view>
       <view class="field-label">用户名</view>
       <input class="input" data-field="username" value="{{username}}" maxlength="80" placeholder="输入已有 IELTSist 用户名" bindinput="onInput" />
       <view class="field-label">密码</view>

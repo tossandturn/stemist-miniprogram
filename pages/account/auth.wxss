@@ -2,6 +2,8 @@
 .account-context { border-left: 6rpx solid #7357e8; }
 .account-points { display: flex; flex-wrap: wrap; margin-top: 16rpx; }
 .account-points text { margin: 0 12rpx 8rpx 0; padding: 8rpx 14rpx; border-radius: 20rpx; color: #16735f; background: #e7f8f0; font-size: 21rpx; font-weight: 700; }
+.signed-in-banner { margin-bottom: 18rpx; padding-bottom: 14rpx; border-bottom: 1rpx solid #edf0f4; }
+.signed-in-banner .text-button { margin-left: -10rpx; }
 @media (min-width: 768px) {
   .account-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; align-items: start; }
   .account-layout > .context-card, .account-layout > .panel { margin-top: 18rpx; }

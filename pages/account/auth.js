@@ -1,16 +1,23 @@
-const { signIn, currentUser } = require('../../utils/auth')
+const { signIn, currentUser, signOut } = require('../../utils/auth')
 const { deviceState, syncDevice } = require('../../utils/page')
 
 Page({
-  data: deviceState({ mode: 'login', username: '', password: '', loading: false, error: '' }),
+  data: deviceState({ mode: 'login', username: '', password: '', loading: false, error: '', user: null }),
   onShow() {
     syncDevice(this)
     const user = currentUser()
+    this.setData({ user: user || null })
     if (user && user.username) this.setData({ username: user.username })
   },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
+  logout() {
+    if (this.data.loading) return
+    signOut()
+    this.setData({ user: null, password: '', error: '', mode: 'login' })
+    wx.showToast({ title: '已退出登录', icon: 'success' })
+  },
   onInput(e) { this.setData({ [e.currentTarget.dataset.field]: e.detail.value, error: '' }) },
   toggleMode() { this.setData({ mode: this.data.mode === 'login' ? 'register' : 'login', error: '' }) },
   async submit() {
