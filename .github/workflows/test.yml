@@ -1,0 +1,26 @@
+name: Mini Program contracts
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm test
+      - run: npm run test:coach
+      - run: npm run test:crop
+      - run: npm run test:device
+      - run: npm run test:image
+      - run: npm run test:pages
+      - run: node --check scripts/test-wechat-compile.mjs
