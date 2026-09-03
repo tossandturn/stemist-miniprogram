@@ -21,6 +21,12 @@ function requestJson(path, data, { timeout = 30000 } = {}) {
           resolve(payload)
           return
         }
+        if (response.statusCode === 401) {
+          wx.removeStorageSync('stemistSessionToken')
+          wx.removeStorageSync('stemistUser')
+          reject(new Error('登录已过期，请重新登录后再使用 AI'))
+          return
+        }
         reject(new Error(payload.error || payload.message || `请求失败（${response.statusCode}）`))
       },
       fail(error) {
