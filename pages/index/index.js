@@ -1,18 +1,50 @@
+const { deviceState, syncDevice } = require('../../utils/page')
+
 Page({
-  data: {
+  data: deviceState({
     user: null,
-    ieltsCards: [
-      { id: 'listening', title: 'Listening', detail: '听力题用文本框记录答案与复盘。' },
-      { id: 'reading', title: 'Reading', detail: '阅读题用文本框提交定位、判断和答案。' },
-      { id: 'writing', title: 'Writing', detail: '可以打字，也可以拍照上传手写作文。' },
-      { id: 'speaking', title: 'Speaking', detail: '继续使用 IELTSist 的千问口语对话。' },
+    activeTab: 'today',
+    metrics: [
+      { label: 'This week', value: '0', detail: 'completed attempts' },
+      { label: 'Saved drafts', value: '0', detail: 'ready to resume' },
+      { label: 'AI Coach', value: 'Ready', detail: 'evidence-led feedback' },
+      { label: 'Next action', value: '1 photo', detail: 'one STEM question' },
     ],
+    ieltsCards: [
+      { id: 'listening', icon: '◉', title: 'Listening with AI', detail: 'Text answer, trap review and next practice.', meta: 'Text workspace', accent: 'listening' },
+      { id: 'reading', icon: '▤', title: 'Reading with AI', detail: 'Evidence, location and answer reasoning.', meta: 'Text workspace', accent: 'reading' },
+      { id: 'writing', icon: '✎', title: 'Writing with AI', detail: 'Type an essay or photograph handwritten work.', meta: 'Text or photo', accent: 'writing' },
+      { id: 'speaking', icon: '◌', title: 'Speaking with AI', detail: 'The original IELTSist Qwen speaking examiner.', meta: 'Realtime voice', accent: 'speaking' },
+    ],
+  }),
+
+  onShow() {
+    syncDevice(this)
+    const user = wx.getStorageSync('stemistUser') || null
+    const drafts = ['listening', 'reading', 'writing'].reduce((count, key) => count + (wx.getStorageSync(`stemistDraft:${key}`) ? 1 : 0), 0)
+    this.setData({ user, 'metrics[1].value': String(drafts) })
   },
-  onShow() { this.setData({ user: wx.getStorageSync('stemistUser') || null }) },
-  openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
+  onResize() { syncDevice(this) },
+
   openStem() { wx.navigateTo({ url: '/pages/stem/capture' }) },
+  openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
+  openCoach() {
+    wx.showActionSheet({
+      itemList: ['STEM 拍题 Coach', 'Listening Coach', 'Reading Coach', 'Writing Coach'],
+      success: ({ tapIndex }) => {
+        const routes = ['/pages/stem/capture', '/pages/ielts/listening', '/pages/ielts/reading', '/pages/ielts/writing']
+        if (routes[tapIndex]) wx.navigateTo({ url: routes[tapIndex] })
+      },
+    })
+  },
   openIelts(event) {
     const id = event.currentTarget.dataset.id
     wx.navigateTo({ url: `/pages/ielts/${id}` })
+  },
+  selectTab(event) {
+    const tab = event.currentTarget.dataset.tab
+    if (tab === 'account') return this.openAccount()
+    if (tab === 'practice' || tab === 'coach') return this.openCoach()
+    this.setData({ activeTab: tab })
   },
 })

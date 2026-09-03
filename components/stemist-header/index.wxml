@@ -1,0 +1,8 @@
+<view class="workspace-header">
+  <view class="workspace-header-copy">
+    <view class="eyebrow">{{eyebrow}}</view>
+    <view wx:if="{{title}}" class="workspace-header-title">{{title}}</view>
+    <view wx:if="{{subtitle}}" class="workspace-header-subtitle">{{subtitle}}</view>
+  </view>
+  <button wx:if="{{actionText}}" class="workspace-header-action" bindtap="onAction">{{actionText}}</button>
+</view>

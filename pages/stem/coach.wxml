@@ -1,12 +1,14 @@
-<view class="page">
-  <view class="eyebrow">STEM · AI Coach</view>
-  <view class="title">检查这道题</view>
-  <image wx:if="{{imagePath}}" class="photo-preview" src="{{imagePath}}" mode="aspectFit" />
-  <view class="field-label">告诉 Coach 你想检查什么（可选）</view>
-  <textarea value="{{message}}" maxlength="1000" placeholder="例如：请指出我第一步哪里错了，并告诉我下一步怎么做。" bindinput="onMessage" />
-  <button class="primary" bindtap="ask" loading="{{loading}}" disabled="{{loading || !imagePath}}">{{loading ? 'AI 正在分析…' : '提交给 AI Coach'}}</button>
-  <button class="secondary" bindtap="retake">重新拍照</button>
+<view class="page {{deviceClass}} coach-page">
+  <stemist-header eyebrow="STEM STUDIO · AI COACH" title="检查这道题" subtitle="Question evidence → diagnosis → next action" action-text="重拍" bind:action="retake" />
+  <view class="workspace-grid">
+    <view class="context-card evidence-card">
+      <view class="context-card-title">当前证据</view>
+      <image wx:if="{{imagePath}}" class="photo-preview" src="{{imagePath}}" mode="aspectFit" />
+      <view wx:else class="empty-evidence">照片未找到，请返回重新拍摄。</view>
+      <view class="context-card-text">AI Coach 只会基于这张照片和你的补充说明分析；它不会把未看见的题目或答案当成事实。</view>
+    </view>
+    <coach-panel message="{{message}}" answer="{{answer}}" loading="{{loading}}" disabled="{{!imagePath}}" submit-label="提交给 AI Coach" placeholder="例如：请指出我第一步哪里错了，并告诉我下一步怎么做。" helper="建议先提交原始证据，再根据 Coach 的诊断进行一次 focused retest。" bind:input="onMessage" bind:submit="ask" />
+  </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{answer}}" class="result">{{answer}}</view>
-  <view class="notice">AI 只根据实际看见的题目、图表和答案给出分析；看不清时会要求你重新拍摄，不会伪造分数。</view>
+  <view class="notice">STEM Studio 的正式分数仍以有来源、可追溯的评分结果为准；照片 Coach 是学习反馈，不会伪造官方成绩。</view>
 </view>

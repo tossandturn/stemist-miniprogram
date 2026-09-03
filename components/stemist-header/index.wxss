@@ -1,0 +1,5 @@
+.workspace-header { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; margin-bottom: 12rpx; }
+.workspace-header-copy { min-width: 0; flex: 1; }
+.workspace-header-title { margin-top: 8rpx; color: #18213d; font-size: 34rpx; font-weight: 800; }
+.workspace-header-subtitle { margin-top: 6rpx; color: #6f7892; font-size: 22rpx; line-height: 1.45; }
+.workspace-header-action { flex: 0 0 auto; min-width: 72rpx; min-height: 64rpx; margin-left: 16rpx; padding: 0 14rpx; color: #5b43c7; background: #f0ecff; font-size: 22rpx; }

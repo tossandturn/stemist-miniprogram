@@ -1,11 +1,15 @@
 const { signIn, currentUser } = require('../../utils/auth')
+const { deviceState, syncDevice } = require('../../utils/page')
 
 Page({
-  data: { mode: 'login', username: '', password: '', loading: false, error: '' },
+  data: deviceState({ mode: 'login', username: '', password: '', loading: false, error: '' }),
   onShow() {
+    syncDevice(this)
     const user = currentUser()
     if (user && user.username) this.setData({ username: user.username })
   },
+  onResize() { syncDevice(this) },
+  goBack() { wx.navigateBack() },
   onInput(e) { this.setData({ [e.currentTarget.dataset.field]: e.detail.value, error: '' }) },
   toggleMode() { this.setData({ mode: this.data.mode === 'login' ? 'register' : 'login', error: '' }) },
   async submit() {

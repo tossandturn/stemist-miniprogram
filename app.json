@@ -16,6 +16,7 @@
     "navigationBarTextStyle": "white",
     "backgroundColor": "#f5f7fb"
   },
+  "pageOrientation": "auto",
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

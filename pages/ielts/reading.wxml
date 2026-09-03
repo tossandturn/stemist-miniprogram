@@ -1,10 +1,12 @@
-<view class="page">
-  <view class="eyebrow">IELTS · Reading</view>
-  <view class="title">阅读练习</view>
-  <view class="subtitle">用文本框写下定位、判断和答案，再让 Coach 帮你复盘。</view>
-  <view class="field-label">你的答案 / 证据</view>
-  <textarea placeholder="输入题号、答案、原文定位和你的理由…" bindinput="onInput" />
-  <button class="primary" bindtap="submit" loading="{{loading}}">提交给 AI Coach</button>
-  <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+<view class="page {{deviceClass}} ielts-skill-page reading-page">
+  <stemist-header eyebrow="{{eyebrow}}" title="{{title}}" subtitle="{{subtitle}}" action-text="返回" bind:action="openBack" />
+  <view class="workspace-grid">
+    <view class="context-card skill-identity reading-identity">
+      <view class="context-card-title">Reading · 证据记录</view>
+      <view class="context-card-text">先写出定位和理由，再看 Coach 的诊断；不要只提交一个选项，让系统无法判断你的证据链。</view>
+      <view class="skill-tags"><text>Evidence</text><text>Location</text><text>Reasoning</text></view>
+    </view>
+    <text-practice text="{{text}}" answer="{{answer}}" loading="{{loading}}" error="{{error}}" placeholder="{{placeholder}}" submit-label="提交给 AI Coach" context-title="{{contextTitle}}" context-text="{{contextText}}" draft-status="{{draftStatus}}" bind:input="onInput" bind:submit="submit" bind:clear="clear" />
+  </view>
+  <view class="notice">{{isTablet ? 'iPad：上下文和文本工作区并列，适合边看题边写证据。' : '手机：单列输入，先记录证据再提交。'}}</view>
 </view>

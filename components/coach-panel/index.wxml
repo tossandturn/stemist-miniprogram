@@ -1,0 +1,13 @@
+<view class="coach-panel panel">
+  <view class="coach-panel-head">
+    <view class="ai-orb">✦</view>
+    <view>
+      <view class="coach-title">AI Coach</view>
+      <view class="coach-status">{{loading ? '正在分析…' : 'Evidence-led feedback'}}</view>
+    </view>
+  </view>
+  <textarea value="{{message}}" maxlength="1200" placeholder="{{placeholder}}" bindinput="onInput" />
+  <button class="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{disabled || loading}}">{{loading ? 'AI 正在分析…' : submitLabel}}</button>
+  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+  <view class="coach-helper">{{helper}}</view>
+</view>

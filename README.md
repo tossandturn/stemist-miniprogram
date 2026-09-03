@@ -2,6 +2,8 @@
 
 Photo-first WeChat Mini Program MVP for the unified IELTSist + STEM product.
 
+The product and interaction baseline is documented in [`docs/mini-program-product-design.md`](docs/mini-program-product-design.md). The mini program reuses the production products' Dashboard/Today, Practice, Account and AI Coach vocabulary instead of introducing a separate visual system.
+
 ## Product scope
 
 - STEM: one question per capture, rear camera only, crop before submit, AI Coach review.
@@ -10,6 +12,7 @@ Photo-first WeChat Mini Program MVP for the unified IELTSist + STEM product.
 - IELTS Speaking: opens the existing IELTSist Qwen speaking experience in `web-view`.
 - AI Coach remains available for STEM, Listening, Reading and Writing; Speaking keeps its dedicated realtime Qwen examiner instead of being forced through the text Coach.
 - No Apple Pencil in the Mini Program. Full PDF annotation and PencilKit remain in the iOS app.
+- Phone and iPad are explicit layouts: phone uses a single column and bottom navigation; iPad uses a wide top navigation and two-column workspaces with a portrait fallback.
 
 ## Run locally
 

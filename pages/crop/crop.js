@@ -1,6 +1,10 @@
+const { deviceState, syncDevice } = require('../../utils/page')
+
 Page({
-  data: { src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1 },
+  data: deviceState({ src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1 }),
   onLoad(options) { this.setData({ src: options.src ? decodeURIComponent(options.src) : '' }) },
+  onShow() { syncDevice(this) },
+  onResize() { syncDevice(this) },
   onMove(e) { this.setData({ x: e.detail.x, y: e.detail.y }) },
   onScale(e) { this.setData({ scale: e.detail.scale }) },
   confirm() {

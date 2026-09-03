@@ -1,5 +1,10 @@
+const { deviceState, syncDevice } = require('../../utils/page')
+
 Page({
-  data: { busy: false, error: '' },
+  data: deviceState({ busy: false, error: '' }),
+  onShow() { syncDevice(this) },
+  onResize() { syncDevice(this) },
+  goBack() { wx.navigateBack() },
   onLoad(options) {
     this.returnPage = options.returnPage === 'writing' ? 'writing' : 'stem'
   },

@@ -1,10 +1,12 @@
-<view class="page">
-  <view class="eyebrow">IELTS · Listening</view>
-  <view class="title">听力练习</view>
-  <view class="subtitle">听完题目后，用文本框记录答案和复盘。</view>
-  <view class="field-label">你的答案 / 复盘</view>
-  <textarea placeholder="输入题号、答案、听不清的片段和关键词…" bindinput="onInput" />
-  <button class="primary" bindtap="submit" loading="{{loading}}">提交给 AI Coach</button>
-  <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+<view class="page {{deviceClass}} ielts-skill-page listening-page">
+  <stemist-header eyebrow="{{eyebrow}}" title="{{title}}" subtitle="{{subtitle}}" action-text="返回" bind:action="openBack" />
+  <view class="workspace-grid">
+    <view class="context-card skill-identity listening-identity">
+      <view class="context-card-title">Listening · 文本记录</view>
+      <view class="context-card-text">保留 IELTSist 的分技能练习边界：这里不把听力音频伪装成图片题，也不把题型当作 Topic。</view>
+      <view class="skill-tags"><text>Answer</text><text>Trap</text><text>Review</text></view>
+    </view>
+    <text-practice text="{{text}}" answer="{{answer}}" loading="{{loading}}" error="{{error}}" placeholder="{{placeholder}}" submit-label="提交给 AI Coach" context-title="{{contextTitle}}" context-text="{{contextText}}" draft-status="{{draftStatus}}" bind:input="onInput" bind:submit="submit" bind:clear="clear" />
+  </view>
+  <view class="notice">{{isTablet ? 'iPad：左侧保留技能上下文，右侧固定文本工作区。' : '手机：单列输入，底部导航不会遮住键盘区域。'}}</view>
 </view>

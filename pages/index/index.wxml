@@ -1,26 +1,82 @@
-<view class="page">
-  <view class="eyebrow">IELTSist education</view>
-  <view class="title">Study clearly.<br/>Improve visibly.</view>
-  <view class="subtitle">STEM 一题一拍，IELTS 分技能练习。所有照片只在你主动提交后发送给 AI。</view>
+<view class="page home-page {{deviceClass}}">
+  <view class="topbar">
+    <view class="brand">
+      <view class="brand-mark">S</view>
+      <view>
+        <text class="brand-title">STEMist</text>
+        <text class="brand-subtitle">IELTSist learning studio</text>
+      </view>
+    </view>
+    <text class="topbar-status">AI online</text>
+  </view>
 
-  <view class="card">
-    <view class="card-title">STEM · Photo marking</view>
-    <view class="card-detail">拍一道题，裁剪题目或答案区域，交给 AI Coach 分析下一步。</view>
-    <button class="primary" bindtap="openStem">拍一题</button>
+  <view wx:if="{{isTablet}}" class="tablet-nav" aria-label="Tablet navigation">
+    <button class="tablet-nav-item {{activeTab === 'today' ? 'active' : ''}}" data-tab="today" bindtap="selectTab">Today</button>
+    <button class="tablet-nav-item {{activeTab === 'practice' ? 'active' : ''}}" data-tab="practice" bindtap="selectTab">Practice</button>
+    <button class="tablet-nav-item {{activeTab === 'coach' ? 'active' : ''}}" data-tab="coach" bindtap="selectTab">AI Coach</button>
+    <button class="tablet-nav-item {{activeTab === 'account' ? 'active' : ''}}" data-tab="account" bindtap="selectTab">Account</button>
+  </view>
+
+  <view class="hero-card">
+    <view class="eyebrow">TODAY · NEXT BEST ACTION</view>
+    <view class="title">Study clearly.<br/>Improve visibly.</view>
+    <view class="subtitle">沿用 IELTSist 的 Dashboard 逻辑：先做一个真实练习，再用 AI Coach 看证据、修正并重练。</view>
+    <view class="hero-actions">
+      <button class="primary" bindtap="openStem">拍一题 STEM</button>
+      <button class="secondary" bindtap="openCoach">打开 AI Coach</button>
+    </view>
+  </view>
+
+  <view class="metric-grid">
+    <view class="metric" wx:for="{{metrics}}" wx:key="label">
+      <text class="metric-label">{{item.label}}</text>
+      <text class="metric-value">{{item.value}}</text>
+      <text class="metric-detail">{{item.detail}}</text>
+    </view>
+  </view>
+
+  <view class="section-title">Continue learning</view>
+  <view class="card quick-card stem accent-stem">
+    <view class="section-kicker">STEM STUDIO · PHOTO WORKSPACE</view>
+    <view class="card-title">一题一拍，先看清再评分</view>
+    <view class="card-detail">后置摄像头拍摄完整题目、图表和答案；裁剪后交给 AI Coach，保留真实证据。</view>
+    <text class="card-meta">IGCSE · AS · A2 · Competition · Admissions</text>
+    <button class="secondary" bindtap="openStem">Start STEM practice</button>
+  </view>
+
+  <view class="section-title">IELTS-ist practice</view>
+  <view class="quick-grid">
+    <view class="card quick-card accent-{{item.accent}} {{item.accent}}" wx:for="{{ieltsCards}}" wx:key="id">
+      <view class="section-kicker">{{item.icon}} · IELTSist</view>
+      <view class="card-title">{{item.title}}</view>
+      <view class="card-detail">{{item.detail}}</view>
+      <text class="card-meta">{{item.meta}} · AI Coach</text>
+      <button class="secondary" data-id="{{item.id}}" bindtap="openIelts">开始练习</button>
+    </view>
+  </view>
+
+  <view class="section-title">AI Coach</view>
+  <view class="card ai-card">
+    <view class="ai-orb">✦</view>
+    <view class="ai-copy">
+      <view class="card-title">Evidence before advice</view>
+      <view class="card-detail">Coach 只使用当前题目、你的输入和已授权账号上下文；看不清或缺少证据时会明确要求补充，不伪造分数。</view>
+      <button class="secondary" bindtap="openCoach">选择一个 Coach 入口</button>
+    </view>
   </view>
 
   <view class="card account-card">
     <view class="card-title">{{user ? '已登录 · ' + user.username : '连接你的学习记录'}}</view>
-    <view class="card-detail">{{user ? '现在可以直接使用 STEM 和 IELTSist 的 AI Coach。' : '登录已有账号后，AI 评分和学习记录才能回到同一账户。'}}</view>
+    <view class="card-detail">{{user ? 'STEM 与 IELTSist 使用同一账号，练习记录按产品边界保存。' : '登录已有 IELTSist 账号后，AI 评分和学习记录才能回到同一账户。'}}</view>
     <button class="secondary" bindtap="openAccount">{{user ? '切换账号' : '登录 / 注册'}}</button>
   </view>
 
-  <view class="section-title">IELTS skills</view>
-  <view class="card" wx:for="{{ieltsCards}}" wx:key="id">
-    <view class="card-title">{{item.title}}</view>
-    <view class="card-detail">{{item.detail}}</view>
-    <button class="secondary" data-id="{{item.id}}" bindtap="openIelts">开始练习</button>
-  </view>
+  <view class="notice">手机使用单列和底部导航；iPad 使用宽屏导航与双列工作区。小程序不接 Apple Pencil，连续手写和 PDF 批注请使用 iOS App。</view>
 
-  <view class="notice">AI Coach 保留在 STEM、Listening、Reading、Writing 四条路径；Speaking 使用 IELTSist 千问口语。账号、题库和学习记录最终与 IELTSist 共用，客户端不保存模型密钥。</view>
+  <view wx:if="{{!isTablet}}" class="bottom-nav" aria-label="Phone navigation">
+    <button class="bottom-nav-item {{activeTab === 'today' ? 'active' : ''}}" data-tab="today" bindtap="selectTab"><text class="bottom-nav-icon">⌂</text>Today</button>
+    <button class="bottom-nav-item" data-tab="practice" bindtap="selectTab"><text class="bottom-nav-icon">✦</text>Practice</button>
+    <button class="bottom-nav-item" data-tab="coach" bindtap="selectTab"><text class="bottom-nav-icon">◈</text>AI Coach</button>
+    <button class="bottom-nav-item" data-tab="account" bindtap="selectTab"><text class="bottom-nav-icon">○</text>Account</button>
+  </view>
 </view>

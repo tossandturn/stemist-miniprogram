@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "coach-panel": "/components/coach-panel/index"
+  }
+}

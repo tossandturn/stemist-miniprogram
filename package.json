@@ -2,5 +2,8 @@
   "name": "stemist-miniprogram",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node scripts/test-contract.mjs" }
+  "scripts": {
+    "test": "node scripts/test-contract.mjs",
+    "test:wechat": "node scripts/test-wechat-compile.mjs"
+  }
 }

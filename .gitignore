@@ -5,3 +5,4 @@ node_modules/
 .env.*
 !.env.example
 miniprogram_npm/
+project.private.config.json

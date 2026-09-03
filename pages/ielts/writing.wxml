@@ -1,12 +1,19 @@
-<view class="page">
-  <view class="eyebrow">IELTS · Writing</view>
-  <view class="title">写作练习</view>
-  <view class="subtitle">可以直接打字，也可以拍照上传手写作文。</view>
-  <view class="field-label">作文内容</view>
-  <textarea value="{{text}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" bindinput="onInput" />
-  <button class="primary" bindtap="submit" loading="{{loading}}">提交文字给 AI 评分</button>
-  <button class="secondary" bindtap="takePhoto">拍照上传手写作文</button>
-  <image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" />
+<view class="page {{deviceClass}} ielts-skill-page writing-page">
+  <stemist-header eyebrow="IELTSIST · WRITING WITH AI" title="Writing with AI" subtitle="Prompt → draft → four-criteria feedback" action-text="返回" bind:action="openBack" />
+  <view class="workspace-grid">
+    <view class="context-card skill-identity writing-identity">
+      <view class="context-card-title">Writing · 选择输入方式</view>
+      <view class="context-card-text">沿用 IELTSist 的独立 Task 练习：先选 Task 1 / Task 2，再打字或拍一张手写作文；照片只在提交时读取。</view>
+      <view class="task-switcher">
+        <button class="task-chip {{taskType === 'Task 1' ? 'active' : ''}}" data-task="Task 1" bindtap="chooseTask">Task 1</button>
+        <button class="task-chip {{taskType === 'Task 2' ? 'active' : ''}}" data-task="Task 2" bindtap="chooseTask">Task 2</button>
+      </view>
+      <button class="secondary photo-button" bindtap="takePhoto">{{photoPath ? '重新拍照' : '拍照上传手写作文'}}</button>
+      <image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" />
+    </view>
+    <coach-panel message="{{text}}" answer="{{answer}}" loading="{{loading}}" submit-label="提交并获取评分" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="AI Coach 会按 Task 成功度、Coherence & Cohesion、Lexical Resource、Grammar 给出可追溯反馈。" bind:input="onInput" bind:submit="submit" />
+  </view>
+  <button class="text-button" bindtap="clear" disabled="{{loading}}">清空当前作文和照片</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+  <view class="notice">{{isTablet ? 'iPad：左侧任务与照片证据，右侧编辑和 Coach 结果。' : '手机：输入、拍照和提交按单列顺序完成，键盘不会覆盖提交按钮。'}}</view>
 </view>

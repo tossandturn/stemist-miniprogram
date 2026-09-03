@@ -1,1 +1,8 @@
-.photo-preview { width: 100%; height: 420rpx; margin-top: 24rpx; background: #e9edf5; border-radius: 20rpx; }
+.writing-identity { border-left-color: #f19a3e; }
+.task-switcher { display: flex; margin-top: 18rpx; }
+.task-chip { flex: 1; min-height: 70rpx; margin-right: 10rpx; padding: 0 14rpx; border: 1rpx solid #e4e7f0; color: #6f7892; background: #fff; font-size: 23rpx; font-weight: 750; }
+.task-chip:last-child { margin-right: 0; }
+.task-chip.active { border-color: #f19a3e; color: #a95c12; background: #fff4e6; }
+.photo-button { margin-top: 18rpx; }
+.writing-page .photo-preview { height: 300rpx; }
+.writing-page .text-button { display: block; margin: 18rpx auto 0; }

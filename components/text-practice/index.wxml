@@ -1,0 +1,13 @@
+<view class="text-practice">
+  <view class="context-card">
+    <view class="context-card-title">{{contextTitle}}</view>
+    <view wx:if="{{contextText}}" class="context-card-text">{{contextText}}</view>
+  </view>
+  <view class="field-label">文本答案 / 复盘</view>
+  <textarea value="{{text}}" maxlength="6000" placeholder="{{placeholder}}" bindinput="onInput" />
+  <view class="text-practice-meta"><text>{{draftStatus}}</text><text>{{text.length}} 字符</text></view>
+  <button class="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{loading || !text}}">{{loading ? 'AI 正在分析…' : submitLabel}}</button>
+  <button class="secondary" bindtap="onClear" disabled="{{loading}}">清空当前记录</button>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+</view>

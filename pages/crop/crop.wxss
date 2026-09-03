@@ -1,6 +1,7 @@
-.crop-page { padding-left: 24rpx; padding-right: 24rpx; }
-.crop-stage { position: relative; width: 100%; height: 760rpx; margin-top: 30rpx; overflow: hidden; background: #11182b; border-radius: 24rpx; }
-.crop-content { width: 100%; height: 100%; }
-.crop-image { width: 100%; height: 100%; }
-.crop-box { position: absolute; left: 8%; top: 14%; width: 84%; height: 72%; border: 4rpx solid #fff; border-radius: 12rpx; box-shadow: 0 0 0 9999rpx rgba(0,0,0,.42); pointer-events: none; }
-.hidden-canvas { position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; }
+.crop-intro { margin-top: 0; }
+.crop-hint { margin-top: 14rpx; color: #6f7892; font-size: 22rpx; line-height: 1.45; }
+.crop-page .primary { margin-top: 22rpx; }
+@media (min-width: 768px) {
+  .crop-page .crop-stage { max-width: 1120rpx; margin-left: auto; margin-right: auto; }
+  .crop-page .crop-hint { max-width: 1120rpx; margin-left: auto; margin-right: auto; }
+}

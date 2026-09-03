@@ -1,1 +1,4 @@
-.page { padding-top: 42rpx; }
+.listening-identity { border-left-color: #7657e8; }
+.skill-tags { display: flex; flex-wrap: wrap; margin-top: 16rpx; }
+.skill-tags text { margin: 0 10rpx 8rpx 0; padding: 8rpx 14rpx; border-radius: 20rpx; color: #5b43c7; background: #f0ecff; font-size: 20rpx; font-weight: 700; }
+.ielts-skill-page .notice { margin-top: 22rpx; }

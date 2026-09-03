@@ -1,2 +1,8 @@
-.camera-card { text-align: center; padding-top: 64rpx; }
-.camera-icon { width: 128rpx; height: 128rpx; margin: 0 auto 28rpx; color: #6d5ce7; background: #eeebff; border-radius: 50%; font-size: 84rpx; line-height: 110rpx; }
+.capture-intro { margin-top: 0; }
+.capture-page .camera-card { margin-top: 24rpx; }
+.capture-page .tablet-capture-guide { border-left-color: #7357e8; }
+.capture-page .phone-capture-guide { border-left-color: #3a9d85; }
+@media (min-width: 768px) {
+  .capture-page .camera-card { max-width: 860rpx; margin-left: auto; margin-right: auto; padding: 58rpx 80rpx; }
+  .capture-page .camera-card .primary { max-width: 520rpx; margin-left: auto; margin-right: auto; }
+}

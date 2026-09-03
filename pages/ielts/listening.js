@@ -1,2 +1,13 @@
-const { askCoach } = require('../../utils/api')
-Page({ data: { text: '', loading: false, error: '', answer: '' }, onInput(e) { this.setData({ text: e.detail.value, error: '' }) }, async submit() { if (!this.data.text.trim()) return this.setData({ error: '请先输入答案或复盘内容' }); this.setData({ loading: true, error: '', answer: '' }); try { const r = await askCoach({ message: `请根据我的 IELTS Listening 文本答案给出纠错和下一步练习建议。\n\n学生记录：\n${this.data.text.trim()}`, context: { product: 'IELTSist', skill: 'listening', inputMode: 'text' }, imageDataUrls: [] }); this.setData({ answer: r.answer || r.message || 'AI 返回了空结果' }) } catch (e) { this.setData({ error: e.message || 'AI 请求失败，请稍后重试' }) } finally { this.setData({ loading: false }) } } })
+const { makeTextSkillPage } = require('../../utils/skillPage')
+
+Page(makeTextSkillPage({
+  skill: 'listening',
+  eyebrow: 'IELTSIST · LISTENING WITH AI',
+  title: 'Listening with AI',
+  subtitle: 'Answer record → trap diagnosis → next practice',
+  contextTitle: 'Listening workspace',
+  contextText: '听完 Cambridge 音频后，在这里记录题号、答案、听不清的片段和关键词。小程序保留文本工作区；音频与完整题库仍以 IELTSist 为准。',
+  placeholder: '例如：Q12 C；不确定单复数；Section 3 speaker changed topic…',
+  emptyError: '请先输入答案或复盘内容',
+  prompt: (text) => `请根据我的 IELTS Listening 文本答案给出纠错和下一步练习建议。\n\n学生记录：\n${text}`,
+}))
