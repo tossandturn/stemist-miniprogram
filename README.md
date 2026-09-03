@@ -20,7 +20,7 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 2. Import this directory.
 3. Replace `appid` in `project.config.json` with your Mini Program app ID.
 4. Configure `stem.ieltsist.com` as a business/server domain and enable HTTPS checks before release.
-5. Run `npm test` for the repository contract check.
+5. Run `npm test`, `npm run test:device`, and `npm run test:pages` for the repository contracts. On Windows with WeChat Developer Tools installed, run `npm run test:wechat` to compile every WXML/WXSS file with the installed compiler.
 
 The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint. The MVP includes an account screen that uses the existing `/api/auth/login` and `/api/auth/register` contract and stores only the short-lived `accessToken` in `stemistSessionToken`. A production WeChat release should replace or augment this with a server-side `wx.login` exchange and never send `session_key` to the client.
 
