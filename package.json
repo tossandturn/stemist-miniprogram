@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node scripts/test-contract.mjs",
     "test:device": "node scripts/test-device-profile.mjs",
+    "test:crop": "node scripts/test-crop-math.mjs",
     "test:image": "node scripts/test-image-pipeline.mjs",
     "test:pages": "node scripts/test-page-contract.mjs",
     "test:wechat": "node scripts/test-wechat-compile.mjs"
