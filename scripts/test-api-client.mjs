@@ -35,12 +35,18 @@ vm.runInNewContext(source, {
   Object,
 })
 
-const { getJson, requestJson } = module.exports
+const { askCoach, getJson, requestJson } = module.exports
 assert.deepEqual(await getJson('/api/stem/routes/demo/syllabus-topics'), { ok: true })
 assert.equal(requestOptions.method, 'GET')
 assert.equal(requestOptions.data, undefined)
 assert.equal(requestOptions.header.Authorization, 'Bearer short-lived-test-token')
 assert.equal(requestOptions.header['Content-Type'], undefined)
+
+response = { statusCode: 200, data: { ok: true } }
+await askCoach({ message: 'text', context: {}, imageDataUrls: [] })
+assert.equal(requestOptions.timeout, 55000)
+await askCoach({ message: 'photo', context: {}, imageDataUrls: ['data:image/jpeg;base64,ZmFrZQ=='] })
+assert.equal(requestOptions.timeout, 60000)
 
 response = { statusCode: 401, data: { error: 'expired' } }
 await assert.rejects(() => requestJson('/api/ai/coach', { message: 'x' }), /登录已过期/)

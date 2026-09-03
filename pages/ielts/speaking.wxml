@@ -1,4 +1,4 @@
-<view class="page {{deviceClass}} speaking-page">
+<view class="page {{deviceClass}} {{orientation}} speaking-page">
   <stemist-header eyebrow="IELTSIST · SPEAKING WITH AI" title="Speaking with AI" subtitle="Realtime Qwen examiner · transcript · score · retest" action-text="返回" bind:action="openBack" />
   <view class="context-card speaking-context">
     <view class="context-card-title">原生 IELTSist 口语体验</view>

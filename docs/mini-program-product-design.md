@@ -113,6 +113,8 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 
 客户端永远不放 GPT、Qwen 或其他 provider key。401 清理短期令牌并提示重新登录；超时、空结果、图片过大均进入可重试失败态。Coach 返回 `local` / `offline` 时显示非 AI 警示；只有 `mode=ai` 且 `providerStatus=connected` 才显示 AI 已连接，任何状态都不宣称官方分数。
 
+客户端请求预算与服务端视觉预算对齐：文本 Coach 最多等待 55 秒，含照片的 Coach 最多等待 60 秒；这不是无限重试，超时后仍保留原始照片和可重试入口。
+
 ## 6. 账号与草稿
 
 - 当前 MVP 用已有 `/api/auth/login`、`/api/auth/register` 获取短期 `accessToken`，只存 `stemistSessionToken`。

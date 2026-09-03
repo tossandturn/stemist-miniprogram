@@ -1,4 +1,4 @@
-<view class="page {{deviceClass}} account-page">
+<view class="page {{deviceClass}} {{orientation}} account-page">
   <stemist-header eyebrow="STEMIST · ACCOUNT" title="{{mode === 'login' ? '登录 Stemist' : '创建账号'}}" subtitle="Same IELTSist ID · records stay separate" action-text="返回" bind:action="goBack" />
   <view class="account-layout">
     <view class="context-card account-context">

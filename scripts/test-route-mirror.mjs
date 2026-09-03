@@ -10,7 +10,8 @@ if (!fs.existsSync(stemRoutePath)) {
   process.exit(0)
 }
 
-const sourceIds = [...fs.readFileSync(stemRoutePath, 'utf8').matchAll(/routeId:\s*'([^']+)'/g)].map((match) => match[1])
-const miniIds = [...fs.readFileSync(path.join(miniRoot, 'utils', 'stemRoutes.js'), 'utf8').matchAll(/routeId:\s*'([^']+)'/g)].map((match) => match[1])
+const routeIdPattern = /routeId:\s*['"]([^'"]+)['"]/g
+const sourceIds = [...fs.readFileSync(stemRoutePath, 'utf8').matchAll(routeIdPattern)].map((match) => match[1])
+const miniIds = [...fs.readFileSync(path.join(miniRoot, 'utils', 'stemRoutes.js'), 'utf8').matchAll(routeIdPattern)].map((match) => match[1])
 assert.deepEqual([...new Set(miniIds)].sort(), [...new Set(sourceIds)].sort(), 'Mini Program route mirror must match STEM route registry')
 console.log(`STEM route mirror passed (${sourceIds.length} routes).`)

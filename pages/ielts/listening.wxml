@@ -1,4 +1,4 @@
-<view class="page {{deviceClass}} ielts-skill-page listening-page">
+<view class="page {{deviceClass}} {{orientation}} ielts-skill-page listening-page">
   <stemist-header eyebrow="{{eyebrow}}" title="{{title}}" subtitle="{{subtitle}}" action-text="返回" bind:action="openBack" />
   <view class="workspace-grid">
     <view class="context-card skill-identity listening-identity">

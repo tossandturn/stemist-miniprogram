@@ -1,4 +1,4 @@
-<view class="page {{deviceClass}} capture-page">
+<view class="page {{deviceClass}} {{orientation}} capture-page">
   <stemist-header eyebrow="{{isWriting ? 'IELTSIST · WRITING PHOTO' : 'STEM STUDIO · PRACTICE'}}" title="{{isWriting ? '拍照上传作文' : '拍一题'}}" subtitle="{{isWriting ? 'One page · handwriting evidence' : 'One question · one evidence set'}}" action-text="返回" bind:action="goBack" />
   <view class="subtitle capture-intro">{{isWriting ? '拍一页清晰的手写作文，裁剪后交给 IELTSist AI Coach。' : '每次只处理一道题。先选择准确的学科和阶段，再拍照、裁剪并交给 AI Coach。'}}</view>
 

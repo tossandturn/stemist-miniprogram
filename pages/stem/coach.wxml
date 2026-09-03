@@ -1,4 +1,4 @@
-<view class="page {{deviceClass}} coach-page">
+<view class="page {{deviceClass}} {{orientation}} coach-page">
   <stemist-header eyebrow="STEM STUDIO · AI COACH" title="检查这道题" subtitle="Question evidence → diagnosis → next action" action-text="重拍" bind:action="retake" />
   <view class="route-pill">{{contextLabel}}</view>
   <view class="workspace-grid">

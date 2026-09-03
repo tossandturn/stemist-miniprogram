@@ -1,4 +1,4 @@
-<view class="page {{deviceClass}} privacy-page">
+<view class="page {{deviceClass}} {{orientation}} privacy-page">
   <stemist-header eyebrow="STEMIST · PRIVACY" title="隐私说明" subtitle="What this Mini Program reads and sends" action-text="返回" bind:action="goBack" />
   <view class="panel privacy-panel">
     <view class="section-title">相机与照片</view>

@@ -5,6 +5,9 @@ function baseUrl() {
   return String((app && app.globalData && app.globalData.apiBaseUrl) || 'https://stem.ieltsist.com').replace(/\/+$/, '')
 }
 
+const COACH_TEXT_TIMEOUT_MS = 55_000
+const COACH_IMAGE_TIMEOUT_MS = 60_000
+
 function safeErrorMessage(payload, statusCode) {
   const message = String((payload && (payload.error || payload.message)) || '').trim()
   if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
@@ -52,7 +55,10 @@ function getJson(path, { timeout = 8000 } = {}) {
 }
 
 function askCoach({ message, context = {}, imageDataUrls = [] }) {
-  return requestJson('/api/ai/coach', { message, context, imageDataUrls })
+  const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
+  return requestJson('/api/ai/coach', { message, context, imageDataUrls: images }, {
+    timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
+  })
 }
 
-module.exports = { askCoach, getJson, requestJson, safeErrorMessage }
+module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, askCoach, getJson, requestJson, safeErrorMessage }

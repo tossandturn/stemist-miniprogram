@@ -23,7 +23,7 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 4. Configure `stem.ieltsist.com` as a business/server domain and enable HTTPS checks before release.
 5. Run `npm run test:all` for the full local contract suite. When the sibling STEM checkout is present, `npm run test:route-mirror` compares every client route ID with `src/data/routeRegistry.js`. On Windows with WeChat Developer Tools installed, `npm run test:wechat` compiles every WXML/WXSS file with the installed compiler.
 
-The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint and the read-only syllabus inventory endpoint. The MVP includes an account screen that uses the existing `/api/auth/login` and `/api/auth/register` contract and stores only the short-lived `accessToken` in `stemistSessionToken`. A production WeChat release should replace or augment this with a server-side `wx.login` exchange and never send `session_key` to the client.
+The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint and the read-only syllabus inventory endpoint; text and photo requests use bounded 55s/60s client budgets aligned with the server. The MVP includes an account screen that uses the existing `/api/auth/login` and `/api/auth/register` contract and stores only the short-lived `accessToken` in `stemistSessionToken`. A production WeChat release should replace or augment this with a server-side `wx.login` exchange and never send `session_key` to the client.
 
 ### Optional simulator automation
 

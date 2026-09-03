@@ -171,3 +171,51 @@ textarea { min-height: 300rpx; }
   .loop-step { margin-bottom: 14rpx; }
   .loop-step:not(:last-child)::after { display: none; }
 }
+
+/* Device classification wins over viewport width. This matters for a
+   landscape iPhone (wide CSS viewport) and an iPad mini in portrait (narrow
+   CSS viewport): neither should silently inherit the other device's chrome. */
+.page.device-phone {
+  max-width: none;
+  margin: 0;
+  padding: 28rpx 32rpx calc(154rpx + env(safe-area-inset-bottom));
+}
+.page.device-phone .title { font-size: 54rpx; letter-spacing: -.5rpx; }
+.page.device-phone .subtitle { max-width: none; font-size: 27rpx; }
+.page.device-phone .card, .page.device-phone .panel { padding: 28rpx; border-radius: 18rpx; }
+.page.device-phone .card-title { font-size: 31rpx; }
+.page.device-phone .card-detail { font-size: 24rpx; }
+.page.device-phone .primary, .page.device-phone .secondary { min-height: 88rpx; padding: 0 24rpx; font-size: 28rpx; }
+.page.device-phone .tablet-nav { display: none; }
+.page.device-phone .bottom-nav { display: grid; }
+.page.device-phone .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page.device-phone .quick-grid { grid-template-columns: 1fr; }
+.page.device-phone .workspace-grid { display: block; }
+.page.device-phone .workspace-grid > .panel { position: static; }
+.page.device-phone .photo-preview { height: 460rpx; }
+.page.device-phone .crop-stage { height: 650rpx; }
+
+.page.device-tablet {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px 48px calc(48px + env(safe-area-inset-bottom));
+}
+.page.device-tablet .title { font-size: 48px; letter-spacing: 0; }
+.page.device-tablet .subtitle { max-width: 760px; font-size: 16px; }
+.page.device-tablet .card, .page.device-tablet .panel { padding: 24px; border-radius: 12px; }
+.page.device-tablet .card-title { font-size: 22px; }
+.page.device-tablet .card-detail { font-size: 14px; }
+.page.device-tablet .primary, .page.device-tablet .secondary { min-height: 48px; padding: 0 18px; font-size: 16px; }
+.page.device-tablet .tablet-nav { display: grid; }
+.page.device-tablet .bottom-nav { display: none; }
+.page.device-tablet .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.page.device-tablet .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page.device-tablet .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(360rpx, .9fr); align-items: start; margin: 0 -10rpx; }
+.page.device-tablet .workspace-grid > .context-card, .page.device-tablet .workspace-grid > .panel { margin: 12rpx 10rpx 0; }
+.page.device-tablet .workspace-grid > .panel { position: sticky; top: 18rpx; }
+.page.device-tablet .photo-preview { height: 420px; }
+.page.device-tablet .crop-stage { height: 600px; }
+.page.device-tablet .crop-page .primary, .page.device-tablet .crop-page .secondary { max-width: 620rpx; margin-left: auto; margin-right: auto; }
+.page.device-tablet.portrait { padding-left: 48rpx; padding-right: 48rpx; }
+.page.device-tablet.portrait .workspace-grid { display: block; }
+.page.device-tablet.portrait .workspace-grid > .panel { position: static; }
