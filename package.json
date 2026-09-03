@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node scripts/test-contract.mjs",
+    "test:device": "node scripts/test-device-profile.mjs",
     "test:wechat": "node scripts/test-wechat-compile.mjs"
   }
 }
