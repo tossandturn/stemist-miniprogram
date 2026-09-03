@@ -24,6 +24,18 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 
 The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint. The MVP includes an account screen that uses the existing `/api/auth/login` and `/api/auth/register` contract and stores only the short-lived `accessToken` in `stemistSessionToken`. A production WeChat release should replace or augment this with a server-side `wx.login` exchange and never send `session_key` to the client.
 
+### Optional simulator automation
+
+The installed WeChat Developer Tools includes a local `wechatide` automation CLI. After allowing the `Codex` client in the Developer Tools security/CLI prompt, the simulator can be refreshed and inspected without changing the project files:
+
+```powershell
+D:\微信web开发者工具\wechatide.cmd auth -c Codex
+D:\微信web开发者工具\wechatide.cmd -c Codex simulator_refresh --project D:\CodexWork\stemist-miniprogram
+D:\微信web开发者工具\wechatide.cmd -c Codex simulator_screenshot --project D:\CodexWork\stemist-miniprogram --path $env:TEMP\stemist-simulator.jpg
+```
+
+If CLI authorization is not enabled, use the Developer Tools Compile button; the repository's `test:wechat` command still validates every template and stylesheet locally.
+
 ## Photo pipeline
 
 `wx.chooseMedia` captures exactly one image. The crop page exports a bounded JPEG. The Coach page converts it to a JPEG data URL only at submit time, sends it to the server, and renders explicit loading/error/retry states. The server remains responsible for provider credentials, image limits, provenance and AI scoring.
