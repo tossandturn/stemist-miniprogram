@@ -1,4 +1,5 @@
 {
+  "navigationBarTitleText": "STEM Studio · Practice",
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index"
   }

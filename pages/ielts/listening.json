@@ -1,4 +1,5 @@
 {
+  "navigationBarTitleText": "IELTSist · Listening",
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index",
     "text-practice": "/components/text-practice/index"

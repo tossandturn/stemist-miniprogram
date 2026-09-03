@@ -13,6 +13,7 @@ for (const page of app.pages) {
   const jsonPath = path.join(root, `${page}.json`)
   if (!fs.existsSync(jsonPath)) continue
   const config = JSON.parse(fs.readFileSync(jsonPath, 'utf8'))
+  if (config.usingComponents) assert.equal(typeof config.navigationBarTitleText, 'string', `${page} needs a meaningful native navigation title`)
   for (const [tag, componentPath] of Object.entries(config.usingComponents || {})) {
     const expectedDirectory = path.basename(String(componentPath).replace(/\/index$/, ''))
     assert.equal(componentFiles.has(expectedDirectory), true, `${page} references missing component ${tag}`)

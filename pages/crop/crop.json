@@ -1,4 +1,5 @@
 {
+  "navigationBarTitleText": "Stemist · Crop evidence",
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index"
   }
