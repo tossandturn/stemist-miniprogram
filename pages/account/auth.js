@@ -5,7 +5,7 @@ Page({
   data: deviceState({ mode: 'login', username: '', password: '', loading: false, error: '', user: null }),
   onShow() {
     syncDevice(this)
-    const user = currentUser()
+    const user = wx.getStorageSync('stemistSessionToken') ? currentUser() : null
     this.setData({ user: user || null })
     if (user && user.username) this.setData({ username: user.username })
   },

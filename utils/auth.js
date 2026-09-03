@@ -18,7 +18,12 @@ async function signIn(username, password, mode = 'login') {
 function currentUser() { return wx.getStorageSync('stemistUser') || null }
 
 function signOut() {
+  const hasToken = Boolean(wx.getStorageSync('stemistSessionToken'))
+  const remoteLogout = hasToken
+    ? requestJson('/api/auth/logout', {}, { timeout: 5000 }).catch(() => ({ offline: true }))
+    : Promise.resolve({ skipped: 'not_authenticated' })
   clearLocalSession()
+  return remoteLogout
 }
 
 module.exports = { signIn, currentUser, signOut }

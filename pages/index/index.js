@@ -28,13 +28,14 @@ Page({
 
   onShow() {
     syncDevice(this)
-    const user = wx.getStorageSync('stemistUser') || null
+    const token = wx.getStorageSync('stemistSessionToken')
+    const user = token ? (wx.getStorageSync('stemistUser') || null) : null
     const drafts = ['listening', 'reading', 'writing'].reduce((count, key) => count + (wx.getStorageSync(`stemistDraft:${key}`) ? 1 : 0), 0)
-    const submissions = ['stem-photo', 'writing', 'listening', 'reading'].map((key) => wx.getStorageSync(`stemistSubmission:${key}`)).filter(Boolean)
+    const submissions = token ? ['stem-photo', 'writing', 'listening', 'reading'].map((key) => wx.getStorageSync(`stemistSubmission:${key}`)).filter(Boolean) : []
     const recentActivity = submissions.sort((a, b) => Number(b.submittedAt || 0) - Number(a.submittedAt || 0))[0] || null
     const weekStart = Date.now() - 7 * 24 * 60 * 60 * 1000
     const completedThisWeek = submissions.filter((item) => Number(item.submittedAt || 0) >= weekStart).length
-    const coachStatus = wx.getStorageSync('stemistSessionToken') ? 'Ready' : 'Sign in'
+    const coachStatus = token ? 'Ready' : 'Sign in'
     const loopSteps = recentActivity
       ? [
         { label: 'Discover', detail: '路线已选择', state: 'ready' },
@@ -50,7 +51,7 @@ Page({
       ]
     this.setData({
       user,
-      aiStatus: wx.getStorageSync('stemistSessionToken') ? 'Coach ready' : 'Sign in for AI',
+      aiStatus: token ? 'Coach ready' : 'Sign in for AI',
       recentActivity,
       loopSteps,
       'metrics[0].value': String(completedThisWeek),

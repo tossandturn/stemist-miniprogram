@@ -29,7 +29,13 @@ Page({
     scheduleDraft(this, 'writing', { text: this.data.text, prompt, taskType: this.data.taskType })
   },
   chooseTask(event) { this.setData({ taskType: event.currentTarget.dataset.task, error: '' }) },
-  takePhoto() { wx.navigateTo({ url: '/pages/stem/capture?returnPage=writing' }) },
+  takePhoto() {
+    if (this.data.loading) return
+    wx.navigateTo({
+      url: '/pages/stem/capture?returnPage=writing',
+      fail: (error) => this.setData({ error: error.errMsg || '无法打开拍照页，请重试' }),
+    })
+  },
   async submit() {
     const text = this.data.text.trim()
     if (this.data.loading) return
@@ -54,6 +60,7 @@ Page({
   clear() {
     if (this.data.loading) return
     clearDraft('writing')
+    wx.removeStorageSync('stemistWritingPhoto')
     this.setData({ text: '', prompt: '', photoPath: '', answer: '', error: '', draftStatus: '已清空 · 自动保存已开启' })
   },
   openBack() { wx.navigateBack() },
