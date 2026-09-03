@@ -14,6 +14,7 @@ function load(profile) {
 }
 
 assert.equal(load({ windowWidth: 390, screenWidth: 390, deviceType: 'phone', model: 'iPhone' }).isTablet, false)
+assert.equal(load({ windowWidth: 844, screenWidth: 844, deviceType: 'phone', model: 'iPhone 15 landscape' }).isTablet, false)
 assert.equal(load({ windowWidth: 820, screenWidth: 820, deviceType: 'tablet', model: 'iPad' }).isTablet, true)
 assert.equal(load({ windowWidth: 1024, screenWidth: 1024, deviceType: 'unknown', model: 'desktop simulator' }).isTablet, true)
 console.log('Phone/iPad device profile checks passed.')

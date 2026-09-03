@@ -3,7 +3,8 @@ function readDeviceProfile() {
   const width = Number(info.windowWidth || info.screenWidth || 375)
   const model = String(info.model || '')
   const deviceType = String(info.deviceType || '').toLowerCase()
-  const isTablet = deviceType === 'tablet' || /ipad/i.test(model) || width >= 768
+  const knownPhone = deviceType === 'phone' || /iphone|android|pixel|mobile/i.test(model)
+  const isTablet = deviceType === 'tablet' || /ipad/i.test(model) || (!knownPhone && width >= 768)
   return {
     kind: isTablet ? 'tablet' : 'phone',
     isTablet,
