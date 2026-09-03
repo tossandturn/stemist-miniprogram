@@ -52,6 +52,21 @@ Page({
     this.setData({ stage, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', canCapture: Boolean(routes.length), error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' })
   },
   chooseRoute(event) { this.setData({ routeId: event.currentTarget.dataset.route, canCapture: true, error: '' }) },
+  cameraFailure(error) {
+    const raw = String(error && error.errMsg || '')
+    if (/auth deny|permission|authorize/i.test(raw)) {
+      wx.showModal({
+        title: '需要相机权限',
+        content: '请在系统设置中允许 Stemist 使用相机，然后回来重试。',
+        confirmText: '去设置',
+        cancelText: '稍后',
+        success: ({ confirm }) => { if (confirm && wx.openSetting) wx.openSetting({}) },
+      })
+      this.setData({ error: '相机权限未开启，请允许后重试。' })
+      return
+    }
+    this.setData({ error: '相机暂时无法打开，请重试。' })
+  },
   captureContext() {
     if (this.data.isWriting) return { product: 'IELTSist', skill: 'writing', mode: 'photo', stage: 'practice' }
     const routes = routesForSubjectStage(this.data.subjectCode, this.data.stage)
@@ -94,7 +109,7 @@ Page({
           fail: (error) => this.setData({ error: error.errMsg || '无法打开裁剪页，请重试' }),
         })
       },
-      fail: (error) => this.setData({ error: error.errMsg || '相机打开失败，请检查相机权限' }),
+      fail: (error) => this.cameraFailure(error),
       complete: () => this.setData({ busy: false }),
     })
   },
