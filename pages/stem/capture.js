@@ -26,6 +26,7 @@ Page({
     stage: 'AS',
     routeId: 'cie-9702-as-physics',
     routeOptions: routesForSubjectStage('9702', 'AS'),
+    canCapture: true,
     subjects: SUBJECTS,
     stages: STAGES,
   }),
@@ -42,15 +43,15 @@ Page({
     const subject = SUBJECTS.find((item) => item.code === code)
     if (subject) {
       const routes = routesForSubjectStage(subject.code, this.data.stage)
-      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', error: '' })
+      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', canCapture: Boolean(routes.length), error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' })
     }
   },
   chooseStage(event) {
     const stage = event.currentTarget.dataset.stage
     const routes = routesForSubjectStage(this.data.subjectCode, stage)
-    this.setData({ stage, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', error: '' })
+    this.setData({ stage, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', canCapture: Boolean(routes.length), error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' })
   },
-  chooseRoute(event) { this.setData({ routeId: event.currentTarget.dataset.route, error: '' }) },
+  chooseRoute(event) { this.setData({ routeId: event.currentTarget.dataset.route, canCapture: true, error: '' }) },
   captureContext() {
     if (this.data.isWriting) return { product: 'IELTSist', skill: 'writing', mode: 'photo', stage: 'practice' }
     const routes = routesForSubjectStage(this.data.subjectCode, this.data.stage)
@@ -70,6 +71,10 @@ Page({
   },
   takePhoto() {
     if (this.data.busy) return
+    if (!this.data.isWriting && (!this.data.routeId || !this.data.canCapture)) {
+      this.setData({ error: '请先选择一个有效的 STEM 学科、阶段和路线。' })
+      return
+    }
     this.setData({ busy: true, error: '' })
     wx.chooseMedia({
       count: 1,
