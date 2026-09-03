@@ -1,4 +1,4 @@
-const { askCoach } = require('./api')
+const { runCoach } = require('./coach')
 const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDraft } = require('./page')
 
 function makeTextSkillPage(config) {
@@ -40,12 +40,12 @@ function makeTextSkillPage(config) {
       if (!text) return this.setData({ error: config.emptyError || '请先输入内容' })
       this.setData({ loading: true, error: '', answer: '' })
       try {
-        const result = await askCoach({
+        const result = await runCoach({
           message: config.prompt(text),
           context: { product: 'IELTSist', skill: scope, inputMode: 'text', stage: 'practice', source: 'stemist-miniprogram' },
           imageDataUrls: [],
         })
-        const answer = result.answer || result.message || 'AI 返回了空结果，请重试。'
+        const answer = result.answer || 'AI 返回了空结果，请重试。'
         wx.setStorageSync(`stemistSubmission:${scope}`, { text, answer, submittedAt: Date.now() })
         clearDraft(scope)
         this.setData({ answer, draftStatus: '已提交 · 可继续追问' })

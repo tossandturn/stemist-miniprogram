@@ -1,5 +1,5 @@
 const { readAsJpegDataUrl } = require('../../utils/image')
-const { askCoach } = require('../../utils/api')
+const { runCoach } = require('../../utils/coach')
 const { deviceState, syncDevice } = require('../../utils/page')
 
 Page({
@@ -21,12 +21,12 @@ Page({
     this.setData({ loading: true, error: '', answer: '' })
     try {
       const dataUrl = await readAsJpegDataUrl(this.data.imagePath)
-      const result = await askCoach({
+      const result = await runCoach({
         message: this.data.message.trim() || '请阅读这道 STEM 题和我的答案，指出第一处问题，并给出一个下一步提示。',
         imageDataUrls: [dataUrl],
         context: { ...this.data.context, stage: this.data.context.stage || 'practice' },
       })
-      const answer = result.answer || result.message || 'AI 返回了空结果，请重试。'
+      const answer = result.answer || 'AI 返回了空结果，请重试。'
       wx.setStorageSync('stemistSubmission:stem-photo', { skill: 'STEM AI Coach', routeId: this.data.context.routeId || '', answer, submittedAt: Date.now() })
       this.setData({ answer })
     } catch (error) { this.setData({ error: error.message || 'AI 请求失败，请稍后重试' }) }

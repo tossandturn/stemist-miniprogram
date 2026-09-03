@@ -1,4 +1,4 @@
-const { askCoach } = require('../../utils/api')
+const { runCoach } = require('../../utils/coach')
 const { readAsJpegDataUrl } = require('../../utils/image')
 const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
 
@@ -40,8 +40,8 @@ Page({
       const message = text
         ? `IELTS ${this.data.taskType} 题目：\n${prompt || '(题目未提供，请只做语言层面反馈，不要宣称完整 Task 评分。)'}\n\n学生作文：\n${text}`
         : `请读取照片中的 IELTS ${this.data.taskType} 题目与手写作文，并按四项标准评分；如果题目或文字看不清，请明确要求重拍。`
-      const result = await askCoach({ message, context: { product: 'IELTSist', skill: 'writing', taskType: this.data.taskType, promptProvided: Boolean(prompt), mode: imageDataUrls.length ? 'photo' : 'typed', stage: 'practice', source: 'stemist-miniprogram' }, imageDataUrls })
-      const answer = result.answer || result.message || 'AI 返回了空结果，请重试。'
+      const result = await runCoach({ message, context: { product: 'IELTSist', skill: 'writing', taskType: this.data.taskType, promptProvided: Boolean(prompt), mode: imageDataUrls.length ? 'photo' : 'typed' }, imageDataUrls })
+      const answer = result.answer || 'AI 返回了空结果，请重试。'
       wx.setStorageSync('stemistSubmission:writing', { text, prompt, photoPath: this.data.photoPath, taskType: this.data.taskType, answer, submittedAt: Date.now() })
       clearDraft('writing')
       this.setData({ answer, draftStatus: '已提交 · 可继续追问' })
