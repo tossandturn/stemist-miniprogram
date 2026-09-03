@@ -9,7 +9,7 @@ const source = fs.readFileSync(path.join(root, 'utils', 'attemptSync.js'), 'utf8
 const calls = []
 const module = { exports: {} }
 const fakeRequire = (name) => name === './api'
-  ? { requestJson: async (url, payload, options) => { calls.push({ url, payload, options }); return { ok: true } } }
+  ? { requestJson: async (url, payload, options) => { calls.push({ url, payload, options }); return { ok: true, attempt: { attemptId: payload.attemptId } } } }
   : (() => { throw new Error(`unexpected module ${name}`) })()
 const storage = { stemistSessionToken: 'token' }
 vm.runInNewContext(source, {

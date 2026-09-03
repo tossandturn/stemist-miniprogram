@@ -11,7 +11,7 @@ async function syncStemPhotoAttempt({ context = {}, answer = '', coachMode = '',
   if (!routeId || !stage) return { skipped: 'route_context_missing' }
   const attemptId = nextAttemptId()
   const submittedAt = new Date().toISOString()
-  return requestJson('/api/stem/attempts', {
+  const response = await requestJson('/api/stem/attempts', {
     attemptId,
     mode: 'topic',
     routeId,
@@ -31,6 +31,9 @@ async function syncStemPhotoAttempt({ context = {}, answer = '', coachMode = '',
       evidence: { kind: 'photo', count: 1 },
     },
   }, { timeout: 8000 })
+  const persistedAttemptId = String(response && response.attempt && response.attempt.attemptId || '')
+  if (persistedAttemptId !== attemptId) throw new Error('云端未确认这次 STEM 学习记录')
+  return response
 }
 
 module.exports = { nextAttemptId, syncStemPhotoAttempt }
