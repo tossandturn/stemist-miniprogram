@@ -5,6 +5,7 @@ import vm from 'node:vm'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const cropTemplate = fs.readFileSync(path.join(root, 'pages/crop/crop.wxml'), 'utf8')
 const module = { exports: {} }
 vm.runInNewContext(fs.readFileSync(path.join(root, 'utils/crop.js'), 'utf8'), { module, exports: module.exports, Math, Error })
 const { computeCropRect, resizedCropSize } = module.exports
@@ -40,4 +41,7 @@ assert.equal(bounded.sw, 100)
 assert.equal(bounded.sh, 100)
 assert.deepEqual(JSON.parse(JSON.stringify(resizedCropSize(4000, 1000))), { width: 1600, height: 400 })
 assert.deepEqual(JSON.parse(JSON.stringify(resizedCropSize(800, 600))), { width: 800, height: 600 })
+assert.match(cropTemplate, /<movable-area[^>]*scale-area="true"/)
+assert.match(cropTemplate, /<movable-view[^>]*scale="\{\{true\}\}"[^>]*bindscale="onScale"/)
+assert.doesNotMatch(cropTemplate, /<movable-area[^>]*bindscale=/)
 console.log('Crop coordinate and aspect-ratio checks passed.')

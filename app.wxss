@@ -27,6 +27,7 @@ button[disabled] { opacity: .55; }
 
 .eyebrow { color: #7357e8; font-size: 22rpx; font-weight: 800; letter-spacing: 2rpx; text-transform: uppercase; }
 .title { margin-top: 14rpx; color: #18213d; font-size: 54rpx; line-height: 1.12; font-weight: 800; letter-spacing: -.5rpx; }
+.title-line { display: block; }
 .subtitle { margin-top: 16rpx; color: #6f7892; font-size: 27rpx; line-height: 1.58; }
 .section-title { margin: 38rpx 0 14rpx; color: #18213d; font-size: 31rpx; font-weight: 800; }
 .section-kicker { color: #8a92a8; font-size: 21rpx; font-weight: 700; letter-spacing: 1rpx; text-transform: uppercase; }
@@ -59,9 +60,9 @@ button[disabled] { opacity: .55; }
 .loop-dot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 38rpx; height: 38rpx; border-radius: 50%; color: #fff; background: #c7ccda; font-size: 19rpx; font-weight: 800; }
 .loop-ready .loop-dot, .loop-next .loop-dot { background: #7357e8; }
 .loop-copy { min-width: 0; margin-left: 8rpx; padding-right: 10rpx; }
-.loop-copy text, .loop-copy small { display: block; }
+.loop-copy text, .loop-copy .loop-detail { display: block; }
 .loop-copy text { color: #18213d; font-size: 21rpx; font-weight: 800; }
-.loop-copy small { margin-top: 4rpx; color: #8a92a8; font-size: 17rpx; line-height: 1.3; }
+.loop-copy .loop-detail { margin-top: 4rpx; color: #8a92a8; font-size: 17rpx; line-height: 1.3; }
 .recent-activity { margin-top: 18rpx; padding-top: 14rpx; border-top: 1rpx solid #edf0f4; color: #6f7892; font-size: 21rpx; }
 .quick-grid { display: grid; grid-template-columns: 1fr; }
 .quick-card { position: relative; min-height: 220rpx; padding: 26rpx; overflow: hidden; }
@@ -95,6 +96,7 @@ textarea { min-height: 300rpx; }
 .input { min-height: 88rpx; }
 .char-count { display: block; margin-top: 8rpx; color: #8a92a8; font-size: 20rpx; text-align: right; }
 .error { margin-top: 18rpx; padding: 18rpx; border-radius: 14rpx; color: #b33b55; background: #fff0f2; font-size: 24rpx; line-height: 1.45; }
+.warning { margin-top: 18rpx; padding: 18rpx; border-radius: 14rpx; color: #8a5b18; background: #fff6e8; font-size: 24rpx; line-height: 1.45; }
 .result { margin-top: 20rpx; padding: 24rpx; border: 1rpx solid #dceee7; border-radius: 16rpx; color: #18213d; background: #fff; white-space: pre-wrap; font-size: 26rpx; line-height: 1.6; }
 .notice { margin-top: 20rpx; padding: 18rpx; border-radius: 14rpx; color: #5d6781; background: #eef0f8; font-size: 22rpx; line-height: 1.5; }
 .status-line { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; color: #6f7892; font-size: 22rpx; }

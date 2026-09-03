@@ -19,7 +19,7 @@ const wx = {
   navigateTo: ({ url }) => { navigatedUrl = url },
 }
 const pageHelpers = { deviceState: (value) => value, syncDevice: () => {} }
-const fakeRequire = (name) => name === '../../utils/page' ? pageHelpers : name === '../../utils/stemRoutes' ? { routesForSubjectStage: (code, stage) => routes.filter((route) => route.subjectCode === code && route.stage === stage) } : (() => { throw new Error(`unexpected module ${name}`) })()
+const fakeRequire = (name) => name === '../../utils/page' ? pageHelpers : name === '../../utils/stemRoutes' ? { routesForSubjectStage: (code, stage) => routes.filter((route) => route.subjectCode === code && route.stage === stage) } : name === '../../utils/inventory' ? { fetchRouteInventory: async () => null } : (() => { throw new Error(`unexpected module ${name}`) })()
 const source = fs.readFileSync(path.join(root, 'pages/stem/capture.js'), 'utf8')
 vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require: fakeRequire, wx, Date, String, Number, Boolean, Math, encodeURIComponent })
 
@@ -34,4 +34,7 @@ pageConfig.takePhoto.call(instance)
 assert.equal(storage.stemistCropReturn.context.routeId, 'cie-9702-as-physics')
 assert.equal(storage.stemistCropReturn.context.subjectCode, '9702')
 assert.match(navigatedUrl, /^\/pages\/crop\/crop\?src=/)
+assert.equal(instance.data.busy, true)
+pageConfig.onShow.call(instance)
+assert.equal(instance.data.busy, false)
 console.log('STEM photo route flow checks passed.')

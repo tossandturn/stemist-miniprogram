@@ -14,6 +14,8 @@ This repository is the WeChat Mini Program entry for the unified STEM Studio + I
 
 - Reuse `components/stemist-header`, `components/coach-panel`, and `components/text-practice` for shared UI and interaction states.
 - Use `utils/device.js` and `utils/page.js` for device classification, rotation updates, drafts and local state.
+- Use `utils/inventory.js` for server-backed syllabus counts; never hardcode or infer question totals in a student-facing screen.
+- Use `utils/attemptSync.js` for the authenticated STEM photo-attempt summary; do not send original image data to the attempts endpoint.
 - Use `utils/skillPage.js` for text-skill behavior instead of duplicating submit/autosave logic.
 - Keep STEM route IDs in `utils/stemRoutes.js` aligned with the source STEM route registry. Client route context is a focus hint, never an authorization source.
 

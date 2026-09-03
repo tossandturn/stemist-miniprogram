@@ -19,7 +19,7 @@
 
   <view class="hero-card">
     <view class="eyebrow">TODAY · NEXT BEST ACTION</view>
-    <view class="title">Study clearly.<br/>Improve visibly.</view>
+    <view class="title"><text class="title-line">Study clearly.</text><text class="title-line">Improve visibly.</text></view>
     <view class="subtitle">沿用 IELTSist 的 Dashboard 逻辑：先做一个真实练习，再用 AI Coach 看证据、修正并重练。</view>
     <view class="hero-actions">
       <button class="primary" bindtap="openStem">拍一题 STEM</button>
@@ -40,7 +40,7 @@
     <view class="loop-track">
       <view wx:for="{{loopSteps}}" wx:key="label" class="loop-step loop-{{item.state}}">
         <view class="loop-dot">{{index + 1}}</view>
-        <view class="loop-copy"><text>{{item.label}}</text><small>{{item.detail}}</small></view>
+        <view class="loop-copy"><text>{{item.label}}</text><text class="loop-detail">{{item.detail}}</text></view>
       </view>
     </view>
     <view wx:if="{{recentActivity}}" class="recent-activity">最近一次：{{recentActivity.taskType || recentActivity.skill || 'AI Coach'}} · 已提交</view>

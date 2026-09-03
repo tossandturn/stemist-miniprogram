@@ -18,7 +18,7 @@
     <view wx:if="{{routeOptions.length > 1}}" class="chip-grid route-grid">
       <button wx:for="{{routeOptions}}" wx:key="routeId" class="route-chip route-chip-wide {{item.routeId === routeId ? 'active' : ''}}" data-route="{{item.routeId}}" bindtap="chooseRoute">{{item.components}}</button>
     </view>
-    <view class="selected-route">当前路线：{{routeOptions[0] ? routeOptions[0].subjectLabel : subjectLabel}} · {{stage}} · {{routeId || '待选择'}}</view>
+    <view class="selected-route">当前路线：{{subjectLabel}} · {{stage}} · {{routeId || '待选择'}}</view>
   </view>
 
   <view class="card camera-card">
@@ -27,6 +27,20 @@
     <view class="card-title">{{isWriting ? '后置摄像头 · 手写作文' : '后置摄像头 · 单题模式'}}</view>
     <view class="card-detail">{{isWriting ? '保持整页纸张平整、光线均匀，裁剪掉桌面和其他题目。' : '让题目、图表和你的答案尽量完整出现在同一张照片里；不要把多道题拼在一张图中。'}}</view>
     <button data-testid="{{isWriting ? 'writing-capture' : 'stem-capture'}}" class="primary" bindtap="takePhoto" loading="{{busy}}" disabled="{{busy || (!isWriting && !canCapture)}}">{{busy ? '准备照片…' : (isWriting ? '拍照上传作文' : (canCapture ? '打开相机拍题' : '先选择有效路线'))}}</button>
+  </view>
+
+  <view wx:if="{{!isWriting && (inventory || inventoryLoading || inventoryError)}}" class="inventory-card context-card">
+    <view class="context-card-title">服务端题库状态</view>
+    <view wx:if="{{inventoryLoading}}" class="context-card-text">正在读取当前路线的真实 QP/MS inventory…</view>
+    <block wx:if="{{inventory}}">
+      <view class="inventory-summary"><text>{{inventory.availableQuestionGroupCount === null ? '—' : inventory.availableQuestionGroupCount}}</text><text class="inventory-label">可练习题组</text><text>{{inventory.verifiedQuestionGroupCount === null ? '—' : inventory.verifiedQuestionGroupCount}}</text><text class="inventory-label">已审核题组</text></view>
+      <view class="context-card-text">官方配对卷 {{inventory.officialPairedPaperCount === null ? '—' : inventory.officialPairedPaperCount}} 份 · 题库来源：{{inventory.source}}</view>
+      <view wx:if="{{inventoryTopics.length}}" class="inventory-topics">
+        <view wx:for="{{inventoryTopics}}" wx:key="id" class="inventory-topic"><text>{{item.code}} {{item.name}}</text><text>{{item.availableQuestionCount === null ? '—' : item.availableQuestionCount}} 题{{item.ready ? ' · ready' : (item.studyReady ? ' · study' : ' · 待审核')}}</text></view>
+        <button wx:if="{{inventory.topicCount > 6}}" class="inventory-toggle" bindtap="toggleTopics">{{showAllTopics ? '收起 topic' : '查看全部 ' + inventory.topicCount + ' 个 topic'}}</button>
+      </view>
+    </block>
+    <view wx:if="{{inventoryError}}" class="context-card-text inventory-error">{{inventoryError}}</view>
   </view>
   <view wx:if="{{isTablet}}" class="context-card tablet-capture-guide">
     <view class="context-card-title">iPad 布局</view>

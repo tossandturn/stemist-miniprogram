@@ -1,5 +1,6 @@
 const { deviceState, syncDevice } = require('../../utils/page')
 const { routesForSubjectStage } = require('../../utils/stemRoutes')
+const { fetchRouteInventory } = require('../../utils/inventory')
 
 const SUBJECTS = [
   { code: '9702', label: 'Physics', short: '物理' },
@@ -7,6 +8,7 @@ const SUBJECTS = [
   { code: '9700', label: 'Biology', short: '生物' },
   { code: '9701', label: 'Chemistry', short: '化学' },
   { code: '0625', label: 'IGCSE Physics', short: 'IGCSE 物理' },
+  { code: '0610', label: 'IGCSE Biology', short: 'IGCSE 生物' },
   { code: '0580', label: 'IGCSE Mathematics', short: 'IGCSE 数学' },
   { code: 'bpho', label: 'BPhO', short: 'BPhO' },
   { code: 'esat', label: 'ESAT', short: 'ESAT' },
@@ -27,15 +29,27 @@ Page({
     routeId: 'cie-9702-as-physics',
     routeOptions: routesForSubjectStage('9702', 'AS'),
     canCapture: true,
+    inventory: null,
+    inventoryTopics: [],
+    showAllTopics: false,
+    inventoryLoading: false,
+    inventoryError: '',
     subjects: SUBJECTS,
     stages: STAGES,
   }),
   onLoad(options) {
     options = options || {}
     const isWriting = options.returnPage === 'writing'
-    this.setData({ returnPage: isWriting ? 'writing' : 'stem', isWriting })
+    this.setData({ returnPage: isWriting ? 'writing' : 'stem', isWriting }, () => {
+      if (!isWriting) this.refreshInventory(this.data.routeId)
+    })
   },
-  onShow() { syncDevice(this) },
+  onShow() {
+    syncDevice(this)
+    // A successful capture hides this page while the crop page is open. Reset
+    // the guard when the user comes back so a cancelled crop can be retried.
+    if (this.data.busy) this.setData({ busy: false })
+  },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
   chooseSubject(event) {
@@ -43,15 +57,52 @@ Page({
     const subject = SUBJECTS.find((item) => item.code === code)
     if (subject) {
       const routes = routesForSubjectStage(subject.code, this.data.stage)
-      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', canCapture: Boolean(routes.length), error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' })
+      const routeId = routes[0] ? routes[0].routeId : ''
+      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId, canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
+        if (routeId) this.refreshInventory(routeId)
+      })
     }
   },
   chooseStage(event) {
     const stage = event.currentTarget.dataset.stage
     const routes = routesForSubjectStage(this.data.subjectCode, stage)
-    this.setData({ stage, routeOptions: routes, routeId: routes[0] ? routes[0].routeId : '', canCapture: Boolean(routes.length), error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' })
+    const routeId = routes[0] ? routes[0].routeId : ''
+    this.setData({ stage, routeOptions: routes, routeId, canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
+      if (routeId) this.refreshInventory(routeId)
+    })
   },
-  chooseRoute(event) { this.setData({ routeId: event.currentTarget.dataset.route, canCapture: true, error: '' }) },
+  chooseRoute(event) {
+    const routeId = String(event.currentTarget.dataset.route || '')
+    this.setData({ routeId, canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: '' }, () => this.refreshInventory(routeId))
+  },
+  refreshInventory(routeId) {
+    if (this.data.isWriting || !routeId) return
+    const requestId = (this.__inventoryRequestId || 0) + 1
+    this.__inventoryRequestId = requestId
+    this.setData({ inventoryLoading: true, inventoryError: '' })
+    fetchRouteInventory(routeId)
+      .then((inventory) => {
+        if (this.__inventoryRequestId !== requestId) return
+        if (!inventory) {
+          this.setData({ inventory: null, inventoryTopics: [], inventoryError: '题库状态暂时不可用；仍可拍照，Coach 会按当前路线分析。' })
+          return
+        }
+        this.setData({ inventory, inventoryTopics: inventory.topics.slice(0, 6), showAllTopics: false })
+      })
+      .catch(() => {
+        if (this.__inventoryRequestId !== requestId) return
+        // Inventory is informative and must never block the one-question
+        // camera flow. Keep the capture CTA available when the API is down.
+        this.setData({ inventory: null, inventoryError: '题库状态暂时不可用；仍可拍照，Coach 会按当前路线分析。' })
+      })
+      .finally(() => {
+        if (this.__inventoryRequestId === requestId) this.setData({ inventoryLoading: false })
+      })
+  },
+  toggleTopics() {
+    if (!this.data.inventory) return
+    this.setData({ showAllTopics: !this.data.showAllTopics, inventoryTopics: this.data.showAllTopics ? this.data.inventory.topics.slice(0, 6) : this.data.inventory.topics })
+  },
   cameraFailure(error) {
     const raw = String(error && error.errMsg || '')
     if (/auth deny|permission|authorize/i.test(raw)) {
@@ -106,11 +157,10 @@ Page({
         wx.setStorageSync('stemistCropReturn', { route: this.data.returnPage, context: this.captureContext(), createdAt: Date.now() })
         wx.navigateTo({
           url: `/pages/crop/crop?src=${encodeURIComponent(path)}`,
-          fail: (error) => this.setData({ error: error.errMsg || '无法打开裁剪页，请重试' }),
+          fail: (error) => this.setData({ busy: false, error: error.errMsg || '无法打开裁剪页，请重试' }),
         })
       },
-      fail: (error) => this.cameraFailure(error),
-      complete: () => this.setData({ busy: false }),
+      fail: (error) => { this.cameraFailure(error); this.setData({ busy: false }) },
     })
   },
 })

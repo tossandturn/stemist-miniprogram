@@ -8,8 +8,16 @@
     "test:crop": "node scripts/test-crop-math.mjs",
     "test:coach": "node scripts/test-coach-service.mjs",
     "test:stem-photo": "node scripts/test-stem-photo-flow.mjs",
+    "test:inventory": "node scripts/test-inventory.mjs",
+    "test:api": "node scripts/test-api-client.mjs",
+    "test:auth": "node scripts/test-auth-client.mjs",
+    "test:session": "node scripts/test-session-cleanup.mjs",
+    "test:attempt-sync": "node scripts/test-attempt-sync.mjs",
+    "test:stem-coach-page": "node scripts/test-stem-coach-page.mjs",
+    "test:route-mirror": "node scripts/test-route-mirror.mjs",
     "test:image": "node scripts/test-image-pipeline.mjs",
     "test:pages": "node scripts/test-page-contract.mjs",
-    "test:wechat": "node scripts/test-wechat-compile.mjs"
+    "test:wechat": "node scripts/test-wechat-compile.mjs",
+    "test:all": "npm test && npm run test:api && npm run test:auth && npm run test:session && npm run test:coach && npm run test:stem-coach-page && npm run test:attempt-sync && npm run test:inventory && npm run test:route-mirror && npm run test:crop && npm run test:device && npm run test:stem-photo && npm run test:image && npm run test:pages && npm run test:wechat"
   }
 }

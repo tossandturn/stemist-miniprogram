@@ -5,6 +5,7 @@ const STEM_ROUTES = [
   { routeId: 'cie-0580-igcse-mathematics', subjectCode: '0580', subjectLabel: 'IGCSE Mathematics', stage: 'IGCSE', qualification: 'IGCSE', components: 'P1 + P2 + P3 + P4' },
   { routeId: 'cie-0606-igcse-additional-mathematics', subjectCode: '0606', subjectLabel: 'IGCSE Additional Mathematics', stage: 'IGCSE', qualification: 'IGCSE', components: 'P1 + P2' },
   { routeId: 'cie-0625-igcse-physics', subjectCode: '0625', subjectLabel: 'IGCSE Physics', stage: 'IGCSE', qualification: 'IGCSE', components: 'P1–P6' },
+  { routeId: 'cie-0610-igcse-biology', subjectCode: '0610', subjectLabel: 'IGCSE Biology', stage: 'IGCSE', qualification: 'IGCSE', components: 'P1–P6' },
   { routeId: 'cie-9700-as-biology', subjectCode: '9700', subjectLabel: 'Biology', stage: 'AS', qualification: 'A-Level', components: 'P1 + P2 + P3' },
   { routeId: 'cie-9700-a2-biology', subjectCode: '9700', subjectLabel: 'Biology', stage: 'A2', qualification: 'A-Level', components: 'P4 + P5' },
   { routeId: 'cie-9701-as-chemistry', subjectCode: '9701', subjectLabel: 'Chemistry', stage: 'AS', qualification: 'A-Level', components: 'P1 + P2 + P3' },

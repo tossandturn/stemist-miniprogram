@@ -17,10 +17,5 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm test
-      - run: npm run test:coach
-      - run: npm run test:crop
-      - run: npm run test:device
-      - run: npm run test:image
-      - run: npm run test:pages
+      - run: npm run test:all
       - run: node --check scripts/test-wechat-compile.mjs

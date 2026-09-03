@@ -2,6 +2,7 @@ Component({
   properties: {
     text: { type: String, value: '' },
     answer: { type: String, value: '' },
+    warning: { type: String, value: '' },
     loading: { type: Boolean, value: false },
     error: { type: String, value: '' },
     placeholder: { type: String, value: '' },

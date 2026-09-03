@@ -2,12 +2,12 @@ const { readDeviceProfile, deviceClass } = require('./device')
 
 function deviceState(extra = {}) {
   const profile = readDeviceProfile()
-  return { ...extra, deviceClass: deviceClass(profile), isTablet: profile.isTablet, windowWidth: profile.windowWidth }
+  return { ...extra, deviceClass: deviceClass(profile), isTablet: profile.isTablet, windowWidth: profile.windowWidth, windowHeight: profile.windowHeight, orientation: profile.orientation }
 }
 
 function syncDevice(page) {
   const profile = readDeviceProfile()
-  page.setData({ deviceClass: deviceClass(profile), isTablet: profile.isTablet, windowWidth: profile.windowWidth })
+  page.setData({ deviceClass: deviceClass(profile), isTablet: profile.isTablet, windowWidth: profile.windowWidth, windowHeight: profile.windowHeight, orientation: profile.orientation })
   return profile
 }
 

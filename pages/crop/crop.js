@@ -11,8 +11,20 @@ Page({
   },
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },
-  onMove(e) { this.setData({ x: e.detail.x, y: e.detail.y }) },
-  onScale(e) { this.setData({ scale: e.detail.scale }) },
+  onMove(e) {
+    const detail = e && e.detail ? e.detail : {}
+    const update = {}
+    if (Number.isFinite(Number(detail.x))) update.x = Number(detail.x)
+    if (Number.isFinite(Number(detail.y))) update.y = Number(detail.y)
+    if (Object.keys(update).length) this.setData(update)
+  },
+  onScale(e) {
+    const detail = e && e.detail ? e.detail : {}
+    const update = { scale: Math.min(3, Math.max(1, Number(detail.scale) || 1)) }
+    if (Number.isFinite(Number(detail.x))) update.x = Number(detail.x)
+    if (Number.isFinite(Number(detail.y))) update.y = Number(detail.y)
+    this.setData(update)
+  },
   confirm() {
     if (this.data.busy || !this.data.src) return
     this.setData({ busy: true, error: '' })
@@ -65,9 +77,13 @@ Page({
   },
   finish(path) {
     const returnInfo = wx.getStorageSync('stemistCropReturn') || { route: 'stem' }
+    wx.removeStorageSync('stemistCropReturn')
     if (returnInfo.route === 'writing') {
       wx.setStorageSync('stemistWritingPhoto', path)
-      wx.navigateBack({ delta: 2 })
+      wx.navigateBack({
+        delta: 2,
+        fail: () => wx.redirectTo({ url: '/pages/ielts/writing' }),
+      })
       return
     }
     wx.setStorageSync('stemistCoachContext', returnInfo.context || {})

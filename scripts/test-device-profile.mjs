@@ -17,4 +17,7 @@ assert.equal(load({ windowWidth: 390, screenWidth: 390, deviceType: 'phone', mod
 assert.equal(load({ windowWidth: 844, screenWidth: 844, deviceType: 'phone', model: 'iPhone 15 landscape' }).isTablet, false)
 assert.equal(load({ windowWidth: 820, screenWidth: 820, deviceType: 'tablet', model: 'iPad' }).isTablet, true)
 assert.equal(load({ windowWidth: 1024, screenWidth: 1024, deviceType: 'unknown', model: 'desktop simulator' }).isTablet, true)
+assert.equal(load({ windowWidth: 1280, screenWidth: 1280, deviceType: 'unknown', model: 'Pixel Tablet' }).isTablet, true)
+assert.equal(load({ windowWidth: 1024, screenWidth: 1024, windowHeight: 768, deviceType: 'tablet', model: 'iPad' }).orientation, 'landscape')
+assert.equal(load({ windowWidth: 768, screenWidth: 768, windowHeight: 1024, deviceType: 'tablet', model: 'iPad' }).orientation, 'portrait')
 console.log('Phone/iPad device profile checks passed.')

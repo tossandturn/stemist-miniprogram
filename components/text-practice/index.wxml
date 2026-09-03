@@ -10,4 +10,5 @@
   <button class="secondary" bindtap="onClear" disabled="{{loading}}">清空当前记录</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view wx:if="{{answer}}" class="result">{{answer}}</view>
+  <view wx:if="{{warning}}" class="warning">{{warning}}</view>
 </view>

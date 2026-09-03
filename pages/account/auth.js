@@ -21,10 +21,11 @@ Page({
   onInput(e) { this.setData({ [e.currentTarget.dataset.field]: e.detail.value, error: '' }) },
   toggleMode() { this.setData({ mode: this.data.mode === 'login' ? 'register' : 'login', error: '' }) },
   async submit() {
-    const username = this.data.username.trim()
+    const username = this.data.username.trim().toLowerCase()
     const password = this.data.password
     if (this.data.loading) return
-    if (username.length < 3 || password.length < 6) return this.setData({ error: '用户名至少 3 个字符，密码至少 6 个字符' })
+    if (!/^[a-z0-9_]{3,24}$/.test(username)) return this.setData({ error: '用户名需为 3–24 位字母、数字或下划线' })
+    if (password.length < 6 || password.length > 72) return this.setData({ error: '密码需为 6–72 个字符' })
     this.setData({ loading: true, error: '' })
     try {
       await signIn(username, password, this.data.mode)

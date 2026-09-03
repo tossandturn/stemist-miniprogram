@@ -4,9 +4,10 @@ const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDra
 
 Page({
   data: deviceState({
-    text: '', prompt: '', photoPath: '', taskType: 'Task 2', loading: false, error: '', answer: '', draftStatus: '自动保存已开启',
+    text: '', prompt: '', photoPath: '', taskType: 'Task 2', loading: false, error: '', answer: '', warning: '', coachStatus: '反馈状态待确认', draftStatus: '自动保存已开启',
   }),
   onLoad() {
+    this.__disposed = false
     const draft = readDraft('writing')
     if (draft && (draft.text || draft.prompt)) this.setData({ text: draft.text || '', prompt: draft.prompt || '', taskType: draft.taskType || 'Task 2', draftStatus: '已恢复上次草稿' })
   },
@@ -16,7 +17,7 @@ Page({
     if (path) { this.setData({ photoPath: path, error: '' }); wx.removeStorageSync('stemistWritingPhoto') }
   },
   onResize() { syncDevice(this) },
-  onUnload() { cancelDraft(this) },
+  onUnload() { this.__disposed = true; cancelDraft(this) },
   onInput(event) {
     const text = String(event.detail.value || '')
     this.setData({ text, error: '', draftStatus: text ? '正在自动保存…' : '自动保存已开启' })
@@ -33,7 +34,7 @@ Page({
     const text = this.data.text.trim()
     if (this.data.loading) return
     if (!text && !this.data.photoPath) return this.setData({ error: '请先输入作文或拍照上传' })
-    this.setData({ loading: true, error: '', answer: '' })
+    this.setData({ loading: true, error: '', answer: '', warning: '', coachStatus: '正在分析…' })
     try {
       const imageDataUrls = this.data.photoPath ? [await readAsJpegDataUrl(this.data.photoPath)] : []
       const prompt = this.data.prompt.trim()
@@ -41,12 +42,14 @@ Page({
         ? `IELTS ${this.data.taskType} 题目：\n${prompt || '(题目未提供，请只做语言层面反馈，不要宣称完整 Task 评分。)'}\n\n学生作文：\n${text}`
         : `请读取照片中的 IELTS ${this.data.taskType} 题目与手写作文，并按四项标准评分；如果题目或文字看不清，请明确要求重拍。`
       const result = await runCoach({ message, context: { product: 'IELTSist', skill: 'writing', taskType: this.data.taskType, promptProvided: Boolean(prompt), mode: imageDataUrls.length ? 'photo' : 'typed' }, imageDataUrls })
+      if (this.__disposed) return
       const answer = result.answer || 'AI 返回了空结果，请重试。'
-      wx.setStorageSync('stemistSubmission:writing', { text, prompt, photoPath: this.data.photoPath, taskType: this.data.taskType, answer, submittedAt: Date.now() })
+      wx.setStorageSync('stemistSubmission:writing', { text, prompt, photoPath: this.data.photoPath, taskType: this.data.taskType, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
       clearDraft('writing')
-      this.setData({ answer, draftStatus: '已提交 · 可继续追问' })
-    } catch (error) { this.setData({ error: error.message || 'AI 评分失败，请稍后重试' }) }
-    finally { this.setData({ loading: false }) }
+      const coachState = result.coachState || {}
+      this.setData({ answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
+    } catch (error) { if (!this.__disposed) this.setData({ error: error.message || 'AI 评分失败，请稍后重试' }) }
+    finally { if (!this.__disposed) this.setData({ loading: false }) }
   },
   clear() {
     if (this.data.loading) return

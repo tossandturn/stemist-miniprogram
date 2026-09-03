@@ -43,6 +43,8 @@
 
 STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等存在多个纸张组合的路线还必须选择 `routeId`。客户端镜像 `src/data/routeRegistry.js` 的稳定路线 ID 并把它随照片传入 Coach，防止 Physics、Mathematics、IGCSE、A-Level 和 Competition 内容被错误合并。Writing 拍照使用独立的 IELTS 上下文，不复用 STEM 路由。
 
+路线卡下方读取 `GET /api/stem/routes/{routeId}/syllabus-topics` 的服务端 inventory，展示官方配对卷、已审核题组、可练习题组和 topic 状态。inventory 只用于学生选择和透明度，不作为权限或正式评分依据；接口失败时保留拍照入口并明确提示状态暂不可用，不把静态数量冒充真实数据。
+
 ## 3. 统一视觉系统
 
 视觉 token 与现有生产网页对齐：
@@ -83,6 +85,7 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 - STEM 裁剪区约 900rpx 高，横屏优先容纳题目和图表。
 - iPad 竖屏自动改单栏，不能把两个栏压缩到不可读。
 - 所有辅助面板必须保持在内容之外，不覆盖题目或输入区域。
+- 裁剪使用 `movable-area scale-area` + `movable-view scale-value`，缩放和拖动事件都绑定在 `movable-view`；关闭惯性，保证图表/公式定位可重复。
 
 ## 5. AI Coach 数据链路
 
@@ -108,7 +111,7 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 
 客户端选择的 `subjectCode/stage/routeId` 只用于帮助 Coach 聚焦，不能作为权限或正式题目绑定的依据；服务端仍必须以已认证用户和权威 attempt/source 记录校验任何正式评分、历史或题库访问。
 
-客户端永远不放 GPT、Qwen 或其他 provider key。401 清理短期令牌并提示重新登录；超时、空结果、图片过大均进入可重试失败态。
+客户端永远不放 GPT、Qwen 或其他 provider key。401 清理短期令牌并提示重新登录；超时、空结果、图片过大均进入可重试失败态。Coach 返回 `local` / `offline` 时显示非 AI 警示；只有 `mode=ai` 且 `providerStatus=connected` 才显示 AI 已连接，任何状态都不宣称官方分数。
 
 ## 6. 账号与草稿
 

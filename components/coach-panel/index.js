@@ -2,6 +2,8 @@ Component({
   properties: {
     message: { type: String, value: '' },
     answer: { type: String, value: '' },
+    warning: { type: String, value: '' },
+    status: { type: String, value: '反馈状态待确认' },
     loading: { type: Boolean, value: false },
     disabled: { type: Boolean, value: false },
     placeholder: { type: String, value: '告诉 AI Coach 你想检查什么（可选）' },
