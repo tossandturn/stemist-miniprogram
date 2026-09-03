@@ -5,6 +5,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 Page({
   data: deviceState({ imagePath: '', message: '', loading: false, error: '', answer: '', context: {}, contextLabel: 'STEM route pending' }),
   onLoad(options) {
+    options = options || {}
     const path = options.src ? decodeURIComponent(options.src) : wx.getStorageSync('stemistCroppedImage')
     const context = wx.getStorageSync('stemistCoachContext') || {}
     const label = context.subjectCode ? `${context.subject || context.subjectCode} · ${context.stage || 'stage pending'} · ${context.routeId || ''}` : 'STEM route pending'

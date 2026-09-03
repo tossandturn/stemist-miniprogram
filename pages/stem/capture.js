@@ -27,6 +27,7 @@ Page({
     stages: STAGES,
   }),
   onLoad(options) {
+    options = options || {}
     const isWriting = options.returnPage === 'writing'
     this.setData({ returnPage: isWriting ? 'writing' : 'stem', isWriting })
   },

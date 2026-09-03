@@ -106,6 +106,8 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`。这组字段生成 `
 - 当前真实题目/学生文本/照片证据；
 - `source: stemist-miniprogram`。
 
+客户端选择的 `subjectCode/stage/routeId` 只用于帮助 Coach 聚焦，不能作为权限或正式题目绑定的依据；服务端仍必须以已认证用户和权威 attempt/source 记录校验任何正式评分、历史或题库访问。
+
 客户端永远不放 GPT、Qwen 或其他 provider key。401 清理短期令牌并提示重新登录；超时、空结果、图片过大均进入可重试失败态。
 
 ## 6. 账号与草稿
