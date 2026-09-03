@@ -88,6 +88,7 @@ assert.match(read('pages/stem/capture.wxml'), /stem-capture/)
 
 assert.match(api, /\/api\/ai\/coach/)
 assert.match(api, /statusCode === 401/)
+assert.match(api, /safeErrorMessage/)
 assert.match(image, /4 \* 1024 \* 1024/)
 assert.match(appWxss, /@media \(min-width: 768px\)/)
 assert.match(appWxss, /@media \(max-width: 767px\)/)

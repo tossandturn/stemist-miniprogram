@@ -3,6 +3,12 @@ function baseUrl() {
   return String((app && app.globalData && app.globalData.apiBaseUrl) || 'https://stem.ieltsist.com').replace(/\/+$/, '')
 }
 
+function safeErrorMessage(payload, statusCode) {
+  const message = String((payload && (payload.error || payload.message)) || '').trim()
+  if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
+  return message.slice(0, 240) || `请求失败（${statusCode}）`
+}
+
 function requestJson(path, data, { timeout = 30000 } = {}) {
   const token = wx.getStorageSync('stemistSessionToken')
   return new Promise((resolve, reject) => {
@@ -27,10 +33,11 @@ function requestJson(path, data, { timeout = 30000 } = {}) {
           reject(new Error('登录已过期，请重新登录后再使用 AI'))
           return
         }
-        reject(new Error(payload.error || payload.message || `请求失败（${response.statusCode}）`))
+        reject(new Error(safeErrorMessage(payload, response.statusCode)))
       },
       fail(error) {
-        reject(new Error(error.errMsg || '网络连接失败，请稍后重试'))
+        const raw = String(error && error.errMsg || '')
+        reject(new Error(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试'))
       },
     })
   })
@@ -40,4 +47,4 @@ function askCoach({ message, context = {}, imageDataUrls = [] }) {
   return requestJson('/api/ai/coach', { message, context, imageDataUrls })
 }
 
-module.exports = { askCoach, requestJson }
+module.exports = { askCoach, requestJson, safeErrorMessage }
