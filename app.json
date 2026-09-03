@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/stem/capture",
+    "pages/stem/coach",
+    "pages/ielts/listening",
+    "pages/ielts/reading",
+    "pages/ielts/writing",
+    "pages/ielts/speaking",
+    "pages/crop/crop"
+  ],
+  "window": {
+    "navigationBarTitleText": "Stemist",
+    "navigationBarBackgroundColor": "#101a38",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f7fb"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

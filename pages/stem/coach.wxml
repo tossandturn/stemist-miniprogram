@@ -1,0 +1,12 @@
+<view class="page">
+  <view class="eyebrow">STEM · AI Coach</view>
+  <view class="title">检查这道题</view>
+  <image wx:if="{{imagePath}}" class="photo-preview" src="{{imagePath}}" mode="aspectFit" />
+  <view class="field-label">告诉 Coach 你想检查什么（可选）</view>
+  <textarea value="{{message}}" maxlength="1000" placeholder="例如：请指出我第一步哪里错了，并告诉我下一步怎么做。" bindinput="onMessage" />
+  <button class="primary" bindtap="ask" loading="{{loading}}" disabled="{{loading || !imagePath}}">{{loading ? 'AI 正在分析…' : '提交给 AI Coach'}}</button>
+  <button class="secondary" bindtap="retake">重新拍照</button>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+  <view class="notice">AI 只根据实际看见的题目、图表和答案给出分析；看不清时会要求你重新拍摄，不会伪造分数。</view>
+</view>

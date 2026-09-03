@@ -1,0 +1,13 @@
+<view class="page">
+  <view class="eyebrow">STEM · one question</view>
+  <view class="title">拍一题</view>
+  <view class="subtitle">每次只处理一道题。拍照后先裁剪，确认清晰再交给 AI。</view>
+  <view class="card camera-card">
+    <view class="camera-icon">⌁</view>
+    <view class="card-title">后置摄像头</view>
+    <view class="card-detail">让题目、图表和你的答案尽量完整出现在同一张照片里。</view>
+    <button class="primary" bindtap="takePhoto" loading="{{busy}}">{{busy ? '准备照片…' : '打开相机拍题'}}</button>
+  </view>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view class="notice">小程序版不接 Apple Pencil；需要连续手写、PDF 批注时请使用 iOS App。</view>
+</view>

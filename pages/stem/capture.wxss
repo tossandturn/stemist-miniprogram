@@ -1,0 +1,2 @@
+.camera-card { text-align: center; padding-top: 64rpx; }
+.camera-icon { width: 128rpx; height: 128rpx; margin: 0 auto 28rpx; color: #6d5ce7; background: #eeebff; border-radius: 50%; font-size: 84rpx; line-height: 110rpx; }

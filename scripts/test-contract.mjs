@@ -1,0 +1,38 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import assert from 'node:assert/strict'
+import { fileURLToPath } from 'node:url'
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
+const app = read('app.json')
+const stemCapture = read('pages/stem/capture.js')
+const stemCoach = read('pages/stem/coach.js')
+const crop = read('pages/crop/crop.js')
+const writing = read('pages/ielts/writing.js')
+const writingWxml = read('pages/ielts/writing.wxml')
+const speaking = read('pages/ielts/speaking.wxml')
+const api = read('utils/api.js')
+const readme = read('README.md')
+
+assert.match(app, /pages\/stem\/capture/)
+assert.match(app, /pages\/crop\/crop/)
+assert.match(stemCapture, /wx\.chooseMedia/)
+assert.match(stemCapture, /count:\s*1/)
+assert.match(stemCapture, /sourceType:\s*\['camera'\]/)
+assert.match(crop, /wx\.canvasToTempFilePath/)
+assert.match(stemCoach, /readAsJpegDataUrl/)
+assert.match(stemCoach, /imageDataUrls:\s*\[dataUrl\]/)
+assert.match(stemCoach, /askCoach/)
+assert.match(writingWxml, /拍照上传手写作文/)
+assert.match(writing, /readAsJpegDataUrl/)
+assert.match(writing, /returnPage=writing/)
+assert.match(crop, /canvasWidth/)
+assert.match(crop, /sourceScale/)
+assert.match(read('pages/ielts/listening.js'), /this\.data\.text\.trim\(\)/)
+assert.match(read('pages/ielts/reading.js'), /this\.data\.text\.trim\(\)/)
+assert.match(speaking, /ieltsist\.com\/\?module=speaking/)
+assert.match(api, /\/api\/ai\/coach/)
+assert.doesNotMatch(api + stemCoach + readme, /sk-[A-Za-z0-9]{20,}/)
+assert.match(readme, /session_key/) 
+console.log('Stemist Mini Program contract passed.')

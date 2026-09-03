@@ -1,0 +1,10 @@
+<view class="page">
+  <view class="eyebrow">IELTS · Reading</view>
+  <view class="title">阅读练习</view>
+  <view class="subtitle">用文本框写下定位、判断和答案，再让 Coach 帮你复盘。</view>
+  <view class="field-label">你的答案 / 证据</view>
+  <textarea placeholder="输入题号、答案、原文定位和你的理由…" bindinput="onInput" />
+  <button class="primary" bindtap="submit" loading="{{loading}}">提交给 AI Coach</button>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+</view>

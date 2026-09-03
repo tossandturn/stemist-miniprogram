@@ -1,0 +1,15 @@
+<view class="page crop-page">
+  <view class="eyebrow">Photo crop</view>
+  <view class="title">裁剪照片</view>
+  <view class="subtitle">拖动图片，让题目或答案落在框内；可以缩放后再确认。</view>
+  <movable-area class="crop-stage" scale="{{true}}" scale-min="1" scale-max="3" bindscale="onScale">
+    <movable-view class="crop-content" direction="all" x="{{x}}" y="{{y}}" scale="{{scale}}" scale-min="1" scale-max="3" bindchange="onMove">
+      <image class="crop-image" src="{{src}}" mode="aspectFit" />
+    </movable-view>
+    <view class="crop-box" aria-label="裁剪区域"></view>
+  </movable-area>
+  <button class="primary" bindtap="confirm" loading="{{busy}}">使用裁剪后的照片</button>
+  <button class="secondary" bindtap="cancel">取消</button>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <canvas canvas-id="cropCanvas" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
+</view>

@@ -1,0 +1,4 @@
+{
+  "desc": "Stemist learning mini program",
+  "rules": [{ "action": "allow", "page": "*" }]
+}

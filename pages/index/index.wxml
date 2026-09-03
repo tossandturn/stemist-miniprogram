@@ -1,0 +1,20 @@
+<view class="page">
+  <view class="eyebrow">IELTSist education</view>
+  <view class="title">Study clearly.<br/>Improve visibly.</view>
+  <view class="subtitle">STEM 一题一拍，IELTS 分技能练习。所有照片只在你主动提交后发送给 AI。</view>
+
+  <view class="card">
+    <view class="card-title">STEM · Photo marking</view>
+    <view class="card-detail">拍一道题，裁剪题目或答案区域，交给 AI Coach 分析下一步。</view>
+    <button class="primary" bindtap="openStem">拍一题</button>
+  </view>
+
+  <view class="section-title">IELTS skills</view>
+  <view class="card" wx:for="{{ieltsCards}}" wx:key="id">
+    <view class="card-title">{{item.title}}</view>
+    <view class="card-detail">{{item.detail}}</view>
+    <button class="secondary" data-id="{{item.id}}" bindtap="openIelts">开始练习</button>
+  </view>
+
+  <view class="notice">账号、题库、AI 和学习记录最终与 IELTSist 共用；当前 MVP 不在客户端保存任何模型密钥。</view>
+</view>

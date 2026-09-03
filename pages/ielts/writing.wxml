@@ -1,0 +1,12 @@
+<view class="page">
+  <view class="eyebrow">IELTS · Writing</view>
+  <view class="title">写作练习</view>
+  <view class="subtitle">可以直接打字，也可以拍照上传手写作文。</view>
+  <view class="field-label">作文内容</view>
+  <textarea value="{{text}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" bindinput="onInput" />
+  <button class="primary" bindtap="submit" loading="{{loading}}">提交文字给 AI 评分</button>
+  <button class="secondary" bindtap="takePhoto">拍照上传手写作文</button>
+  <image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" />
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view wx:if="{{answer}}" class="result">{{answer}}</view>
+</view>

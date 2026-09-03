@@ -1,0 +1,11 @@
+{
+  "description": "Stemist photo-first international education mini program",
+  "packOptions": { "ignore": [] },
+  "setting": { "es6": true, "minified": true, "urlCheck": true, "postcss": true },
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "stemist-miniprogram",
+  "miniprogramRoot": "./",
+  "libVersion": "3.8.8",
+  "condition": {}
+}
