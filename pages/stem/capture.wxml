@@ -26,7 +26,7 @@
     <view class="section-kicker">{{isWriting ? 'WRITING PHOTO WORKSPACE' : 'PHOTO WORKSPACE'}}</view>
     <view class="card-title">{{isWriting ? '后置摄像头 · 手写作文' : '后置摄像头 · 单题模式'}}</view>
     <view class="card-detail">{{isWriting ? '保持整页纸张平整、光线均匀，裁剪掉桌面和其他题目。' : '让题目、图表和你的答案尽量完整出现在同一张照片里；不要把多道题拼在一张图中。'}}</view>
-    <button class="primary" bindtap="takePhoto" loading="{{busy}}" disabled="{{busy || (!isWriting && !canCapture)}}">{{busy ? '准备照片…' : (isWriting ? '拍照上传作文' : (canCapture ? '打开相机拍题' : '先选择有效路线'))}}</button>
+    <button data-testid="{{isWriting ? 'writing-capture' : 'stem-capture'}}" class="primary" bindtap="takePhoto" loading="{{busy}}" disabled="{{busy || (!isWriting && !canCapture)}}">{{busy ? '准备照片…' : (isWriting ? '拍照上传作文' : (canCapture ? '打开相机拍题' : '先选择有效路线'))}}</button>
   </view>
   <view wx:if="{{isTablet}}" class="context-card tablet-capture-guide">
     <view class="context-card-title">iPad 布局</view>

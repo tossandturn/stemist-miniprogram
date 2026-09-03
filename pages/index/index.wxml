@@ -11,7 +11,7 @@
   </view>
 
   <view wx:if="{{isTablet}}" class="tablet-nav" aria-label="Tablet navigation">
-    <button class="tablet-nav-item {{activeTab === 'today' ? 'active' : ''}}" data-tab="today" bindtap="selectTab">Today</button>
+    <button data-testid="tablet-nav" class="tablet-nav-item {{activeTab === 'today' ? 'active' : ''}}" data-tab="today" bindtap="selectTab">Today</button>
     <button class="tablet-nav-item {{activeTab === 'practice' ? 'active' : ''}}" data-tab="practice" bindtap="selectTab">Practice</button>
     <button class="tablet-nav-item {{activeTab === 'coach' ? 'active' : ''}}" data-tab="coach" bindtap="selectTab">AI Coach</button>
     <button class="tablet-nav-item {{activeTab === 'account' ? 'active' : ''}}" data-tab="account" bindtap="selectTab">Account</button>
