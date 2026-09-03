@@ -14,7 +14,7 @@ Page({
       src: this.data.src,
       success: (info) => {
         const query = wx.createSelectorQuery().in(this)
-        query.select('.crop-image').boundingClientRect()
+        query.select('.crop-content').boundingClientRect()
         query.select('.crop-box').boundingClientRect()
         query.exec((rects) => {
           const imageRect = rects && rects[0]
@@ -23,16 +23,17 @@ Page({
             this.setData({ busy: false, error: '裁剪区域尚未准备好，请重试' })
             return
           }
-          // aspectFit uses the smaller ratio; include the movable-view translation
-          // and scale so the exported pixels match what the student sees.
+          // The movable-view rect already includes its current translation and
+          // scale. Do not add x/y/scale a second time. aspectFit uses the
+          // smaller ratio inside that transformed viewport.
           const fitScale = Math.min(imageRect.width / info.width, imageRect.height / info.height)
-          const renderedWidth = info.width * fitScale * this.data.scale
-          const renderedHeight = info.height * fitScale * this.data.scale
-          const imageCenterX = imageRect.left + imageRect.width / 2 + Number(this.data.x || 0)
-          const imageCenterY = imageRect.top + imageRect.height / 2 + Number(this.data.y || 0)
+          const renderedWidth = info.width * fitScale
+          const renderedHeight = info.height * fitScale
+          const imageCenterX = imageRect.left + imageRect.width / 2
+          const imageCenterY = imageRect.top + imageRect.height / 2
           const offsetX = imageCenterX - renderedWidth / 2
           const offsetY = imageCenterY - renderedHeight / 2
-          const sourceScale = fitScale * Math.max(0.01, Number(this.data.scale || 1))
+          const sourceScale = Math.max(0.01, fitScale)
           const sx = Math.min(Math.max(0, info.width - 1), Math.max(0, Math.round((boxRect.left - offsetX) / sourceScale)))
           const sy = Math.min(Math.max(0, info.height - 1), Math.max(0, Math.round((boxRect.top - offsetY) / sourceScale)))
           const sw = Math.min(info.width - sx, Math.max(1, Math.round(boxRect.width / sourceScale)))
