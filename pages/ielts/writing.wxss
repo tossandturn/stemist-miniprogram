@@ -5,4 +5,6 @@
 .task-chip.active { border-color: #f19a3e; color: #a95c12; background: #fff4e6; }
 .photo-button { margin-top: 18rpx; }
 .writing-page .photo-preview { height: 300rpx; }
+.writing-editor { margin-top: 12rpx; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.prompt-input { min-height: 190rpx !important; }
 .writing-page .text-button { display: block; margin: 18rpx auto 0; }

@@ -11,7 +11,11 @@
       <button class="secondary photo-button" bindtap="takePhoto">{{photoPath ? '重新拍照' : '拍照上传手写作文'}}</button>
       <image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" />
     </view>
-    <coach-panel message="{{text}}" answer="{{answer}}" loading="{{loading}}" submit-label="提交并获取评分" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="AI Coach 会按 Task 成功度、Coherence & Cohesion、Lexical Resource、Grammar 给出可追溯反馈。" bind:input="onInput" bind:submit="submit" />
+    <view class="writing-editor panel">
+      <view class="field-label">题目 / Prompt（建议填写）</view>
+      <textarea class="prompt-input" value="{{prompt}}" maxlength="2000" placeholder="粘贴 IELTS Task 1 / Task 2 题目；照片中也应尽量拍到题目。" bindinput="onPromptInput" />
+      <coach-panel message="{{text}}" answer="{{answer}}" loading="{{loading}}" submit-label="提交并获取评分" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="AI Coach 会按四项标准反馈；没有题目时只做语言层面分析，不宣称完整 Task 评分。" bind:input="onInput" bind:submit="submit" />
+    </view>
   </view>
   <button class="text-button" bindtap="clear" disabled="{{loading}}">清空当前作文和照片</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
