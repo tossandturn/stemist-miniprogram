@@ -7,7 +7,7 @@ Page({
     options = options || {}
     let src = ''
     try { src = options.src ? decodeURIComponent(options.src) : '' } catch { src = '' }
-    this.setData({ src })
+    this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍摄。' })
   },
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },

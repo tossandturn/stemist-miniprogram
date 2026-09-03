@@ -8,7 +8,7 @@
     <view class="crop-box" aria-label="裁剪区域"></view>
   </movable-area>
   <view class="crop-hint">建议：横屏 iPad 拍含图表的题目，手机竖屏拍单个题号；不要把多道题合并。</view>
-  <button class="primary" bindtap="confirm" loading="{{busy}}">使用裁剪后的照片</button>
+  <button class="primary" bindtap="confirm" loading="{{busy}}" disabled="{{busy || !src}}">使用裁剪后的照片</button>
   <button class="secondary" bindtap="cancel">取消</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <canvas canvas-id="cropCanvas" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
