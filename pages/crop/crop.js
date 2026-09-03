@@ -45,8 +45,9 @@ Page({
     })
   },
   exportCrop(sx, sy, sw, sh, info) {
-    const destWidth = Math.max(1, Math.min(sw, 1600))
-    const destHeight = Math.max(1, Math.min(sh, 1600))
+    const resizeScale = Math.min(1, 1600 / Math.max(sw, sh))
+    const destWidth = Math.max(1, Math.round(sw * resizeScale))
+    const destHeight = Math.max(1, Math.round(sh * resizeScale))
     this.setData({ canvasWidth: destWidth, canvasHeight: destHeight }, () => {
       const ctx = wx.createCanvasContext('cropCanvas', this)
       ctx.clearRect(0, 0, destWidth, destHeight)
