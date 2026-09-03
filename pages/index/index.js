@@ -4,6 +4,13 @@ Page({
   data: deviceState({
     user: null,
     activeTab: 'today',
+    recentActivity: null,
+    loopSteps: [
+      { label: 'Discover', detail: '选择准确路线', state: 'ready' },
+      { label: 'Practice', detail: '提交真实证据', state: 'next' },
+      { label: 'Coach', detail: '看诊断与证据', state: 'locked' },
+      { label: 'Retest', detail: '修正后再练', state: 'locked' },
+    ],
     metrics: [
       { label: 'This week', value: '0', detail: 'completed attempts' },
       { label: 'Saved drafts', value: '0', detail: 'ready to resume' },
@@ -22,7 +29,22 @@ Page({
     syncDevice(this)
     const user = wx.getStorageSync('stemistUser') || null
     const drafts = ['listening', 'reading', 'writing'].reduce((count, key) => count + (wx.getStorageSync(`stemistDraft:${key}`) ? 1 : 0), 0)
-    this.setData({ user, 'metrics[1].value': String(drafts) })
+    const submissions = ['stem-photo', 'writing', 'listening', 'reading'].map((key) => wx.getStorageSync(`stemistSubmission:${key}`)).filter(Boolean)
+    const recentActivity = submissions.sort((a, b) => Number(b.submittedAt || 0) - Number(a.submittedAt || 0))[0] || null
+    const loopSteps = recentActivity
+      ? [
+        { label: 'Discover', detail: '路线已选择', state: 'ready' },
+        { label: 'Practice', detail: '证据已提交', state: 'ready' },
+        { label: 'Coach', detail: '反馈可查看', state: 'next' },
+        { label: 'Retest', detail: '准备下一次', state: 'locked' },
+      ]
+      : [
+        { label: 'Discover', detail: '选择准确路线', state: 'ready' },
+        { label: 'Practice', detail: drafts ? '恢复草稿' : '提交真实证据', state: 'next' },
+        { label: 'Coach', detail: '看诊断与证据', state: 'locked' },
+        { label: 'Retest', detail: '修正后再练', state: 'locked' },
+      ]
+    this.setData({ user, recentActivity, loopSteps, 'metrics[1].value': String(drafts) })
   },
   onResize() { syncDevice(this) },
 

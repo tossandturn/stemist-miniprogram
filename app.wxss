@@ -50,6 +50,17 @@ button[disabled] { opacity: .55; }
 .metric-label, .metric-detail { display: block; color: #6f7892; font-size: 21rpx; }
 .metric-value { display: block; margin-top: 10rpx; color: #18213d; font-size: 36rpx; font-weight: 800; }
 .metric-detail { margin-top: 6rpx; color: #8a92a8; font-size: 20rpx; line-height: 1.35; }
+.learning-loop { margin-top: 20rpx; padding: 24rpx; }
+.loop-track { display: flex; align-items: flex-start; margin-top: 18rpx; }
+.loop-step { position: relative; display: flex; flex: 1; min-width: 0; }
+.loop-step:not(:last-child)::after { position: absolute; left: 34rpx; right: 8rpx; top: 18rpx; height: 2rpx; background: #dfe4ef; content: ''; }
+.loop-dot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 38rpx; height: 38rpx; border-radius: 50%; color: #fff; background: #c7ccda; font-size: 19rpx; font-weight: 800; }
+.loop-ready .loop-dot, .loop-next .loop-dot { background: #7357e8; }
+.loop-copy { min-width: 0; margin-left: 8rpx; padding-right: 10rpx; }
+.loop-copy text, .loop-copy small { display: block; }
+.loop-copy text { color: #18213d; font-size: 21rpx; font-weight: 800; }
+.loop-copy small { margin-top: 4rpx; color: #8a92a8; font-size: 17rpx; line-height: 1.3; }
+.recent-activity { margin-top: 18rpx; padding-top: 14rpx; border-top: 1rpx solid #edf0f4; color: #6f7892; font-size: 21rpx; }
 .quick-grid { display: grid; grid-template-columns: 1fr; }
 .quick-card { position: relative; min-height: 220rpx; padding: 26rpx; overflow: hidden; }
 .quick-card::before { position: absolute; right: 24rpx; top: 22rpx; font-size: 54rpx; opacity: .22; }
@@ -137,4 +148,7 @@ textarea { min-height: 300rpx; }
   .ai-orb { margin-bottom: 14rpx; }
   .ai-card .secondary { width: 100%; }
   .crop-stage { height: 650rpx; }
+  .loop-track { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .loop-step { margin-bottom: 14rpx; }
+  .loop-step:not(:last-child)::after { display: none; }
 }

@@ -35,6 +35,18 @@
     </view>
   </view>
 
+  <view class="learning-loop card">
+    <view class="section-kicker">LEARNING LOOP</view>
+    <view class="loop-track">
+      <view wx:for="{{loopSteps}}" wx:key="label" class="loop-step loop-{{item.state}}">
+        <view class="loop-dot">{{index + 1}}</view>
+        <view class="loop-copy"><text>{{item.label}}</text><small>{{item.detail}}</small></view>
+      </view>
+    </view>
+    <view wx:if="{{recentActivity}}" class="recent-activity">最近一次：{{recentActivity.taskType || recentActivity.skill || 'AI Coach'}} · 已提交</view>
+    <view wx:else class="recent-activity">还没有提交记录；完成一次练习后，这里会显示下一步。</view>
+  </view>
+
   <view class="section-title">Continue learning</view>
   <view class="card quick-card stem accent-stem">
     <view class="section-kicker">STEM STUDIO · PHOTO WORKSPACE</view>

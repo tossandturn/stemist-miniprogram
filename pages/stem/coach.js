@@ -25,7 +25,9 @@ Page({
         imageDataUrls: [dataUrl],
         context: { ...this.data.context, stage: this.data.context.stage || 'practice' },
       })
-      this.setData({ answer: result.answer || result.message || 'AI 返回了空结果，请重试。' })
+      const answer = result.answer || result.message || 'AI 返回了空结果，请重试。'
+      wx.setStorageSync('stemistSubmission:stem-photo', { skill: 'STEM AI Coach', routeId: this.data.context.routeId || '', answer, submittedAt: Date.now() })
+      this.setData({ answer })
     } catch (error) { this.setData({ error: error.message || 'AI 请求失败，请稍后重试' }) }
     finally { this.setData({ loading: false }) }
   },

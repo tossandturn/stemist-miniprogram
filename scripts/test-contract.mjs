@@ -29,6 +29,7 @@ assert.match(app, /pages\/account\/auth/)
 assert.match(index, /AI Coach/)
 assert.match(index, /isTablet/)
 assert.match(index, /bottom-nav/)
+assert.match(index, /learning-loop/)
 
 assert.match(device, /deviceType/)
 assert.match(device, /isTablet/)
