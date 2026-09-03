@@ -7,6 +7,7 @@
     "test:device": "node scripts/test-device-profile.mjs",
     "test:crop": "node scripts/test-crop-math.mjs",
     "test:coach": "node scripts/test-coach-service.mjs",
+    "test:stem-photo": "node scripts/test-stem-photo-flow.mjs",
     "test:image": "node scripts/test-image-pipeline.mjs",
     "test:pages": "node scripts/test-page-contract.mjs",
     "test:wechat": "node scripts/test-wechat-compile.mjs"
