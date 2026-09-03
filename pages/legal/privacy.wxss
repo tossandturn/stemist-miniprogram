@@ -1,0 +1,4 @@
+.privacy-panel { margin-top: 20rpx; }
+.privacy-panel .section-title { margin-top: 28rpx; font-size: 28rpx; }
+.privacy-panel .section-title:first-child { margin-top: 0; }
+.privacy-item { margin-top: 10rpx; color: #5d6781; font-size: 24rpx; line-height: 1.65; }

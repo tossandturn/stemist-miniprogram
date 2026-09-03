@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "Stemist · Privacy",
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index"
+  }
+}

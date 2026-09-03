@@ -16,5 +16,6 @@
       <view wx:if="{{error}}" class="error">{{error}}</view>
     </view>
   </view>
+  <button class="text-button" bindtap="openPrivacy">查看隐私说明</button>
   <view class="notice">登录请求只发送到配置的 Stemist 服务端；客户端不保存模型密钥。正式微信身份接入将在服务端完成 wx.login 换票。</view>
 </view>

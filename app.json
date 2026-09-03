@@ -8,7 +8,8 @@
     "pages/ielts/writing",
     "pages/ielts/speaking",
     "pages/crop/crop",
-    "pages/account/auth"
+    "pages/account/auth",
+    "pages/legal/privacy"
   ],
   "window": {
     "navigationBarTitleText": "Stemist",

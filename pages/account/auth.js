@@ -10,6 +10,7 @@ Page({
   },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
+  openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
   onInput(e) { this.setData({ [e.currentTarget.dataset.field]: e.detail.value, error: '' }) },
   toggleMode() { this.setData({ mode: this.data.mode === 'login' ? 'register' : 'login', error: '' }) },
   async submit() {
