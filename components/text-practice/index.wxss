@@ -8,6 +8,7 @@
 .text-practice .primary, .text-practice .secondary { width: 100%; min-height: 84rpx; margin-top: 18rpx; }
 .text-practice .error { margin-top: 16rpx; padding: 16rpx; border-radius: 12rpx; color: #b33b55; background: #fff0f2; font-size: 23rpx; }
 .text-practice .result { margin-top: 18rpx; padding: 22rpx; border: 1rpx solid #dceee7; border-radius: 14rpx; color: #18213d; background: #fff; white-space: pre-wrap; font-size: 26rpx; line-height: 1.6; }
+.text-practice .warning { margin-top: 16rpx; padding: 16rpx; border-radius: 12rpx; color: #8a5b18; background: #fff6e8; font-size: 23rpx; line-height: 1.45; }
 @media (min-width: 768px) { .text-practice textarea { min-height: 420rpx; } }
 @media (min-width: 768px) {
   .text-practice .context-card { padding: 18px; border-radius: 12px; }

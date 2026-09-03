@@ -4,6 +4,7 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   wx.removeStorageSync('stemistSessionToken')
   wx.removeStorageSync('stemistUser')
   wx.removeStorageSync('stemistCropReturn')
+  wx.removeStorageSync('stemistRetakeContext')
   wx.removeStorageSync('stemistCroppedImage')
   wx.removeStorageSync('stemistCoachContext')
   wx.removeStorageSync('stemistWritingPhoto')

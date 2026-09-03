@@ -8,12 +8,15 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const routes = [
   { routeId: 'cie-9702-as-physics', subjectCode: '9702', subjectLabel: 'Physics', stage: 'AS', components: 'P1 + P2 + P3' },
   { routeId: 'cie-9702-a2-physics', subjectCode: '9702', subjectLabel: 'Physics', stage: 'A2', components: 'P4 + P5' },
+  { routeId: 'cie-9709-as-p1-p5', subjectCode: '9709', subjectLabel: 'Mathematics', stage: 'AS', components: 'P1 + S1' },
 ]
 let pageConfig
 const storage = {}
 let navigatedUrl = ''
 const wx = {
   getSystemInfoSync: () => ({ windowWidth: 390, deviceType: 'phone', model: 'iPhone' }),
+  getStorageSync: (key) => storage[key],
+  removeStorageSync: (key) => { delete storage[key] },
   setStorageSync: (key, value) => { storage[key] = value },
   chooseMedia: (options) => options.success({ tempFiles: [{ tempFilePath: '/tmp/photo.jpg' }] }),
   navigateTo: ({ url }) => { navigatedUrl = url },
@@ -23,7 +26,7 @@ const fakeRequire = (name) => name === '../../utils/page' ? pageHelpers : name =
 const source = fs.readFileSync(path.join(root, 'pages/stem/capture.js'), 'utf8')
 vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require: fakeRequire, wx, Date, String, Number, Boolean, Math, encodeURIComponent })
 
-const instance = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update) { Object.assign(this.data, update) } }
+const instance = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update, callback) { Object.assign(this.data, update); if (callback) callback() } }
 Object.assign(instance, pageConfig)
 pageConfig.onLoad.call(instance, {})
 pageConfig.chooseStage.call(instance, { currentTarget: { dataset: { stage: 'IGCSE' } } })
@@ -37,4 +40,12 @@ assert.match(navigatedUrl, /^\/pages\/crop\/crop\?src=/)
 assert.equal(instance.data.busy, true)
 pageConfig.onShow.call(instance)
 assert.equal(instance.data.busy, false)
+
+storage.stemistRetakeContext = { subjectCode: '9709', stage: 'AS', routeId: 'cie-9709-as-p1-p5' }
+const retakeInstance = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update, callback) { Object.assign(this.data, update); if (callback) callback() } }
+Object.assign(retakeInstance, pageConfig)
+pageConfig.onLoad.call(retakeInstance, {})
+assert.equal(retakeInstance.data.subjectCode, '9709')
+assert.equal(retakeInstance.data.routeId, 'cie-9709-as-p1-p5')
+assert.equal(storage.stemistRetakeContext, undefined)
 console.log('STEM photo route flow checks passed.')

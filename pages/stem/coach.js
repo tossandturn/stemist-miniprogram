@@ -62,6 +62,9 @@ Page({
       this.setData({ syncing: false, syncFailed: true, syncStatus: '反馈已显示 · 学习记录同步仍失败，请稍后重试' })
     }
   },
-  retake() { wx.redirectTo({ url: '/pages/stem/capture' }) },
+  retake() {
+    wx.setStorageSync('stemistRetakeContext', this.data.context || {})
+    wx.redirectTo({ url: '/pages/stem/capture' })
+  },
   goBack() { wx.navigateBack() },
 })

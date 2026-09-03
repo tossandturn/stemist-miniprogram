@@ -90,5 +90,8 @@ Page({
     wx.setStorageSync('stemistCroppedImage', path)
     wx.redirectTo({ url: `/pages/stem/coach?src=${encodeURIComponent(path)}` })
   },
-  cancel() { wx.navigateBack() },
+  cancel() {
+    wx.removeStorageSync('stemistCropReturn')
+    wx.navigateBack()
+  },
 })

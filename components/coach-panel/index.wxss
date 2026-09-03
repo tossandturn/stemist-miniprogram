@@ -7,7 +7,7 @@
 .coach-panel .primary { margin-top: 16rpx; }
 .coach-helper { margin-top: 14rpx; color: #6f7892; font-size: 21rpx; line-height: 1.45; }
 .coach-panel .warning { margin-top: 14rpx; padding: 14rpx 16rpx; border-radius: 12rpx; color: #8a5b18; background: #fff6e8; font-size: 21rpx; line-height: 1.45; }
-.coach-panel .result { margin-top: 18rpx; }
+.coach-panel .result { margin-top: 18rpx; padding: 22rpx; border: 1rpx solid #dceee7; border-radius: 14rpx; color: #18213d; background: #fff; white-space: pre-wrap; font-size: 26rpx; line-height: 1.6; }
 @media (min-width: 768px) {
   .coach-panel { padding: 20px; border-radius: 12px; }
   .coach-panel-head { margin-bottom: 12px; }

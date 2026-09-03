@@ -41,7 +41,20 @@ Page({
     options = options || {}
     const isWriting = options.returnPage === 'writing'
     this.setData({ returnPage: isWriting ? 'writing' : 'stem', isWriting }, () => {
-      if (!isWriting) this.refreshInventory(this.data.routeId)
+      if (isWriting) return
+      const saved = wx.getStorageSync('stemistRetakeContext') || null
+      wx.removeStorageSync('stemistRetakeContext')
+      if (!saved || !saved.subjectCode) {
+        this.refreshInventory(this.data.routeId)
+        return
+      }
+      const subject = SUBJECTS.find((item) => item.code === String(saved.subjectCode))
+      const stage = STAGES.indexOf(saved.stage) >= 0 ? saved.stage : this.data.stage
+      const routes = subject ? routesForSubjectStage(subject.code, stage) : this.data.routeOptions
+      const routeId = routes.some((route) => route.routeId === saved.routeId) ? saved.routeId : (routes[0] ? routes[0].routeId : '')
+      this.setData({ subjectCode: subject ? subject.code : this.data.subjectCode, subjectLabel: subject ? subject.label : this.data.subjectLabel, stage, routeOptions: routes, routeId, canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '' }, () => {
+        if (routeId) this.refreshInventory(routeId)
+      })
     })
   },
   onShow() {
@@ -50,6 +63,7 @@ Page({
     // the guard when the user comes back so a cancelled crop can be retried.
     if (this.data.busy) this.setData({ busy: false })
   },
+  onUnload() { this.__inventoryRequestId = (this.__inventoryRequestId || 0) + 1 },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
   chooseSubject(event) {
