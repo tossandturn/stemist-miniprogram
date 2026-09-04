@@ -2,11 +2,11 @@
 
 更新时间：2026-09-05（Asia/Shanghai）
 
-当前实现基线：工作树包含四入口首页、A-Level/竞赛隔离的数据范围、原生 Camera/裁剪、Practice/Coach/Progress/Notebook/Past papers/Web workspace 页面，以及完整 IELTSist 功能目录；待本次提交后的 GitHub Actions 和真实 DevTools/真机复验。
+当前实现基线：`master@478522f` 包含四入口首页、A-Level/竞赛隔离的数据范围、原生 Camera/裁剪、Practice/Coach/Progress/Notebook/Past papers/Web workspace 页面，以及完整 IELTSist 功能目录；GitHub Actions 已通过，仍待真实 DevTools/真机复验。
 
 ## 已验证
 
-- GitHub `master`：上一基线为 `124ce42`；本轮修改完成后会推送新提交并等待 Actions，不把本地绿色结果直接当作远端验收。
+- GitHub `master@478522f`：Actions `33918857082` 的 `npm run test:all` 和编译契约均通过；远端绿色仍不替代微信真机验收。
 - `npm run test:all`：契约、API 客户端、账号身份、会话清理、AI Coach 状态、STEM Coach 页面、attempt 同步、inventory、路线镜像、裁剪、设备分类、拍照流程、图片管线、页面组件和 WXML/WXSS 编译全部通过。
 - 本轮新增门禁：统一五项导航、真题目录 normalization/cache、学习摘要、WebView 主机 allowlist、手机/iPad 触点尺寸与布局、正文颜色对比度；均通过 `npm run test:all`。
 - 路线镜像：26 个客户端 route ID 与 STEM `src/data/routeRegistry.js` 一致，包含 IGCSE Biology 0610、A-Level、竞赛和入学考试路线。
