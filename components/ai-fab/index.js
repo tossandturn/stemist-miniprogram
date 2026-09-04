@@ -5,6 +5,8 @@ Component({
     routeId: { type: String, value: '' },
     stage: { type: String, value: '' },
     subjectCode: { type: String, value: '' },
+    category: { type: String, value: '' },
+    family: { type: String, value: '' },
   },
   methods: {
     openCoach() {
@@ -13,6 +15,8 @@ Component({
         ['routeId', String(this.data.routeId || '').slice(0, 120)],
         ['stage', String(this.data.stage || '').slice(0, 30)],
         ['subjectCode', String(this.data.subjectCode || '').slice(0, 20)],
+        ['category', String(this.data.category || '').slice(0, 20)],
+        ['family', String(this.data.family || '').slice(0, 20)],
       ].filter(([, value]) => value).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&')
       wx.navigateTo({
         url: `/pages/coach/index?${params}`,

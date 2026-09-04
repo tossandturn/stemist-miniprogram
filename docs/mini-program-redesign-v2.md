@@ -1,6 +1,6 @@
 # Stemist 微信小程序 v2：交互、文案与实现规范
 
-版本：2026-09-04（Asia/Shanghai）
+版本：2026-09-05（Asia/Shanghai）
 状态：实现基线（先定交互，再按本文件验收）
 
 这不是一个把网页缩小的 Demo。小程序是 IELTSist 统一学习产品的轻量入口：在手机上快速完成一题，在 iPad 上并行查看上下文和证据；完整 PDF、连续 Apple Pencil 批注和长篇真题浏览继续由 iOS/网页承载。
@@ -10,7 +10,7 @@
 首页只呈现四个一级入口，避免把学生直接扔进一张功能清单：
 
 1. **A-Level 学科**：IGCSE / AS / A2 的路线选择、真题和一题一拍。
-2. **IELTS**：Listening、Reading、Writing、Speaking，沿用 IELTSist 的技能边界。
+2. **IELTS**：Dashboard、Listening、Reading、Writing、Speaking、Same‑Test、Random Exam、Vocabulary、Mine/Account、Subscription，沿用 IELTSist 的完整功能边界。
 3. **竞赛 / 入学考试**：BPhO、AMC 12、ESAT、TMUA，和 Cambridge A-Level 统计分开。
 4. **Casio 计算器**：应用内科学计算器练习；明确标注为 Stemist 工具，不冒充 Casio 官方模拟器。
 
@@ -33,8 +33,8 @@
 | --- | --- | --- | --- |
 | STEM（IGCSE/AS/A2） | 后置摄像头一题一拍 → 裁剪 | 照片 + route context → STEM AI Coach → 可选 attempt 同步 | 不在小程序模拟 PDF/Apple Pencil |
 | STEM 竞赛/入学考试 | 后置摄像头一题一拍 → 裁剪 | BPhO/AMC/ESAT/TMUA route context → Coach | 不把竞赛题混入 Cambridge A-Level 统计 |
-| IELTS Listening | 文本框记录题号、答案、听力陷阱 | IELTSist Coach → 草稿/提交摘要 | 不在小程序伪造音频播放器 |
-| IELTS Reading | 文本框记录答案、原文定位、证据 | IELTSist Coach → 草稿/提交摘要 | 不把题型当成 Topic |
+| IELTS Listening | 文本框记录题号、答案、听力陷阱；可打开完整 IELTSist 音频工作区 | IELTSist Coach → 草稿/提交摘要 | 不在小程序伪造音频播放器 |
+| IELTS Reading | 文本框记录答案、原文定位、证据；可打开完整 IELTSist 文章工作区 | IELTSist Coach → 草稿/提交摘要 | 不把题型当成 Topic |
 | IELTS Writing | 键入作文或拍一页手写稿 → 裁剪 | 四项标准反馈；无题目时只做语言反馈 | 不宣称官方成绩 |
 | IELTS Speaking | `web-view` 打开 IELTSist realtime examiner | IELTSist 账号/业务域名/麦克风 | 不降级成伪造文本评分 |
 
@@ -101,7 +101,10 @@ route selection
 ```text
 draft (local, debounced)
   → normalized context { product:'IELTSist', skill, inputMode, stage:'practice', source:'stemist-miniprogram' }
-  → POST /api/ai/coach
+  → POST https://ieltsist.com/api/help/chat（原生快速页）
+  → 或打开 IELTSist 完整 WebView 深链（Same‑Test / Random Exam / Vocabulary / Mine / Subscription 等）
+
+原生 IELTS 快速页不伪造 IELTSist 的浏览器会话；账号历史、正式报告、词汇本和会员状态以 WebView 中的 IELTSist 会话为准。
   → explicit AI/local/offline state
   → submission summary + next action
 ```

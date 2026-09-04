@@ -1,7 +1,8 @@
 const { deviceState, syncDevice } = require('../../utils/page')
+const { ieltsWebUrl } = require('../../utils/ieltsCatalog')
 
 Page({
-  data: deviceState({ webviewUrl: 'https://ieltsist.com/?module=speaking&from=stemist#bank', webviewState: 'loading', webviewError: '' }),
+  data: deviceState({ webviewUrl: ieltsWebUrl('speaking', { source: 'mini-speaking' }), webviewState: 'loading', webviewError: '' }),
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },
   onWebViewLoad() { this.setData({ webviewState: 'ready', webviewError: '' }) },

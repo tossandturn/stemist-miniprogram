@@ -14,12 +14,29 @@ function allowedUrl(value) {
   } catch { return '' }
 }
 
+function queryValue(url, key) {
+  const match = String(url || '').match(new RegExp(`[?&]${key}=([^&#]*)`, 'i'))
+  if (!match) return ''
+  try { return decodeURIComponent(match[1] || '') } catch { return '' }
+}
+
+function coachContextForUrl(url) {
+  if (!url) return { coachSource: 'webview', category: '', family: '', routeId: '', stage: '', subjectCode: '' }
+  const host = String(url || '').match(/^https:\/\/([^/?#]+)/i)?.[1]?.toLowerCase() || ''
+  if (host === 'ieltsist.com') return { coachSource: 'ielts', category: 'ielts', family: '', routeId: '', stage: '', subjectCode: '' }
+  const categoryValue = queryValue(url, 'category').toLowerCase()
+  const category = categoryValue === 'competition' ? 'competition' : 'alevel'
+  const familyValue = queryValue(url, 'family').toLowerCase()
+  const family = ['exam', 'competition', 'admissions'].includes(familyValue) ? familyValue : category === 'competition' ? 'competition' : 'exam'
+  return { coachSource: category === 'competition' ? 'competition' : 'alevel', category, family, routeId: queryValue(url, 'routeId'), stage: queryValue(url, 'stage'), subjectCode: queryValue(url, 'subject') || queryValue(url, 'subjectCode') }
+}
+
 Page({
-  data: deviceState({ url: '', error: '', loaded: false }),
+  data: deviceState({ url: '', error: '', loaded: false, coachSource: 'webview', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
   onLoad(options) {
     const url = allowedUrl(options && options.url)
     this.__rawUrl = url
-    this.setData({ url: '', loaded: false, error: url ? '' : '这个网页地址不在 Stemist/IELTSist 安全范围内。' })
+    this.setData({ url: '', loaded: false, error: url ? '' : '这个网页地址不在 Stemist/IELTSist 安全范围内。', ...coachContextForUrl(url) })
     if (!url) return
     const parsed = url.match(/^https:\/\/([^/?#]+)([/?#].*)?$/i)
     if (!parsed) { this.setData({ url }); return }

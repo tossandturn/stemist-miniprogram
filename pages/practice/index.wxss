@@ -1,8 +1,8 @@
-.practice-page .category-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10rpx; margin-top: 20rpx; padding: 8rpx; border: 1rpx solid #e4e7f0; border-radius: 18rpx; background: #fff; }
-.category-tab { display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 88rpx; padding: 8rpx 6rpx; color: #66708a; background: transparent; font-weight: 800; line-height: 1.2; }
-.category-tab-detail { display: block; margin-top: 6rpx; color: #6d758b; font-size: 18rpx; font-weight: 600; }
-.category-tab.active { color: #5b43c7; background: #f0ecff; }
-.category-tab.active .category-tab-detail { color: #7357e8; }
+.workspace-scope-bar { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 16rpx; padding: 14rpx 16rpx; border: 1rpx solid #e4e7f0; border-radius: 14rpx; background: #fff; }
+.workspace-scope-label, .workspace-scope-value { display: block; }
+.workspace-scope-label { color: #6d758b; font-size: 18rpx; }
+.workspace-scope-value { margin-top: 3rpx; color: #18213d; font-size: 23rpx; font-weight: 800; }
+.workspace-scope-bar navigator { display: flex; align-items: center; min-height: 64rpx; padding: 0 10rpx; color: #5b43c7; font-size: 21rpx; font-weight: 800; white-space: nowrap; }
 .route-setup-card { border-top: 6rpx solid #7357e8; }
 .route-label { margin-top: 22rpx; color: #4e5a76; font-size: 23rpx; font-weight: 800; }
 .chip-grid { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 10rpx; }
@@ -42,8 +42,28 @@
 .skill-mark.writing { background: #f19a3e; }
 .skill-mark.speaking { background: #ed6486; }
 .skill-card .secondary { width: auto; min-width: 220rpx; }
+.ielts-group-title { display: flex; align-items: baseline; justify-content: space-between; gap: 14rpx; margin-top: 28rpx; }
+.ielts-group-title text { min-width: 0; color: #6d758b; font-size: 20rpx; font-weight: 600; }
+.ielts-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; }
+.ielts-feature-card { display: grid; grid-template-columns: 48rpx minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; column-gap: 14rpx; min-height: 204rpx; margin: 0; padding: 20rpx; border: 1rpx solid #e4e7f0; border-radius: 18rpx; color: #18213d; background: #fff; text-align: left; box-shadow: 0 10rpx 22rpx rgba(42, 31, 89, .06); }
+.ielts-feature-card:active { background: #f8f6ff; transform: translateY(1rpx); }
+.ielts-feature-mark { display: flex; grid-column: 1; grid-row: 1 / span 2; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; border-radius: 14rpx; background: #7357e8; }
+.ielts-feature-mark-inner { width: 18rpx; height: 18rpx; border: 4rpx solid #fff; border-radius: 50%; }
+.ielts-feature-copy { min-width: 0; grid-column: 2; grid-row: 1; }
+.ielts-feature-copy .card-title { font-size: 25rpx; }
+.ielts-feature-copy .card-detail { margin-top: 6rpx; font-size: 20rpx; line-height: 1.4; }
+.ielts-feature-cta { grid-column: 2; grid-row: 2; align-self: end; margin-top: 12rpx; color: #5b43c7; font-size: 19rpx; font-weight: 800; white-space: nowrap; }
+.ielts-feature-card.tone-reading .ielts-feature-mark { background: #3a9d85; }
+.ielts-feature-card.tone-writing .ielts-feature-mark { background: #f19a3e; }
+.ielts-feature-card.tone-speaking .ielts-feature-mark { background: #ed6486; }
+.ielts-feature-card.tone-exam .ielts-feature-mark, .ielts-feature-card.tone-sequence .ielts-feature-mark { background: #e48735; }
+.ielts-feature-card.tone-vocabulary .ielts-feature-mark, .ielts-feature-card.tone-mine .ielts-feature-mark { background: #3a9d85; }
+.ielts-feature-card.tone-subscription .ielts-feature-mark { background: #e36a88; }
+.ielts-feature-card.tone-full .ielts-feature-mark { background: #18213d; }
+.ielts-boundary-note { margin-top: 18rpx; border-left: 6rpx solid #3a9d85; }
 @media (min-width: 768px) {
-  .practice-page .category-switch { max-width: 760px; }
+  .practice-page .workspace-scope-bar { max-width: 1120px; margin-left: auto; margin-right: auto; }
+  .workspace-scope-bar navigator { min-height: 44px; }
   .skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .route-setup-card, .inventory-card, .action-card, .ielts-intro-card { max-width: 1120px; margin-left: auto; margin-right: auto; }
   .route-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -52,4 +72,18 @@
   .feature-card { min-height: 110px; padding: 16px; }
   .feature-title { font-size: 16px; }
   .feature-detail { font-size: 13px; }
+  .ielts-feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .ielts-feature-card { grid-template-columns: 38px minmax(0, 1fr); column-gap: 12px; min-height: 132px; padding: 18px; border-radius: 12px; }
+  .ielts-feature-mark { width: 38px; height: 38px; border-radius: 11px; }
+  .ielts-feature-mark-inner { width: 14px; height: 14px; border-width: 3px; }
+  .ielts-feature-copy .card-title { font-size: 17px; }
+  .ielts-feature-copy .card-detail { font-size: 13px; }
+  .ielts-feature-cta { font-size: 12px; }
+}
+@media (min-width: 1180px) {
+  .ielts-feature-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .page.device-phone .ielts-feature-card { min-height: 204rpx; }
+  .ielts-group-title { align-items: flex-start; flex-direction: column; gap: 4rpx; }
 }

@@ -6,7 +6,7 @@ import vm from 'node:vm'
 const root = path.resolve(import.meta.dirname, '..')
 const source = fs.readFileSync(path.join(root, 'pages/stem/camera.js'), 'utf8')
 let pageConfig
-const storage = { stemistCameraReturn: { route: 'stem', context: { routeId: 'cie-9702-as-physics', stage: 'AS' } } }
+const storage = { stemistCameraReturn: { route: 'stem', context: { category: 'alevel', family: 'exam', subjectCode: '9702', routeId: 'cie-9702-as-physics', stage: 'AS' } } }
 let navigated = ''
 let chosenSource = ''
 const wx = {
@@ -24,6 +24,8 @@ vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require:
 const instance = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update) { Object.assign(this.data, update) } }
 Object.assign(instance, pageConfig)
 pageConfig.onLoad.call(instance)
+assert.equal(instance.data.category, 'alevel')
+assert.equal(instance.data.family, 'exam')
 pageConfig.onReady.call(instance)
 pageConfig.takePhoto.call(instance)
 assert.equal(chosenSource, 'camera', 'fallback must be camera-only')

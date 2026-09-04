@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-skill-page writing-page">
   <stemist-header eyebrow="IELTSIST · 写作 AI 反馈" title="Writing with AI" subtitle="题目、作文和四项标准反馈" action-text="返回" bind:action="openBack" />
-  <app-nav active="practice" source="writing" is-tablet="{{isTablet}}" />
+  <app-nav active="practice" source="writing" category="ielts" is-tablet="{{isTablet}}" />
   <view class="workspace-grid">
     <view class="context-card skill-identity writing-identity">
       <view class="context-card-title">Writing · 选择输入方式</view>
@@ -19,6 +19,7 @@
     </view>
   </view>
   <button class="text-button" bindtap="clear" disabled="{{loading}}">清空当前作文和照片</button>
+  <button class="secondary full-workspace-link" bindtap="openFullWorkspace">打开完整 IELTSist Writing</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view class="notice">{{isTablet ? 'iPad：左侧任务与照片证据，右侧编辑和 Coach 结果。' : '手机：输入、拍照和提交按单列顺序完成，键盘不会覆盖提交按钮。'}}</view>
 </view>

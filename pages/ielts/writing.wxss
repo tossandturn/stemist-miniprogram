@@ -8,3 +8,4 @@
 .writing-editor { margin-top: 12rpx; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .prompt-input { min-height: 190rpx !important; }
 .writing-page .text-button { display: block; margin: 18rpx auto 0; }
+.writing-page .full-workspace-link { margin-top: 14rpx; }

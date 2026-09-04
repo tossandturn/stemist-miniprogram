@@ -12,7 +12,8 @@ Page({
     let path = wx.getStorageSync('stemistCroppedImage')
     try { if (options.src) path = decodeURIComponent(options.src) } catch { path = '' }
     const context = wx.getStorageSync('stemistCoachContext') || {}
-    const label = context.subjectCode ? `${context.subject || context.subjectCode} · ${context.stage || '阶段待定'}${context.paperComponents ? ` · ${context.paperComponents}` : ''}` : '等待题目范围'
+    const scope = context.category === 'competition' ? '竞赛 / 入学考试' : context.category === 'alevel' ? 'A-Level 学科' : ''
+    const label = context.subjectCode ? `${scope ? `${scope} · ` : ''}${context.subject || context.subjectCode} · ${context.stage || '阶段待定'}${context.paperComponents ? ` · ${context.paperComponents}` : ''}` : '等待题目范围'
     const pendingSync = wx.getStorageSync('stemistPendingAttemptSync') || null
     this.__pendingSync = pendingSync
     this.setData({ imagePath: path || '', context, contextLabel: label, syncFailed: Boolean(pendingSync), syncStatus: pendingSync ? '上次反馈尚未同步' : '' })
@@ -61,7 +62,7 @@ Page({
         syncWarning = '本次 Coach 反馈已显示，但尚未写入云端学习记录。'
       }
       if (this.__disposed) return
-      wx.setStorageSync('stemistSubmission:stem-photo', { skill: 'STEM AI Coach', routeId: this.data.context.routeId || '', stage: this.data.context.stage || '', subjectCode: this.data.context.subjectCode || '', subject: this.data.context.subject || '', answer, attemptId: syncedAttemptId || this.__pendingSync?.attemptId || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', syncStatus, submittedAt: Date.now() })
+      wx.setStorageSync('stemistSubmission:stem-photo', { skill: 'STEM AI Coach', category: this.data.context.category || '', family: this.data.context.family || '', routeId: this.data.context.routeId || '', stage: this.data.context.stage || '', subjectCode: this.data.context.subjectCode || '', subject: this.data.context.subject || '', answer, attemptId: syncedAttemptId || this.__pendingSync?.attemptId || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', syncStatus, submittedAt: Date.now() })
       this.setData({ answer, warning: [coachState.warning || '', syncWarning].filter(Boolean).join('\n'), coachStatus: coachState.label || '反馈状态待确认', syncStatus, syncFailed: Boolean(syncWarning) })
     } catch (error) { if (!this.__disposed) this.setData({ error: error.message || 'AI 暂时不可用，原始照片已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' }) }
     finally { if (!this.__disposed) this.setData({ loading: false }) }

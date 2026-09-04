@@ -2,8 +2,12 @@ const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDra
 const { runCoach } = require('../../utils/coach')
 const { isAuthError } = require('../../utils/api')
 
+const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
+const STEM_FAMILIES = new Set(['exam', 'competition', 'admissions'])
+
 const CONTEXTS = [
   { id: 'stem-photo', label: 'STEM photo', detail: '先拍题，再把证据交给 Coach。', page: '/pages/stem/capture', product: 'STEM Studio' },
+  { id: 'ielts', label: 'IELTSist Coach', detail: '围绕 IELTS 技能、词汇和学习计划提问。', page: '/pages/practice/index?category=ielts', product: 'IELTSist' },
   { id: 'listening', label: 'IELTS Listening', detail: '检查答案、单复数和听力陷阱。', page: '/pages/ielts/listening', product: 'IELTSist' },
   { id: 'reading', label: 'IELTS Reading', detail: '检查原文定位和证据链。', page: '/pages/ielts/reading', product: 'IELTSist' },
   { id: 'writing', label: 'IELTS Writing', detail: '按四项标准反馈；可打字或拍手写稿。', page: '/pages/ielts/writing', product: 'IELTSist' },
@@ -23,17 +27,25 @@ Page({
     authRequired: false,
     draftStatus: '自动保存已开启',
     routeContext: {},
+    routeContextLabel: '',
   }),
   onLoad(options) {
     this.__disposed = false
     const draft = readDraft('coach')
     const source = String(options && options.source || '').toLowerCase()
-    const sourceContext = ['listening', 'reading', 'writing'].includes(source) ? source : ['stem-photo', 'capture', 'alevel', 'competition', 'papers', 'notebook', 'practice'].includes(source) ? 'stem-photo' : ''
+    const sourceContext = ['ielts', 'listening', 'reading', 'writing'].includes(source) ? source : ['stem-photo', 'capture', 'alevel', 'competition', 'papers', 'notebook', 'practice'].includes(source) ? 'stem-photo' : ''
     const next = {}
     const routeId = String(options && options.routeId || '').trim()
     const stage = String(options && options.stage || '').trim()
     const subjectCode = String(options && options.subjectCode || '').trim()
-    if (routeId || stage || subjectCode) next.routeContext = { routeId, stage, subjectCode }
+    const categoryCandidate = String(options && options.category || '').trim().toLowerCase()
+    const familyCandidate = String(options && options.family || '').trim().toLowerCase()
+    const category = PRODUCT_CATEGORIES.has(categoryCandidate) ? categoryCandidate : ''
+    const family = STEM_FAMILIES.has(familyCandidate) ? familyCandidate : ''
+    if (routeId || stage || subjectCode || category || family) {
+      next.routeContext = { routeId, stage, subjectCode, category, family }
+      next.routeContextLabel = [category === 'competition' ? '竞赛 / 入学考试' : category === 'alevel' ? 'A-Level 学科' : category === 'ielts' ? 'IELTSist' : '', routeId, stage].filter(Boolean).join(' · ')
+    }
     if (sourceContext) next.contextId = sourceContext
     if (draft && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
     if (Object.keys(next).length) this.setData(next)
@@ -68,7 +80,7 @@ Page({
       if (this.__disposed) return
       const coachState = result.coachState || {}
       this.setData({ answer: result.answer || 'AI 返回了空结果，请重试。', warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
-      wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { skill: selected.id, message, answer: result.answer || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
+      wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { category: selected.product === 'IELTSist' ? 'ielts' : 'stem', skill: selected.id, message, answer: result.answer || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
       clearDraft('coach')
     } catch (error) {
       if (!this.__disposed) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })

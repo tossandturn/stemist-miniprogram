@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} coach-home-page">
   <stemist-header eyebrow="STEMIST · AI COACH" title="先给证据，再给建议" subtitle="选择学习空间，写下卡住的步骤。" />
-  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
+  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{routeContext.category}}" family="{{routeContext.family}}" />
 
   <view class="card coach-intro">
     <view class="section-kicker">先看你的题目和记录</view>
@@ -9,7 +9,7 @@
   </view>
 
   <view class="route-label">我现在要检查</view>
-  <view wx:if="{{routeContext.routeId}}" class="route-pill">当前路线：{{routeContext.routeId}} · {{routeContext.stage}}</view>
+  <view wx:if="{{routeContextLabel}}" class="route-pill">{{routeContextLabel}}</view>
   <view class="context-grid">
     <button wx:for="{{contexts}}" wx:key="id" class="context-choice {{item.id === contextId ? 'active' : ''}}" data-context="{{item.id}}" bindtap="chooseContext"><text class="context-choice-title">{{item.label}}</text><text class="context-choice-detail">{{item.detail}}</text></button>
   </view>

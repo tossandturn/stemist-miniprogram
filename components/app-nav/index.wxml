@@ -2,7 +2,7 @@
   <block wx:if="{{active === 'today'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-today" aria-hidden="true"></view><text>Today</text></view></block>
   <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/index/index" aria-label="Today"><view class="nav-glyph nav-glyph-today" aria-hidden="true"></view><text>Today</text></navigator>
   <block wx:if="{{active === 'practice'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-practice" aria-hidden="true"></view><text>Practice</text></view></block>
-  <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/practice/index" aria-label="Practice"><view class="nav-glyph nav-glyph-practice" aria-hidden="true"></view><text>Practice</text></navigator>
+  <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/practice/index?category={{category || 'alevel'}}" aria-label="Practice"><view class="nav-glyph nav-glyph-practice" aria-hidden="true"></view><text>Practice</text></navigator>
   <block wx:if="{{active === 'coach'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-coach" aria-hidden="true"></view><text>AI Coach</text></view></block>
   <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/coach/index" aria-label="AI Coach"><view class="nav-glyph nav-glyph-coach" aria-hidden="true"></view><text>AI Coach</text></navigator>
   <block wx:if="{{active === 'progress'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-progress" aria-hidden="true"></view><text>Progress</text></view></block>
@@ -15,7 +15,7 @@
   <block wx:if="{{active === 'today'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-today" aria-hidden="true"></view><text>Today</text></view></block>
   <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/index/index" aria-label="Today"><view class="nav-glyph nav-glyph-today" aria-hidden="true"></view><text>Today</text></navigator>
   <block wx:if="{{active === 'practice'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-practice" aria-hidden="true"></view><text>Practice</text></view></block>
-  <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/practice/index" aria-label="Practice"><view class="nav-glyph nav-glyph-practice" aria-hidden="true"></view><text>Practice</text></navigator>
+  <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/practice/index?category={{category || 'alevel'}}" aria-label="Practice"><view class="nav-glyph nav-glyph-practice" aria-hidden="true"></view><text>Practice</text></navigator>
   <block wx:if="{{active === 'coach'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-coach" aria-hidden="true"></view><text>AI Coach</text></view></block>
   <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/coach/index" aria-label="AI Coach"><view class="nav-glyph nav-glyph-coach" aria-hidden="true"></view><text>AI Coach</text></navigator>
   <block wx:if="{{active === 'progress'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-progress" aria-hidden="true"></view><text>Progress</text></view></block>
@@ -23,4 +23,4 @@
   <block wx:if="{{active === 'account'}}"><view class="app-nav-item active"><view class="nav-glyph nav-glyph-account" aria-hidden="true"></view><text>Account</text></view></block>
   <navigator wx:else class="app-nav-item" hover-class="nav-hover" hover-stay-time="100" open-type="redirect" url="/pages/account/auth" aria-label="Account"><view class="nav-glyph nav-glyph-account" aria-hidden="true"></view><text>Account</text></navigator>
 </view>
-<ai-fab wx:if="{{showAi}}" source="{{source || active}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
+<ai-fab wx:if="{{showAi}}" source="{{source || active}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" category="{{category}}" family="{{family}}" />

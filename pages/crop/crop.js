@@ -2,12 +2,15 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { computeCropRect, resizedCropSize } = require('../../utils/crop')
 
 Page({
-  data: deviceState({ src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1 }),
+  data: deviceState({ src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
   onLoad(options) {
     options = options || {}
     let src = ''
     try { src = options.src ? decodeURIComponent(options.src) : '' } catch { src = '' }
-    this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍摄。' })
+    const returnInfo = wx.getStorageSync('stemistCropReturn') || {}
+    const context = returnInfo.context || {}
+    const isWriting = returnInfo.route === 'writing'
+    this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍摄。', coachSource: isWriting ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: isWriting ? 'ielts' : context.category || 'alevel', family: isWriting ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '' })
   },
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },

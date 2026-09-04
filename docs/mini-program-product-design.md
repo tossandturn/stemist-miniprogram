@@ -17,9 +17,10 @@
 它不替代网页/iOS 的完整 PDF 工作区：
 
 - STEM 在小程序中采用「一题一拍」，先进入原生后置相机取景页，再裁剪、AI Coach；没有相机能力的开发者工具才降级到仍限制为 `sourceType:['camera']` 的兼容调用，不打开相册。
-- IELTS Listening / Reading 保留文本工作区，题库和完整音频/文章仍以 IELTSist 为准。
-- IELTS Writing 支持键入或一张手写作文照片，然后进入 AI Coach。
-- IELTS Speaking 通过 `web-view` 保留 IELTSist 的实时千问 examiner、转写、评分和 retest。
+- IELTS 入口完整映射 IELTSist 的 Dashboard、四项技能、Same‑Test、Random Exam、Vocabulary、Mine/Account、Subscription 和 AI Coach；小程序提供快速入口，完整控制仍由 IELTSist WebView 承载。
+- IELTS Listening / Reading 保留文本工作区，题库、音频、文章和证据链仍以 IELTSist 为准。
+- IELTS Writing 支持键入或一张手写作文照片，然后进入 IELTSist Coach；需要 Cambridge 题组、完整报告和重写工作区时可一键打开原生网页。
+- IELTS Speaking 通过 `web-view` 保留 IELTSist 的实时千问 examiner、转写、评分、录音和 retest。
 - STEM 网页端的 Topic、完整真题、模拟考试、进度、Notebook、教师/学校工作区通过安全的 Stemist WebView 入口保留；小程序原生层只把输入改成拍照→裁剪→Coach，不删掉网页能力。
 
 ## 2. 信息架构
@@ -32,7 +33,8 @@
 2. 四张入口卡：A-Level 学科、IELTS、竞赛/入学考试、Casio 计算器；不在首页平铺二级功能。
 3. 入口失败只显示可理解的恢复提示，不把内部 prompt、provider、路由调试词展示给学生。
 4. 进入 A-Level/竞赛后可选择路线、读取真实 inventory、拍题，也可打开完整 STEM Studio。
-5. 进入 IELTS 后保留四项技能入口和完整 IELTSist 工作区。
+5. 进入 IELTS 后按“开始学习 / 四项技能 / 整套模拟 / 词汇与账号 / 完整工作区”分组展示全部 IELTSist 能力；原生快速页与 WebView 深链使用同一账号。
+6. 进入工作区后不再重复放 A-Level/IELTS/竞赛三段筛选条，只显示“当前工作区 / 切换入口”；学科和阶段才是该页真正的筛选项。
 
 ### 技能工作区
 
@@ -43,6 +45,15 @@
 共性由组件提供，技能页面只传入标题、上下文、占位文案、请求上下文和提交策略。AI Coach 不再使用页面内的开发者式提示词作为学生文案。
 
 STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等存在多个纸张组合的路线还必须选择 `routeId`。客户端镜像 `src/data/routeRegistry.js` 的稳定路线 ID 并把它随照片传入 Coach，防止 Physics、Mathematics、IGCSE、A-Level 和 Competition 内容被错误合并。Writing 拍照使用独立的 IELTS 上下文，不复用 STEM 路由。
+
+### STEM 类别边界
+
+A‑Level 学科与竞赛/入学考试使用同一套路线选择、inventory、拍照和 Coach 组件，但入口和服务端数据族严格分离：
+
+- A‑Level 只允许 IGCSE、AS、A2 学科路线，发送 `category=alevel`、`family=exam`；
+- 竞赛入口只允许 BPhO、AMC 12、ESAT、TMUA，Competition 与 Admissions 分别发送对应 `family`；
+- `category + family + subjectCode + stage + routeId` 会随拍题、真题目录和网页接续传递，服务端仍是权限与成绩唯一权威；
+- 切换入口会清空前一入口的路线和 inventory 状态，避免把题库数量或学习记录显示在错误类别下。
 
 路线卡下方读取 `GET /api/stem/routes/{routeId}/syllabus-topics` 的服务端 inventory，展示官方配对卷、已审核题组、可练习题组和 topic 状态。inventory 只用于学生选择和透明度，不作为权限或正式评分依据；接口失败时保留拍照入口并明确提示状态暂不可用，不把静态数量冒充真实数据。
 
@@ -96,7 +107,8 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 ```text
 页面输入
   → skillPage / photo pipeline 规范化
-  → POST https://stem.ieltsist.com/api/ai/coach
+  → STEM: POST https://stem.ieltsist.com/api/ai/coach
+  → IELTS: POST https://ieltsist.com/api/help/chat（原生快速页）或安全 WebView handoff（完整工作区）
   → 服务端鉴权、上下文绑定、provider 路由
   → 结构化/安全结果
   → 页面 result + 下一步动作
@@ -110,6 +122,7 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 - `inputMode` / `mode`：`text`、`typed` 或 `photo`；
 - 当前真实题目/学生文本/照片证据；
 - `source: stemist-miniprogram`。
+- IELTS 原生快速 Coach 只用于即时反馈；需要账号历史、正式题组、完整报告、词汇本或会员状态时统一进入 IELTSist WebView，由 IELTSist 会话 Cookie 负责持久化，不把 STEM bearer token 冒充成 IELTSist 登录态。
 
 客户端选择的 `subjectCode/stage/routeId` 只用于帮助 Coach 聚焦，不能作为权限或正式题目绑定的依据；服务端仍必须以已认证用户和权威 attempt/source 记录校验任何正式评分、历史或题库访问。
 

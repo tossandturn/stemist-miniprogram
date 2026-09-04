@@ -2,10 +2,11 @@ const { runCoach } = require('../../utils/coach')
 const { readAsJpegDataUrl } = require('../../utils/image')
 const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
 const { isAuthError } = require('../../utils/api')
+const { ieltsWebUrl } = require('../../utils/ieltsCatalog')
 
 Page({
   data: deviceState({
-    text: '', prompt: '', photoPath: '', taskType: 'Task 2', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', draftStatus: '自动保存已开启',
+    text: '', prompt: '', photoPath: '', taskType: 'Task 2', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', draftStatus: '自动保存已开启', fullWorkspaceUrl: ieltsWebUrl('writing', { source: 'mini-writing' }),
   }),
   onLoad() {
     this.__disposed = false
@@ -52,7 +53,7 @@ Page({
       const result = await runCoach({ message, context: { product: 'IELTSist', skill: 'writing', taskType: this.data.taskType, promptProvided: Boolean(prompt), mode: imageDataUrls.length ? 'photo' : 'typed' }, imageDataUrls })
       if (this.__disposed) return
       const answer = result.answer || 'AI 返回了空结果，请重试。'
-      wx.setStorageSync('stemistSubmission:writing', { text, prompt, photoPath: this.data.photoPath, taskType: this.data.taskType, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
+      wx.setStorageSync('stemistSubmission:writing', { category: 'ielts', skill: 'writing', text, prompt, photoPath: this.data.photoPath, taskType: this.data.taskType, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
       clearDraft('writing')
       const coachState = result.coachState || {}
       this.setData({ answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
@@ -61,6 +62,9 @@ Page({
   },
   retry() { if (!this.data.loading) this.submit() },
   openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
+  openFullWorkspace() {
+    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(this.data.fullWorkspaceUrl)}`, fail: (error) => this.setData({ error: error.errMsg || '完整 IELTSist Writing 暂时无法打开。' }) })
+  },
   clear() {
     if (this.data.loading) return
     clearDraft('writing')

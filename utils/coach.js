@@ -1,4 +1,4 @@
-const { askCoach } = require('./api')
+const { askCoach, askIeltsCoach } = require('./api')
 
 function normalizeCoachContext(context = {}) {
   const source = context && typeof context === 'object' ? context : {}
@@ -48,7 +48,11 @@ async function runCoach({ message = '', context = {}, imageDataUrls = [] } = {})
   const cleanMessage = String(message || '').trim()
   const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
   if (!cleanMessage && !images.length) throw new Error('请先输入内容或提供照片证据')
-  const result = await askCoach({ message: cleanMessage, context: normalizeCoachContext(context), imageDataUrls: images })
+  const normalizedContext = normalizeCoachContext(context)
+  const isIelts = String(normalizedContext.product || '').toLowerCase() === 'ieltsist'
+  const result = isIelts
+    ? await askIeltsCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images })
+    : await askCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images })
   return { ...result, answer: coachAnswer(result), coachState: coachState(result) }
 }
 

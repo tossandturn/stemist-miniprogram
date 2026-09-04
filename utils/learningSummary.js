@@ -1,4 +1,4 @@
-const SUBMISSION_SCOPES = ['stem-photo', 'listening', 'reading', 'writing', 'coach-stem-photo', 'coach-listening', 'coach-reading', 'coach-writing']
+const SUBMISSION_SCOPES = ['stem-photo', 'listening', 'reading', 'writing', 'coach-stem-photo', 'coach-ielts', 'coach-listening', 'coach-reading', 'coach-writing']
 const DRAFT_SCOPES = ['listening', 'reading', 'writing', 'coach']
 
 function recordTimestamp(value) {
@@ -24,6 +24,8 @@ function remoteLearningRecords(attempts = []) {
     const snapshot = source.attempt && typeof source.attempt === 'object' ? source.attempt : {}
     const routeId = String(source.routeId || snapshot.routeId || '').trim()
     const stage = String(source.stage || snapshot.stage || '').trim()
+    const category = String(source.category || snapshot.category || snapshot.notes?.category || '').trim().toLowerCase()
+    const family = String(source.family || snapshot.family || snapshot.notes?.family || '').trim().toLowerCase()
     const attemptId = String(source.attemptId || snapshot.attemptId || '').trim()
     const submittedAt = source.submittedAt || snapshot.submittedAt || source.updatedAt || source.createdAt || ''
     const markingMode = String(snapshot.markingMode || '').toLowerCase()
@@ -33,6 +35,8 @@ function remoteLearningRecords(attempts = []) {
       skill: source.mode === 'full-paper' ? 'STEM full paper' : 'STEM topic practice',
       routeId,
       stage,
+      category,
+      family,
       subjectCode: String(snapshot.subjectCode || '').trim(),
       subject: String(snapshot.subject || '').trim(),
       coachMode: markingMode.includes('ai') ? 'ai' : 'server',

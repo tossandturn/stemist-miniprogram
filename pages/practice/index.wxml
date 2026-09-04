@@ -1,15 +1,13 @@
 <view class="page {{deviceClass}} {{orientation}} practice-page">
-  <stemist-header eyebrow="STEMIST · PRACTICE" title="选择你的下一次练习" subtitle="先选准确路线，再开始一题真实证据。" />
-  <app-nav active="practice" source="{{activeCategory}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
+  <stemist-header eyebrow="STEMIST · PRACTICE" title="{{pageTitle}}" subtitle="{{pageSubtitle}}" />
+  <app-nav active="practice" source="{{activeCategory}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" category="{{activeCategory}}" family="{{family}}" is-tablet="{{isTablet}}" />
 
-  <view class="category-switch" role="tablist" aria-label="Learning space">
-    <button wx:for="{{entryCategories}}" wx:key="id" class="category-tab {{activeCategory === item.id ? 'active' : ''}}" data-category="{{item.id}}" bindtap="chooseCategory"><text>{{item.label}}</text><text class="category-tab-detail">{{item.detail}}</text></button>
-  </view>
+  <view class="workspace-scope-bar"><view><text class="workspace-scope-label">当前工作区</text><text class="workspace-scope-value">{{pageTitle}}</text></view><navigator open-type="redirect" url="/pages/index/index">切换入口</navigator></view>
 
   <block wx:if="{{activeCategory !== 'ielts'}}">
     <view class="card route-setup-card">
       <view class="section-kicker">先选学科和阶段</view>
-      <view class="card-title">{{activeCategory === 'competition' ? '这道题属于哪个竞赛 / 入学考试？' : '这道题属于哪个 A-Level 学科？'}}</view>
+      <view class="card-title">{{activeCategory === 'competition' ? '这道题属于哪个竞赛 / 入学考试？' : '这道题属于哪个 IGCSE / A-Level 学科？'}}</view>
       <view class="card-detail">路线只用于聚焦 Coach；正式题目、权限和分数仍由服务器校验。</view>
       <view class="route-label">学科</view>
       <view class="chip-grid">
@@ -57,18 +55,20 @@
   <block wx:else>
     <view class="card ielts-intro-card">
       <view class="section-kicker">IELTSIST · 同一账号</view>
-      <view class="card-title">选择一项技能，保留真实学习记录</view>
-      <view class="card-detail">Listening / Reading 使用文本工作区；Writing 可打字或拍手写稿；Speaking 保留 IELTSist 实时 examiner。</view>
+      <view class="card-title">一个入口，进入 IELTSist 的完整学习空间</view>
+      <view class="card-detail">四项技能、整套模拟、词汇、账号和会员功能都保留原有数据链路。小程序页负责快速开始，完整 PDF、计时器和沉浸模式由 IELTSist 网页承载。</view>
     </view>
-    <view class="skill-grid">
-      <view wx:for="{{ieltsSkills}}" wx:key="id" class="card skill-card accent-{{item.tone}}">
-        <view class="skill-mark {{item.tone}}" aria-hidden="true"></view>
-        <view class="card-title">{{item.label}}</view>
-        <view class="card-detail">{{item.detail}}</view>
-        <button class="secondary" data-skill="{{item.id}}" bindtap="openIelts">开始 {{item.label}}</button>
+    <block wx:for="{{ieltsGroups}}" wx:key="id">
+      <view class="section-title ielts-group-title">{{item.label}}<text>{{item.detail}}</text></view>
+      <view class="ielts-feature-grid">
+        <button wx:for="{{item.features}}" wx:key="id" class="card ielts-feature-card tone-{{item.tone}}" data-feature="{{item.id}}" bindtap="openIeltsFeature">
+          <view class="ielts-feature-mark" aria-hidden="true"><view class="ielts-feature-mark-inner"></view></view>
+          <view class="ielts-feature-copy"><view class="card-title">{{item.title}}</view><view class="card-detail">{{item.detail}}</view></view>
+          <view class="ielts-feature-cta">{{item.kind === 'native' ? '小程序开始' : '打开 IELTSist'}}</view>
+        </button>
       </view>
-    </view>
-    <button class="secondary full-studio-button" bindtap="openFullStudio">打开完整 IELTSist 工作区</button>
+    </block>
+    <view class="card ielts-boundary-note"><view class="context-card-title">数据边界</view><view class="context-card-text">IELTSist 的账号、作文、口语报告、词汇和会员状态仍由 IELTSist 服务端保存；STEM 的学科题库和拍题记录保持独立，只共享登录身份。</view></view>
   </block>
 
   <view wx:if="{{error}}" class="error">{{error}}</view>

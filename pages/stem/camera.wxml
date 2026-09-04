@@ -12,5 +12,5 @@
   </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view class="notice">小程序只调用后置摄像头；如果当前开发者工具没有摄像头，会使用仍限制为 camera 的兼容接口，不会自动打开相册。</view>
-  <ai-fab source="camera" />
+  <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>

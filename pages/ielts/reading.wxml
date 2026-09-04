@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-skill-page reading-page">
   <stemist-header eyebrow="{{eyebrow}}" title="{{title}}" subtitle="{{subtitle}}" action-text="返回" bind:action="openBack" />
-  <app-nav active="practice" source="reading" is-tablet="{{isTablet}}" />
+  <app-nav active="practice" source="reading" category="ielts" is-tablet="{{isTablet}}" />
   <view class="workspace-grid">
     <view class="context-card skill-identity reading-identity">
       <view class="context-card-title">Reading · 证据记录</view>
@@ -9,5 +9,6 @@
     </view>
     <text-practice text="{{text}}" answer="{{answer}}" warning="{{warning}}" loading="{{loading}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" placeholder="{{placeholder}}" submit-label="提交给 AI Coach" context-title="{{contextTitle}}" context-text="{{contextText}}" draft-status="{{draftStatus}}" bind:input="onInput" bind:submit="submit" bind:clear="clear" bind:retry="retry" bind:account="openAccount" />
   </view>
+  <button class="secondary full-workspace-link" bindtap="openFullWorkspace">打开完整 IELTSist Reading</button>
   <view class="notice">{{isTablet ? 'iPad：上下文和文本工作区并列，适合边看题边写证据。' : '手机：单列输入，先记录证据再提交。'}}</view>
 </view>

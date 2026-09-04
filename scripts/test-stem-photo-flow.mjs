@@ -9,6 +9,8 @@ const routes = [
   { routeId: 'cie-9702-as-physics', subjectCode: '9702', subjectLabel: 'Physics', stage: 'AS', components: 'P1 + P2 + P3' },
   { routeId: 'cie-9702-a2-physics', subjectCode: '9702', subjectLabel: 'Physics', stage: 'A2', components: 'P4 + P5' },
   { routeId: 'cie-9709-as-p1-p5', subjectCode: '9709', subjectLabel: 'Mathematics', stage: 'AS', components: 'P1 + S1' },
+  { routeId: 'bpho-admissions-physics', subjectCode: 'bpho', subjectLabel: 'British Physics Olympiad', stage: 'Competition', components: 'Competition paper' },
+  { routeId: 'uatuk-esat-admissions', subjectCode: 'esat', subjectLabel: 'ESAT', stage: 'Admissions', components: 'Maths + science modules' },
 ]
 let pageConfig
 const storage = {}
@@ -22,10 +24,15 @@ const wx = {
 }
 const pageHelpers = { deviceState: (value) => value, syncDevice: () => {} }
 const stemCatalog = {
-  STEM_SUBJECTS: [{ code: '9702', label: 'Physics', short: '物理' }, { code: '9709', label: 'Mathematics', short: '数学' }],
+  STEM_SUBJECTS: [{ code: '9702', label: 'Physics', short: '物理' }, { code: '9709', label: 'Mathematics', short: '数学' }, { code: 'bpho', label: 'British Physics Olympiad', short: 'BPhO' }, { code: 'esat', label: 'ESAT', short: 'ESAT' }],
   STEM_STAGES: ['IGCSE', 'AS', 'A2', 'Competition', 'Admissions'],
   routesForSubjectStage: (code, stage) => routes.filter((route) => route.subjectCode === code && route.stage === stage),
   subjectByCode: (code) => stemCatalog.STEM_SUBJECTS.find((subject) => subject.code === String(code || '')) || null,
+  categoryForSubject: (code) => ['bpho', 'esat'].includes(String(code || '')) ? 'competition' : 'alevel',
+  normalizeStemCategory: (category) => String(category || '').toLowerCase() === 'competition' ? 'competition' : 'alevel',
+  stemCategoryProfile: (category) => String(category || '').toLowerCase() === 'competition' ? { label: '竞赛 / 入学考试', stages: ['Competition', 'Admissions'] } : { label: 'A-Level 学科', stages: ['IGCSE', 'AS', 'A2'] },
+  subjectsForCategory: (category) => String(category || '').toLowerCase() === 'competition' ? stemCatalog.STEM_SUBJECTS.filter((subject) => ['bpho', 'esat'].includes(subject.code)) : stemCatalog.STEM_SUBJECTS.filter((subject) => !['bpho', 'esat'].includes(subject.code)),
+  familyForCategoryStage: (category, stage) => String(category || '').toLowerCase() === 'competition' ? (String(stage || '').toLowerCase() === 'admissions' ? 'admissions' : 'competition') : 'exam',
 }
 const fakeRequire = (name) => name === '../../utils/page' ? pageHelpers : name === '../../utils/stemCatalog' ? stemCatalog : name === '../../utils/stemRoutes' ? { routesForSubjectStage: stemCatalog.routesForSubjectStage, routeById: (id) => routes.find((route) => route.routeId === id) || null } : name === '../../utils/inventory' ? { fetchRouteInventory: async () => null } : (() => { throw new Error(`unexpected module ${name}`) })()
 const source = fs.readFileSync(path.join(root, 'pages/stem/capture.js'), 'utf8')
@@ -45,6 +52,17 @@ assert.equal(navigatedUrl, '/pages/stem/camera')
 assert.equal(instance.data.busy, true)
 pageConfig.onShow.call(instance)
 assert.equal(instance.data.busy, false)
+
+storage.stemistRetakeContext = { category: 'competition', subjectCode: 'bpho', stage: 'Competition', routeId: 'bpho-admissions-physics' }
+const competitionInstance = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update, callback) { Object.assign(this.data, update); if (callback) callback() } }
+Object.assign(competitionInstance, pageConfig)
+pageConfig.onLoad.call(competitionInstance, {})
+assert.equal(competitionInstance.data.category, 'competition')
+assert.equal(competitionInstance.data.subjectCode, 'bpho')
+assert.equal(competitionInstance.data.categoryLabel, '竞赛 / 入学考试')
+pageConfig.chooseStage.call(competitionInstance, { currentTarget: { dataset: { stage: 'Admissions' } } })
+assert.equal(competitionInstance.data.subjectCode, 'esat')
+assert.equal(competitionInstance.data.family, 'admissions')
 
 storage.stemistRetakeContext = { subjectCode: '9709', stage: 'AS', routeId: 'cie-9709-as-p1-p5' }
 const retakeInstance = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update, callback) { Object.assign(this.data, update); if (callback) callback() } }

@@ -5,8 +5,8 @@ const { ensureWeChatSession } = require('../../utils/wechatAuth')
 
 const ENTRY_POINTS = [
   { id: 'alevel', title: 'A-Level 学科', detail: 'IGCSE · AS · A2\n按学科和路线开始一题一拍', tag: 'STEM STUDIO', tone: 'alevel', url: '/pages/practice/index?category=alevel' },
-  { id: 'ielts', title: 'IELTS', detail: 'Listening · Reading · Writing · Speaking\n沿用 IELTSist 技能工作区', tag: 'IELTSIST', tone: 'ielts', url: '/pages/practice/index?category=ielts' },
-  { id: 'competition', title: '竞赛 / 入学考试', detail: 'BPhO · AMC 12 · ESAT · TMUA\n与 A-Level 统计严格分开', tag: 'STEM STUDIO', tone: 'competition', url: '/pages/practice/index?category=competition' },
+  { id: 'ielts', title: 'IELTS', detail: '四项技能 · 整套模拟 · 词汇\n沿用 IELTSist 完整工作区', tag: 'IELTSIST', tone: 'ielts', url: '/pages/practice/index?category=ielts' },
+  { id: 'competition', title: '竞赛 / 入学考试', detail: 'BPhO · AMC 12 · ESAT · TMUA\n独立题库和数据链路', tag: 'STEM STUDIO', tone: 'competition', url: '/pages/practice/index?category=competition' },
   { id: 'calculator', title: 'Casio 计算器', detail: '科学计算器练习\n角度、函数、历史记录都在本机', tag: 'STEM TOOL', tone: 'calculator', url: '/pages/calculator/index' },
 ]
 

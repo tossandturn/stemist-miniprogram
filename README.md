@@ -9,8 +9,8 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 - Home: exactly four primary entrances — A-Level subjects, IELTS, competitions/admissions, and a Casio-style scientific calculator.
 - STEM: the web product's Topic/paper/progress/Notebook capabilities remain reachable; the mini-program input path is one photographed question through the native rear-camera page, crop before AI Coach review.
 - STEM route selection reads the server's syllabus inventory and, when signed in, saves a provisional photo-attempt summary to the shared STEM attempts API (the original photo is not persisted there).
-- IELTS Listening / Reading: typed answer and review text fields.
-- IELTS Writing: typed essay or one-question photo upload, then AI feedback.
+- IELTS: complete IELTSist workspace map — Dashboard, four skills, Same-Test, Random Exam, Vocabulary, Mine/Account, Subscription and AI Coach. Listening/Reading native quick notes use IELTSist `/api/help/chat`; full audio, paper, timer and report controls open through the allowlisted IELTSist WebView.
+- IELTS Writing: typed essay or one-question photo upload, then IELTSist AI feedback; the full Cambridge writing workspace remains one tap away.
 - IELTS Speaking: opens the existing IELTSist Qwen speaking experience in `web-view`.
 - AI Coach remains available for STEM, Listening, Reading and Writing; Speaking keeps its dedicated realtime Qwen examiner instead of being forced through the text Coach.
 - No Apple Pencil in the Mini Program. Full PDF annotation and PencilKit remain in the iOS app.
@@ -26,7 +26,9 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 4. Configure `stem.ieltsist.com` as a business/server domain and enable HTTPS checks before release.
 5. Run `npm run test:all` for the full local contract suite. When the sibling STEM checkout is present, `npm run test:route-mirror` compares every client route ID with `src/data/routeRegistry.js`. On Windows with WeChat Developer Tools installed, `npm run test:wechat` compiles every WXML/WXSS file with the installed compiler.
 
-The client never contains an AI provider key. `utils/api.js` calls the server-side `/api/ai/coach` endpoint and the read-only syllabus inventory endpoint; text and photo requests use bounded 55s/60s client budgets aligned with the server. API origins are allowlisted to STEM production or loopback developer runs. Entry cards and Account call `wx.login` and exchange the one-time code through `/api/auth/wechat`; the IELTSist account service keeps the WeChat identity mapping server-side and never returns `session_key`. The existing username/password screen remains a recovery path and stores only the short-lived `accessToken` in `stemistSessionToken`.
+The client never contains an AI provider key. STEM requests use the server-side `/api/ai/coach` endpoint; IELTS quick Coach requests use the allowlisted `https://ieltsist.com/api/help/chat`; both use bounded 55s/60s client budgets. API origins are allowlisted to STEM/IELTSist production or loopback developer runs. Entry cards and Account call `wx.login` and exchange the one-time code through `/api/auth/wechat`; the IELTSist account service keeps the WeChat identity mapping server-side and never returns `session_key`. The existing username/password screen remains a recovery path and stores only the short-lived `accessToken` in `stemistSessionToken`.
+
+IELTS quick pages are stateless convenience surfaces. Account history, official reports, vocabulary notebooks, subscriptions and full timers are opened in the allowlisted IELTSist WebView, where the one-time handoff establishes the real IELTSist session cookie; a STEM bearer token is never treated as an IELTSist cookie.
 
 Developer Tools `develop`/`trial` builds set `globalData.debugMode` so every product surface stays visible for QA; this is a feature-visibility flag, not a forged account or bypass token. Real AI and cloud writes still require the server-issued WeChat session.
 

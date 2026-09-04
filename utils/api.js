@@ -1,9 +1,14 @@
 const { clearLocalSession } = require('./session')
-const { DEFAULT_API_BASE, safeApiBase } = require('./apiOrigin')
+const { DEFAULT_API_BASE, DEFAULT_IELTS_API_BASE, safeApiBase, safeIeltsApiBase } = require('./apiOrigin')
 
 function baseUrl() {
   const app = getApp()
   return safeApiBase(app && app.globalData && app.globalData.apiBaseUrl) || DEFAULT_API_BASE
+}
+
+function ieltsBaseUrl() {
+  const app = getApp()
+  return safeIeltsApiBase(app && app.globalData && app.globalData.ieltsApiBaseUrl) || DEFAULT_IELTS_API_BASE
 }
 
 const COACH_TEXT_TIMEOUT_MS = 55_000
@@ -26,11 +31,11 @@ function isAuthError(error) {
   return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
 
-function requestJson(path, data, { timeout = 30000, method = 'POST' } = {}) {
+function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST' } = {}) {
   const token = wx.getStorageSync('stemistSessionToken')
   return new Promise((resolve, reject) => {
     const request = {
-      url: `${baseUrl()}${path}`,
+      url: `${origin}${path}`,
       method: String(method || 'POST').toUpperCase(),
       timeout,
       header: {
@@ -62,6 +67,14 @@ function requestJson(path, data, { timeout = 30000, method = 'POST' } = {}) {
   })
 }
 
+function requestJson(path, data, options = {}) {
+  return requestJsonAt(baseUrl(), path, data, options)
+}
+
+function requestIeltsJson(path, data, options = {}) {
+  return requestJsonAt(ieltsBaseUrl(), path, data, options)
+}
+
 function getJson(path, { timeout = 8000 } = {}) {
   return requestJson(path, undefined, { timeout, method: 'GET' })
 }
@@ -73,4 +86,23 @@ function askCoach({ message, context = {}, imageDataUrls = [] }) {
   })
 }
 
-module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, askCoach, getJson, isAuthError, requestError, requestJson, safeErrorMessage }
+function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = [] }) {
+  const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
+  const payload = {
+    message,
+    contextText: String(context && (context.contextText || context.sourceQuestionExtract) || ''),
+    helpContext: context,
+    history: Array.isArray(history) ? history.slice(-8) : [],
+  }
+  if (images[0]) payload.imageDataUrl = images[0]
+  return requestIeltsJson('/api/help/chat', payload, {
+    timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
+  }).then((result) => ({
+    ...result,
+    providerStatus: result && result.providerStatus
+      ? result.providerStatus
+      : result && result.mode === 'ai' ? 'connected' : result && result.mode === 'local' ? 'skipped' : 'error',
+  }))
+}
+
+module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, IELTS_API_BASE: DEFAULT_IELTS_API_BASE, askCoach, askIeltsCoach, getJson, isAuthError, requestError, requestIeltsJson, requestJson, safeErrorMessage }

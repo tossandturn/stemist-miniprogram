@@ -2,4 +2,5 @@
 .speaking-webview { display: block; width: 100%; height: 1050rpx; margin-top: 18rpx; border: 1rpx solid #e4e7f0; border-radius: 18rpx; background: #fff; }
 .speaking-state { margin-top: 12rpx; padding: 14rpx 16rpx; border-radius: 12rpx; color: #66708a; background: #eef0f8; font-size: 22rpx; }
 .speaking-page .error .secondary { margin-top: 12rpx; }
+.full-workspace-link { margin-top: 14rpx; }
 @media (min-width: 768px) { .speaking-webview { height: 1320rpx; } }

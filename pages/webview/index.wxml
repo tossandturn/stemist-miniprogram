@@ -4,5 +4,5 @@
   <view wx:if="{{!loaded && url}}" class="loading-state">正在打开完整学习空间…</view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view class="notice">只允许打开 Stemist 与 IELTSist 的 HTTPS 页面；小程序不会把其他网站嵌入到学习流程。</view>
-  <ai-fab source="webview" />
+  <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>

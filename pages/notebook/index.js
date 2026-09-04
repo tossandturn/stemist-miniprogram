@@ -1,16 +1,28 @@
 const { deviceState, syncDevice, scheduleDraft, cancelDraft } = require('../../utils/page')
 const { getJson, requestJson } = require('../../utils/api')
 const { STEM_ROUTES } = require('../../utils/stemRoutes')
+const { categoryForRoute, familyForCategoryStage, normalizeStemCategory, stemCategoryProfile } = require('../../utils/stemCatalog')
 
 const ROUTE_OPTIONS = STEM_ROUTES.map((route) => ({ ...route, pickerLabel: `${route.subjectLabel} · ${route.stage} · ${route.components}` }))
 
+function routesForCategory(category) {
+  const scope = normalizeStemCategory(category)
+  return ROUTE_OPTIONS.filter((route) => categoryForRoute(route.routeId) === scope)
+}
+
 Page({
-  data: deviceState({ routeId: 'cie-9702-as-physics', routeIndex: 0, note: '', saving: false, status: '本机自动保存已开启', error: '', routes: ROUTE_OPTIONS }),
+  data: deviceState({ category: 'alevel', categoryLabel: 'A-Level 学科', family: 'exam', routeId: 'cie-9702-as-physics', routeIndex: 0, stage: 'AS', subjectCode: '9702', note: '', saving: false, status: '本机自动保存已开启', error: '', routes: routesForCategory('alevel') }),
   onLoad(options) {
     this.__disposed = false
     const requested = String(options && options.routeId || '')
-    const routeIndex = Math.max(0, ROUTE_OPTIONS.findIndex((route) => route.routeId === requested || route.routeId === this.data.routeId))
-    this.setData({ routeIndex, routeId: ROUTE_OPTIONS[routeIndex]?.routeId || this.data.routeId }, () => this.loadNote())
+    const inferredCategory = requested ? categoryForRoute(requested) : ''
+    const category = normalizeStemCategory(options && options.category || inferredCategory || 'alevel')
+    const routes = routesForCategory(category)
+    const fallbackId = category === 'alevel' && routes.some((route) => route.routeId === 'cie-9702-as-physics') ? 'cie-9702-as-physics' : routes[0]?.routeId || ''
+    const requestedIndex = routes.findIndex((route) => route.routeId === requested)
+    const routeIndex = Math.max(0, requestedIndex >= 0 ? requestedIndex : routes.findIndex((route) => route.routeId === fallbackId))
+    const route = routes[routeIndex]
+    this.setData({ category, categoryLabel: stemCategoryProfile(category).label, family: familyForCategoryStage(category, route?.stage), routes, routeIndex, routeId: route?.routeId || '', stage: route?.stage || '', subjectCode: route?.subjectCode || '' }, () => this.loadNote())
   },
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },
@@ -20,13 +32,14 @@ Page({
     this.selectRoute(routeId)
   },
   chooseRoutePicker(event) {
-    const route = ROUTE_OPTIONS[Number(event.detail.value)]
+    const route = this.data.routes[Number(event.detail.value)]
     if (route) this.selectRoute(route.routeId)
   },
   selectRoute(routeId) {
     if (!routeId) return
-    const routeIndex = Math.max(0, ROUTE_OPTIONS.findIndex((route) => route.routeId === routeId))
-    this.setData({ routeId, routeIndex, note: '', status: '正在读取这条路线的笔记…', error: '' }, () => this.loadNote())
+    const routeIndex = Math.max(0, this.data.routes.findIndex((route) => route.routeId === routeId))
+    const route = this.data.routes[routeIndex]
+    this.setData({ routeId, routeIndex, stage: route?.stage || '', subjectCode: route?.subjectCode || '', family: familyForCategoryStage(this.data.category, route?.stage), note: '', status: '正在读取这条路线的笔记…', error: '' }, () => this.loadNote())
   },
   loadNote() {
     const local = wx.getStorageSync(`stemistNotebook:${this.data.routeId}`)

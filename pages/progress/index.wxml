@@ -19,7 +19,7 @@
 
   <view class="section-title">最近活动</view>
   <view wx:if="{{records.length}}" class="record-list">
-    <view wx:for="{{records}}" wx:key="submittedAt" class="record-row"><view class="record-mark"></view><view class="record-copy"><text class="record-title">{{item.skill || item.taskType || '学习提交'}}</text><text class="record-detail">{{item.routeId || 'IELTSist'}} · {{item.coachMode === 'ai' ? 'AI 反馈' : '状态待确认'}}</text></view><text class="record-time">已提交</text></view>
+    <view wx:for="{{records}}" wx:key="submittedAt" class="record-row"><view class="record-mark"></view><view class="record-copy"><text class="record-title">{{item.skill || item.taskType || '学习提交'}}</text><text class="record-detail">{{item.scopeLabel}}{{item.scopeRoute}} · {{item.coachMode === 'ai' ? 'AI 反馈' : '状态待确认'}}</text></view><text class="record-time">已提交</text></view>
   </view>
   <view wx:else class="empty-state"><view class="empty-title">还没有提交记录</view><view class="empty-detail">先完成一题，Progress 会显示下一步。</view><button class="secondary" bindtap="continueLearning">开始第一题</button></view>
 

@@ -4,8 +4,9 @@
 
   <view wx:if="{{!isWriting}}" class="route-setup card">
     <view class="section-kicker">先选学科和阶段</view>
-    <view class="card-title">先确定这道题属于哪里</view>
-    <view class="card-detail">选择会随照片一起传给 Coach，避免把 Physics、Mathematics、IGCSE 和竞赛题混在同一条分析里。</view>
+    <view class="card-title">{{categoryLabel}} · 先确定这道题属于哪里</view>
+    <view class="card-detail">A-Level 和竞赛/入学考试共用同一套操作界面，但题库、路线和评分数据完全分开。</view>
+    <navigator class="scope-switch-link" url="/pages/practice/index?category={{category}}">需要切换入口？回到练习选择</navigator>
     <view class="route-label">学科</view>
     <view class="chip-grid">
       <button wx:for="{{subjects}}" wx:key="code" class="route-chip {{item.code === subjectCode ? 'active' : ''}}" data-code="{{item.code}}" bindtap="chooseSubject">{{item.short}}</button>
@@ -52,5 +53,5 @@
   </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view class="notice">{{isWriting ? '小程序只负责拍照和裁剪；正式 IELTS 写作评分仍由 IELTSist AI Coach 返回。' : '小程序版不接 Apple Pencil；需要连续手写、PDF 批注和完整题库时请使用 iOS App。'}}</view>
-  <ai-fab source="capture" />
+  <ai-fab source="capture" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>

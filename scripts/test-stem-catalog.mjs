@@ -24,10 +24,12 @@ vm.runInNewContext(source, {
     return { routesForSubjectStage: (subject, stage) => routes.filter((route) => route.subjectCode === subject && route.stage === stage) }
   },
 })
-const { STEM_ENTRY_CATEGORIES, subjectsForCategory, routesForSubjectStage } = module.exports
+const { STEM_ENTRY_CATEGORIES, familyForCategoryStage, STEM_CATEGORY_PROFILES, subjectsForCategory, routesForSubjectStage } = module.exports
 assert.ok(STEM_ENTRY_CATEGORIES.alevel.includes('0606'))
 assert.ok(STEM_ENTRY_CATEGORIES.competition.includes('esat'))
 assert.equal(subjectsForCategory('alevel').some((item) => item.code === '0606'), true)
 assert.equal(subjectsForCategory('competition').some((item) => item.code === 'bpho'), true)
 assert.equal(routesForSubjectStage('bpho', 'Competition')[0].routeId, 'bpho-admissions-physics')
+assert.equal(STEM_CATEGORY_PROFILES.alevel.family, 'exam')
+assert.equal(familyForCategoryStage('competition', 'Admissions'), 'admissions')
 console.log('STEM category and route catalog contract passed.')

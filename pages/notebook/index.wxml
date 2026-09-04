@@ -1,8 +1,8 @@
 <view class="page {{deviceClass}} {{orientation}} notebook-page">
   <stemist-header eyebrow="STEMIST · NOTEBOOK" title="把错误变成下一步" subtitle="按路线保存你的私人复盘。" />
-  <app-nav active="progress" source="notebook" is-tablet="{{isTablet}}" />
+  <app-nav active="progress" source="notebook" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
   <view class="context-card notebook-context">
-    <view class="context-card-title">选择路线</view>
+    <view class="context-card-title">{{categoryLabel}} · 选择路线</view>
     <view class="context-card-text">Notebook 与 STEM 路线绑定；不把不同学科的错误混在一起。</view>
     <picker mode="selector" range="{{routes}}" range-key="pickerLabel" value="{{routeIndex}}" bindchange="chooseRoutePicker"><view class="route-picker">{{routes[routeIndex].pickerLabel || '请选择一条路线'}}<text class="route-picker-chevron">切换</text></view></picker>
     <view class="selected-route">{{routeId}}</view>

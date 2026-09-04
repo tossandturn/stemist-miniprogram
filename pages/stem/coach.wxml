@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} coach-page">
   <stemist-header eyebrow="STEM STUDIO · AI COACH" title="检查这道题" subtitle="看懂错误，马上知道下一步" action-text="重拍" bind:action="retake" />
-  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
+  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{context.category}}" family="{{context.family}}" route-id="{{context.routeId}}" stage="{{context.stage}}" subject-code="{{context.subjectCode}}" />
   <view class="route-pill">{{contextLabel}}</view>
   <view class="workspace-grid">
     <view class="context-card evidence-card">

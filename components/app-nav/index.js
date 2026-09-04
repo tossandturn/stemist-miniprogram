@@ -7,5 +7,7 @@ Component({
     routeId: { type: String, value: '' },
     stage: { type: String, value: '' },
     subjectCode: { type: String, value: '' },
+    category: { type: String, value: '' },
+    family: { type: String, value: '' },
   },
 })

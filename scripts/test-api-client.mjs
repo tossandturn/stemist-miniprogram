@@ -20,13 +20,13 @@ const fakeRequire = (name) => name === './session' ? { clearLocalSession: (optio
   sessionCleanupOptions = options
   delete storage.stemistSessionToken
   delete storage.stemistUser
-} } : name === './apiOrigin' ? { DEFAULT_API_BASE: 'https://stem.ieltsist.com', safeApiBase: (value) => String(value || '').replace(/\/+$/, '') === 'https://stem.ieltsist.com' ? 'https://stem.ieltsist.com' : '' } : (() => { throw new Error(`unexpected module ${name}`) })()
+} } : name === './apiOrigin' ? { DEFAULT_API_BASE: 'https://stem.ieltsist.com', DEFAULT_IELTS_API_BASE: 'https://ieltsist.com', safeApiBase: (value) => String(value || '').replace(/\/+$/, '') === 'https://stem.ieltsist.com' ? 'https://stem.ieltsist.com' : '', safeIeltsApiBase: (value) => String(value || '').replace(/\/+$/, '') === 'https://ieltsist.com' ? 'https://ieltsist.com' : '' } : (() => { throw new Error(`unexpected module ${name}`) })()
 vm.runInNewContext(source, {
   module,
   exports: module.exports,
   wx,
   require: fakeRequire,
-  getApp: () => ({ globalData: { apiBaseUrl: 'https://stem.ieltsist.com' } }),
+  getApp: () => ({ globalData: { apiBaseUrl: 'https://stem.ieltsist.com', ieltsApiBaseUrl: 'https://ieltsist.com' } }),
   Promise,
   String,
   Number,
@@ -35,7 +35,7 @@ vm.runInNewContext(source, {
   Object,
 })
 
-const { askCoach, getJson, isAuthError, requestJson } = module.exports
+const { askCoach, askIeltsCoach, getJson, isAuthError, requestJson } = module.exports
 assert.deepEqual(await getJson('/api/stem/routes/demo/syllabus-topics'), { ok: true })
 assert.equal(requestOptions.method, 'GET')
 assert.equal(requestOptions.data, undefined)
@@ -47,6 +47,13 @@ await askCoach({ message: 'text', context: {}, imageDataUrls: [] })
 assert.equal(requestOptions.timeout, 55000)
 await askCoach({ message: 'photo', context: {}, imageDataUrls: ['data:image/jpeg;base64,ZmFrZQ=='] })
 assert.equal(requestOptions.timeout, 60000)
+
+response = { statusCode: 200, data: { mode: 'ai', answer: 'IELTS feedback' } }
+await askIeltsCoach({ message: 'check my reading answer', context: { product: 'IELTSist', skill: 'reading' } })
+assert.equal(requestOptions.url, 'https://ieltsist.com/api/help/chat')
+assert.equal(requestOptions.data.helpContext.product, 'IELTSist')
+assert.equal(requestOptions.data.history.length, 0)
+assert.equal(requestOptions.timeout, 55000)
 
 response = { statusCode: 401, data: { error: 'expired' } }
 const authError = await requestJson('/api/ai/coach', { message: 'x' }).catch((error) => error)

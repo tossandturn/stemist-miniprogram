@@ -1,13 +1,14 @@
 const { deviceState, syncDevice } = require('../../utils/page')
 
 Page({
-  data: deviceState({ busy: false, ready: false, error: '', flash: 'auto', returnPage: 'stem', context: {}, hint: '把题目、图表和答案完整放进取景框。' }),
+  data: deviceState({ busy: false, ready: false, error: '', flash: 'auto', returnPage: 'stem', context: {}, coachSource: 'capture', category: 'alevel', family: 'exam', routeId: '', stage: '', subjectCode: '', hint: '把题目、图表和答案完整放进取景框。' }),
   onLoad() {
     const info = wx.getStorageSync('stemistCameraReturn') || {}
     wx.removeStorageSync('stemistCameraReturn')
     const returnPage = info.route === 'writing' ? 'writing' : 'stem'
     const hint = returnPage === 'writing' ? '保持纸张平整，拍清整页手写作文和题目。' : '把题目、图表和答案完整放进取景框。'
-    this.setData({ returnPage, context: info.context || {}, hint })
+    const context = info.context || {}
+    this.setData({ returnPage, context, coachSource: returnPage === 'writing' ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: returnPage === 'writing' ? 'ielts' : context.category || 'alevel', family: returnPage === 'writing' ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '', hint })
   },
   onReady() {
     try { this.__camera = typeof wx.createCameraContext === 'function' ? wx.createCameraContext() : null } catch { this.__camera = null }

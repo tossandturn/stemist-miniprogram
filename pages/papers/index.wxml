@@ -1,6 +1,7 @@
 <view class="page {{deviceClass}} {{orientation}} papers-page">
   <stemist-header eyebrow="STEMIST · PAST PAPERS" title="真实真题目录" subtitle="先看来源和配对状态，再打开完整试卷。" />
-  <app-nav active="practice" source="papers" route-id="{{subject}}" subject-code="{{subject}}" is-tablet="{{isTablet}}" />
+  <app-nav active="practice" source="papers" route-id="{{subject}}" subject-code="{{subject}}" category="{{category}}" family="{{family}}" is-tablet="{{isTablet}}" />
+  <view class="entry-scope"><text class="entry-scope-label">当前入口</text><text class="entry-scope-value">{{categoryLabel}}</text><navigator url="/pages/practice/index?category={{category}}">切换入口</navigator></view>
   <view class="filter-panel">
     <picker mode="selector" range="{{subjects}}" range-key="label" value="{{subjectIndex}}" bindchange="chooseSubject"><view class="filter-select"><text>学科</text><text class="filter-value">{{subjects[subjectIndex].label}}</text><text class="filter-chevron">切换</text></view></picker>
     <picker mode="selector" range="{{stageFilters}}" range-key="label" value="{{stageIndex}}" bindchange="chooseStage"><view class="filter-select"><text>阶段</text><text class="filter-value">{{stageFilters[stageIndex].label}}</text><text class="filter-chevron">切换</text></view></picker>

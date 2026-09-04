@@ -10,7 +10,9 @@ const calls = []
 const module = { exports: {} }
 const fakeRequire = (name) => name === './api'
   ? { requestJson: async (url, payload, options) => { calls.push({ url, payload, options }); return { ok: true, attempt: { attemptId: payload.attemptId } } } }
-  : (() => { throw new Error(`unexpected module ${name}`) })()
+  : name === './stemCatalog'
+    ? { categoryForRoute: (routeId) => String(routeId).startsWith('cie-') ? 'alevel' : 'competition', familyForCategoryStage: (category, stage) => category === 'alevel' ? 'exam' : stage === 'Admissions' ? 'admissions' : 'competition' }
+    : (() => { throw new Error(`unexpected module ${name}`) })()
 const storage = { stemistSessionToken: 'token' }
 vm.runInNewContext(source, {
   module,
@@ -31,7 +33,7 @@ const { syncStemPhotoAttempt } = module.exports
 const stableAttemptId = 'mini-photo-stable-test'
 const result = await syncStemPhotoAttempt({
   attemptId: stableAttemptId,
-  context: { routeId: 'cie-9702-as-physics', stage: 'AS' },
+  context: { category: 'alevel', family: 'exam', subjectCode: '9702', routeId: 'cie-9702-as-physics', stage: 'AS' },
   answer: 'first issue is unit conversion',
   coachMode: 'ai',
   providerStatus: 'connected',
@@ -40,6 +42,9 @@ assert.equal(result.ok, true)
 assert.equal(calls[0].url, '/api/stem/attempts')
 assert.equal(calls[0].payload.mode, 'topic')
 assert.equal(calls[0].payload.routeId, 'cie-9702-as-physics')
+assert.equal(calls[0].payload.category, 'alevel')
+assert.equal(calls[0].payload.family, 'exam')
+assert.equal(calls[0].payload.attempt.notes.category, 'alevel')
 assert.equal(calls[0].payload.attempt.evidence.kind, 'photo')
 assert.equal(calls[0].payload.attempt.imageDataUrls, undefined)
 assert.equal(calls[0].options.timeout, 8000)

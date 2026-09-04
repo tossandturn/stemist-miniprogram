@@ -1,7 +1,11 @@
 const { deviceState, syncDevice } = require('../../utils/page')
-const { routesForSubjectStage, STEM_SUBJECTS, STEM_STAGES, subjectByCode } = require('../../utils/stemCatalog')
+const { categoryForSubject, familyForCategoryStage, normalizeStemCategory, routesForSubjectStage, stemCategoryProfile, subjectByCode, subjectsForCategory } = require('../../utils/stemCatalog')
 const { routeById } = require('../../utils/stemRoutes')
 const { fetchRouteInventory } = require('../../utils/inventory')
+
+function subjectsForCategoryStage(category, stage) {
+  return subjectsForCategory(category).filter((subject) => routesForSubjectStage(subject.code, stage).length > 0)
+}
 
 Page({
   data: deviceState({
@@ -9,6 +13,9 @@ Page({
     error: '',
     returnPage: 'stem',
     isWriting: false,
+    category: 'alevel',
+    categoryLabel: 'A-Level 学科',
+    family: 'exam',
     subjectCode: '9702',
     subjectLabel: 'Physics',
     stage: 'AS',
@@ -21,27 +28,29 @@ Page({
     showAllTopics: false,
     inventoryLoading: false,
     inventoryError: '',
-    subjects: STEM_SUBJECTS,
-    stages: STEM_STAGES,
+    subjects: subjectsForCategory('alevel'),
+    stages: stemCategoryProfile('alevel').stages,
   }),
   onLoad(options) {
     options = options || {}
     const isWriting = options.returnPage === 'writing'
-    this.setData({ returnPage: isWriting ? 'writing' : 'stem', isWriting }, () => {
-      if (isWriting) return
-      const saved = wx.getStorageSync('stemistRetakeContext') || null
+    const saved = wx.getStorageSync('stemistRetakeContext') || null
+    const savedCategory = saved && saved.category ? saved.category : (saved && saved.subjectCode ? categoryForSubject(saved.subjectCode) : '')
+    const category = normalizeStemCategory(options.category || savedCategory || 'alevel')
+    const profile = stemCategoryProfile(category)
+    const stages = profile.stages.slice()
+    const preferredStage = category === 'alevel' && stages.includes('AS') ? 'AS' : (stages[0] || '')
+    const requestedStage = saved && stages.includes(saved.stage) ? saved.stage : preferredStage
+    const subjects = subjectsForCategoryStage(category, requestedStage)
+    const preferredCode = category === 'alevel' && subjects.some((subject) => subject.code === '9702') ? '9702' : subjects[0]?.code || ''
+    const fallbackSubject = subjects.find((subject) => subject.code === preferredCode) || subjects[0] || null
+    const savedSubject = saved && subjects.some((subject) => subject.code === String(saved.subjectCode || '')) ? subjects.find((subject) => subject.code === String(saved.subjectCode || '')) : fallbackSubject
+    const initialRoutes = savedSubject ? routesForSubjectStage(savedSubject.code, requestedStage) : []
+    const initialRoute = initialRoutes.find((route) => route.routeId === String(saved && saved.routeId || '')) || initialRoutes[0]
+    this.setData({ returnPage: isWriting ? 'writing' : 'stem', isWriting, category, categoryLabel: profile.label, family: familyForCategoryStage(category, requestedStage), subjects, stages, subjectCode: savedSubject ? savedSubject.code : '', subjectLabel: savedSubject ? savedSubject.label : '', stage: requestedStage, routeOptions: initialRoutes, routeId: initialRoute ? initialRoute.routeId : '', selectedComponents: initialRoute ? initialRoute.components : '', canCapture: Boolean(initialRoute), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '' }, () => {
+      if (isWriting) { wx.removeStorageSync('stemistRetakeContext'); return }
       wx.removeStorageSync('stemistRetakeContext')
-      if (!saved || !saved.subjectCode) {
-        this.refreshInventory(this.data.routeId)
-        return
-      }
-      const subject = subjectByCode(saved.subjectCode)
-      const stage = STEM_STAGES.indexOf(saved.stage) >= 0 ? saved.stage : this.data.stage
-      const routes = subject ? routesForSubjectStage(subject.code, stage) : this.data.routeOptions
-      const routeId = routes.some((route) => route.routeId === saved.routeId) ? saved.routeId : (routes[0] ? routes[0].routeId : '')
-      this.setData({ subjectCode: subject ? subject.code : this.data.subjectCode, subjectLabel: subject ? subject.label : this.data.subjectLabel, stage, routeOptions: routes, routeId, selectedComponents: routeById(routeId)?.components || '', canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '' }, () => {
-        if (routeId) this.refreshInventory(routeId)
-      })
+      if (this.data.routeId) this.refreshInventory(this.data.routeId)
     })
   },
   onShow() {
@@ -67,10 +76,12 @@ Page({
   },
   chooseStage(event) {
     const stage = event.currentTarget.dataset.stage
-    const routes = routesForSubjectStage(this.data.subjectCode, stage)
+    const subjects = subjectsForCategoryStage(this.data.category, stage)
+    const subject = subjects.some((item) => item.code === this.data.subjectCode) ? subjects.find((item) => item.code === this.data.subjectCode) : subjects[0]
+    const routes = subject ? routesForSubjectStage(subject.code, stage) : []
     const route = routes[0]
     const routeId = route ? route.routeId : ''
-    this.setData({ stage, routeOptions: routes, routeId, selectedComponents: route?.components || '', canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
+    this.setData({ stage, family: familyForCategoryStage(this.data.category, stage), subjects, subjectCode: subject?.code || '', subjectLabel: subject?.label || '', routeOptions: routes, routeId, selectedComponents: route?.components || '', canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '这个阶段暂时没有可用路线，请重新选择。' }, () => {
       if (routeId) this.refreshInventory(routeId)
     })
   },
@@ -129,6 +140,8 @@ Page({
     return {
       product: 'STEM Studio',
       skill: 'stem-photo',
+      category: this.data.category,
+      family: this.data.family || familyForCategoryStage(this.data.category, this.data.stage),
       subjectCode: this.data.subjectCode,
       subject: this.data.subjectLabel,
       stage: this.data.stage,

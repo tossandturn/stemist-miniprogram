@@ -1,6 +1,7 @@
 const { runCoach } = require('./coach')
 const { isAuthError } = require('./api')
 const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDraft } = require('./page')
+const { ieltsWebUrl } = require('./ieltsCatalog')
 
 function makeTextSkillPage(config) {
   const scope = String(config.skill)
@@ -23,6 +24,7 @@ function makeTextSkillPage(config) {
       draftStatus: '自动保存已开启',
       canRetry: false,
       authRequired: false,
+      fullWorkspaceUrl: ieltsWebUrl(scope, { source: `mini-${scope}` }),
     }),
 
     onLoad() {
@@ -57,7 +59,7 @@ function makeTextSkillPage(config) {
         })
         if (this.__disposed) return
         const answer = result.answer || 'AI 返回了空结果，请重试。'
-        wx.setStorageSync(`stemistSubmission:${scope}`, { text, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
+        wx.setStorageSync(`stemistSubmission:${scope}`, { category: 'ielts', skill: scope, text, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
         clearDraft(scope)
         const coachState = result.coachState || {}
         this.setData({ answer, warning: coachState.warning || '', canRetry: false, coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
@@ -72,6 +74,11 @@ function makeTextSkillPage(config) {
       this.setData({ text: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '反馈状态待确认', draftStatus: '已清空 · 自动保存已开启' })
     },
     openBack() { wx.navigateBack() },
+    openFullWorkspace() {
+      const url = this.data.fullWorkspaceUrl
+      if (!url) return
+      wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: (error) => this.setData({ error: error.errMsg || '完整 IELTSist 工作区暂时无法打开。' }) })
+    },
     openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
   }
 }

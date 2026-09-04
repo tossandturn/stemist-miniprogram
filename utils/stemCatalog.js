@@ -23,12 +23,53 @@ const STEM_ENTRY_CATEGORIES = Object.freeze({
   competition: Object.freeze(['amc12', 'bpho', 'esat', 'tmua']),
 })
 
+// A-Level and competition/admissions intentionally share the same UI
+// components, but they are different backend data families. Keep the family
+// explicit so a route, paper catalog, or Coach context cannot silently cross
+// the two entry points.
+const STEM_CATEGORY_PROFILES = Object.freeze({
+  alevel: Object.freeze({
+    id: 'alevel',
+    label: 'A-Level 学科',
+    family: 'exam',
+    stages: Object.freeze(['IGCSE', 'AS', 'A2']),
+    description: 'IGCSE、AS、A2 的 Cambridge 学科路线',
+  }),
+  competition: Object.freeze({
+    id: 'competition',
+    label: '竞赛 / 入学考试',
+    family: 'competition',
+    stages: Object.freeze(['Competition', 'Admissions']),
+    description: 'BPhO、AMC 12、ESAT、TMUA 的独立题库',
+  }),
+})
+
+function normalizeStemCategory(value) {
+  const candidate = String(value || '').trim().toLowerCase()
+  if (candidate === 'competition' || candidate === 'admissions') return 'competition'
+  return 'alevel'
+}
+
+function stemCategoryProfile(value) {
+  return STEM_CATEGORY_PROFILES[normalizeStemCategory(value)]
+}
+
+function familyForCategoryStage(category, stage) {
+  if (normalizeStemCategory(category) === 'alevel') return 'exam'
+  return String(stage || '').trim().toLowerCase() === 'admissions' ? 'admissions' : 'competition'
+}
+
+function categoryForRoute(routeId) {
+  const route = String(routeId || '').trim().toLowerCase()
+  return route.startsWith('cie-') ? 'alevel' : 'competition'
+}
+
 function subjectByCode(code) {
   return STEM_SUBJECTS.find((subject) => subject.code === String(code || '')) || null
 }
 
 function subjectsForCategory(category = 'alevel') {
-  const codes = STEM_ENTRY_CATEGORIES[String(category || '').toLowerCase()] || STEM_ENTRY_CATEGORIES.alevel
+  const codes = STEM_ENTRY_CATEGORIES[normalizeStemCategory(category)] || STEM_ENTRY_CATEGORIES.alevel
   return STEM_SUBJECTS.filter((subject) => codes.includes(subject.code))
 }
 
@@ -43,4 +84,4 @@ function firstRouteFor(subjectCode, stage) {
 
 const { routesForSubjectStage } = require('./stemRoutes')
 
-module.exports = { STEM_ENTRY_CATEGORIES, STEM_SUBJECTS, STEM_STAGES, categoryForSubject, subjectByCode, subjectsForCategory, firstRouteFor, routesForSubjectStage }
+module.exports = { STEM_CATEGORY_PROFILES, STEM_ENTRY_CATEGORIES, STEM_SUBJECTS, STEM_STAGES, categoryForRoute, categoryForSubject, familyForCategoryStage, normalizeStemCategory, stemCategoryProfile, subjectByCode, subjectsForCategory, firstRouteFor, routesForSubjectStage }

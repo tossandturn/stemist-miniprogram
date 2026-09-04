@@ -9,6 +9,8 @@ const appCss = read('app.wxss')
 const navCss = read('components/app-nav/index.wxss')
 const fabCss = read('components/ai-fab/index.wxss')
 const calculatorCss = read('pages/calculator/index.wxss')
+const practiceCss = read('pages/practice/index.wxss')
+const papersCss = read('pages/papers/index.wxss')
 
 for (const page of app.pages) {
   const source = read(`${page}.wxml`)
@@ -28,6 +30,9 @@ assert.match(appCss, /\.page\.device-phone \.workspace-grid\s*\{\s*display:\s*bl
 assert.match(appCss, /\.page\.device-tablet \.workspace-grid\s*\{[^}]*grid-template-columns/s)
 assert.match(calculatorCss, /\.calc-key\s*\{[^}]*min-height:\s*88rpx/s)
 assert.match(calculatorCss, /@media \(min-width: 768px\)/)
+assert.match(practiceCss, /\.ielts-feature-grid\s*\{/)
+assert.match(practiceCss, /\.page\.device-phone \.ielts-feature-card\s*\{[^}]*min-height/s)
+assert.match(papersCss, /\.entry-scope\s*\{/)
 assert.doesNotMatch(appCss, /\.bottom-nav|\.tablet-nav/, 'legacy duplicated navigation CSS must be removed')
 assert.doesNotMatch(navCss + appCss, /overflow-x:\s*(?:scroll|auto)/, 'top-level layout must not introduce horizontal page scrolling')
 

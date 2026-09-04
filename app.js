@@ -1,10 +1,11 @@
 const { readDeviceProfile } = require('./utils/device')
-const { DEFAULT_API_BASE, safeApiBase } = require('./utils/apiOrigin')
+const { DEFAULT_API_BASE, DEFAULT_IELTS_API_BASE, safeApiBase, safeIeltsApiBase } = require('./utils/apiOrigin')
 const { ensureWeChatSession } = require('./utils/wechatAuth')
 
 App({
   globalData: {
     apiBaseUrl: DEFAULT_API_BASE,
+    ieltsApiBaseUrl: DEFAULT_IELTS_API_BASE,
     deviceProfile: null,
     debugMode: false,
     wechatAuth: { status: 'pending' },
@@ -13,6 +14,9 @@ App({
     const configured = wx.getStorageSync('stemistApiBaseUrl')
     const safeConfigured = safeApiBase(configured)
     if (safeConfigured) this.globalData.apiBaseUrl = safeConfigured
+    const configuredIelts = wx.getStorageSync('stemistIeltsApiBaseUrl')
+    const safeConfiguredIelts = safeIeltsApiBase(configuredIelts)
+    if (safeConfiguredIelts) this.globalData.ieltsApiBaseUrl = safeConfiguredIelts
     this.globalData.deviceProfile = readDeviceProfile()
     try {
       const accountInfo = wx.getAccountInfoSync && wx.getAccountInfoSync()

@@ -14,4 +14,4 @@ Match the production STEM Studio and IELTSist UI: light canvas `#f5f6fb`, text `
 
 ## Content
 
-Use four clear entry labels: `A-Level 学科`, `IELTS`, `竞赛 / 入学考试`, and `Casio 计算器`. Keep `Today`, `Practice`, `AI Coach`, `Progress`, `Account`, `STEM Studio`, and `IELTSist` inside the subsequent workspaces. Never invent scores when there are no attempts; show an explicit empty or unavailable state instead.
+Use four clear entry labels: `A-Level 学科`, `IELTS`, `竞赛 / 入学考试`, and `Casio 计算器`. Keep `Today`, `Practice`, `AI Coach`, `Progress`, `Account`, `STEM Studio`, and `IELTSist` inside the subsequent workspaces. Within IELTS, expose Dashboard, four skills, Same‑Test, Random Exam, Vocabulary, Mine/Account and Subscription as grouped destinations. Never invent scores when there are no attempts; show an explicit empty or unavailable state instead.
