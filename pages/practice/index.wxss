@@ -1,0 +1,55 @@
+.practice-page .category-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10rpx; margin-top: 20rpx; padding: 8rpx; border: 1rpx solid #e4e7f0; border-radius: 18rpx; background: #fff; }
+.category-tab { display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 88rpx; padding: 8rpx 6rpx; color: #66708a; background: transparent; font-weight: 800; line-height: 1.2; }
+.category-tab-detail { display: block; margin-top: 6rpx; color: #6d758b; font-size: 18rpx; font-weight: 600; }
+.category-tab.active { color: #5b43c7; background: #f0ecff; }
+.category-tab.active .category-tab-detail { color: #7357e8; }
+.route-setup-card { border-top: 6rpx solid #7357e8; }
+.route-label { margin-top: 22rpx; color: #4e5a76; font-size: 23rpx; font-weight: 800; }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 10rpx; }
+.route-chip { min-height: 68rpx; padding: 0 16rpx; border: 1rpx solid #e4e7f0; border-radius: 34rpx; color: #66708a; background: #fff; font-size: 22rpx; font-weight: 750; }
+.route-chip.active { border-color: #7357e8; color: #5b43c7; background: #f0ecff; }
+.route-list { display: grid; gap: 10rpx; margin-top: 10rpx; }
+.route-option { display: flex; align-items: center; justify-content: space-between; min-height: 76rpx; padding: 0 18rpx; border: 1rpx solid #e4e7f0; border-radius: 14rpx; color: #4e5a76; background: #fff; text-align: left; }
+.route-option.active { border-color: #7357e8; color: #5b43c7; background: #f7f5ff; }
+.route-option-id { max-width: 58%; overflow: hidden; color: #6d758b; font-size: 19rpx; text-overflow: ellipsis; white-space: nowrap; }
+.selected-route { margin-top: 18rpx; color: #5b43c7; font-size: 22rpx; font-weight: 750; }
+.inventory-card { border-left-color: #3a9d85; }
+.inventory-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; margin-top: 16rpx; }
+.inventory-summary view { padding: 16rpx; border-radius: 14rpx; background: #f4faf7; }
+.inventory-summary text { display: block; color: #66708a; font-size: 21rpx; }
+.inventory-summary .inventory-number { color: #16735f; font-size: 38rpx; font-weight: 850; }
+.inventory-topic { display: flex; justify-content: space-between; gap: 12rpx; padding: 14rpx 0; border-bottom: 1rpx solid #edf0f4; color: #4e5a76; font-size: 21rpx; }
+.inventory-topic text:first-child { min-width: 0; flex: 1; }
+.inventory-topic text:last-child { color: #0f8668; font-weight: 750; }
+.inventory-error { color: #865f1e; }
+.feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10rpx; margin-top: 14rpx; }
+.feature-card { display: block; min-height: 128rpx; margin: 0; padding: 18rpx; border: 1rpx solid #e4e7f0; border-radius: 16rpx; color: #18213d; background: #fff; text-align: left; }
+.feature-card:active { background: #f7f5ff; }
+.feature-title, .feature-detail { display: block; }
+.feature-title { font-size: 24rpx; font-weight: 800; }
+.feature-detail { margin-top: 6rpx; color: #66708a; font-size: 20rpx; line-height: 1.4; }
+.feature-photo { border-top: 4rpx solid #7357e8; }
+.feature-topics, .feature-progress { border-top: 4rpx solid #3a9d85; }
+.feature-papers, .feature-notebook { border-top: 4rpx solid #7657e8; }
+.feature-exams { border-top: 4rpx solid #f19a3e; }
+.full-studio-button { margin-top: 18rpx; }
+.action-card { margin-top: 18rpx; }
+.action-card .secondary { margin-top: 12rpx; }
+.skill-grid { display: grid; gap: 14rpx; margin-top: 18rpx; }
+.skill-card { position: relative; overflow: hidden; min-height: 250rpx; }
+.skill-mark { width: 52rpx; height: 8rpx; margin-bottom: 20rpx; border-radius: 8rpx; background: #7357e8; }
+.skill-mark.reading { background: #3a9d85; }
+.skill-mark.writing { background: #f19a3e; }
+.skill-mark.speaking { background: #ed6486; }
+.skill-card .secondary { width: auto; min-width: 220rpx; }
+@media (min-width: 768px) {
+  .practice-page .category-switch { max-width: 760px; }
+  .skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-setup-card, .inventory-card, .action-card, .ielts-intro-card { max-width: 1120px; margin-left: auto; margin-right: auto; }
+  .route-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-option-id { max-width: 62%; }
+  .feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .feature-card { min-height: 110px; padding: 16px; }
+  .feature-title { font-size: 16px; }
+  .feature-detail { font-size: 13px; }
+}

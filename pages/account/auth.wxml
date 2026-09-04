@@ -1,5 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} account-page">
   <stemist-header eyebrow="STEMIST · ACCOUNT" title="{{mode === 'login' ? '登录 Stemist' : '创建账号'}}" subtitle="Same IELTSist ID · records stay separate" action-text="返回" bind:action="goBack" />
+  <app-nav active="account" source="account" is-tablet="{{isTablet}}" />
   <view class="account-layout">
     <view class="context-card account-context">
       <view class="context-card-title">一个账号，两个学习空间</view>
@@ -8,15 +9,17 @@
     </view>
     <view class="panel account-form">
       <view wx:if="{{user}}" class="signed-in-banner"><view class="context-card-title">当前账号：{{user.username}}</view><view class="context-card-text">AI Coach 会使用此账号的短期会话。</view><button class="text-button" bindtap="logout">退出登录</button></view>
+      <button class="primary wechat-login" bindtap="loginWechat" loading="{{wechatLoading}}" disabled="{{loading}}">{{wechatLoading ? '微信登录中…' : '微信一键登录'}}</button>
       <view class="field-label">用户名</view>
-      <input class="input" data-field="username" value="{{username}}" maxlength="80" placeholder="输入已有 IELTSist 用户名" bindinput="onInput" />
+      <input class="input" data-field="username" value="{{username}}" maxlength="80" type="text" confirm-type="next" cursor-spacing="24" placeholder="输入已有 IELTSist 用户名" bindinput="onInput" />
       <view class="field-label">密码</view>
-      <input class="input" data-field="password" password value="{{password}}" maxlength="128" placeholder="至少 6 个字符" bindinput="onInput" />
+      <input class="input" data-field="password" password value="{{password}}" maxlength="128" type="text" confirm-type="done" cursor-spacing="24" placeholder="至少 6 个字符" bindinput="onInput" />
       <button class="primary" bindtap="submit" loading="{{loading}}">{{mode === 'login' ? '登录并使用 AI' : '注册并使用 AI'}}</button>
       <button class="secondary" bindtap="toggleMode">{{mode === 'login' ? '没有账号？注册' : '已有账号？登录'}}</button>
+      <button class="text-button" bindtap="openIeltsAccount">打开 IELTSist 账号页</button>
       <view wx:if="{{error}}" class="error">{{error}}</view>
     </view>
   </view>
   <button class="text-button" bindtap="openPrivacy">查看隐私说明</button>
-  <view class="notice">登录请求只发送到配置的 Stemist 服务端；客户端不保存模型密钥。正式微信身份接入将在服务端完成 wx.login 换票。</view>
+  <view class="notice">登录请求只发送到配置的 Stemist 服务端；客户端不保存模型密钥。微信登录凭证只在服务端换取账号身份，不会返回 session_key。</view>
 </view>

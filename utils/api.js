@@ -1,8 +1,9 @@
 const { clearLocalSession } = require('./session')
+const { DEFAULT_API_BASE, safeApiBase } = require('./apiOrigin')
 
 function baseUrl() {
   const app = getApp()
-  return String((app && app.globalData && app.globalData.apiBaseUrl) || 'https://stem.ieltsist.com').replace(/\/+$/, '')
+  return safeApiBase(app && app.globalData && app.globalData.apiBaseUrl) || DEFAULT_API_BASE
 }
 
 const COACH_TEXT_TIMEOUT_MS = 55_000
@@ -12,6 +13,17 @@ function safeErrorMessage(payload, statusCode) {
   const message = String((payload && (payload.error || payload.message)) || '').trim()
   if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
   return message.slice(0, 240) || `请求失败（${statusCode}）`
+}
+
+function requestError(message, statusCode = 0, code = '') {
+  const error = new Error(message)
+  error.statusCode = Number(statusCode) || 0
+  error.code = String(code || '')
+  return error
+}
+
+function isAuthError(error) {
+  return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
 
 function requestJson(path, data, { timeout = 30000, method = 'POST' } = {}) {
@@ -35,14 +47,14 @@ function requestJson(path, data, { timeout = 30000, method = 'POST' } = {}) {
           // Keep an in-progress draft so the same learner can sign in again;
           // explicit logout still clears drafts and evidence completely.
           clearLocalSession({ preserveDrafts: true })
-          reject(new Error('登录已过期，请重新登录后再使用 AI'))
+          reject(requestError('登录已过期，原始输入仍保留。请重新登录后再使用 AI。', 401, 'auth_required'))
           return
         }
-        reject(new Error(safeErrorMessage(payload, response.statusCode)))
+        reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && payload.code))
       },
       fail(error) {
         const raw = String(error && error.errMsg || '')
-        reject(new Error(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试'))
+        reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试', 0, /timeout|超时/i.test(raw) ? 'network_timeout' : 'network_error'))
       },
     }
     if (data !== undefined && data !== null) request.data = data
@@ -61,4 +73,4 @@ function askCoach({ message, context = {}, imageDataUrls = [] }) {
   })
 }
 
-module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, askCoach, getJson, requestJson, safeErrorMessage }
+module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, askCoach, getJson, isAuthError, requestError, requestJson, safeErrorMessage }

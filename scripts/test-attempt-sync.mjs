@@ -28,7 +28,9 @@ vm.runInNewContext(source, {
 })
 
 const { syncStemPhotoAttempt } = module.exports
+const stableAttemptId = 'mini-photo-stable-test'
 const result = await syncStemPhotoAttempt({
+  attemptId: stableAttemptId,
   context: { routeId: 'cie-9702-as-physics', stage: 'AS' },
   answer: 'first issue is unit conversion',
   coachMode: 'ai',
@@ -41,7 +43,8 @@ assert.equal(calls[0].payload.routeId, 'cie-9702-as-physics')
 assert.equal(calls[0].payload.attempt.evidence.kind, 'photo')
 assert.equal(calls[0].payload.attempt.imageDataUrls, undefined)
 assert.equal(calls[0].options.timeout, 8000)
-assert.match(calls[0].payload.attemptId, /^mini-photo-/)
+assert.equal(calls[0].payload.attemptId, stableAttemptId)
+assert.equal(result.clientAttemptId, stableAttemptId)
 
 delete storage.stemistSessionToken
 assert.deepEqual(JSON.parse(JSON.stringify(await syncStemPhotoAttempt({ context: { routeId: 'cie-9702-as-physics', stage: 'AS' }, answer: 'x' }))), { skipped: 'not_authenticated' })

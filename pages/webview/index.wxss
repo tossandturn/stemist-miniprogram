@@ -1,0 +1,3 @@
+.full-webview { display: block; width: 100%; height: 1250rpx; margin-top: 18rpx; border: 1rpx solid #e4e7f0; border-radius: 18rpx; background: #fff; }
+.loading-state { margin-top: 14rpx; padding: 14rpx 16rpx; border-radius: 12rpx; color: #66708a; background: #eef0f8; font-size: 22rpx; }
+@media (min-width: 768px) { .full-webview { height: 980px; } }

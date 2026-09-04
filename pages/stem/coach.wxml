@@ -1,5 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} coach-page">
-  <stemist-header eyebrow="STEM STUDIO · AI COACH" title="检查这道题" subtitle="Question evidence → diagnosis → next action" action-text="重拍" bind:action="retake" />
+  <stemist-header eyebrow="STEM STUDIO · AI COACH" title="检查这道题" subtitle="看懂错误，马上知道下一步" action-text="重拍" bind:action="retake" />
+  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
   <view class="route-pill">{{contextLabel}}</view>
   <view class="workspace-grid">
     <view class="context-card evidence-card">
@@ -8,9 +9,8 @@
       <view wx:else class="empty-evidence">照片未找到，请返回重新拍摄。</view>
       <view class="context-card-text">AI Coach 只会基于这张照片和你的补充说明分析；路线标签用于聚焦，不是正式成绩或权限依据。</view>
     </view>
-    <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{!imagePath}}" submit-label="提交给 AI Coach" placeholder="例如：请指出我第一步哪里错了，并告诉我下一步怎么做。" helper="建议先提交原始证据，再根据 Coach 的诊断进行一次 focused retest。" bind:input="onMessage" bind:submit="ask" />
+  <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{!imagePath}}" submit-label="提交给 AI Coach" placeholder="可以补充：你卡在哪一步，或想检查哪个公式。" helper="提交后可按同一个薄弱点再做一题。" bind:input="onMessage" bind:submit="ask" bind:retry="retry" bind:account="openAccount" />
   </view>
-  <view wx:if="{{error}}" class="error">{{error}}</view>
   <view wx:if="{{syncStatus}}" class="status-line"><text>{{syncStatus}}</text></view>
   <button wx:if="{{syncFailed}}" class="text-button" bindtap="retrySync" disabled="{{syncing}}">{{syncing ? '同步中…' : '重新同步学习记录'}}</button>
   <view class="notice">STEM Studio 的正式分数仍以有来源、可追溯的评分结果为准；照片 Coach 是学习反馈，不会伪造官方成绩。</view>

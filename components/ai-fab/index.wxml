@@ -1,0 +1,4 @@
+<button class="ai-fab ai-fab-{{mode}}" bindtap="openCoach" aria-label="打开 AI Coach">
+  <view class="ai-fab-icon" aria-hidden="true"><view class="ai-fab-cross"></view></view>
+  <text>AI Coach</text>
+</button>

@@ -12,4 +12,5 @@
   <button class="secondary" bindtap="cancel">取消</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <canvas canvas-id="cropCanvas" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
+  <ai-fab source="crop" />
 </view>

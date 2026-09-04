@@ -8,6 +8,8 @@
     "test:crop": "node scripts/test-crop-math.mjs",
     "test:coach": "node scripts/test-coach-service.mjs",
     "test:stem-photo": "node scripts/test-stem-photo-flow.mjs",
+    "test:camera-page": "node scripts/test-camera-page.mjs",
+    "test:ai-fab": "node scripts/test-ai-fab.mjs",
     "test:inventory": "node scripts/test-inventory.mjs",
     "test:api": "node scripts/test-api-client.mjs",
     "test:auth": "node scripts/test-auth-client.mjs",
@@ -18,6 +20,20 @@
     "test:image": "node scripts/test-image-pipeline.mjs",
     "test:pages": "node scripts/test-page-contract.mjs",
     "test:wechat": "node scripts/test-wechat-compile.mjs",
-    "test:all": "npm test && npm run test:api && npm run test:auth && npm run test:session && npm run test:coach && npm run test:stem-coach-page && npm run test:attempt-sync && npm run test:inventory && npm run test:route-mirror && npm run test:crop && npm run test:device && npm run test:stem-photo && npm run test:image && npm run test:pages && npm run test:wechat"
+    "test:navigation-shell": "node scripts/test-navigation-shell.mjs",
+    "test:paper-catalog": "node scripts/test-paper-catalog.mjs",
+    "test:learning-summary": "node scripts/test-learning-summary.mjs",
+    "test:webview-policy": "node scripts/test-webview-policy.mjs",
+    "test:responsive": "node scripts/test-responsive-contract.mjs",
+    "test:contrast": "node scripts/test-color-contrast.mjs",
+    "test:api-origin": "node scripts/test-api-origin.mjs",
+    "test:calculator": "node scripts/test-calculator.mjs",
+    "test:wechat-auth": "node scripts/test-wechat-auth.mjs",
+    "test:wxml-bindings": "node scripts/test-wxml-bindings.mjs",
+    "test:home-entry": "node scripts/test-home-entry-routes.mjs",
+    "test:stem-catalog": "node scripts/test-stem-catalog.mjs",
+    "test:practice-entry": "node scripts/test-practice-entry.mjs",
+    "test:paper-fixtures": "node scripts/test-paper-catalog-fixtures.mjs",
+    "test:all": "npm test && npm run test:api && npm run test:auth && npm run test:wechat-auth && npm run test:session && npm run test:coach && npm run test:stem-coach-page && npm run test:attempt-sync && npm run test:inventory && npm run test:route-mirror && npm run test:stem-catalog && npm run test:practice-entry && npm run test:crop && npm run test:device && npm run test:stem-photo && npm run test:camera-page && npm run test:ai-fab && npm run test:image && npm run test:pages && npm run test:navigation-shell && npm run test:paper-catalog && npm run test:paper-fixtures && npm run test:learning-summary && npm run test:webview-policy && npm run test:responsive && npm run test:contrast && npm run test:api-origin && npm run test:calculator && npm run test:wxml-bindings && npm run test:home-entry && npm run test:wechat"
   }
 }

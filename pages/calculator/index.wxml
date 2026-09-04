@@ -1,0 +1,39 @@
+<view class="page {{deviceClass}} {{orientation}} calculator-page">
+  <stemist-header eyebrow="STEMIST · CALCULATOR" title="科学计算器" subtitle="为 A-Level 学习准备的常用科学计算工具" action-text="返回" bind:action="goBack" />
+  <view class="calculator-note">熟悉的科学计算器按键布局；计算在本机完成，不上传算式。</view>
+
+  <view class="calculator-shell">
+    <view class="calculator-display">
+      <view class="display-status"><text>COMP</text><text>{{angleMode}}</text><text wx:if="{{shiftActive}}">SHIFT</text><text wx:if="{{memory}}">M</text></view>
+      <input class="expression-input" value="{{expression}}" maxlength="500" confirm-type="done" cursor-spacing="24" placeholder="输入算式，例如 sin(30)+2^3" bindinput="onInput" bindconfirm="onConfirm" />
+      <view class="display-result">{{display}}</view>
+    </view>
+
+    <view class="calculator-actions mode-actions">
+      <button wx:for="{{modeKeys}}" wx:key="action" class="calc-key calc-{{item.tone || 'default'}} {{item.action === 'shift' && shiftActive ? 'is-active' : ''}}" data-action="{{item.action}}" bindtap="press">{{item.label}}</button>
+    </view>
+    <view class="calculator-actions scientific-actions">
+      <button wx:for="{{scientificKeys}}" wx:key="label" class="calc-key calc-{{item.tone || 'default'}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" data-shift-action="{{item.shiftAction || ''}}" data-shift-value="{{item.shiftValue || ''}}" bindtap="press">
+        <text wx:if="{{item.shiftLabel}}" class="shift-label">{{item.shiftLabel}}</text>
+        <text class="primary-label">{{item.label}}</text>
+      </button>
+    </view>
+    <view class="calculator-keypad">
+      <button wx:for="{{numberKeys}}" wx:key="label" class="calc-key calc-{{item.tone || 'number'}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" bindtap="press">{{item.label}}</button>
+      <button class="calc-key calc-equals" data-action="equals" bindtap="press">=</button>
+    </view>
+    <view class="calculator-actions memory-actions">
+      <button wx:for="{{memoryKeys}}" wx:key="action" class="calc-key calc-{{item.tone || 'default'}}" data-action="{{item.action}}" bindtap="press">{{item.label}}</button>
+    </view>
+  </view>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view class="history-head"><view class="section-title">最近计算</view><button class="text-button" bindtap="toggleHistory">{{showHistory ? '收起' : '查看历史'}}</button></view>
+  <view wx:if="{{showHistory}}" class="history-list">
+    <view wx:for="{{history}}" wx:key="at" class="history-row" data-index="{{index}}" bindtap="restoreHistory"><text>{{item.expression}}</text><text>= {{item.result}}</text></view>
+    <view wx:if="{{!history.length}}" class="empty-state">还没有计算记录。</view>
+    <button wx:if="{{history.length}}" class="text-button" bindtap="clearHistory">清空历史</button>
+  </view>
+  <view class="notice">支持四则运算、括号、幂、阶乘、百分比、三角与反三角、log/ln、平方根与立方根、Ans、记忆和 DEG/RAD。SHIFT 可切换每个按键左上角的第二功能。本工具不是 Casio 官方模拟器，也不替代考试规定的计算器。</view>
+  <ai-fab source="calculator" />
+</view>

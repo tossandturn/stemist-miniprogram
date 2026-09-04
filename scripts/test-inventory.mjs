@@ -18,11 +18,15 @@ const fakeRequire = (name) => {
   throw new Error(`unexpected module ${name}`)
 }
 vm.runInNewContext(source, { module, exports: module.exports, require: fakeRequire, Promise, Error, String, Number, Boolean, Math, Array, Object, encodeURIComponent })
-const { fetchRouteInventory, normalizeInventory } = module.exports
+const { clearInventoryCache, fetchRouteInventory, normalizeInventory } = module.exports
 const inventory = await fetchRouteInventory('cie-9702-as-physics')
+const cached = await fetchRouteInventory('cie-9702-as-physics')
+assert.equal(cached.routeId, inventory.routeId)
+assert.equal(calls.length, 1, 'inventory should be cached during a short navigation loop')
 assert.equal(inventory.availableQuestionGroupCount, 112)
 assert.equal(inventory.topics[0].ready, true)
 assert.equal(inventory.topicCount, 1)
 assert.match(calls[0], /routes\/cie-9702-as-physics\/syllabus-topics/)
 assert.throws(() => normalizeInventory({ routeId: 'other' }, 'cie-9702-as-physics'), /不匹配/)
+clearInventoryCache()
 console.log('Server syllabus inventory contract passed.')

@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "Stemist · Today"
+  "navigationBarTitleText": "Stemist · Today",
+  "usingComponents": {
+    "ai-fab": "/components/ai-fab/index"
+  }
 }

@@ -18,11 +18,16 @@ const wx = {
   getStorageSync: (key) => storage[key],
   removeStorageSync: (key) => { delete storage[key] },
   setStorageSync: (key, value) => { storage[key] = value },
-  chooseMedia: (options) => options.success({ tempFiles: [{ tempFilePath: '/tmp/photo.jpg' }] }),
   navigateTo: ({ url }) => { navigatedUrl = url },
 }
 const pageHelpers = { deviceState: (value) => value, syncDevice: () => {} }
-const fakeRequire = (name) => name === '../../utils/page' ? pageHelpers : name === '../../utils/stemRoutes' ? { routesForSubjectStage: (code, stage) => routes.filter((route) => route.subjectCode === code && route.stage === stage) } : name === '../../utils/inventory' ? { fetchRouteInventory: async () => null } : (() => { throw new Error(`unexpected module ${name}`) })()
+const stemCatalog = {
+  STEM_SUBJECTS: [{ code: '9702', label: 'Physics', short: '物理' }, { code: '9709', label: 'Mathematics', short: '数学' }],
+  STEM_STAGES: ['IGCSE', 'AS', 'A2', 'Competition', 'Admissions'],
+  routesForSubjectStage: (code, stage) => routes.filter((route) => route.subjectCode === code && route.stage === stage),
+  subjectByCode: (code) => stemCatalog.STEM_SUBJECTS.find((subject) => subject.code === String(code || '')) || null,
+}
+const fakeRequire = (name) => name === '../../utils/page' ? pageHelpers : name === '../../utils/stemCatalog' ? stemCatalog : name === '../../utils/stemRoutes' ? { routesForSubjectStage: stemCatalog.routesForSubjectStage, routeById: (id) => routes.find((route) => route.routeId === id) || null } : name === '../../utils/inventory' ? { fetchRouteInventory: async () => null } : (() => { throw new Error(`unexpected module ${name}`) })()
 const source = fs.readFileSync(path.join(root, 'pages/stem/capture.js'), 'utf8')
 vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require: fakeRequire, wx, Date, String, Number, Boolean, Math, encodeURIComponent })
 
@@ -34,9 +39,9 @@ assert.equal(instance.data.canCapture, false)
 pageConfig.chooseStage.call(instance, { currentTarget: { dataset: { stage: 'AS' } } })
 assert.equal(instance.data.canCapture, true)
 pageConfig.takePhoto.call(instance)
-assert.equal(storage.stemistCropReturn.context.routeId, 'cie-9702-as-physics')
-assert.equal(storage.stemistCropReturn.context.subjectCode, '9702')
-assert.match(navigatedUrl, /^\/pages\/crop\/crop\?src=/)
+assert.equal(storage.stemistCameraReturn.context.routeId, 'cie-9702-as-physics')
+assert.equal(storage.stemistCameraReturn.context.subjectCode, '9702')
+assert.equal(navigatedUrl, '/pages/stem/camera')
 assert.equal(instance.data.busy, true)
 pageConfig.onShow.call(instance)
 assert.equal(instance.data.busy, false)

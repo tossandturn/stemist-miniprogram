@@ -1,11 +1,14 @@
-.workspace-header { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; margin-bottom: 12rpx; }
+.workspace-header { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; margin-bottom: 12rpx; padding-right: 202rpx; }
 .workspace-header-copy { min-width: 0; flex: 1; }
 .workspace-header-title { margin-top: 8rpx; color: #18213d; font-size: 34rpx; font-weight: 800; }
-.workspace-header-subtitle { margin-top: 6rpx; color: #6f7892; font-size: 22rpx; line-height: 1.45; }
+.workspace-header-subtitle { margin-top: 6rpx; color: #66708a; font-size: 22rpx; line-height: 1.45; }
 .workspace-header-action { flex: 0 0 auto; min-width: 72rpx; min-height: 64rpx; margin-left: 16rpx; padding: 0 14rpx; color: #5b43c7; background: #f0ecff; font-size: 22rpx; }
 @media (min-width: 768px) {
-  .workspace-header { min-height: 56px; }
+  .workspace-header { min-height: 56px; padding-right: 154px; }
   .workspace-header-title { font-size: 22px; }
   .workspace-header-subtitle { font-size: 14px; }
   .workspace-header-action { min-width: 56px; min-height: 44px; font-size: 14px; }
+}
+@media (max-width: 374px) {
+  .workspace-header { padding-right: 166rpx; }
 }

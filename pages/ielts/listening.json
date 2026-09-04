@@ -2,6 +2,7 @@
   "navigationBarTitleText": "IELTSist · Listening",
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index",
-    "text-practice": "/components/text-practice/index"
+    "text-practice": "/components/text-practice/index",
+    "app-nav": "/components/app-nav/index"
   }
 }

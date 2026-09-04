@@ -6,9 +6,10 @@
     <view class="section-title">文本与 AI Coach</view>
     <view class="privacy-item">Listening、Reading、Writing 的文本和你主动提交的 STEM/作文照片会随当前技能、阶段或任务上下文发送到 AI Coach。客户端不保存或展示模型 API Key。</view>
     <view class="section-title">账号与草稿</view>
-    <view class="privacy-item">登录令牌、草稿和最近提交摘要保存在小程序本地存储。登录后 STEM 拍题的路线、阶段、提交状态和反馈摘要可能同步到 STEM 学习记录；原始照片不会写入 attempts 记录。正式微信身份适配应由服务端完成，不向客户端返回 session_key。</view>
+    <view class="privacy-item">登录令牌、草稿和最近提交摘要保存在小程序本地存储。微信登录凭证只发送到服务端换取统一身份，不向客户端返回 session_key。登录后 STEM 拍题的路线、阶段、提交状态和反馈摘要可能同步到 STEM 学习记录；原始照片不会写入 attempts 记录。</view>
     <view class="section-title">实时口语</view>
     <view class="privacy-item">Speaking 通过 ieltsist.com web-view 使用 IELTSist 的实时千问口语功能；麦克风权限由微信和该业务域名分别控制。</view>
-    <view class="notice">这份页面与当前 MVP 数据流保持一致；上线前请由运营方补充主体、联系方式、保存期限、删除请求和第三方处理者信息。</view>
-  </view>
+  <view class="notice">这份页面与当前 MVP 数据流保持一致；上线前请由运营方补充主体、联系方式、保存期限、删除请求和第三方处理者信息。</view>
+  <ai-fab source="privacy" />
+</view>
 </view>

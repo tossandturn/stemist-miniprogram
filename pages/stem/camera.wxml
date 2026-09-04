@@ -1,0 +1,16 @@
+<view class="page {{deviceClass}} {{orientation}} camera-page">
+  <stemist-header eyebrow="{{returnPage === 'writing' ? 'IELTSIST · 作文拍照' : 'STEM STUDIO · 题目拍照'}}" title="对准后置摄像头" subtitle="拍照后会先裁剪，再提交给 Coach" action-text="取消" bind:action="cancel" />
+  <view class="camera-frame">
+    <camera wx:if="{{ready}}" class="camera-view" device-position="back" flash="{{flash}}" binderror="onCameraError"></camera>
+    <view wx:if="{{!ready}}" class="camera-loading">正在打开相机…</view>
+    <view class="camera-guides" aria-hidden="true"><view class="guide-corner guide-tl"></view><view class="guide-corner guide-tr"></view><view class="guide-corner guide-bl"></view><view class="guide-corner guide-br"></view></view>
+  </view>
+  <view class="camera-hint">{{hint}}</view>
+  <view class="camera-controls">
+    <button class="secondary camera-control" bindtap="toggleFlash">闪光灯：{{flash === 'auto' ? '自动' : (flash === 'on' ? '开' : '关')}}</button>
+    <button class="primary camera-shutter" bindtap="takePhoto" loading="{{busy}}" disabled="{{busy || !ready}}">{{busy ? '处理中…' : '拍下这一题'}}</button>
+  </view>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view class="notice">小程序只调用后置摄像头；如果当前开发者工具没有摄像头，会使用仍限制为 camera 的兼容接口，不会自动打开相册。</view>
+  <ai-fab source="camera" />
+</view>

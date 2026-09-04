@@ -1,8 +1,9 @@
 const { signIn, currentUser, signOut } = require('../../utils/auth')
 const { deviceState, syncDevice } = require('../../utils/page')
+const { ensureWeChatSession } = require('../../utils/wechatAuth')
 
 Page({
-  data: deviceState({ mode: 'login', username: '', password: '', loading: false, error: '', user: null }),
+  data: deviceState({ mode: 'login', username: '', password: '', loading: false, wechatLoading: false, error: '', user: null }),
   onShow() {
     syncDevice(this)
     const user = wx.getStorageSync('stemistSessionToken') ? currentUser() : null
@@ -11,7 +12,19 @@ Page({
   },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
+  async loginWechat() {
+    if (this.data.loading || this.data.wechatLoading) return
+    this.setData({ wechatLoading: true, error: '' })
+    try {
+      const result = await ensureWeChatSession({ silent: false })
+      this.setData({ user: result.user || currentUser() })
+      wx.showToast({ title: '微信登录成功', icon: 'success' })
+    } catch (error) {
+      this.setData({ error: error.message || '微信登录暂时不可用，请稍后重试。' })
+    } finally { this.setData({ wechatLoading: false }) }
+  },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
+  openIeltsAccount() { wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent('https://ieltsist.com/?module=account&from=stemist')}` }) },
   logout() {
     if (this.data.loading) return
     signOut()

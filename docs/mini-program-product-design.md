@@ -1,6 +1,6 @@
 # Stemist 小程序统一产品设计与技术基线
 
-版本：2026-09-04
+版本：2026-09-05
 
 这份文档是小程序实现的单一设计基线。它把 `STEM Studio` 与 `IELTSist` 已有的学习闭环、视觉语言和 AI Coach 边界迁移到微信小程序，而不是重新做一个独立 Demo。
 
@@ -8,16 +8,19 @@
 
 ## 1. 产品定位
 
-小程序是统一产品的轻量入口：
+小程序是统一产品的轻量入口，首页只保留四个一级入口：
 
-`Today → 选择技能 → 输入真实证据 → AI Coach 反馈 → 下一步练习`
+`A-Level 学科 | IELTS | 竞赛 / 入学考试 | Casio 计算器`
+
+点击入口会先静默调用 `wx.login` 换取统一短期会话；换票服务暂不可用时允许进入本机浏览/草稿模式，真正调用 AI 或同步云端记录时再给出登录恢复动作。AI Coach 是右上角固定入口，所有页面都能直接提问。
 
 它不替代网页/iOS 的完整 PDF 工作区：
 
-- STEM 在小程序中采用「一题一拍」，后置摄像头、裁剪、AI Coach。
+- STEM 在小程序中采用「一题一拍」，先进入原生后置相机取景页，再裁剪、AI Coach；没有相机能力的开发者工具才降级到仍限制为 `sourceType:['camera']` 的兼容调用，不打开相册。
 - IELTS Listening / Reading 保留文本工作区，题库和完整音频/文章仍以 IELTSist 为准。
 - IELTS Writing 支持键入或一张手写作文照片，然后进入 AI Coach。
 - IELTS Speaking 通过 `web-view` 保留 IELTSist 的实时千问 examiner、转写、评分和 retest。
+- STEM 网页端的 Topic、完整真题、模拟考试、进度、Notebook、教师/学校工作区通过安全的 Stemist WebView 入口保留；小程序原生层只把输入改成拍照→裁剪→Coach，不删掉网页能力。
 
 ## 2. 信息架构
 
@@ -25,13 +28,11 @@
 
 首页第一屏必须回答四件事：今天做什么、有哪些练习、AI 在哪里、账号是否连接。结构沿用两个网页的 Dashboard/Today 语义：
 
-1. 品牌栏：STEMist + IELTSist learning studio + AI 状态。
-2. Today hero：`Study clearly. Improve visibly.`，主行动是 `拍一题 STEM`，次行动是 `打开 AI Coach`。
-3. 学习信号：本周完成、草稿、Coach 状态、下一步动作；没有真实数据时显示 0/Ready，不编造分数。
-4. Continue learning：STEM Studio 单题照片入口。
-5. IELTS-ist practice：Listening、Reading、Writing、Speaking 四张技能卡。
-6. AI Coach：明确“evidence before advice”，缺少证据时拒绝伪造反馈。
-7. Account：同一账号、产品记录边界分开。
+1. 品牌栏：STEMist + IELTSist learning studio；右上角是微信登录/账号状态，AI Coach 作为固定右上角入口。
+2. 四张入口卡：A-Level 学科、IELTS、竞赛/入学考试、Casio 计算器；不在首页平铺二级功能。
+3. 入口失败只显示可理解的恢复提示，不把内部 prompt、provider、路由调试词展示给学生。
+4. 进入 A-Level/竞赛后可选择路线、读取真实 inventory、拍题，也可打开完整 STEM Studio。
+5. 进入 IELTS 后保留四项技能入口和完整 IELTSist 工作区。
 
 ### 技能工作区
 
@@ -39,7 +40,7 @@
 
 `Header → Context card → Input/evidence → AI Coach → Error/result → Next action`
 
-共性由组件提供，技能页面只传入标题、上下文、占位文案、请求上下文和提交策略。
+共性由组件提供，技能页面只传入标题、上下文、占位文案、请求上下文和提交策略。AI Coach 不再使用页面内的开发者式提示词作为学生文案。
 
 STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等存在多个纸张组合的路线还必须选择 `routeId`。客户端镜像 `src/data/routeRegistry.js` 的稳定路线 ID 并把它随照片传入 Coach，防止 Physics、Mathematics、IGCSE、A-Level 和 Competition 内容被错误合并。Writing 拍照使用独立的 IELTS 上下文，不复用 STEM 路由。
 
@@ -53,7 +54,7 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 | --- | --- | --- |
 | Canvas | `#f5f6fb` | 页面背景 |
 | Text | `#18213d` | 标题与正文 |
-| Muted | `#6f7892` | 辅助说明 |
+| Muted | `#66708a` | 辅助说明（白底正文对比度约 4.94:1） |
 | Line | `#e4e7f0` | 分隔与卡片边框 |
 | Brand | `#7357e8` | STEMist/AI Coach 主色 |
 | Brand dark | `#5638c3` | 强调文字 |
@@ -71,7 +72,8 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 ### 手机（窗口宽度 < 768px）
 
 - 单列内容，左右 32rpx 内边距。
-- 底部固定四项导航：Today / Practice / AI Coach / Account。
+- 底部固定五项导航：Today / Practice / AI Coach / Progress / Account；首页本身只展示四个一级入口。
+- AI Coach 固定在右上角，不能被键盘、相机裁剪区或底部导航遮挡。
 - 主按钮最小 88rpx 高，适合单手点击。
 - 输入框和提交动作按垂直顺序排列，键盘弹出时不遮挡提交。
 - STEM 裁剪区约 650rpx 高，优先拍单题。
@@ -117,8 +119,9 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 
 ## 6. 账号与草稿
 
-- 当前 MVP 用已有 `/api/auth/login`、`/api/auth/register` 获取短期 `accessToken`，只存 `stemistSessionToken`。
-- 正式微信发布增加服务端 `wx.login → code2Session` 适配，不向客户端返回 `session_key`。
+- 默认入口用 `wx.login → /api/auth/wechat → code2Session` 获取短期 `accessToken`，只存 `stemistSessionToken`；用户名/密码仅作为兼容恢复路径。
+- `session_key`、App Secret 和 provider key 只留在服务端，绝不返回客户端或写入 WebView query。
+- 服务端通过 `WECHAT_MINIPROGRAM_APP_ID` / `WECHAT_MINIPROGRAM_APP_SECRET` 配置换票；生产只允许官方 `api.weixin.qq.com`，本地测试才允许 loopback mock。
 - 文本练习草稿以 `stemistDraft:<skill>` 本地保存，提交成功后清理草稿并保存最近提交摘要。
 - 身份共用，STEM 与 IELTSist 学习记录按产品边界隔离；不把浏览器 Cookie 或数据库复制到小程序。
 

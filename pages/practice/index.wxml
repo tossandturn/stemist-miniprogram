@@ -1,0 +1,76 @@
+<view class="page {{deviceClass}} {{orientation}} practice-page">
+  <stemist-header eyebrow="STEMIST · PRACTICE" title="选择你的下一次练习" subtitle="先选准确路线，再开始一题真实证据。" />
+  <app-nav active="practice" source="{{activeCategory}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
+
+  <view class="category-switch" role="tablist" aria-label="Learning space">
+    <button wx:for="{{entryCategories}}" wx:key="id" class="category-tab {{activeCategory === item.id ? 'active' : ''}}" data-category="{{item.id}}" bindtap="chooseCategory"><text>{{item.label}}</text><text class="category-tab-detail">{{item.detail}}</text></button>
+  </view>
+
+  <block wx:if="{{activeCategory !== 'ielts'}}">
+    <view class="card route-setup-card">
+      <view class="section-kicker">先选学科和阶段</view>
+      <view class="card-title">{{activeCategory === 'competition' ? '这道题属于哪个竞赛 / 入学考试？' : '这道题属于哪个 A-Level 学科？'}}</view>
+      <view class="card-detail">路线只用于聚焦 Coach；正式题目、权限和分数仍由服务器校验。</view>
+      <view class="route-label">学科</view>
+      <view class="chip-grid">
+        <button wx:for="{{subjects}}" wx:key="code" class="route-chip {{item.code === subjectCode ? 'active' : ''}}" data-code="{{item.code}}" bindtap="chooseSubject">{{item.short}}</button>
+      </view>
+      <view class="route-label">阶段</view>
+      <view class="chip-grid">
+        <button wx:for="{{stages}}" wx:key="*this" class="route-chip {{item === stage ? 'active' : ''}}" data-stage="{{item}}" bindtap="chooseStage">{{item}}</button>
+      </view>
+      <block wx:if="{{routeOptions.length > 1}}">
+        <view class="route-label">路线 / 试卷组合</view>
+        <view class="route-list">
+          <button wx:for="{{routeOptions}}" wx:key="routeId" class="route-option {{item.routeId === routeId ? 'active' : ''}}" data-route="{{item.routeId}}" bindtap="chooseRoute"><text>{{item.components}}</text><text class="route-option-id">{{item.routeId}}</text></button>
+        </view>
+      </block>
+      <view class="selected-route">{{subjectLabel}} · {{stage}} · {{routeId || '待选择'}}</view>
+    </view>
+
+    <view class="context-card inventory-card">
+      <view class="context-card-title">这条路线的真实题库</view>
+      <view wx:if="{{inventoryLoading}}" class="context-card-text">正在读取 QP/MS inventory…</view>
+      <block wx:if="{{inventory}}">
+        <view class="inventory-summary"><view><text class="inventory-number">{{inventory.verifiedQuestionGroupCount === null ? '—' : inventory.verifiedQuestionGroupCount}}</text><text>已审核题组</text></view><view><text class="inventory-number">{{inventory.availableQuestionGroupCount === null ? '—' : inventory.availableQuestionGroupCount}}</text><text>可练习题组</text></view></view>
+        <view class="context-card-text">官方配对卷 {{inventory.officialPairedPaperCount === null ? '—' : inventory.officialPairedPaperCount}} 份 · {{inventory.ready ? '可开始正式 Topic Drill' : '当前以拍题/学习为主'}}</view>
+        <view wx:for="{{inventoryTopics}}" wx:key="id" class="inventory-topic"><text>{{item.code}} {{item.name}}</text><text>{{item.availableQuestionCount === null ? '—' : item.availableQuestionCount}} 题</text></view>
+      </block>
+      <view wx:if="{{inventoryError}}" class="context-card-text inventory-error">{{inventoryError}}<button class="text-button" bindtap="refreshInventory" data-route-id="{{routeId}}">重新读取题库</button></view>
+    </view>
+
+    <view class="section-title">STEM 学习功能</view>
+    <view class="feature-grid">
+      <button wx:for="{{stemTools}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-tool="{{item.id}}" bindtap="openStemTool"><text class="feature-title">{{item.label}}</text><text class="feature-detail">{{item.detail}}</text></button>
+    </view>
+
+    <view class="card action-card">
+      <view class="card-title">准备好了？</view>
+      <view class="card-detail">一题一拍：让题目、图表和你的答案尽量出现在同一张照片里。</view>
+      <button class="primary" bindtap="openStem" disabled="{{!routeId}}">{{activeCategory === 'competition' ? '打开相机拍竞赛题' : '打开相机拍题'}}</button>
+      <button class="secondary" bindtap="openCoach">先打开 AI Coach</button>
+      <button class="text-button" bindtap="openPapers">浏览全部真题目录</button>
+      <button class="text-button" bindtap="openFullStudio">打开完整 STEM Studio</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="card ielts-intro-card">
+      <view class="section-kicker">IELTSIST · 同一账号</view>
+      <view class="card-title">选择一项技能，保留真实学习记录</view>
+      <view class="card-detail">Listening / Reading 使用文本工作区；Writing 可打字或拍手写稿；Speaking 保留 IELTSist 实时 examiner。</view>
+    </view>
+    <view class="skill-grid">
+      <view wx:for="{{ieltsSkills}}" wx:key="id" class="card skill-card accent-{{item.tone}}">
+        <view class="skill-mark {{item.tone}}" aria-hidden="true"></view>
+        <view class="card-title">{{item.label}}</view>
+        <view class="card-detail">{{item.detail}}</view>
+        <button class="secondary" data-skill="{{item.id}}" bindtap="openIelts">开始 {{item.label}}</button>
+      </view>
+    </view>
+    <button class="secondary full-studio-button" bindtap="openFullStudio">打开完整 IELTSist 工作区</button>
+  </block>
+
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <view class="notice">Practice 只负责选择和开始；任何题库数量、AI 状态和分数都以服务端真实响应为准。</view>
+</view>

@@ -1,86 +1,95 @@
 const { deviceState, syncDevice } = require('../../utils/page')
+const { getJson } = require('../../utils/api')
+const { localLearningSummary } = require('../../utils/learningSummary')
+const { ensureWeChatSession } = require('../../utils/wechatAuth')
+
+const ENTRY_POINTS = [
+  { id: 'alevel', title: 'A-Level 学科', detail: 'IGCSE · AS · A2\n按学科和路线开始一题一拍', tag: 'STEM STUDIO', tone: 'alevel', url: '/pages/practice/index?category=alevel' },
+  { id: 'ielts', title: 'IELTS', detail: 'Listening · Reading · Writing · Speaking\n沿用 IELTSist 技能工作区', tag: 'IELTSIST', tone: 'ielts', url: '/pages/practice/index?category=ielts' },
+  { id: 'competition', title: '竞赛 / 入学考试', detail: 'BPhO · AMC 12 · ESAT · TMUA\n与 A-Level 统计严格分开', tag: 'STEM STUDIO', tone: 'competition', url: '/pages/practice/index?category=competition' },
+  { id: 'calculator', title: 'Casio 计算器', detail: '科学计算器练习\n角度、函数、历史记录都在本机', tag: 'STEM TOOL', tone: 'calculator', url: '/pages/calculator/index' },
+]
 
 Page({
   data: deviceState({
     user: null,
-    aiStatus: 'Sign in for AI',
-    activeTab: 'today',
+    aiStatus: '正在检查 AI…',
+    entryPoints: ENTRY_POINTS,
+    entryLoading: '',
+    entryError: '',
+    wechatLoading: false,
     recentActivity: null,
-    loopSteps: [
-      { label: 'Discover', detail: '选择准确路线', state: 'ready' },
-      { label: 'Practice', detail: '提交真实证据', state: 'next' },
-      { label: 'Coach', detail: '看诊断与证据', state: 'locked' },
-      { label: 'Retest', detail: '修正后再练', state: 'locked' },
-    ],
-    metrics: [
-      { label: 'This week', value: '0', detail: 'completed attempts' },
-      { label: 'Saved drafts', value: '0', detail: 'ready to resume' },
-      { label: 'AI Coach', value: 'Ready', detail: 'evidence-led feedback' },
-      { label: 'Next action', value: '1 photo', detail: 'one STEM question' },
-    ],
-    ieltsCards: [
-      { id: 'listening', icon: '◉', title: 'Listening with AI', detail: 'Text answer, trap review and next practice.', meta: 'Text workspace', accent: 'listening' },
-      { id: 'reading', icon: '▤', title: 'Reading with AI', detail: 'Evidence, location and answer reasoning.', meta: 'Text workspace', accent: 'reading' },
-      { id: 'writing', icon: '✎', title: 'Writing with AI', detail: 'Type an essay or photograph handwritten work.', meta: 'Text or photo', accent: 'writing' },
-      { id: 'speaking', icon: '◌', title: 'Speaking with AI', detail: 'The original IELTSist Qwen speaking examiner.', meta: 'Realtime voice', accent: 'speaking' },
-    ],
+    summary: { completedThisWeek: 0, draftCount: 0, submissionCount: 0 },
   }),
 
   onShow() {
+    this.__disposed = false
     syncDevice(this)
     const token = wx.getStorageSync('stemistSessionToken')
     const user = token ? (wx.getStorageSync('stemistUser') || null) : null
-    const drafts = ['listening', 'reading', 'writing'].reduce((count, key) => count + (wx.getStorageSync(`stemistDraft:${key}`) ? 1 : 0), 0)
-    const submissions = token ? ['stem-photo', 'writing', 'listening', 'reading'].map((key) => wx.getStorageSync(`stemistSubmission:${key}`)).filter(Boolean) : []
-    const recentActivity = submissions.sort((a, b) => Number(b.submittedAt || 0) - Number(a.submittedAt || 0))[0] || null
-    const weekStart = Date.now() - 7 * 24 * 60 * 60 * 1000
-    const completedThisWeek = submissions.filter((item) => Number(item.submittedAt || 0) >= weekStart).length
-    const coachStatus = token ? 'Ready' : 'Sign in'
-    const loopSteps = recentActivity
-      ? [
-        { label: 'Discover', detail: '路线已选择', state: 'ready' },
-        { label: 'Practice', detail: '证据已提交', state: 'ready' },
-        { label: 'Coach', detail: '反馈可查看', state: 'next' },
-        { label: 'Retest', detail: '准备下一次', state: 'locked' },
-      ]
-      : [
-        { label: 'Discover', detail: '选择准确路线', state: 'ready' },
-        { label: 'Practice', detail: drafts ? '恢复草稿' : '提交真实证据', state: 'next' },
-        { label: 'Coach', detail: '看诊断与证据', state: 'locked' },
-        { label: 'Retest', detail: '修正后再练', state: 'locked' },
-      ]
+    const summary = localLearningSummary()
+    const drafts = summary.draftCount
+    const recentActivity = token ? summary.recentActivity : null
     this.setData({
       user,
-      aiStatus: token ? 'Coach ready' : 'Sign in for AI',
+      aiStatus: token ? '检查中…' : '登录后使用 AI',
       recentActivity,
-      loopSteps,
-      'metrics[0].value': String(completedThisWeek),
-      'metrics[1].value': String(drafts),
-      'metrics[2].value': coachStatus,
-      'metrics[3].value': drafts ? 'Resume' : (recentActivity ? 'Retest' : 'Choose route'),
+      summary: { completedThisWeek: token ? summary.completedThisWeek : 0, draftCount: drafts, submissionCount: token ? summary.submissions.length : 0 },
     })
+    if (!token && !this.__wechatAutoAttempted) {
+      this.__wechatAutoAttempted = true
+      ensureWeChatSession({ silent: true }).then((result) => {
+        if (this.__disposed || !result || !result.user) return
+        const latest = localLearningSummary()
+        this.setData({ user: result.user, aiStatus: '微信已登录 · AI 可用', summary: { completedThisWeek: latest.completedThisWeek, draftCount: latest.draftCount, submissionCount: latest.submissions.length } })
+      }).catch(() => {})
+    }
+    getJson('/api/ai/status', { timeout: 6000 }).then((status) => {
+      if (this.__disposed) return
+      const connected = Boolean(status && status.provider && status.coachEnabled)
+      const hasToken = Boolean(wx.getStorageSync('stemistSessionToken'))
+      this.setData({ aiStatus: connected ? (hasToken ? 'AI 已连接' : 'AI 服务已就绪 · 请先微信登录') : 'AI 暂不可用' })
+    }).catch(() => { if (!this.__disposed) this.setData({ aiStatus: 'AI 暂不可用' }) })
   },
+  onUnload() { this.__disposed = true },
   onResize() { syncDevice(this) },
+  async loginWechat() {
+    if (this.data.wechatLoading) return
+    if (wx.getStorageSync('stemistSessionToken')) return wx.navigateTo({ url: '/pages/account/auth' })
+    this.setData({ wechatLoading: true, entryError: '' })
+    try {
+      const result = await ensureWeChatSession({ silent: false })
+      this.setData({ user: result.user || null, aiStatus: result.user ? 'AI 已连接' : '登录后使用 AI' })
+      if (result.user) wx.showToast({ title: '微信登录成功', icon: 'success' })
+    } catch {
+      this.setData({ entryError: '微信登录暂时不可用；可以先浏览入口，提交 AI 前再到 Account 重试。' })
+    } finally { this.setData({ wechatLoading: false }) }
+  },
+  openEntry(event) {
+    const id = String(event.currentTarget.dataset.entry || '')
+    const entry = ENTRY_POINTS.find((item) => item.id === id)
+    if (!entry || this.data.entryLoading) return
+    this.setData({ entryLoading: id, entryError: '' })
+    // Do not make a student wait on a slow code2session exchange. The card
+    // opens immediately while the same in-flight login continues in the
+    // background; AI/remote writes still enforce the real session server-side.
+    ensureWeChatSession({ silent: true }).then((result) => {
+      if (this.__disposed || !result || !result.user) return
+      this.setData({ user: result.user, aiStatus: '微信已登录 · AI 可用' })
+    }).catch(() => {
+      if (!this.__disposed) this.setData({ entryError: '微信登录暂未完成，先进入本机模式；提交 AI 或同步记录前请在 Account 完成登录。' })
+    })
+    wx.navigateTo({ url: entry.url, fail: (error) => this.setData({ entryError: error.errMsg || '暂时无法打开入口，请重试。' }) })
+    this.setData({ entryLoading: '' })
+  },
 
   openStem() { wx.navigateTo({ url: '/pages/stem/capture' }) },
+  openPractice() { wx.navigateTo({ url: '/pages/practice/index' }) },
+  openPapers() { wx.navigateTo({ url: '/pages/papers/index' }) },
   openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
-  openCoach() {
-    wx.showActionSheet({
-      itemList: ['STEM 拍题 Coach', 'Listening Coach', 'Reading Coach', 'Writing Coach'],
-      success: ({ tapIndex }) => {
-        const routes = ['/pages/stem/capture', '/pages/ielts/listening', '/pages/ielts/reading', '/pages/ielts/writing']
-        if (routes[tapIndex]) wx.navigateTo({ url: routes[tapIndex] })
-      },
-    })
-  },
+  openCoach() { wx.navigateTo({ url: '/pages/coach/index' }) },
   openIelts(event) {
     const id = event.currentTarget.dataset.id
     wx.navigateTo({ url: `/pages/ielts/${id}` })
-  },
-  selectTab(event) {
-    const tab = event.currentTarget.dataset.tab
-    if (tab === 'account') return this.openAccount()
-    if (tab === 'practice' || tab === 'coach') return this.openCoach()
-    this.setData({ activeTab: tab })
   },
 })

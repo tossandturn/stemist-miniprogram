@@ -20,7 +20,7 @@ const fakeRequire = (name) => name === './session' ? { clearLocalSession: (optio
   sessionCleanupOptions = options
   delete storage.stemistSessionToken
   delete storage.stemistUser
-} } : (() => { throw new Error(`unexpected module ${name}`) })()
+} } : name === './apiOrigin' ? { DEFAULT_API_BASE: 'https://stem.ieltsist.com', safeApiBase: (value) => String(value || '').replace(/\/+$/, '') === 'https://stem.ieltsist.com' ? 'https://stem.ieltsist.com' : '' } : (() => { throw new Error(`unexpected module ${name}`) })()
 vm.runInNewContext(source, {
   module,
   exports: module.exports,
@@ -35,7 +35,7 @@ vm.runInNewContext(source, {
   Object,
 })
 
-const { askCoach, getJson, requestJson } = module.exports
+const { askCoach, getJson, isAuthError, requestJson } = module.exports
 assert.deepEqual(await getJson('/api/stem/routes/demo/syllabus-topics'), { ok: true })
 assert.equal(requestOptions.method, 'GET')
 assert.equal(requestOptions.data, undefined)
@@ -49,7 +49,11 @@ await askCoach({ message: 'photo', context: {}, imageDataUrls: ['data:image/jpeg
 assert.equal(requestOptions.timeout, 60000)
 
 response = { statusCode: 401, data: { error: 'expired' } }
-await assert.rejects(() => requestJson('/api/ai/coach', { message: 'x' }), /登录已过期/)
+const authError = await requestJson('/api/ai/coach', { message: 'x' }).catch((error) => error)
+assert.match(authError.message, /登录已过期/)
+assert.equal(authError.statusCode, 401)
+assert.equal(authError.code, 'auth_required')
+assert.equal(isAuthError(authError), true)
 assert.equal(storage.stemistSessionToken, undefined)
 assert.equal(sessionCleanupOptions.preserveDrafts, true)
 console.log('Mini Program API client contract passed.')

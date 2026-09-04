@@ -1,0 +1,23 @@
+<view class="page {{deviceClass}} {{orientation}} coach-home-page">
+  <stemist-header eyebrow="STEMIST · AI COACH" title="先给证据，再给建议" subtitle="选择学习空间，写下卡住的步骤。" />
+  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
+
+  <view class="card coach-intro">
+    <view class="section-kicker">先看你的题目和记录</view>
+    <view class="card-title">AI Coach 会说明依据</view>
+    <view class="card-detail">有照片或清晰文本时才给针对性反馈；证据不足、AI 失败或只是本地提示，都会明确告诉你。</view>
+  </view>
+
+  <view class="route-label">我现在要检查</view>
+  <view wx:if="{{routeContext.routeId}}" class="route-pill">当前路线：{{routeContext.routeId}} · {{routeContext.stage}}</view>
+  <view class="context-grid">
+    <button wx:for="{{contexts}}" wx:key="id" class="context-choice {{item.id === contextId ? 'active' : ''}}" data-context="{{item.id}}" bindtap="chooseContext"><text class="context-choice-title">{{item.label}}</text><text class="context-choice-detail">{{item.detail}}</text></button>
+  </view>
+
+  <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="提交并获取反馈" placeholder="例如：我在第二步用了哪个关系式？下一步该检查什么？" helper="STEM 题目请先拍照；IELTS 文本技能可以直接在这里记录问题。" bind:input="onMessage" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+  <view class="coach-actions">
+    <button class="secondary" data-context="{{contextId}}" bindtap="openContext">打开 {{contextId === 'stem-photo' ? 'STEM 拍题' : '对应技能工作区'}}</button>
+    <button class="text-button" bindtap="clear" disabled="{{loading}}">清空 Coach 草稿</button>
+  </view>
+  <view class="notice">AI 已连接只代表服务端返回有效 AI 状态；本地提示和离线结果不会被标成正式评分。</view>
+</view>

@@ -1,14 +1,29 @@
 const { readDeviceProfile } = require('./utils/device')
+const { DEFAULT_API_BASE, safeApiBase } = require('./utils/apiOrigin')
+const { ensureWeChatSession } = require('./utils/wechatAuth')
 
 App({
   globalData: {
-    apiBaseUrl: 'https://stem.ieltsist.com',
+    apiBaseUrl: DEFAULT_API_BASE,
     deviceProfile: null,
+    debugMode: false,
+    wechatAuth: { status: 'pending' },
   },
   onLaunch() {
     const configured = wx.getStorageSync('stemistApiBaseUrl')
-    if (configured) this.globalData.apiBaseUrl = configured.replace(/\/+$/, '')
+    const safeConfigured = safeApiBase(configured)
+    if (safeConfigured) this.globalData.apiBaseUrl = safeConfigured
     this.globalData.deviceProfile = readDeviceProfile()
+    try {
+      const accountInfo = wx.getAccountInfoSync && wx.getAccountInfoSync()
+      const envVersion = String(accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion || '').toLowerCase()
+      this.globalData.debugMode = envVersion === 'develop' || envVersion === 'trial'
+    } catch { this.globalData.debugMode = false }
+    // wx.login is silent. Start the exchange in the background so the first
+    // entry card can usually open with an already-linked shared account. A
+    // missing server adapter must never prevent the mini-program shell from
+    // launching; the account page remains the explicit recovery path.
+    ensureWeChatSession({ silent: true }).then((result) => { this.globalData.wechatAuth = result }).catch((error) => { this.globalData.wechatAuth = { status: 'unavailable', errorCode: error && error.code } })
   },
   onShow() { this.globalData.deviceProfile = readDeviceProfile() },
 })

@@ -1,5 +1,8 @@
 const { getJson } = require('./api')
 
+const INVENTORY_CACHE_TTL_MS = 60 * 1000
+const inventoryCache = new Map()
+
 function countOrNull(value) {
   const count = Number(value)
   return Number.isFinite(count) && count >= 0 ? Math.floor(count) : null
@@ -45,8 +48,23 @@ function normalizeInventory(payload, expectedRouteId = '') {
 async function fetchRouteInventory(routeId) {
   const id = String(routeId || '').trim()
   if (!id) throw new Error('当前路线无效')
-  const payload = await getJson(`/api/stem/routes/${encodeURIComponent(id)}/syllabus-topics`)
-  return normalizeInventory(payload, id)
+  const cached = inventoryCache.get(id)
+  if (cached && cached.value && cached.expiresAt > Date.now()) return cached.value
+  if (cached && cached.promise) return cached.promise
+  const promise = getJson(`/api/stem/routes/${encodeURIComponent(id)}/syllabus-topics`)
+    .then((payload) => {
+      const value = normalizeInventory(payload, id)
+      inventoryCache.set(id, { value, expiresAt: Date.now() + INVENTORY_CACHE_TTL_MS })
+      return value
+    })
+    .finally(() => {
+      const current = inventoryCache.get(id)
+      if (current && current.promise) inventoryCache.delete(id)
+    })
+  inventoryCache.set(id, { promise })
+  return promise
 }
 
-module.exports = { countOrNull, fetchRouteInventory, normalizeInventory }
+function clearInventoryCache() { inventoryCache.clear() }
+
+module.exports = { INVENTORY_CACHE_TTL_MS, clearInventoryCache, countOrNull, fetchRouteInventory, normalizeInventory }

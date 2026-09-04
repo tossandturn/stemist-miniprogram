@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "Stemist · Progress",
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
+  }
+}

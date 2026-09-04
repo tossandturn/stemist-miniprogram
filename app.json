@@ -1,7 +1,15 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/practice/index",
+    "pages/coach/index",
+    "pages/progress/index",
+    "pages/notebook/index",
+    "pages/papers/index",
+    "pages/calculator/index",
+    "pages/webview/index",
     "pages/stem/capture",
+    "pages/stem/camera",
     "pages/stem/coach",
     "pages/ielts/listening",
     "pages/ielts/reading",
@@ -23,6 +31,7 @@
     "connectSocket": 60000
   },
   "pageOrientation": "auto",
+  "lazyCodeLoading": "requiredComponents",
   "permission": {
     "scope.camera": { "desc": "用于拍摄 STEM 题目和 IELTS 手写作文" },
     "scope.record": { "desc": "用于 IELTSist 实时口语练习" }

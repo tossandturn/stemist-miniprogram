@@ -1,21 +1,7 @@
 const { deviceState, syncDevice } = require('../../utils/page')
-const { routesForSubjectStage } = require('../../utils/stemRoutes')
+const { routesForSubjectStage, STEM_SUBJECTS, STEM_STAGES, subjectByCode } = require('../../utils/stemCatalog')
+const { routeById } = require('../../utils/stemRoutes')
 const { fetchRouteInventory } = require('../../utils/inventory')
-
-const SUBJECTS = [
-  { code: '9702', label: 'Physics', short: '物理' },
-  { code: '9709', label: 'Mathematics', short: '数学' },
-  { code: '9700', label: 'Biology', short: '生物' },
-  { code: '9701', label: 'Chemistry', short: '化学' },
-  { code: '0625', label: 'IGCSE Physics', short: 'IGCSE 物理' },
-  { code: '0610', label: 'IGCSE Biology', short: 'IGCSE 生物' },
-  { code: '0580', label: 'IGCSE Mathematics', short: 'IGCSE 数学' },
-  { code: 'bpho', label: 'BPhO', short: 'BPhO' },
-  { code: 'esat', label: 'ESAT', short: 'ESAT' },
-  { code: 'tmua', label: 'TMUA', short: 'TMUA' },
-  { code: 'amc12', label: 'AMC 12', short: 'AMC 12' },
-]
-const STAGES = ['IGCSE', 'AS', 'A2', 'Competition', 'Admissions']
 
 Page({
   data: deviceState({
@@ -27,6 +13,7 @@ Page({
     subjectLabel: 'Physics',
     stage: 'AS',
     routeId: 'cie-9702-as-physics',
+    selectedComponents: 'P1 + P2 + P3',
     routeOptions: routesForSubjectStage('9702', 'AS'),
     canCapture: true,
     inventory: null,
@@ -34,8 +21,8 @@ Page({
     showAllTopics: false,
     inventoryLoading: false,
     inventoryError: '',
-    subjects: SUBJECTS,
-    stages: STAGES,
+    subjects: STEM_SUBJECTS,
+    stages: STEM_STAGES,
   }),
   onLoad(options) {
     options = options || {}
@@ -48,11 +35,11 @@ Page({
         this.refreshInventory(this.data.routeId)
         return
       }
-      const subject = SUBJECTS.find((item) => item.code === String(saved.subjectCode))
-      const stage = STAGES.indexOf(saved.stage) >= 0 ? saved.stage : this.data.stage
+      const subject = subjectByCode(saved.subjectCode)
+      const stage = STEM_STAGES.indexOf(saved.stage) >= 0 ? saved.stage : this.data.stage
       const routes = subject ? routesForSubjectStage(subject.code, stage) : this.data.routeOptions
       const routeId = routes.some((route) => route.routeId === saved.routeId) ? saved.routeId : (routes[0] ? routes[0].routeId : '')
-      this.setData({ subjectCode: subject ? subject.code : this.data.subjectCode, subjectLabel: subject ? subject.label : this.data.subjectLabel, stage, routeOptions: routes, routeId, canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '' }, () => {
+      this.setData({ subjectCode: subject ? subject.code : this.data.subjectCode, subjectLabel: subject ? subject.label : this.data.subjectLabel, stage, routeOptions: routes, routeId, selectedComponents: routeById(routeId)?.components || '', canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '' }, () => {
         if (routeId) this.refreshInventory(routeId)
       })
     })
@@ -68,11 +55,12 @@ Page({
   goBack() { wx.navigateBack() },
   chooseSubject(event) {
     const code = event.currentTarget.dataset.code
-    const subject = SUBJECTS.find((item) => item.code === code)
+    const subject = subjectByCode(code)
     if (subject) {
       const routes = routesForSubjectStage(subject.code, this.data.stage)
-      const routeId = routes[0] ? routes[0].routeId : ''
-      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId, canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
+      const route = routes[0]
+      const routeId = route ? route.routeId : ''
+      this.setData({ subjectCode: subject.code, subjectLabel: subject.label, routeOptions: routes, routeId, selectedComponents: route?.components || '', canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
         if (routeId) this.refreshInventory(routeId)
       })
     }
@@ -80,16 +68,18 @@ Page({
   chooseStage(event) {
     const stage = event.currentTarget.dataset.stage
     const routes = routesForSubjectStage(this.data.subjectCode, stage)
-    const routeId = routes[0] ? routes[0].routeId : ''
-    this.setData({ stage, routeOptions: routes, routeId, canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
+    const route = routes[0]
+    const routeId = route ? route.routeId : ''
+    this.setData({ stage, routeOptions: routes, routeId, selectedComponents: route?.components || '', canCapture: Boolean(routes.length), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: routes.length ? '' : '该学科没有这个阶段的有效路线，请重新选择。' }, () => {
       if (routeId) this.refreshInventory(routeId)
     })
   },
   chooseRoute(event) {
     const routeId = String(event.currentTarget.dataset.route || '')
-    this.setData({ routeId, canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: '' }, () => this.refreshInventory(routeId))
+    this.setData({ routeId, selectedComponents: routeById(routeId)?.components || '', canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: '' }, () => this.refreshInventory(routeId))
   },
   refreshInventory(routeId) {
+    if (routeId && typeof routeId === 'object') routeId = routeId.currentTarget?.dataset?.routeId
     if (this.data.isWriting || !routeId) return
     const requestId = (this.__inventoryRequestId || 0) + 1
     this.__inventoryRequestId = requestId
@@ -156,25 +146,10 @@ Page({
       return
     }
     this.setData({ busy: true, error: '' })
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['camera'],
-      camera: 'back',
-      sizeType: ['compressed'],
-      success: ({ tempFiles }) => {
-        const path = tempFiles && tempFiles[0] && tempFiles[0].tempFilePath
-        if (!path) {
-          this.setData({ error: '没有获得照片，请重试' })
-          return
-        }
-        wx.setStorageSync('stemistCropReturn', { route: this.data.returnPage, context: this.captureContext(), createdAt: Date.now() })
-        wx.navigateTo({
-          url: `/pages/crop/crop?src=${encodeURIComponent(path)}`,
-          fail: (error) => this.setData({ busy: false, error: error.errMsg || '无法打开裁剪页，请重试' }),
-        })
-      },
-      fail: (error) => { this.cameraFailure(error); this.setData({ busy: false }) },
+    wx.setStorageSync('stemistCameraReturn', { route: this.data.returnPage, context: this.captureContext(), createdAt: Date.now() })
+    wx.navigateTo({
+      url: '/pages/stem/camera',
+      fail: (error) => this.setData({ busy: false, error: error.errMsg || '无法打开相机，请重试' }),
     })
   },
 })

@@ -1,0 +1,25 @@
+.app-nav { color: #66708a; }
+.app-nav-item { display: flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; font-weight: 750; }
+.app-nav-item text { white-space: nowrap; }
+.app-nav-item.active { color: #5b43c7; background: #f0ecff; }
+.nav-hover { opacity: .72; background: #f7f5ff; }
+.nav-glyph { position: relative; flex: 0 0 auto; width: 34rpx; height: 34rpx; margin-right: 10rpx; border: 3rpx solid currentColor; border-radius: 10rpx; }
+.nav-glyph-today { transform: rotate(45deg) scale(.72); border-radius: 8rpx 8rpx 12rpx 8rpx; }
+.nav-glyph-today::after { position: absolute; left: 8rpx; top: 8rpx; width: 8rpx; height: 8rpx; border-radius: 50%; background: currentColor; content: ''; }
+.nav-glyph-practice { border-radius: 50%; }
+.nav-glyph-practice::after { position: absolute; left: 8rpx; top: 8rpx; width: 12rpx; height: 12rpx; border-radius: 50%; background: currentColor; content: ''; }
+.nav-glyph-coach { border-radius: 50%; }
+.nav-glyph-coach::before, .nav-glyph-coach::after { position: absolute; left: 13rpx; top: -7rpx; width: 3rpx; height: 42rpx; border-radius: 3rpx; background: currentColor; content: ''; }
+.nav-glyph-coach::after { transform: rotate(90deg); }
+.nav-glyph-progress { border-width: 0 0 3rpx 3rpx; border-radius: 0; transform: skewY(-25deg); }
+.nav-glyph-progress::before { position: absolute; left: 5rpx; bottom: 0; width: 3rpx; height: 20rpx; background: currentColor; box-shadow: 10rpx -9rpx 0 currentColor, 20rpx -17rpx 0 currentColor; content: ''; }
+.nav-glyph-account { border-radius: 50%; }
+.nav-glyph-account::before { position: absolute; left: 8rpx; top: 5rpx; width: 12rpx; height: 12rpx; border: 2rpx solid currentColor; border-radius: 50%; content: ''; }
+.nav-glyph-account::after { position: absolute; left: 4rpx; bottom: 4rpx; width: 20rpx; height: 10rpx; border: 2rpx solid currentColor; border-radius: 12rpx 12rpx 8rpx 8rpx; content: ''; }
+.app-nav-tablet { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 20px 0 24px; padding: 8px; border: 1px solid #e4e7f0; border-radius: 16px; background: #fff; box-shadow: 0 8px 22px rgba(42, 31, 89, .05); }
+.app-nav-tablet .app-nav-item { min-height: 48px; border-radius: 12px; font-size: 15px; }
+.app-nav-phone { position: fixed; z-index: 50; left: 20rpx; right: 20rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); min-height: 108rpx; padding: 10rpx; border: 1rpx solid #e1e4ef; border-radius: 24rpx; background: rgba(255, 255, 255, .97); box-shadow: 0 14rpx 38rpx rgba(20, 31, 52, .16); }
+.app-nav-phone .app-nav-item { min-height: 88rpx; flex-direction: column; font-size: 18rpx; border-radius: 16rpx; }
+.app-nav-phone .nav-glyph { width: 30rpx; height: 30rpx; margin: 0 0 7rpx; border-width: 2rpx; }
+.app-nav-phone .nav-glyph-coach::before, .app-nav-phone .nav-glyph-coach::after { left: 12rpx; top: -6rpx; width: 2rpx; height: 38rpx; }
+.app-nav-phone .nav-glyph-coach::after { transform: rotate(90deg); }

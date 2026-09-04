@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "IELTSist · Speaking",
   "usingComponents": {
-    "stemist-header": "/components/stemist-header/index"
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
   }
 }

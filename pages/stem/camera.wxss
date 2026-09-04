@@ -1,0 +1,19 @@
+.camera-frame { position: relative; width: 100%; height: 860rpx; margin-top: 18rpx; overflow: hidden; border-radius: 22rpx; background: #10182d; }
+.camera-view { width: 100%; height: 100%; }
+.camera-loading { display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; font-size: 25rpx; }
+.camera-guides { position: absolute; left: 10%; right: 10%; top: 14%; bottom: 14%; pointer-events: none; }
+.guide-corner { position: absolute; width: 54rpx; height: 54rpx; border-color: #fff; border-style: solid; }
+.guide-tl { left: 0; top: 0; border-width: 5rpx 0 0 5rpx; }
+.guide-tr { right: 0; top: 0; border-width: 5rpx 5rpx 0 0; }
+.guide-bl { left: 0; bottom: 0; border-width: 0 0 5rpx 5rpx; }
+.guide-br { right: 0; bottom: 0; border-width: 0 5rpx 5rpx 0; }
+.camera-hint { margin-top: 16rpx; color: #66708a; font-size: 23rpx; line-height: 1.5; }
+.camera-controls { display: grid; grid-template-columns: 1fr 1.8fr; gap: 12rpx; margin-top: 18rpx; }
+.camera-control, .camera-shutter { min-height: 88rpx; margin-top: 0; }
+@media (min-width: 768px) {
+  .camera-page { max-width: 980px; }
+  .camera-frame { height: 620px; border-radius: 16px; }
+  .camera-hint { font-size: 14px; }
+  .camera-controls { grid-template-columns: 180px 300px; justify-content: center; gap: 12px; }
+  .camera-control, .camera-shutter { min-height: 48px; font-size: 16px; }
+}

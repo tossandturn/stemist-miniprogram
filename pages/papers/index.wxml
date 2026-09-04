@@ -1,0 +1,17 @@
+<view class="page {{deviceClass}} {{orientation}} papers-page">
+  <stemist-header eyebrow="STEMIST · PAST PAPERS" title="真实真题目录" subtitle="先看来源和配对状态，再打开完整试卷。" />
+  <app-nav active="practice" source="papers" route-id="{{subject}}" subject-code="{{subject}}" is-tablet="{{isTablet}}" />
+  <view class="filter-panel">
+    <picker mode="selector" range="{{subjects}}" range-key="label" value="{{subjectIndex}}" bindchange="chooseSubject"><view class="filter-select"><text>学科</text><text class="filter-value">{{subjects[subjectIndex].label}}</text><text class="filter-chevron">切换</text></view></picker>
+    <picker mode="selector" range="{{stageFilters}}" range-key="label" value="{{stageIndex}}" bindchange="chooseStage"><view class="filter-select"><text>阶段</text><text class="filter-value">{{stageFilters[stageIndex].label}}</text><text class="filter-chevron">切换</text></view></picker>
+    <view class="search-box"><input value="{{query}}" placeholder="搜索年份、季节、试卷号或文件名" bindinput="onSearch" /><button wx:if="{{query}}" class="search-clear" bindtap="clearSearch">清空</button></view>
+  </view>
+  <view wx:if="{{loading}}" class="loading-state">正在读取 {{subject}} 的真实目录…</view>
+  <view wx:elif="{{error}}" class="error">{{error}}<button class="secondary" bindtap="chooseSubject" data-subject="{{subject}}">重试目录</button></view>
+  <block wx:else>
+    <view wx:if="{{catalog}}" class="catalog-summary"><view><text class="catalog-number">{{totalQuestionPapers}}</text><text>份真题</text></view><view><text class="catalog-number">{{pairedQuestionPapers}}</text><text>QP / MS 已配对</text></view><view><text class="catalog-source">服务端目录</text><text>来源状态</text></view></view>
+    <view wx:if="{{items.length}}" class="paper-list"><view wx:for="{{items}}" wx:key="id" class="paper-row"><view class="paper-copy"><text class="paper-title">{{item.year || '—'}} · {{item.season || 'Session'}} · {{item.paperNumber || item.file}}</text><text class="paper-detail">{{item.title || 'Official question paper'}} · {{item.stageLabel}} · {{item.pairLabel}}</text><text class="paper-file">{{item.file}}</text></view><button class="paper-open" data-id="{{item.id}}" bindtap="openPaper">打开完整卷</button></view></view>
+    <view wx:else class="empty-state"><view class="empty-title">没有匹配的真题</view><view class="empty-detail">换一个阶段或清空搜索词；目录本身仍以服务器为准。</view></view>
+  </block>
+  <view class="notice">小程序展示目录与路线信息；完整 PDF、标答和连续批注在 STEM Studio 网页/iOS App 打开。未配对或未审核内容不会被标成正式成绩。</view>
+</view>

@@ -1,2 +1,40 @@
 .home-page { padding-top: 24rpx; }
-.account-card { margin-top: 22rpx; }
+.home-top-actions { display: flex; align-items: center; gap: 8rpx; flex: 0 0 auto; }
+.home-account-link { flex: 0 0 auto; min-width: 120rpx; min-height: 64rpx; margin: 0; padding: 18rpx 16rpx; border-radius: 16rpx; color: #5b43c7; background: #f0ecff; font-size: 22rpx; font-weight: 800; text-align: center; }
+.home-hero { margin-top: 28rpx; }
+.home-status { display: flex; align-items: center; flex-wrap: wrap; margin-top: 20rpx; color: #0f8668; font-size: 22rpx; font-weight: 750; }
+.home-status .status-dot { margin-right: 10rpx; }
+.entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14rpx; margin-top: 22rpx; }
+.entry-card { position: relative; display: block; min-height: 280rpx; margin: 0; padding: 24rpx; overflow: hidden; border: 1rpx solid #e4e7f0; border-radius: 22rpx; color: #18213d; background: #fff; box-shadow: 0 12rpx 30rpx rgba(42, 31, 89, .07); text-align: left; }
+.entry-card::after { position: absolute; right: -42rpx; top: -42rpx; width: 150rpx; height: 150rpx; border-radius: 50%; background: rgba(115, 87, 232, .09); content: ''; }
+.entry-mark { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; margin-bottom: 22rpx; border-radius: 20rpx; color: #fff; background: #7357e8; }
+.entry-mark-inner { width: 28rpx; height: 28rpx; border: 4rpx solid currentColor; border-radius: 50%; }
+.entry-tag { position: relative; z-index: 1; color: #6d758b; font-size: 18rpx; font-weight: 800; letter-spacing: 1rpx; }
+.entry-title { position: relative; z-index: 1; margin-top: 8rpx; color: #18213d; font-size: 30rpx; font-weight: 850; line-height: 1.25; }
+.entry-detail { position: relative; z-index: 1; margin-top: 10rpx; color: #66708a; font-size: 21rpx; line-height: 1.45; white-space: pre-line; }
+.entry-action { position: relative; z-index: 1; margin-top: 18rpx; color: #5b43c7; font-size: 22rpx; font-weight: 800; }
+.entry-ielts { border-top: 6rpx solid #ed6486; }
+.entry-ielts .entry-mark { background: #ed6486; }
+.entry-competition { border-top: 6rpx solid #3a9d85; }
+.entry-competition .entry-mark { background: #3a9d85; }
+.entry-calculator { border-top: 6rpx solid #f19a3e; }
+.entry-calculator .entry-mark { background: #f19a3e; }
+.entry-calculator::after { background: rgba(241, 154, 62, .12); }
+.home-entry-warning { display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap; }
+.warning-link { color: #7357e8; font-weight: 800; text-decoration: underline; }
+.home-footnote { margin-top: 22rpx; color: #66708a; font-size: 21rpx; line-height: 1.5; }
+@media (min-width: 768px) {
+  .home-page { max-width: 1120px; }
+  .home-hero { padding: 42px 48px 34px; }
+  .entry-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .entry-card { min-height: 230px; padding: 24px; border-radius: 16px; }
+  .entry-mark { width: 48px; height: 48px; margin-bottom: 18px; border-radius: 14px; }
+  .entry-title { font-size: 21px; }
+  .entry-detail { font-size: 14px; }
+  .entry-tag, .entry-action { font-size: 13px; }
+  .home-footnote { font-size: 14px; }
+}
+@media (max-width: 374px) {
+  .home-top-actions { gap: 6rpx; }
+  .home-account-link { min-width: 96rpx; padding-left: 10rpx; padding-right: 10rpx; }
+}

@@ -1,29 +1,29 @@
 <view class="page {{deviceClass}} {{orientation}} capture-page">
-  <stemist-header eyebrow="{{isWriting ? 'IELTSIST · WRITING PHOTO' : 'STEM STUDIO · PRACTICE'}}" title="{{isWriting ? '拍照上传作文' : '拍一题'}}" subtitle="{{isWriting ? 'One page · handwriting evidence' : 'One question · one evidence set'}}" action-text="返回" bind:action="goBack" />
+  <stemist-header eyebrow="{{isWriting ? 'IELTSIST · 写作拍照' : 'STEM STUDIO · 拍题'}}" title="{{isWriting ? '拍照上传作文' : '拍一题'}}" subtitle="{{isWriting ? '拍清一页手写稿' : '拍清题目、图表和答案'}}" action-text="返回" bind:action="goBack" />
   <view class="subtitle capture-intro">{{isWriting ? '拍一页清晰的手写作文，裁剪后交给 IELTSist AI Coach。' : '每次只处理一道题。先选择准确的学科和阶段，再拍照、裁剪并交给 AI Coach。'}}</view>
 
   <view wx:if="{{!isWriting}}" class="route-setup card">
-    <view class="section-kicker">STEM ROUTE · REQUIRED CONTEXT</view>
+    <view class="section-kicker">先选学科和阶段</view>
     <view class="card-title">先确定这道题属于哪里</view>
     <view class="card-detail">选择会随照片一起传给 Coach，避免把 Physics、Mathematics、IGCSE 和竞赛题混在同一条分析里。</view>
-    <view class="route-label">Subject</view>
+    <view class="route-label">学科</view>
     <view class="chip-grid">
       <button wx:for="{{subjects}}" wx:key="code" class="route-chip {{item.code === subjectCode ? 'active' : ''}}" data-code="{{item.code}}" bindtap="chooseSubject">{{item.short}}</button>
     </view>
-    <view class="route-label">Stage</view>
+    <view class="route-label">阶段</view>
     <view class="chip-grid stage-grid">
       <button wx:for="{{stages}}" wx:key="*this" class="route-chip {{item === stage ? 'active' : ''}}" data-stage="{{item}}" bindtap="chooseStage">{{item}}</button>
     </view>
-    <view wx:if="{{routeOptions.length > 1}}" class="route-label">Route / paper components</view>
+    <view wx:if="{{routeOptions.length > 1}}" class="route-label">试卷组合</view>
     <view wx:if="{{routeOptions.length > 1}}" class="chip-grid route-grid">
       <button wx:for="{{routeOptions}}" wx:key="routeId" class="route-chip route-chip-wide {{item.routeId === routeId ? 'active' : ''}}" data-route="{{item.routeId}}" bindtap="chooseRoute">{{item.components}}</button>
     </view>
-    <view class="selected-route">当前路线：{{subjectLabel}} · {{stage}} · {{routeId || '待选择'}}</view>
+    <view class="selected-route">当前路线：{{subjectLabel}} · {{stage}} · {{selectedComponents || '待选择'}}</view>
   </view>
 
   <view class="card camera-card">
-    <view class="camera-icon">⌁</view>
-    <view class="section-kicker">{{isWriting ? 'WRITING PHOTO WORKSPACE' : 'PHOTO WORKSPACE'}}</view>
+    <view class="camera-icon" aria-hidden="true"><view class="camera-lens"></view></view>
+    <view class="section-kicker">{{isWriting ? '写作照片' : '题目照片'}}</view>
     <view class="card-title">{{isWriting ? '后置摄像头 · 手写作文' : '后置摄像头 · 单题模式'}}</view>
     <view class="card-detail">{{isWriting ? '保持整页纸张平整、光线均匀，裁剪掉桌面和其他题目。' : '让题目、图表和你的答案尽量完整出现在同一张照片里；不要把多道题拼在一张图中。'}}</view>
     <button data-testid="{{isWriting ? 'writing-capture' : 'stem-capture'}}" class="primary" bindtap="takePhoto" loading="{{busy}}" disabled="{{busy || (!isWriting && !canCapture)}}">{{busy ? '准备照片…' : (isWriting ? '拍照上传作文' : (canCapture ? '打开相机拍题' : '先选择有效路线'))}}</button>
@@ -36,11 +36,11 @@
       <view class="inventory-summary"><text>{{inventory.availableQuestionGroupCount === null ? '—' : inventory.availableQuestionGroupCount}}</text><text class="inventory-label">可练习题组</text><text>{{inventory.verifiedQuestionGroupCount === null ? '—' : inventory.verifiedQuestionGroupCount}}</text><text class="inventory-label">已审核题组</text></view>
       <view class="context-card-text">官方配对卷 {{inventory.officialPairedPaperCount === null ? '—' : inventory.officialPairedPaperCount}} 份 · 题库来源：{{inventory.source}}</view>
       <view wx:if="{{inventoryTopics.length}}" class="inventory-topics">
-        <view wx:for="{{inventoryTopics}}" wx:key="id" class="inventory-topic"><text>{{item.code}} {{item.name}}</text><text>{{item.availableQuestionCount === null ? '—' : item.availableQuestionCount}} 题{{item.ready ? ' · ready' : (item.studyReady ? ' · study' : ' · 待审核')}}</text></view>
+        <view wx:for="{{inventoryTopics}}" wx:key="id" class="inventory-topic"><text>{{item.code}} {{item.name}}</text><text>{{item.availableQuestionCount === null ? '—' : item.availableQuestionCount}} 题{{item.ready ? ' · 可练习' : (item.studyReady ? ' · 学习模式' : ' · 待审核')}}</text></view>
         <button wx:if="{{inventory.topicCount > 6}}" class="inventory-toggle" bindtap="toggleTopics">{{showAllTopics ? '收起 topic' : '查看全部 ' + inventory.topicCount + ' 个 topic'}}</button>
       </view>
     </block>
-    <view wx:if="{{inventoryError}}" class="context-card-text inventory-error">{{inventoryError}}</view>
+    <view wx:if="{{inventoryError}}" class="context-card-text inventory-error">{{inventoryError}}<button class="text-button" bindtap="refreshInventory" data-route-id="{{routeId}}">重新读取题库</button></view>
   </view>
   <view wx:if="{{isTablet}}" class="context-card tablet-capture-guide">
     <view class="context-card-title">iPad 布局</view>
@@ -52,4 +52,5 @@
   </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <view class="notice">{{isWriting ? '小程序只负责拍照和裁剪；正式 IELTS 写作评分仍由 IELTSist AI Coach 返回。' : '小程序版不接 Apple Pencil；需要连续手写、PDF 批注和完整题库时请使用 iOS App。'}}</view>
+  <ai-fab source="capture" />
 </view>

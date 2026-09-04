@@ -1,0 +1,13 @@
+.notebook-context { border-left-color: #7357e8; }
+.route-picker { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; margin-top: 16rpx; padding: 0 18rpx; border: 1rpx solid #dfe4ef; border-radius: 14rpx; color: #18213d; background: #fff; font-size: 24rpx; font-weight: 750; }
+.route-picker-chevron { flex: 0 0 auto; margin-left: 12rpx; color: #7357e8; font-size: 21rpx; }
+.notebook-context .selected-route { margin-top: 10rpx; color: #6d758b; font-size: 20rpx; }
+.route-list { display: grid; gap: 10rpx; margin-top: 14rpx; }
+.route-option { display: flex; align-items: center; justify-content: space-between; min-height: 74rpx; padding: 0 16rpx; border: 1rpx solid #e4e7f0; border-radius: 14rpx; color: #4e5a76; background: #fff; text-align: left; }
+.route-option.active { border-color: #7357e8; color: #5b43c7; background: #f7f5ff; }
+.route-option-id { color: #6d758b; font-size: 20rpx; }
+.notebook-editor { margin-top: 18rpx; }
+.notebook-editor textarea { min-height: 520rpx; }
+.editor-status { display: flex; justify-content: space-between; margin-top: 10rpx; color: #6d758b; font-size: 21rpx; }
+.notebook-editor .secondary { margin-top: 12rpx; }
+@media (min-width: 768px) { .notebook-context, .notebook-editor, .notebook-page > .warning, .notebook-page > .notice { max-width: 1120px; margin-left: auto; margin-right: auto; } .notebook-editor textarea { min-height: 420px; } }

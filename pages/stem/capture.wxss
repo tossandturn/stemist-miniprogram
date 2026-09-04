@@ -5,20 +5,20 @@
 .route-setup { border-top: 6rpx solid #7357e8; }
 .route-label { display: block; margin-top: 20rpx; color: #4e5a76; font-size: 23rpx; font-weight: 750; }
 .chip-grid { display: flex; flex-wrap: wrap; margin-top: 10rpx; }
-.route-chip { width: auto; min-height: 68rpx; margin: 0 10rpx 10rpx 0; padding: 0 16rpx; border: 1rpx solid #e4e7f0; border-radius: 34rpx; color: #6f7892; background: #fff; font-size: 22rpx; font-weight: 700; }
+.route-chip { width: auto; min-height: 68rpx; margin: 0 10rpx 10rpx 0; padding: 0 16rpx; border: 1rpx solid #e4e7f0; border-radius: 34rpx; color: #66708a; background: #fff; font-size: 22rpx; font-weight: 700; }
 .route-chip.active { border-color: #7357e8; color: #5b43c7; background: #f0ecff; box-shadow: 0 0 0 3rpx rgba(115, 87, 232, .12); }
 .selected-route { margin-top: 8rpx; color: #5b43c7; font-size: 22rpx; font-weight: 700; }
 .route-chip-wide { max-width: 100%; }
 .inventory-card { margin-top: 18rpx; border-left-color: #3a9d85; }
 .inventory-summary { display: grid; grid-template-columns: auto 1fr auto 1fr; align-items: baseline; gap: 6rpx 12rpx; margin-top: 14rpx; }
 .inventory-summary text { color: #18213d; font-size: 34rpx; font-weight: 800; }
-.inventory-summary .inventory-label { color: #6f7892; font-size: 21rpx; }
+.inventory-summary .inventory-label { color: #66708a; font-size: 21rpx; }
 .inventory-topics { margin-top: 14rpx; border-top: 1rpx solid #edf0f4; }
 .inventory-topic { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; padding: 12rpx 0; border-bottom: 1rpx solid #edf0f4; color: #4e5a76; font-size: 21rpx; }
 .inventory-topic text:first-child { flex: 1; min-width: 0; }
 .inventory-topic text:last-child { flex: 0 0 auto; color: #0f8668; font-weight: 700; }
 .inventory-toggle { min-height: 56rpx; margin-top: 10rpx; color: #5b43c7; background: #f7f5ff; font-size: 21rpx; }
-.inventory-error { color: #9a6b22; }
+.inventory-error { color: #865f1e; }
 @media (min-width: 768px) {
   .capture-page .camera-card { max-width: 860rpx; margin-left: auto; margin-right: auto; padding: 58rpx 80rpx; }
   .capture-page .camera-card .primary { max-width: 520rpx; margin-left: auto; margin-right: auto; }

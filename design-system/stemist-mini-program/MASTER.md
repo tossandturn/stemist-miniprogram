@@ -1,229 +1,129 @@
-# Design System Master File
+# Stemist Mini Program · Design System Master
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+版本：2026-09-05 v3
+权威来源：IELTSist / STEM Studio 生产视觉语言 + `docs/mini-program-redesign-v2.md`
 
----
+这份文件覆盖早期生成器给出的粉色、儿童字体、深色电影风方案。小程序必须看起来像同一个 IELTSist 教育产品，而不是另一套独立 Demo。
 
-**Project:** Stemist Mini Program
-**Generated:** 2026-09-04 02:24:17
-**Category:** AI/Chatbot Platform
-**Design Dials:** Variance 4/10 (Balanced / Modern) | Motion 3/10 (Subtle) | Density 5/10 (Standard)
+## 1. 产品气质
 
-**Project override:** The existing STEM Studio and IELTSist production visual system is authoritative. The generic generated palette/style below is research input only; page-specific overrides under `pages/` must be followed for this product.
+- 清晰、可信、学术但不冷漠。
+- 先显示学习目标和真实状态，再显示装饰。
+- AI 是证据驱动的学习助手，不是霓虹机器人或游戏广告。
+- 手机是快速完成一题；iPad 是更宽的上下文/证据工作区。
+- 首页只展示四个一级入口：A-Level 学科、IELTS、竞赛/入学考试、Casio 计算器；二级功能进入后再展开。
 
----
-
-## Global Rules
-
-### Color Palette
-
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#7C3AED` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#6366F1` | `--color-secondary` |
-| Accent/CTA | `#EC4899` | `--color-accent` |
-| Background | `#FAF5FF` | `--color-background` |
-| Foreground | `#0F172A` | `--color-foreground` |
-| Muted | `#F7F3FD` | `--color-muted` |
-| Border | `#EFE7FC` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
-| Ring | `#7C3AED` | `--color-ring` |
-
-**Color Notes:** AI purple + generation pink
-
-### Typography
-
-- **Heading Font:** Baloo 2
-- **Body Font:** Comic Neue
-- **Mood:** kids, education, playful, friendly, colorful, learning
-- **Google Fonts:** [Baloo 2 + Comic Neue](https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700&family=Comic+Neue:wght@300;400;700&display=swap)
-
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700&family=Comic+Neue:wght@300;400;700&display=swap');
-```
-
-### Spacing Variables
-
-*Density: 5/10 — Standard*
+## 2. Semantic tokens
 
 | Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `4px` / `0.25rem` | Tight gaps |
-| `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
-| `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
+| --- | --- | --- |
+| `canvas` | `#f5f6fb` | 页面背景 |
+| `surface` | `#ffffff` | 卡片、输入、导航 |
+| `text` | `#18213d` | 主标题、正文 |
+| `textMuted` | `#66708a` | 说明、状态；白底正文对比度约 4.94:1 |
+| `textQuiet` | `#6d758b` | 次级元数据；白底对比度约 4.60:1 |
+| `line` | `#e4e7f0` | 边框、分隔 |
+| `brand` | `#7357e8` | 主 CTA、AI、选中态 |
+| `brandDark` | `#5638c3` | 强调文字 |
+| `brandSoft` | `#f0ecff` | 选中/次按钮背景 |
+| `success` | `#0f8668` | 已保存、已同步 |
+| `successSoft` | `#e7f8f0` | 成功背景 |
+| `warning` | `#865f1e` | fallback、待确认 |
+| `warningSoft` | `#fff6e8` | 警告背景 |
+| `danger` | `#b33b55` | 错误、删除 |
+| `dangerSoft` | `#fff0f2` | 错误背景 |
+| `listening` | `#7657e8` | Listening accent |
+| `reading` | `#3a9d85` | Reading accent |
+| `writing` | `#f19a3e` | Writing accent |
+| `speaking` | `#ed6486` | Speaking accent |
 
-### Shadow Depths
+页面组件不得引入新的品牌主色。状态不能只靠颜色，必须同时有文字。
 
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+## 3. Typography
 
----
+- 使用系统字体：`-apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif`。
+- 页面大标题：30–32px 等效，800；手机允许 27px 等效。
+- 卡片标题：16–20px 等效，700–800。
+- 正文/输入：至少 15px 等效，行高 1.5–1.65。
+- 状态/元数据：12–14px 等效，不低于 4.5:1 时才可使用浅灰。
+- 数字指标使用稳定宽度和清晰单位，不显示伪造的分数。
 
-## Component Specs
+## 4. Spacing and shape
 
-### Buttons
+- 4/8 基础节奏：8 / 12 / 16 / 24 / 32。
+- 手机左右 gutter：32rpx；iPad：48px。
+- Card：白底、1rpx `line`、18rpx 手机圆角 / 12px iPad 圆角。
+- 轻阴影只用于主要卡片和固定导航：`0 12rpx 30rpx rgba(42,31,89,.07)`。
+- 不使用多层玻璃、强发光、厚重拟物或大面积渐变。
 
-```css
-/* Primary Button */
-.btn-primary {
-  background: #EC4899;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+## 5. Controls
 
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+### Primary
 
-/* Secondary Button */
-.btn-secondary {
-  background: transparent;
-  color: #7C3AED;
-  border: 2px solid #7C3AED;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
+- 每屏最多一个主要 CTA。
+- 高度：手机 ≥88rpx；iPad ≥48px。
+- `brand` 紫底、白字，disabled 同时设置语义属性并降低到 0.45–0.55。
 
-### Cards
+### Secondary
 
-```css
-.card {
-  background: #FAF5FF;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+- `brandSoft` 背景、`brandDark` 文字、细边框。
+- 不能与主 CTA 同等强调。
 
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
+### Destructive
+
+- 使用 `danger`，与正常导航/保存按钮保持空间分离，并弹确认框。
 
 ### Inputs
 
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
+- 可见 label + helper，不依赖 placeholder 解释字段。
+- 手机输入高度 ≥88rpx；textarea 正文 ≥30rpx。
+- 键盘出现时保持纵向流式布局，不用会盖住输入的 fixed CTA。
 
-.input:focus {
-  border-color: #7C3AED;
-  outline: none;
-  box-shadow: 0 0 0 3px #7C3AED20;
-}
-```
+## 6. Navigation
 
-### Modals
+- 固定五项：Today / Practice / AI Coach / Progress / Account。
+- 手机：底部安全区导航；iPad：顶部宽屏导航。
+- AI Coach 另以右上角固定按钮提供，不挤占底部导航，也不在首页重复铺一张 Coach 卡。
+- 同一层级只使用这一套导航，不混用另一套 Tab/Sidebar。
+- 活跃项有颜色、背景和文字；非活跃项提供 80–150ms 按压反馈。
+- Notebook/Past papers 是二级页面，不占用第六个顶层导航位。
 
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
+## 7. Icons and imagery
 
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
-}
-```
+- 结构图标使用微信 `icon`、SVG 或统一 CSS vector；不使用 emoji/Unicode 字符画作为导航图标。
+- 图标尺寸和线宽保持一致；图标不代替文字标签。
+- 学生照片只用于其主动提交的证据，预览保留固定比例，避免 CLS。
 
----
+## 8. Responsive contract
 
-## Style Guidelines
+### Phone
 
-**Style:** Modern Dark (Cinema Mobile)
+- 单列；底部导航；内容预留导航 + safe-area 高度。
+- 卡片和输入全宽；不出现横向页面滚动。
+- 主要交互触点 ≥44px 等效，间距 ≥8px。
 
-**Keywords:** dark mode, cinematic, ambient light, glassmorphism, deep black, indigo, glow, blur, atmospheric, reanimated, haptic, premium, layered, frosted glass, linear gradient
+### iPad landscape
 
-**Best For:** Developer tools, pro productivity apps, fintech/trading dashboards, media/streaming platforms, AI tool interfaces, high-end gaming companion apps
+- 顶部导航；内容最大宽度 1440px；输入/证据允许双栏。
+- 辅助面板不能覆盖题目、照片、裁剪框或提交动作。
 
-**Key Effects:** Expo.out Bezier(0.16,1,0.3,1) easing; spring modals (damping:20 stiffness:90); haptic-linked press (Impact Light/Medium); animated ambient light blobs (Reanimated translateX/Y slow oscillation); BlurView glassmorphism headers/nav (intensity 20); scale press 0.97 → 1.0; avoid pure #000000 (OLED smear)
+### iPad portrait
 
-### Page Pattern
+- 保留 tablet 导航，但工作区回退单栏。
+- 不按窄宽度误判成手机，也不显示底部导航。
 
-**Pattern Name:** App Store Style Landing
+## 9. Motion
 
-- **Conversion Strategy:** Show real screenshots. Include ratings (4.5+ stars). QR code for mobile. Platform-specific CTAs.
-- **CTA Placement:** Download buttons prominent (App Store + Play Store) throughout
-- **Section Order:** 1. Hero with device mockup, 2. Screenshots carousel, 3. Features with icons, 4. Reviews/ratings, 5. Download CTAs
+- 点击反馈 80–150ms；状态切换 150–300ms。
+- 仅动画 opacity/transform，不动画会导致布局跳动的宽高。
+- 必须允许系统 reduced-motion；核心操作不依赖动画完成。
 
----
+## 10. Release checklist
 
-## Motion
-
-**Scroll Reveal** (Subtle) — Trigger: scroll (viewport enter) | Duration: 300-400ms | Easing: `power1.out`
-
-```js
-gsap.from(el, { opacity: 0, y: 12, duration: 0.35, ease: 'power1.out', scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } });
-```
-
-**Framework notes:** Requires the ScrollTrigger plugin registered once via gsap.registerPlugin(ScrollTrigger)
-
-- ✅ Keep the y offset small (8-16px) so it reads as a fade, not a slide
-- ❌ Don't reveal below-the-fold content needed for SEO/crawlers as invisible-by-default without a no-JS fallback
-- ⚡ toggleActions 'play none none reverse' avoids re-triggering on every scroll direction change
-
----
-
-## Anti-Patterns (Do NOT Use)
-
-- ❌ Heavy chrome
-- ❌ Slow response feedback
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
-
----
-
-## Pre-Delivery Checklist
-
-Before delivering any UI code, verify:
-
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+- [ ] 结构性 emoji 已清除。
+- [ ] 手机和 iPad 使用同一五项信息架构。
+- [ ] 390×844、iPad 竖屏、iPad 横屏无水平溢出或遮挡。
+- [ ] 所有主触点满足 44px 等效尺寸和 8px 间距。
+- [ ] loading/error/fallback/success/401 均有明确文字和恢复动作。
+- [ ] AI/local/offline 状态没有混淆。
+- [ ] 相机、麦克风、WebView 业务域名和隐私提示在真机验证。

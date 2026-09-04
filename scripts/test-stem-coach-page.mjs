@@ -17,13 +17,15 @@ let syncShouldFail = false
 const fakeRequire = (name) => {
   if (name === '../../utils/image') return { readAsJpegDataUrl: async () => 'data:image/jpeg;base64,ZmFrZQ==' }
   if (name === '../../utils/coach') return { runCoach: async () => ({ mode: 'ai', providerStatus: 'connected', answer: 'feedback', coachState: { label: 'AI 已连接', warning: '' } }) }
-  if (name === '../../utils/attemptSync') return { syncStemPhotoAttempt: async (payload) => { syncedPayload = payload; if (syncShouldFail) throw new Error('offline'); return { ok: true } } }
+  if (name === '../../utils/attemptSync') return { nextAttemptId: () => 'mini-photo-test', syncStemPhotoAttempt: async (payload) => { syncedPayload = payload; if (syncShouldFail) throw new Error('offline'); return { ok: true, clientAttemptId: payload.attemptId, attempt: { attemptId: payload.attemptId } } } }
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {} }
+  if (name === '../../utils/api') return { isAuthError: (error) => Number(error && error.statusCode) === 401 }
   throw new Error(`unexpected module ${name}`)
 }
 const wx = {
   getStorageSync: (key) => storage[key],
   setStorageSync: (key, value) => { storage[key] = value },
+  removeStorageSync: (key) => { delete storage[key] },
   navigateBack: () => {},
   redirectTo: () => {},
 }

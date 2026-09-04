@@ -1,5 +1,5 @@
 .coach-page .route-pill { display: inline-block; margin-top: 4rpx; padding: 8rpx 14rpx; border-radius: 22rpx; color: #5b43c7; background: #f0ecff; font-size: 21rpx; font-weight: 700; }
 .coach-page .evidence-card { border-left: 6rpx solid #7357e8; }
-.empty-evidence { display: flex; align-items: center; justify-content: center; height: 260rpx; margin-top: 18rpx; border-radius: 14rpx; color: #8a92a8; background: #eef0f8; font-size: 24rpx; }
+.empty-evidence { display: flex; align-items: center; justify-content: center; height: 260rpx; margin-top: 18rpx; border-radius: 14rpx; color: #6d758b; background: #eef0f8; font-size: 24rpx; }
 .coach-page .photo-preview { margin-top: 18rpx; }
 @media (min-width: 768px) { .coach-page .evidence-card { min-height: 620rpx; } .coach-page .coach-panel { margin-top: 12rpx; } }
