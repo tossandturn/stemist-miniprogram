@@ -10,6 +10,8 @@
     "pages/webview/index",
     "pages/stem/capture",
     "pages/stem/camera",
+    "pages/stem/topics",
+    "pages/stem/practice",
     "pages/stem/coach",
     "pages/ielts/listening",
     "pages/ielts/reading",

@@ -11,7 +11,7 @@ const values = {
   'stemistDraft:listening': { text: 'private' }, 'stemistSubmission:writing': { text: 'private' }, stemistCroppedImage: '/tmp/private.jpg', stemistCoachContext: { routeId: 'private' }, stemistWritingPhoto: '/tmp/private.jpg', stemistCropReturn: { route: 'stem' },
   'stemistNotebook:cie-9702-as-physics': { body: 'private notebook' }, stemistPendingAttemptSync: { routeId: 'private' },
 }
-const wx = { removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
+const wx = { getStorageSync: key => values[key], setStorageSync: (key, value) => { values[key] = value }, removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
 const module = { exports: {} }
 let pendingClears=0
 vm.runInNewContext(source, { module, exports: module.exports, wx, String, Array, Object, require: (name) => { assert.equal(name,'./page'); return { discardPendingDrafts: () => { pendingClears++ } } } })

@@ -1,0 +1,30 @@
+<view class="page {{deviceClass}} {{orientation}} topics-page">
+  <stemist-header title="章节练习" subtitle="{{title}}" />
+  <app-nav active="practice" source="practice" category="alevel" family="exam" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
+  <button wx:if="{{recentId}}" class="resume-button" bindtap="resume" disabled="{{busy}}">{{recentLabel}} <text>›</text></button>
+  <view wx:if="{{loading}}" class="empty-state">正在加载章节…</view>
+  <view wx:else class="builder-layout">
+    <view class="topic-section">
+      <view class="builder-heading"><text>选择章节</text><text class="subtle">已选 {{selected.length}}</text></view>
+      <view class="topic-list">
+        <button wx:for="{{topics}}" wx:key="id" class="topic-choice {{item.selected ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="toggleTopic" disabled="{{busy}}" aria-label="{{item.name}}，{{item.count}}题，{{item.selected ? '已选' : '未选'}}">
+          <view class="choice-mark">{{item.selected ? '✓' : ''}}</view>
+          <view class="choice-copy"><text class="topic-name">{{item.code}} {{item.name}}</text><text class="topic-count">{{item.count}} 题</text></view>
+        </button>
+      </view>
+      <view wx:if="{{!topics.length && !error}}" class="empty-state">这条路线的章节题目正在整理。</view>
+    </view>
+    <view class="set-options">
+      <view class="builder-heading">设置练习</view>
+      <view class="option-label">卷型</view>
+      <view class="option-row"><button wx:for="{{componentOptions}}" wx:key="value" class="option-chip {{item.selected ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="toggleComponent" disabled="{{busy}}">{{item.label}}</button></view>
+      <view class="option-label">题量</view>
+      <view class="option-row"><button wx:for="{{counts}}" wx:key="value" class="option-chip {{item.selected ? 'selected' : ''}}" disabled="{{item.disabled || busy}}" data-count="{{item.value}}" bindtap="chooseCount">{{item.value}} 题</button></view>
+      <view wx:if="{{selected.length}}" class="availability">{{availableCount}} 道不重复题目</view>
+      <view wx:if="{{hint}}" class="subtle selection-hint">{{hint}}</view>
+      <button class="primary start-native-practice" loading="{{busy}}" disabled="{{!canStart || busy}}" bindtap="start">{{busy ? '正在组卷…' : '开始练习'}}</button>
+      <view wx:if="{{error}}" class="error">{{error}}</view>
+      <button wx:if="{{error}}" class="text-button" bindtap="refresh" disabled="{{busy}}">重新加载章节</button>
+    </view>
+  </view>
+</view>

@@ -74,14 +74,14 @@ await check('logout clears general Coach drafts and camera context', async () =>
   const runtime = miniRuntime()
   for (const key of ['stemistDraft:coach', 'stemistSubmission:coach-ielts', 'stemistCameraReturn', 'stemistNotebook:route']) runtime.storage.set(key, { text: 'private' })
   runtime.load('utils/session').clearLocalSession()
-  assert.equal(runtime.storage.size, 0)
+  assert.deepEqual([...runtime.storage.keys()], ['stemistPrivacyEpoch'])
 })
 await check('pending autosave cannot restore private text after logout', async () => {
   const runtime=miniRuntime();const helpers=runtime.load('utils/page');const page={}
   helpers.scheduleDraft(page,'coach',{message:'private pending text'})
   runtime.load('utils/session').clearLocalSession()
   helpers.cancelDraft(page)
-  assert.equal(runtime.storage.size,0)
+  assert.deepEqual([...runtime.storage.keys()], ['stemistPrivacyEpoch'])
 })
 await check('missing inventory count stays unknown rather than becoming zero', async () => {
   const runtime = miniRuntime(); assert.equal(runtime.load('utils/inventory').countOrNull(null), null)

@@ -23,6 +23,10 @@ function normalizeInventory(payload, expectedRouteId = '') {
       availableQuestionCount: countOrNull(topic && topic.availableQuestionCount),
       indexedQuestionCount: countOrNull(topic && topic.indexedQuestionCount),
       pendingReviewCount: countOrNull(topic && topic.pendingReviewCount),
+      questionIdsByComponent: Object.fromEntries(Object.entries(topic?.questionIdsByComponent || {}).filter(([key]) => /^\d+$/.test(key)).map(([key, value]) => [key, {
+        verifiedQuestionIds: [...new Set((value?.verifiedQuestionIds || []).filter(id => typeof id === 'string' && id))],
+        studyQuestionIds: [...new Set((value?.studyQuestionIds || []).filter(id => typeof id === 'string' && id))],
+      }])),
       ready: Boolean(topic && topic.ready),
       studyReady: Boolean(topic && topic.studyReady),
       ctaPolicy: String((topic && topic.ctaPolicy) || ''),
@@ -30,6 +34,7 @@ function normalizeInventory(payload, expectedRouteId = '') {
     : []
   return {
     routeId,
+    paperComponents: [...new Set((Array.isArray(payload.paperComponents) ? payload.paperComponents : []).map(Number).filter(n => Number.isInteger(n) && n > 0))],
     syllabusVersion: String(payload.syllabusVersion || ''),
     officialPaperCount: countOrNull(payload.officialPaperCount),
     officialPairedPaperCount: countOrNull(payload.officialPairedPaperCount),

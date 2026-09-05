@@ -152,6 +152,7 @@ Page({
     const tool = String(event.currentTarget.dataset.tool || '')
     if (tool === 'photo') return this.openStem()
     if (tool === 'papers') return this.openPapers()
+    if (tool === 'topics') return wx.navigateTo({ url: `/pages/stem/topics?routeId=${encodeURIComponent(this.data.routeId)}`, fail: () => this.setData({ error: '章节练习未能打开，请重试。' }) })
     if (tool === 'progress') return wx.navigateTo({ url: '/pages/progress/index' })
     if (tool === 'notebook') return wx.navigateTo({ url: `/pages/notebook/index?category=${encodeURIComponent(this.data.activeCategory)}&routeId=${encodeURIComponent(this.data.routeId || '')}` })
     const tab = tool === 'exams' ? 'exams' : 'topics'

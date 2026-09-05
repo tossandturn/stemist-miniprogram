@@ -5,8 +5,8 @@ Page({
   onLoad() {
     const info = wx.getStorageSync('stemistCameraReturn') || {}
     wx.removeStorageSync('stemistCameraReturn')
-    const returnPage = info.route === 'writing' ? 'writing' : 'stem'
-    const hint = returnPage === 'writing' ? '保持纸张平整，拍清整页手写作文和题目。' : '把题目、图表和答案完整放进取景框。'
+    const returnPage = ['writing', 'native-practice'].includes(info.route) ? info.route : 'stem'
+    const hint = returnPage === 'writing' ? '保持纸张平整，拍清整页手写作文和题目。' : returnPage === 'native-practice' ? '拍清本题的全部解题过程和答案。' : '把题目、图表和答案完整放进取景框。'
     const context = info.context || {}
     this.setData({ returnPage, context, coachSource: returnPage === 'writing' ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: returnPage === 'writing' ? 'ielts' : context.category || 'alevel', family: returnPage === 'writing' ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '', hint })
   },

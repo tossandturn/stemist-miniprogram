@@ -1,5 +1,6 @@
 const { deviceState, syncDevice } = require('../../utils/page')
 const { computeCropRect, resizedCropSize } = require('../../utils/crop')
+const { attachPhoto } = require('../../utils/nativePractice')
 
 Page({
   data: deviceState({ src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
@@ -80,6 +81,16 @@ Page({
   },
   finish(path) {
     const returnInfo = wx.getStorageSync('stemistCropReturn') || { route: 'stem' }
+    if (returnInfo.route === 'native-practice') {
+      return attachPhoto(returnInfo.context, path).then(sessionId => {
+        wx.removeStorageSync('stemistCropReturn')
+        const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+        const index = pages.map(page => page.route).lastIndexOf('pages/stem/practice')
+        const fallback = () => wx.redirectTo({ url: `/pages/stem/practice?sessionId=${encodeURIComponent(sessionId)}` })
+        if (index < 0) return fallback()
+        wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
+      }).catch(error => this.setData({ busy: false, error: error.message || '照片未保存，请重试。' }))
+    }
     wx.removeStorageSync('stemistCropReturn')
     if (returnInfo.route === 'writing') {
       wx.setStorageSync('stemistWritingPhoto', path)

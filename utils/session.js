@@ -9,6 +9,7 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   // without taking the question again. Explicit logout still removes all
   // private evidence and drafts for shared-device safety.
   if (!preserveDrafts) {
+    wx.setStorageSync('stemistPrivacyEpoch', (Number(wx.getStorageSync('stemistPrivacyEpoch')) || 0) + 1)
     discardPendingDrafts()
     wx.removeStorageSync('stemistCameraReturn')
     wx.removeStorageSync('stemistCropReturn')
@@ -27,7 +28,17 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   // notes. Drafts remain only when the caller explicitly requests preservation.
   if (!preserveDrafts) {
     const keys = wx.getStorageInfoSync ? (wx.getStorageInfoSync().keys || []) : []
-    keys.filter((key) => /^stemist(?:Notebook|Draft|Submission):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
+    const privatePhotos = keys.filter(key => /^stemistNativePractice:/.test(key)).flatMap(key => Object.values(wx.getStorageSync(key)?.answers || {}).map(answer => answer.photo).filter(Boolean))
+    keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|NativeRecent):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
+    // Only our app-private answer copies are deleted; original camera files
+    // and unrelated folders are never touched.
+    if (wx.env?.USER_DATA_PATH && wx.getFileSystemManager) {
+      const directory = `${wx.env.USER_DATA_PATH}/native-practice`
+      try {
+        const fs = wx.getFileSystemManager()
+        privatePhotos.filter(path => String(path).startsWith(`${directory}/`) && /^mini-set-[a-z0-9-]+\.jpg$/.test(String(path).slice(directory.length + 1))).forEach(filePath => fs.unlink({ filePath, fail() {} }))
+      } catch { /* A device without stored photos has nothing to remove. */ }
+    }
   }
 }
 

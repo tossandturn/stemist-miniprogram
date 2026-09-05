@@ -1,0 +1,44 @@
+<view class="page {{deviceClass}} {{orientation}} native-practice-page">
+  <stemist-header title="{{title}}" compact="{{true}}" />
+  <app-nav active="practice" source="practice" category="alevel" family="exam" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
+  <block wx:if="{{question}}">
+    <view class="practice-progress"><text class="question-position">第 {{index + 1}} / {{total}} 题</text><text class="subtle">已拍照 {{answeredCount}} / {{total}}</text></view>
+    <scroll-view class="question-strip" scroll-x enhanced show-scrollbar="{{false}}" scroll-into-view="q-nav-{{index}}">
+      <view class="question-strip-inner"><button wx:for="{{navItems}}" wx:key="index" id="q-nav-{{item.index}}" class="question-tab {{item.current ? 'current' : ''}} {{item.answered ? 'answered' : ''}}" disabled="{{busy}}" data-index="{{item.index}}" bindtap="goQuestion" aria-label="第{{item.label}}题，{{item.answered ? '已拍照' : '未作答'}}">{{item.label}}<view wx:if="{{item.answered}}" class="answer-dot"></view></button></view>
+    </scroll-view>
+    <view class="native-question-layout">
+      <view class="question-column">
+        <view class="question-meta"><text>{{question.number}}</text><text>{{question.marks}} 分</text></view>
+        <view class="source-caption">{{question.sourceLabel}}</view>
+        <view wx:for="{{question.images}}" wx:key="id" class="source-page">
+          <image wx:if="{{item.url && !item.failed}}" class="question-image" src="{{item.url}}" mode="widthFix" lazy-load="{{true}}" data-id="{{item.id}}" bindload="imageLoaded" binderror="imageFailed" bindtap="previewQuestion" aria-label="题目原图，轻点放大" />
+          <view wx:if="{{!item.loaded && !item.failed}}" class="image-status">正在加载原图…</view>
+          <view wx:if="{{item.failed}}" class="image-status"><text>原图加载失败</text><button class="text-button" data-id="{{item.id}}" bindtap="retryImage">重试</button></view>
+        </view>
+      </view>
+      <view class="answer-column">
+        <view class="answer-panel">
+          <view class="answer-heading">本题答案</view>
+          <view class="subtle">{{question.partsLabel ? '包含分问 ' + question.partsLabel : '在纸上完成后拍照'}}</view>
+          <image wx:if="{{photo && !photoMissing}}" class="answer-image" src="{{photo}}" mode="widthFix" bindtap="previewPhoto" binderror="photoFailed" aria-label="已保存的答案照片" />
+          <view wx:else class="photo-empty"><view class="camera-lens"></view><text>拍清本题的解题过程和答案</text></view>
+          <button class="{{photo ? 'secondary' : 'primary'}} capture-answer" disabled="{{busy || cameraBusy}}" bindtap="capture">{{photo ? '重新拍照' : '拍摄答案'}}</button>
+          <text wx:if="{{photo && !photoMissing}}" class="saved-caption">照片已保存到本机</text>
+          <button wx:if="{{photo && question.canMark && !reviewComplete}}" class="primary mark-answer" loading="{{busy}}" disabled="{{busy || photoMissing}}" bindtap="submit">{{busy ? status : reviewedCount ? '继续批改' : '提交本题 · AI 批改'}}</button>
+          <view wx:if="{{photo && !question.canMark}}" class="subtle marking-unavailable">本题暂不支持 AI 批改，照片已保存。</view>
+          <view wx:if="{{photo && question.canMark && unavailableParts}}" class="subtle marking-unavailable">其中 {{unavailableParts}} 个分问暂不支持 AI 批改。</view>
+          <view wx:if="{{status && !busy}}" class="saved-caption">{{status}}</view>
+          <view wx:if="{{error}}" class="error">{{error}}</view>
+          <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录并继续</button>
+        </view>
+        <view wx:if="{{results.length}}" class="feedback-panel">
+          <view class="answer-heading">AI 参考反馈</view>
+          <view class="subtle">供学习复盘，不作为正式成绩。</view>
+          <view wx:for="{{results}}" wx:key="label" class="part-feedback"><view class="feedback-score"><text>{{item.label}}</text><text>{{item.score}} / {{item.maxScore}}</text></view><text class="feedback-text" selectable>{{item.summary}}</text></view>
+        </view>
+        <view class="question-actions"><button class="secondary" data-index="{{index - 1}}" disabled="{{index === 0 || busy}}" bindtap="goQuestion">上一题</button><button wx:if="{{index + 1 < total}}" class="primary" data-index="{{index + 1}}" disabled="{{busy}}" bindtap="goQuestion">下一题</button><button wx:else class="primary" bindtap="backToTopics" disabled="{{busy}}">保存并返回</button></view>
+      </view>
+    </view>
+  </block>
+  <view wx:else class="empty-state"><text>{{error}}</text><button wx:if="{{authRequired}}" class="primary" bindtap="openAccount">登录并恢复练习</button><button class="secondary" bindtap="backToTopics">返回学习页</button></view>
+</view>

@@ -8,7 +8,7 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 
 - Home: exactly four primary entrances — A-Level subjects, IELTS, competitions/admissions, and a Casio-style scientific calculator.
 - Competitions/admissions open the past-paper catalog directly. There is no competition Topic generator or readiness gate in this entrance.
-- STEM: the web product's Topic/paper/progress/Notebook capabilities remain reachable; the mini-program input path is one photographed question through the native rear-camera page, crop before AI Coach review.
+- STEM Topic practice is native: select syllabus chapters/components/count, assemble from the existing API, display the current question's original image pages, capture/crop an answer and restore local progress. No WebView or PDF renderer is used in this path. See [native practice implementation and QA](docs/native-stem-practice.md). Full-paper/exam and some IELTS capabilities still use WebView and are not yet native.
 - STEM route selection reads the server's syllabus inventory and, when signed in, saves a provisional photo-attempt summary to the shared STEM attempts API (the original photo is not persisted there).
 - IELTS: complete IELTSist workspace map — Dashboard, four skills, Same-Test, Random Exam, Vocabulary, Mine/Account, Subscription and AI Coach. Listening/Reading native quick notes use IELTSist `/api/help/chat`; full audio, paper, timer and report controls open through the allowlisted IELTSist WebView.
 - IELTS Writing: typed essay or one-question photo upload, then IELTSist AI feedback; the full Cambridge writing workspace remains one tap away.

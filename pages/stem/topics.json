@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "章节练习",
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
+  }
+}
