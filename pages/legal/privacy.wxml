@@ -2,14 +2,13 @@
   <stemist-header eyebrow="STEMIST · PRIVACY" title="隐私说明" subtitle="What this Mini Program reads and sends" action-text="返回" bind:action="goBack" />
   <view class="panel privacy-panel">
     <view class="section-title">相机与照片</view>
-    <view class="privacy-item">STEM 拍题和 IELTS Writing 拍照只在你点击拍照后调用后置摄像头。照片先在设备内压缩、裁剪，只有你点击提交给 AI Coach 后才发送到配置的服务端。</view>
+    <view class="privacy-item">点击拍照后才会使用摄像头。照片先在设备内裁剪，只有点击提交后才会上传分析。</view>
     <view class="section-title">文本与 AI Coach</view>
-    <view class="privacy-item">Listening、Reading、Writing 的文本和你主动提交的 STEM/作文照片会随当前技能、阶段或任务上下文发送到 AI Coach。客户端不保存或展示模型 API Key。</view>
+    <view class="privacy-item">你提交的文字、照片及当前学科或题目信息会用于 AI 反馈，并可能由第三方 AI 服务处理。请勿上传与练习无关的个人信息。</view>
     <view class="section-title">账号与草稿</view>
-    <view class="privacy-item">登录令牌、草稿和最近提交摘要保存在小程序本地存储。微信登录凭证只发送到服务端换取统一身份，不向客户端返回 session_key。登录后 STEM 拍题的路线、阶段、提交状态和反馈摘要可能同步到 STEM 学习记录；原始照片不会写入 attempts 记录。</view>
+    <view class="privacy-item">草稿和最近提交保存在当前设备。登录后，学科、阶段和反馈摘要可同步到学习记录；原始照片不会随摘要写入学习记录。退出账号会清理当前设备中的账号草稿与相关记录。</view>
     <view class="section-title">实时口语</view>
-    <view class="privacy-item">Speaking 通过 ieltsist.com web-view 使用 IELTSist 的实时千问口语功能；麦克风权限由微信和该业务域名分别控制。</view>
-  <view class="notice">这份页面与当前 MVP 数据流保持一致；上线前请由运营方补充主体、联系方式、保存期限、删除请求和第三方处理者信息。</view>
+    <view class="privacy-item">口语练习会打开 IELTSist。使用实时对话前需要允许麦克风访问。</view>
   <ai-fab source="privacy" />
 </view>
 </view>

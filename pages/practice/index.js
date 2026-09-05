@@ -2,14 +2,15 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { fetchRouteInventory } = require('../../utils/inventory')
 const { familyForCategoryStage, normalizeStemCategory, routesForSubjectStage, stemCategoryProfile, subjectsForCategory } = require('../../utils/stemCatalog')
 const { IELTS_FEATURE_GROUPS, getIeltsFeature, ieltsWebUrl } = require('../../utils/ieltsCatalog')
+const { routeById } = require('../../utils/stemRoutes')
 
 const STEM_TOOLS = [
-  { id: 'photo', label: '拍题并交给 AI', detail: '拍照、裁剪、获得逐步反馈', tone: 'photo' },
-  { id: 'topics', label: 'Topic 练习', detail: '章节、真题来源和学习内容', tone: 'topics' },
-  { id: 'papers', label: '完整真题', detail: 'QP / MS 配对目录和原卷', tone: 'papers' },
+  { id: 'photo', label: '拍照问一题', detail: '拍照后裁剪', tone: 'photo' },
+  { id: 'topics', label: '章节练习', detail: '按知识点练习', tone: 'topics' },
+  { id: 'papers', label: '历年真题', detail: '选卷作答', tone: 'papers' },
   { id: 'exams', label: '模拟考试', detail: '计时、提交和复盘', tone: 'exams' },
   { id: 'progress', label: '学习进度', detail: '提交记录和下一步', tone: 'progress' },
-  { id: 'notebook', label: 'Notebook', detail: '按路线保存私人复盘', tone: 'notebook' },
+  { id: 'notebook', label: '笔记本', detail: '整理错题与思路', tone: 'notebook' },
 ]
 
 function categoryStages(category) {
@@ -51,7 +52,7 @@ Page({
     inventoryTopics: [],
     inventoryLoading: false,
     inventoryError: '',
-    ieltsGroups: IELTS_FEATURE_GROUPS,
+    ieltsGroups: IELTS_FEATURE_GROUPS.filter(group => group.id !== 'full').map(group => ({ ...group, features: group.features.filter(item => item.id !== 'coach') })),
     stemTools: STEM_TOOLS,
     error: '',
   }),
@@ -59,16 +60,23 @@ Page({
   onLoad(options) {
     this.__requestId = 0
     const activeCategory = normalizeCategory(options && options.category)
+    if (activeCategory === 'competition') {
+      this.setData({ activeCategory })
+      wx.redirectTo({ url: '/pages/papers/index?category=competition' })
+      return
+    }
+    const requestedRoute = routeById(String(options?.routeId || ''))
+    const restoredRoute = requestedRoute && subjectsForCategory(activeCategory).some(item => item.code === requestedRoute.subjectCode) ? requestedRoute : null
     const stages = activeCategory === 'ielts' ? [] : categoryStages(activeCategory)
-    const stage = activeCategory === 'ielts' ? '' : (stages.includes(this.data.stage) ? this.data.stage : stages[0] || '')
+    const stage = activeCategory === 'ielts' ? '' : (restoredRoute?.stage || (stages.includes(this.data.stage) ? this.data.stage : stages[0] || ''))
     const subjects = activeCategory === 'ielts' ? [] : subjectsForCategoryStage(activeCategory, stage)
-    const preferredCode = subjects.some((item) => item.code === this.data.subjectCode) ? this.data.subjectCode : subjects[0]?.code || ''
+    const preferredCode = restoredRoute?.subjectCode || (subjects.some((item) => item.code === this.data.subjectCode) ? this.data.subjectCode : subjects[0]?.code || '')
     const routeOptions = preferredCode && stage ? routesForSubjectStage(preferredCode, stage) : []
-    const route = routeOptions[0]
+    const route = routeOptions.find(item => item.routeId === restoredRoute?.routeId) || routeOptions[0]
     const copy = categoryPageCopy(activeCategory)
     this.setData({ activeCategory, categoryProfile: activeCategory === 'ielts' ? null : stemCategoryProfile(activeCategory), family: activeCategory === 'ielts' ? '' : familyForCategoryStage(activeCategory, stage), pageTitle: copy.title, pageSubtitle: copy.subtitle, subjects, stages, subjectCode: preferredCode, subjectLabel: subjects.find((item) => item.code === preferredCode)?.label || '', stage, routeOptions, routeId: route?.routeId || '', inventory: null, inventoryTopics: [], inventoryError: '' }, () => { if (activeCategory !== 'ielts' && route) this.refreshInventory(route.routeId) })
   },
-  onShow() { syncDevice(this); if (this.data.activeCategory !== 'ielts') this.refreshInventory(this.data.routeId) },
+  onShow() { syncDevice(this); if (this.data.activeCategory === 'alevel' && !this.data.inventoryLoading && !this.data.inventory) this.refreshInventory(this.data.routeId) },
   onResize() { syncDevice(this) },
   onUnload() { this.__requestId += 1 },
 
@@ -90,13 +98,13 @@ Page({
   },
   chooseRoute(event) {
     const routeId = String(event.currentTarget.dataset.route || '')
-    if (!routeId) return
+    if (!this.data.routeOptions.some(route => route.routeId === routeId)) return
     this.setData({ routeId, inventory: null, inventoryTopics: [], inventoryError: '', error: '' }, () => this.refreshInventory(routeId))
   },
   refreshInventory(routeId) {
     if (routeId && typeof routeId === 'object') routeId = routeId.currentTarget?.dataset?.routeId
     const id = String(routeId || '').trim()
-    if (!id || this.data.activeCategory === 'ielts') return
+    if (!id || this.data.activeCategory !== 'alevel') return
     const requestId = ++this.__requestId
     this.setData({ inventoryLoading: true, inventoryError: '' })
     fetchRouteInventory(id).then((inventory) => {
@@ -110,7 +118,7 @@ Page({
   },
   openStem() {
     wx.setStorageSync('stemistRetakeContext', { category: this.data.activeCategory, family: this.data.family || familyForCategoryStage(this.data.activeCategory, this.data.stage), subjectCode: this.data.subjectCode, subject: this.data.subjectLabel, stage: this.data.stage, routeId: this.data.routeId })
-    wx.navigateTo({ url: '/pages/stem/capture', fail: (error) => this.setData({ error: error.errMsg || '无法打开 STEM 拍题，请重试。' }) })
+    wx.navigateTo({ url: '/pages/stem/capture', fail: () => this.setData({ error: '无法打开拍照页，请返回重试。' }) })
   },
   openIelts(event) {
     const skill = String(event && event.currentTarget && event.currentTarget.dataset && (event.currentTarget.dataset.skill || event.currentTarget.dataset.feature) || '')
@@ -121,24 +129,24 @@ Page({
     const feature = getIeltsFeature(id)
     if (!feature) return
     if (feature.nativePage) {
-      wx.navigateTo({ url: feature.nativePage, fail: (error) => this.setData({ error: error.errMsg || '这个技能页面暂时无法打开。' }) })
+      wx.navigateTo({ url: feature.nativePage, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
       return
     }
     const url = ieltsWebUrl(feature.id, { source: `mini-${feature.id}` })
     if (!url) return
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: (error) => this.setData({ error: error.errMsg || 'IELTSist 工作区暂时无法打开。' }) })
+    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
   },
-  openCoach() { wx.navigateTo({ url: '/pages/coach/index' }) },
+  openCoach() { wx.navigateTo({ url: '/pages/coach/index?source=alevel&category=alevel&routeId='+encodeURIComponent(this.data.routeId)+'&stage='+encodeURIComponent(this.data.stage)+'&subjectCode='+encodeURIComponent(this.data.subjectCode) }) },
   openPapers() { wx.navigateTo({ url: `/pages/papers/index?category=${encodeURIComponent(this.data.activeCategory)}&subject=${encodeURIComponent(this.data.subjectCode)}` }) },
   openFullStudio() {
     if (this.data.activeCategory === 'ielts') {
       const url = ieltsWebUrl('full-workspace', { source: 'mini-full' })
-      return wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: (error) => this.setData({ error: error.errMsg || '完整 IELTSist 工作区暂时无法打开。' }) })
+      return wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
     }
     const profile = this.data.categoryProfile || stemCategoryProfile(this.data.activeCategory)
     const family = familyForCategoryStage(this.data.activeCategory, this.data.stage)
     const url = `https://stem.ieltsist.com/today?routeId=${encodeURIComponent(this.data.routeId || '')}&stage=${encodeURIComponent(this.data.stage || '')}&category=${encodeURIComponent(this.data.activeCategory)}&family=${encodeURIComponent(family || profile.family)}&from=stemist`
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: (error) => this.setData({ error: error.errMsg || '完整学习空间暂时无法打开。' }) })
+    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
   },
   openStemTool(event) {
     const tool = String(event.currentTarget.dataset.tool || '')
@@ -150,6 +158,6 @@ Page({
     const profile = this.data.categoryProfile || stemCategoryProfile(this.data.activeCategory)
     const family = familyForCategoryStage(this.data.activeCategory, this.data.stage)
     const url = `https://stem.ieltsist.com/practice?tab=${tab}&routeId=${encodeURIComponent(this.data.routeId || '')}&stage=${encodeURIComponent(this.data.stage || '')}&category=${encodeURIComponent(this.data.activeCategory)}&family=${encodeURIComponent(family || profile.family)}&from=stemist`
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: (error) => this.setData({ error: error.errMsg || '学习功能暂时无法打开。' }) })
+    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
   },
 })

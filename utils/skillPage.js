@@ -18,7 +18,7 @@ function makeTextSkillPage(config) {
       text: '',
       answer: '',
       warning: '',
-      coachStatus: '反馈状态待确认',
+      coachStatus: '',
       loading: false,
       error: '',
       draftStatus: '自动保存已开启',
@@ -60,9 +60,10 @@ function makeTextSkillPage(config) {
         if (this.__disposed) return
         const answer = result.answer || 'AI 返回了空结果，请重试。'
         wx.setStorageSync(`stemistSubmission:${scope}`, { category: 'ielts', skill: scope, text, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
-        clearDraft(scope)
+        const receivedAi = result.mode === 'ai' && result.providerStatus === 'connected'
+        if (receivedAi) clearDraft(scope)
         const coachState = result.coachState || {}
-        this.setData({ answer, warning: coachState.warning || '', canRetry: false, coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
+        this.setData({ answer, warning: coachState.warning || '', canRetry: !receivedAi, coachStatus: coachState.label || '反馈状态待确认', draftStatus: receivedAi ? '反馈已收到' : '草稿已保留' })
       } catch (error) {
         if (!this.__disposed) this.setData({ error: error.message || 'AI 暂时不可用，原始内容已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })
       } finally { if (!this.__disposed) this.setData({ loading: false }) }
@@ -71,7 +72,7 @@ function makeTextSkillPage(config) {
     clear() {
       if (this.data.loading) return
       clearDraft(scope)
-      this.setData({ text: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '反馈状态待确认', draftStatus: '已清空 · 自动保存已开启' })
+      this.setData({ text: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空' })
     },
     openBack() { wx.navigateBack() },
     openFullWorkspace() {

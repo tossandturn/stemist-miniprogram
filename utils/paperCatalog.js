@@ -55,6 +55,7 @@ function normalizePaperItem(item = {}) {
     kind: String(item.kind || ''),
     file: String(item.file || ''),
     pairKey: item.pairKey ? String(item.pairKey) : '',
+    markSchemeId: String(item.markSchemeId || ''),
     paperNumber: profile.code ? String(profile.code) : '',
     title: String(profile.title || ''),
     mode: String(profile.mode || ''),
@@ -67,7 +68,7 @@ function normalizePaperItem(item = {}) {
 }
 
 function isQuestionPaper(item) {
-  return item.kind === 'qp' && item.governanceState !== 'withdrawn' && Boolean(item.file)
+  return item.kind === 'qp' && item.governanceState === 'active' && Boolean(item.file)
 }
 
 async function fetchPaperCatalog(subject) {
@@ -78,7 +79,12 @@ async function fetchPaperCatalog(subject) {
   if (cached && cached.promise) return cached.promise
   const promise = getJson(`/data/papers/${encodeURIComponent(code)}.json`, { timeout: 30000 }).then((payload) => {
     if (!payload || payload.schemaVersion !== 2 || !Array.isArray(payload.items)) throw new Error('真题目录响应无效')
-    const items = payload.items.map(normalizePaperItem).filter((item) => item.subject === code && Boolean(item.id) && isQuestionPaper(item))
+    const records = payload.items.map(normalizePaperItem).filter(item => item.subject === code && item.governanceState === 'active')
+    const byId = new Map(records.map(item => [item.id, item]))
+    const items = records.filter(item => Boolean(item.id) && isQuestionPaper(item)).map(item => {
+      const markScheme = byId.get(item.markSchemeId)
+      return { ...item, markScheme: markScheme && markScheme.kind === 'ms' && markScheme.pairKey === item.pairKey ? markScheme : null }
+    })
     const normalized = {
       subject: code,
       totals: payload.totals || {},

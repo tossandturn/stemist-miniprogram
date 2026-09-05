@@ -1,35 +1,14 @@
 <view class="page {{deviceClass}} {{orientation}} home-page">
-  <view class="topbar">
-    <view class="brand">
-      <view class="brand-mark">S</view>
-      <view>
-        <text class="brand-title">STEMist</text>
-        <text class="brand-subtitle">IELTSist learning studio</text>
-      </view>
-    </view>
-    <view class="home-top-actions">
-      <ai-fab mode="inline" source="home" />
-      <button class="home-account-link" bindtap="loginWechat" loading="{{wechatLoading}}">{{user ? user.username : '微信登录'}}</button>
-    </view>
-  </view>
-
-  <view class="hero-card home-hero">
-    <view class="eyebrow">STEMIST · 学习首页</view>
-    <view class="title"><text class="title-line">Study clearly.</text><text class="title-line">Improve visibly.</text></view>
-    <view class="subtitle">四个入口，进入同一个学习账户。点击后会先尝试微信登录；暂时无法换票时仍可浏览和保存本机草稿。</view>
-    <view class="home-status"><view class="status-dot"></view><text>{{aiStatus}}</text><text wx:if="{{summary.submissionCount}}"> · {{summary.submissionCount}} 次已提交</text></view>
-  </view>
-
-  <view class="entry-grid" aria-label="Learning entrances">
-    <button wx:for="{{entryPoints}}" wx:key="id" class="entry-card entry-{{item.tone}}" data-entry="{{item.id}}" bindtap="openEntry" loading="{{entryLoading === item.id}}" disabled="{{entryLoading}}">
+  <view class="home-brand"><view class="brand-mark">S</view><text class="brand-title">STEMist</text></view>
+  <ai-fab source="home" />
+  <view class="home-heading">今天想学什么？</view>
+  <view class="entry-grid">
+    <button wx:for="{{entryPoints}}" wx:key="id" class="entry-card entry-{{item.tone}}" data-entry="{{item.id}}" bindtap="openEntry" loading="{{entryLoading === item.id}}" disabled="{{!!entryLoading}}">
       <view class="entry-mark" aria-hidden="true"><view class="entry-mark-inner"></view></view>
-      <view class="entry-tag">{{item.tag}}</view>
-      <view class="entry-title">{{item.title}}</view>
-      <view class="entry-detail">{{item.detail}}</view>
-      <view class="entry-action">{{entryLoading === item.id ? '正在准备…' : '进入'}}</view>
+      <text class="entry-title">{{item.title}}</text>
+      <text class="entry-detail">{{item.detail}}</text>
     </button>
   </view>
-
-  <view wx:if="{{entryError}}" class="warning home-entry-warning">{{entryError}}<navigator class="warning-link" url="/pages/account/auth">打开 Account</navigator></view>
-  <view class="home-footnote">AI Coach 固定在右上角，随时可以提问；正式题目、AI 结果和云端记录仍以服务端返回为准。</view>
+  <view wx:if="{{entryError}}" class="error">{{entryError}}</view>
+  <navigator class="home-account" url="/pages/account/auth">我的学习记录与账号</navigator>
 </view>

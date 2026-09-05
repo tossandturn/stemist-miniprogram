@@ -3,7 +3,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { ensureWeChatSession } = require('../../utils/wechatAuth')
 
 Page({
-  data: deviceState({ mode: 'login', username: '', password: '', loading: false, wechatLoading: false, error: '', user: null }),
+  data: deviceState({ mode: 'login', username: '', password: '', loading: false, wechatLoading: false, showCredentials: false, error: '', user: null }),
   onShow() {
     syncDevice(this)
     const user = wx.getStorageSync('stemistSessionToken') ? currentUser() : null
@@ -12,6 +12,7 @@ Page({
   },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
+  toggleCredentials() { this.setData({ showCredentials: !this.data.showCredentials }) },
   async loginWechat() {
     if (this.data.loading || this.data.wechatLoading) return
     this.setData({ wechatLoading: true, error: '' })
@@ -24,7 +25,7 @@ Page({
     } finally { this.setData({ wechatLoading: false }) }
   },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
-  openIeltsAccount() { wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent('https://ieltsist.com/?module=account&from=stemist')}` }) },
+  openIeltsAccount() { wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent('https://ieltsist.com/?from=stemist#mine')}` }) },
   logout() {
     if (this.data.loading) return
     signOut()

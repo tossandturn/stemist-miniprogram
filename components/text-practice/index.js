@@ -10,7 +10,7 @@ Component({
     contextTitle: { type: String, value: '你的记录' },
     contextText: { type: String, value: '' },
     draftStatus: { type: String, value: '自动保存已开启' },
-    status: { type: String, value: '反馈状态待确认' },
+    status: { type: String, value: '' },
     canRetry: { type: Boolean, value: false },
     authRequired: { type: Boolean, value: false },
   },

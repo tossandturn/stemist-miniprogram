@@ -6,8 +6,8 @@ const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
 const STEM_FAMILIES = new Set(['exam', 'competition', 'admissions'])
 
 const CONTEXTS = [
-  { id: 'stem-photo', label: 'STEM photo', detail: '先拍题，再把证据交给 Coach。', page: '/pages/stem/capture', product: 'STEM Studio' },
-  { id: 'ielts', label: 'IELTSist Coach', detail: '围绕 IELTS 技能、词汇和学习计划提问。', page: '/pages/practice/index?category=ielts', product: 'IELTSist' },
+  { id: 'stem-photo', label: '学科答疑', detail: '', page: '/pages/stem/capture', product: 'STEM Studio' },
+  { id: 'ielts', label: 'IELTS 学习', detail: '', page: '/pages/practice/index?category=ielts', product: 'IELTSist' },
   { id: 'listening', label: 'IELTS Listening', detail: '检查答案、单复数和听力陷阱。', page: '/pages/ielts/listening', product: 'IELTSist' },
   { id: 'reading', label: 'IELTS Reading', detail: '检查原文定位和证据链。', page: '/pages/ielts/reading', product: 'IELTSist' },
   { id: 'writing', label: 'IELTS Writing', detail: '按四项标准反馈；可打字或拍手写稿。', page: '/pages/ielts/writing', product: 'IELTSist' },
@@ -17,12 +17,13 @@ Page({
   data: deviceState({
     contexts: CONTEXTS,
     contextId: 'stem-photo',
+    contextIndex: 0,
     message: '',
     answer: '',
     warning: '',
     error: '',
     loading: false,
-    coachStatus: '反馈状态待确认',
+    coachStatus: '',
     canRetry: false,
     authRequired: false,
     draftStatus: '自动保存已开启',
@@ -44,9 +45,10 @@ Page({
     const family = STEM_FAMILIES.has(familyCandidate) ? familyCandidate : ''
     if (routeId || stage || subjectCode || category || family) {
       next.routeContext = { routeId, stage, subjectCode, category, family }
-      next.routeContextLabel = [category === 'competition' ? '竞赛 / 入学考试' : category === 'alevel' ? 'A-Level 学科' : category === 'ielts' ? 'IELTSist' : '', routeId, stage].filter(Boolean).join(' · ')
+      next.routeContextLabel = [category === 'competition' ? '竞赛 / 入学考试' : category === 'alevel' ? 'A-Level 学科' : category === 'ielts' ? 'IELTSist' : '', subjectCode, stage].filter(Boolean).join(' · ')
     }
     if (sourceContext) next.contextId = sourceContext
+    next.contextIndex = Math.max(0, CONTEXTS.findIndex(item => item.id === (sourceContext || this.data.contextId)))
     if (draft && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
     if (Object.keys(next).length) this.setData(next)
   },
@@ -59,7 +61,11 @@ Page({
   chooseContext(event) {
     const contextId = String(event.currentTarget.dataset.context || '')
     if (!CONTEXTS.some((item) => item.id === contextId)) return
-    this.setData({ contextId, answer: '', warning: '', error: '', authRequired: false })
+    this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false })
+  },
+  chooseContextPicker(event) {
+    const selected = CONTEXTS[Number(event.detail.value)]
+    if (selected && !this.data.loading) this.chooseContext({ currentTarget: { dataset: { context: selected.id } } })
   },
   onMessage(event) {
     const message = String(event.detail.value || '')
@@ -95,6 +101,6 @@ Page({
   clear() {
     if (this.data.loading) return
     clearDraft('coach')
-    this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '反馈状态待确认', draftStatus: '已清空 · 自动保存已开启' })
+    this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空' })
   },
 })

@@ -1,12 +1,7 @@
 <view class="page {{deviceClass}} {{orientation}} speaking-page">
-  <stemist-header eyebrow="IELTSIST · SPEAKING WITH AI" title="Speaking with AI" subtitle="Realtime Qwen examiner · transcript · score · retest" action-text="返回" bind:action="openBack" />
+  <stemist-header eyebrow="IELTSIST · SPEAKING WITH AI" title="口语" action-text="返回" bind:action="openBack" />
   <app-nav active="practice" source="speaking" category="ielts" is-tablet="{{isTablet}}" />
-  <view class="context-card speaking-context">
-    <view class="context-card-title">原生 IELTSist 口语体验</view>
-    <view class="context-card-text">这里保留实时千问口语 examiner，不改成文本框，也不把 Speaking 混入 Listening 的离线音频流程。</view>
-  </view>
-  <web-view class="speaking-webview" src="{{webviewUrl}}" bindload="onWebViewLoad" binderror="onWebViewError"></web-view>
-  <view wx:if="{{webviewState === 'loading'}}" class="speaking-state">正在打开 IELTSist 实时 examiner…</view>
-  <view wx:if="{{webviewState === 'error'}}" class="error">{{webviewError}}<button class="secondary" bindtap="retryWebView">重试 Speaking</button></view>
-  <view class="notice">若页面无法打开，请在微信公众平台把 ieltsist.com 配置为 web-view 业务域名，并确认麦克风权限。</view>
+  <web-view wx:if="{{webviewUrl}}" class="speaking-webview" src="{{webviewUrl}}" bindload="onWebViewLoad" binderror="onWebViewError"></web-view>
+  <view wx:if="{{webviewState === 'loading'}}" class="speaking-state">正在打开口语练习…</view>
+  <view wx:if="{{webviewState === 'error'}}" class="error">{{webviewError}}<button class="secondary" bindtap="retryWebView">重试</button></view>
 </view>

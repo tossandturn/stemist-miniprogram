@@ -182,7 +182,7 @@ function applyFunction(name, value, { toRadians, fromRadians }) {
 function formatNumber(value) {
   const number = Number(value)
   if (!Number.isFinite(number)) return 'Error'
-  if (Math.abs(number) < 1e-12) return '0'
+  if (number === 0) return '0'
   if (Number.isInteger(number) && Math.abs(number) < 1e15) return String(number)
   if (Math.abs(number) >= 1e12 || Math.abs(number) < 1e-8) return number.toExponential(8).replace(/\.?(?:0+)(?=e)/, '')
   return Number(number.toPrecision(12)).toString()

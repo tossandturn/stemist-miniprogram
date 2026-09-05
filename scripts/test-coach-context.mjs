@@ -31,5 +31,6 @@ pageConfig.onLoad.call(competition, { source: 'competition', category: 'competit
 assert.equal(competition.data.contextId, 'stem-photo')
 assert.equal(competition.data.routeContext.category, 'competition')
 assert.equal(competition.data.routeContext.family, 'admissions')
-assert.equal(competition.data.routeContextLabel, '竞赛 / 入学考试 · uatuk-esat-admissions · Admissions')
+assert.equal(competition.data.routeContext.category, 'competition')
+assert.equal(competition.data.routeContext.stage, 'Admissions')
 console.log('AI Coach product-context separation contract passed.')

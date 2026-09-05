@@ -2,6 +2,14 @@
 
 版本：2026-09-05
 
+## 当前修复基线
+
+- 首页只保留四个入口和右上角 AI Coach，主要学习页删除实现说明与重复引导。
+- **竞赛 / 入学考试直接进入历年真题目录**，不出现 Topic 练习、章节达标门槛或独立练习生成器。
+- 真题可搜索、逐批加载、打开原卷/参考答案或进入对应试卷练习。QP/MS 配对必须指向目录内存在的同组答案文件。
+- 首页手机卡片间距 12px，按钮最小高度 44px；显式覆盖微信原生按钮默认宽度，避免卡片和操作按钮挤在一起。
+- 真实运行证据见 `qa-2026-09-05-runtime-fixes.md`；接口契约与设备实测的验收范围分开记录。
+
 这份文档是小程序实现的单一设计基线。它把 `STEM Studio` 与 `IELTSist` 已有的学习闭环、视觉语言和 AI Coach 边界迁移到微信小程序，而不是重新做一个独立 Demo。
 
 说明：通用 UI 规则检索建议了偏游戏化的深色/粉色方案，但现有 STEM Studio 与 IELTSist 的生产 token、学生认知和跨站品牌一致性优先，因此本项目明确采用现有的浅色 `#f5f6fb` + `#7357e8` 体系，不引入另一套视觉品牌。
@@ -27,13 +35,13 @@
 
 ### 首页 Today
 
-首页第一屏必须回答四件事：今天做什么、有哪些练习、AI 在哪里、账号是否连接。结构沿用两个网页的 Dashboard/Today 语义：
+首页第一屏只回答：学什么、从哪里进入、AI 在哪里。账号入口置于次要位置，不展示实现过程和连接检查：
 
-1. 品牌栏：STEMist + IELTSist learning studio；右上角是微信登录/账号状态，AI Coach 作为固定右上角入口。
+1. 品牌栏：STEMist；AI Coach 固定在右上角。微信登录静默进行，首页不放登录按钮或 AI 状态说明。
 2. 四张入口卡：A-Level 学科、IELTS、竞赛/入学考试、Casio 计算器；不在首页平铺二级功能。
 3. 入口失败只显示可理解的恢复提示，不把内部 prompt、provider、路由调试词展示给学生。
-4. 进入 A-Level/竞赛后可选择路线、读取真实 inventory、拍题，也可打开完整 STEM Studio。
-5. 进入 IELTS 后按“开始学习 / 四项技能 / 整套模拟 / 词汇与账号 / 完整工作区”分组展示全部 IELTSist 能力；原生快速页与 WebView 深链使用同一账号。
+4. A-Level 可选择学科和阶段，再进入章节、拍题、真题、模拟、进度或笔记。竞赛直接进入真题目录，只筛选考试和试卷，不展示 Topic readiness。
+5. IELTS 按“开始学习 / 四项技能 / 整套模拟 / 词汇与账号”分组。完整网页能力由对应入口承接，不再重复添加“完整工作区”和第二张 AI Coach 卡片。账号续接仍须服务端与真机验收。
 6. 进入工作区后不再重复放 A-Level/IELTS/竞赛三段筛选条，只显示“当前工作区 / 切换入口”；学科和阶段才是该页真正的筛选项。
 
 ### 技能工作区
@@ -48,14 +56,14 @@ STEM 拍照在相机前必须选择 `subjectCode + stage`，对于 9709/9231 等
 
 ### STEM 类别边界
 
-A‑Level 学科与竞赛/入学考试使用同一套路线选择、inventory、拍照和 Coach 组件，但入口和服务端数据族严格分离：
+A‑Level 学科与竞赛/入学考试共用真题目录及 Coach 组件，但入口和服务端数据族严格分离。竞赛的用户入口仅保留真题：
 
 - A‑Level 只允许 IGCSE、AS、A2 学科路线，发送 `category=alevel`、`family=exam`；
 - 竞赛入口只允许 BPhO、AMC 12、ESAT、TMUA，Competition 与 Admissions 分别发送对应 `family`；
 - `category + family + subjectCode + stage + routeId` 会随拍题、真题目录和网页接续传递，服务端仍是权限与成绩唯一权威；
 - 切换入口会清空前一入口的路线和 inventory 状态，避免把题库数量或学习记录显示在错误类别下。
 
-路线卡下方读取 `GET /api/stem/routes/{routeId}/syllabus-topics` 的服务端 inventory，展示官方配对卷、已审核题组、可练习题组和 topic 状态。inventory 只用于学生选择和透明度，不作为权限或正式评分依据；接口失败时保留拍照入口并明确提示状态暂不可用，不把静态数量冒充真实数据。
+A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，只展示当前章节与可用数量。后台保留来源和审核状态，但不把整组诊断指标堆给学生。竞赛不请求这个接口；整卷数量来自 QP 目录，不等同于 reviewed 题组数量。
 
 ## 3. 统一视觉系统
 
@@ -74,26 +82,26 @@ A‑Level 学科与竞赛/入学考试使用同一套路线选择、inventory、
 | Writing | `#f19a3e` | Writing 状态线 |
 | Speaking | `#ed6486` | Speaking 状态线 |
 
-卡片统一使用白底、细边框、18rpx 圆角和轻阴影。图标只表达技能身份，不用装饰性图标替代文字。
+卡片统一使用白底、细边框、14–20px 圆角和轻阴影。正文和控件使用受控 px 尺寸，避免 rpx 在 iPad 上成倍放大；图标不替代可读标签。
 
 ## 4. 手机与 iPad 的明确适配
 
 设备由 `utils/device.js` 读取 `deviceType`、型号和窗口宽度，页面得到 `device-phone` 或 `device-tablet` 类；CSS 只作为第二道保障。
 
-### 手机（窗口宽度 < 768px）
+### 手机（设备分类为 phone，不能仅按宽度判断）
 
-- 单列内容，左右 32rpx 内边距。
+- 阅读与输入内容单列，首页四入口为 2×2 网格；左右 16px 内边距。
 - 底部固定五项导航：Today / Practice / AI Coach / Progress / Account；首页本身只展示四个一级入口。
 - AI Coach 固定在右上角，不能被键盘、相机裁剪区或底部导航遮挡。
-- 主按钮最小 88rpx 高，适合单手点击。
+- 主按钮最小 44px 高，显式覆盖微信原生默认宽度，保证卡片间距至少 8px。
 - 输入框和提交动作按垂直顺序排列，键盘弹出时不遮挡提交。
 - STEM 裁剪区约 650rpx 高，优先拍单题。
 - 口语 web-view 使用整页纵向空间。
 
-### iPad（窗口宽度 ≥ 768px 或系统识别为 tablet/iPad）
+### iPad（系统识别为 tablet/iPad，宽度仅作回退）
 
 - 使用宽屏顶部导航，不显示手机底部导航。
-- 首页指标四列、技能卡两列。
+- 首页不放指标说明；入口与技能卡根据 tablet 宽度排布。
 - Listening/Reading/Writing/Coach 工作区采用左侧上下文 + 右侧输入/Coach 的双栏布局。
 - STEM 裁剪区约 900rpx 高，横屏优先容纳题目和图表。
 - iPad 竖屏自动改单栏，不能把两个栏压缩到不可读。
@@ -135,7 +143,7 @@ A‑Level 学科与竞赛/入学考试使用同一套路线选择、inventory、
 - 默认入口用 `wx.login → /api/auth/wechat → code2Session` 获取短期 `accessToken`，只存 `stemistSessionToken`；用户名/密码仅作为兼容恢复路径。
 - `session_key`、App Secret 和 provider key 只留在服务端，绝不返回客户端或写入 WebView query。
 - 服务端通过 `WECHAT_MINIPROGRAM_APP_ID` / `WECHAT_MINIPROGRAM_APP_SECRET` 配置换票；生产只允许官方 `api.weixin.qq.com`，本地测试才允许 loopback mock。
-- 文本练习草稿以 `stemistDraft:<skill>` 本地保存，提交成功后清理草稿并保存最近提交摘要。
+- 文本练习草稿以 `stemistDraft:<skill>` 本地保存，收到真实 AI 反馈后清理对应草稿并保存提交摘要；降级或失败保留草稿。离开立即保存最后输入，显式退出取消延迟写入并清理私有记录。
 - 身份共用，STEM 与 IELTSist 学习记录按产品边界隔离；不把浏览器 Cookie 或数据库复制到小程序。
 
 ## 7. 质量门槛
@@ -162,4 +170,4 @@ A‑Level 学科与竞赛/入学考试使用同一套路线选择、inventory、
 - 配置微信服务器域名和 `ieltsist.com` web-view 业务域名。
 - 真机验证相机、裁剪、键盘、iPad 横竖屏、麦克风和 Qwen 实时口语。
 - 提交审核前补齐隐私政策、相机/麦克风用途说明和付费/内容资质。
-- `app.json` 已开启隐私检查并声明 camera/record 用途；公众平台仍需完成隐私保护指引配置，真机首次调用前必须验证授权拒绝和重新授权路径。
+- `app.json` 已开启隐私检查；camera/record 不使用无效的静态 permission 字段。公众平台仍需配置隐私保护指引，并在真机首次调用时验证授权拒绝和重新授权路径。

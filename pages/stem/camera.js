@@ -14,7 +14,7 @@ Page({
     try { this.__camera = typeof wx.createCameraContext === 'function' ? wx.createCameraContext() : null } catch { this.__camera = null }
     this.setData({ ready: true })
   },
-  onShow() { syncDevice(this) },
+  onShow() { syncDevice(this); this.setData({ busy: false }) },
   onResize() { syncDevice(this) },
   onUnload() { this.__camera = null },
   onCameraError(event) {
@@ -61,7 +61,7 @@ Page({
   usePhoto(path) {
     if (!path) { this.setData({ busy: false, error: '没有获得照片，原路线仍保留。请重新拍摄。' }); return }
     wx.setStorageSync('stemistCropReturn', { route: this.data.returnPage, context: this.data.context || {}, createdAt: Date.now() })
-    wx.navigateTo({ url: `/pages/crop/crop?src=${encodeURIComponent(path)}`, fail: (error) => this.setData({ busy: false, error: error.errMsg || '无法打开裁剪页，请重试。' }) })
+    wx.navigateTo({ url: `/pages/crop/crop?src=${encodeURIComponent(path)}`, fail: () => this.setData({ busy: false, error: '无法打开裁剪页，请重试。' }) })
   },
   cancel() { wx.removeStorageSync('stemistCameraReturn'); wx.navigateBack() },
 })

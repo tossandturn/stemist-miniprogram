@@ -16,15 +16,15 @@ if (process.platform !== 'win32' || !fs.existsSync(wcc) || !fs.existsSync(wcsc))
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'stemist-wx-'))
 const compile = (executable, args, label) => {
-  const result = spawnSync(executable, args, { cwd: root, stdio: 'ignore', windowsHide: true })
-  if (result.status !== 0) throw new Error(`${label} exited with ${result.status}`)
+  const result = spawnSync(executable, args, { cwd: root, encoding: 'utf8', windowsHide: true })
+  if (result.status !== 0) throw new Error(`${label} exited with ${result.status}: ${String(result.stderr || result.stdout).slice(0, 1600)}`)
 }
 
 function walk(directory) {
   const files = []
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const absolute = path.join(directory, entry.name)
-    if (entry.isDirectory()) files.push(...walk(absolute))
+    if (entry.isDirectory() && !['node_modules', '.git'].includes(entry.name)) files.push(...walk(absolute))
     else files.push(absolute)
   }
   return files

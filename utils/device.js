@@ -1,5 +1,10 @@
 function readDeviceProfile() {
-  const info = wx.getSystemInfoSync ? wx.getSystemInfoSync() : {}
+  let info = {}
+  try {
+    info = typeof wx.getWindowInfo === 'function' && typeof wx.getDeviceInfo === 'function'
+      ? { ...wx.getDeviceInfo(), ...wx.getWindowInfo() }
+      : (wx.getSystemInfoSync ? wx.getSystemInfoSync() : {})
+  } catch { /* Keep the default compact layout if device metadata is unavailable. */ }
   const width = Number(info.windowWidth || info.screenWidth || 375)
   const height = Number(info.windowHeight || info.screenHeight || 667)
   const model = String(info.model || '')

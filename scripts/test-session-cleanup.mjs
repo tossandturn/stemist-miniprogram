@@ -13,7 +13,8 @@ const values = {
 }
 const wx = { removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
 const module = { exports: {} }
-vm.runInNewContext(source, { module, exports: module.exports, wx, String, Array, Object })
+let pendingClears=0
+vm.runInNewContext(source, { module, exports: module.exports, wx, String, Array, Object, require: (name) => { assert.equal(name,'./page'); return { discardPendingDrafts: () => { pendingClears++ } } } })
 
 const preservedValues = {
   stemistSessionToken: 'expired-token',
@@ -27,6 +28,7 @@ const preservedValues = {
 }
 Object.assign(values, preservedValues)
 module.exports.clearLocalSession({ preserveDrafts: true })
+assert.equal(pendingClears,0)
 assert.equal(values.stemistSessionToken, undefined)
 assert.equal(values.stemistUser, undefined)
 assert.deepEqual(values['stemistDraft:writing'], preservedValues['stemistDraft:writing'])
@@ -37,6 +39,7 @@ assert.deepEqual(values.stemistPendingAttemptSync, preservedValues.stemistPendin
 assert.deepEqual(values['stemistNotebook:cie-9702-as-physics'], preservedValues['stemistNotebook:cie-9702-as-physics'])
 
 module.exports.clearLocalSession()
+assert.equal(pendingClears,1)
 assert.equal(values.stemistSessionToken, undefined)
 assert.equal(values.stemistUser, undefined)
 assert.equal(values['stemistDraft:listening'], undefined)

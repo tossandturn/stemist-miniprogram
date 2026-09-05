@@ -1,19 +1,16 @@
 <view class="page {{deviceClass}} {{orientation}} notebook-page">
-  <stemist-header eyebrow="STEMIST · NOTEBOOK" title="把错误变成下一步" subtitle="按路线保存你的私人复盘。" />
+  <stemist-header eyebrow="STEMIST · NOTEBOOK" title="笔记本" />
   <app-nav active="progress" source="notebook" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
   <view class="context-card notebook-context">
     <view class="context-card-title">{{categoryLabel}} · 选择路线</view>
-    <view class="context-card-text">Notebook 与 STEM 路线绑定；不把不同学科的错误混在一起。</view>
     <picker mode="selector" range="{{routes}}" range-key="pickerLabel" value="{{routeIndex}}" bindchange="chooseRoutePicker"><view class="route-picker">{{routes[routeIndex].pickerLabel || '请选择一条路线'}}<text class="route-picker-chevron">切换</text></view></picker>
-    <view class="selected-route">{{routeId}}</view>
   </view>
   <view class="panel notebook-editor">
-    <view class="field-label">我的复盘笔记</view>
-    <textarea value="{{note}}" maxlength="20000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="记录第一处错误、正确关系式、单位检查或下一次要重做的题…" bindinput="onInput" />
+    <view class="field-label">笔记</view>
+    <textarea value="{{note}}" maxlength="20000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="写下笔记或错题思路…" bindinput="onInput" />
     <view class="editor-status">{{status}}<text>{{note.length}} 字符</text></view>
-    <button class="primary" bindtap="save" loading="{{saving}}" disabled="{{saving}}">{{saving ? '同步中…' : '保存到学习记录'}}</button>
+    <button class="primary" bindtap="save" loading="{{saving}}" disabled="{{saving}}">{{saving ? '同步中…' : '保存'}}</button>
     <button class="secondary" bindtap="clear" disabled="{{saving}}">清空当前笔记</button>
   </view>
   <view wx:if="{{error}}" class="warning">{{error}}</view>
-  <view class="notice">笔记仅对当前账号可见；未登录时只保存在本机，不会悄悄上传。</view>
 </view>

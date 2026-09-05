@@ -10,6 +10,7 @@ function subjectsForCategoryStage(category, stage) {
 Page({
   data: deviceState({
     busy: false,
+    scopeExpanded: false,
     error: '',
     returnPage: 'stem',
     isWriting: false,
@@ -62,9 +63,10 @@ Page({
   onUnload() { this.__inventoryRequestId = (this.__inventoryRequestId || 0) + 1 },
   onResize() { syncDevice(this) },
   goBack() { wx.navigateBack() },
+  toggleScope() { this.setData({ scopeExpanded: !this.data.scopeExpanded }) },
   chooseSubject(event) {
     const code = event.currentTarget.dataset.code
-    const subject = subjectByCode(code)
+    const subject = this.data.subjects.find(item => item.code === code)
     if (subject) {
       const routes = routesForSubjectStage(subject.code, this.data.stage)
       const route = routes[0]
@@ -76,6 +78,7 @@ Page({
   },
   chooseStage(event) {
     const stage = event.currentTarget.dataset.stage
+    if (!this.data.stages.includes(stage)) return
     const subjects = subjectsForCategoryStage(this.data.category, stage)
     const subject = subjects.some((item) => item.code === this.data.subjectCode) ? subjects.find((item) => item.code === this.data.subjectCode) : subjects[0]
     const routes = subject ? routesForSubjectStage(subject.code, stage) : []
@@ -87,6 +90,7 @@ Page({
   },
   chooseRoute(event) {
     const routeId = String(event.currentTarget.dataset.route || '')
+    if (!this.data.routeOptions.some(item => item.routeId === routeId)) return
     this.setData({ routeId, selectedComponents: routeById(routeId)?.components || '', canCapture: Boolean(routeId), inventory: null, inventoryTopics: [], showAllTopics: false, inventoryError: '', error: '' }, () => this.refreshInventory(routeId))
   },
   refreshInventory(routeId) {
@@ -162,7 +166,7 @@ Page({
     wx.setStorageSync('stemistCameraReturn', { route: this.data.returnPage, context: this.captureContext(), createdAt: Date.now() })
     wx.navigateTo({
       url: '/pages/stem/camera',
-      fail: (error) => this.setData({ busy: false, error: error.errMsg || '无法打开相机，请重试' }),
+      fail: () => this.setData({ busy: false, error: '无法打开相机，请返回重试。' }),
     })
   },
 })

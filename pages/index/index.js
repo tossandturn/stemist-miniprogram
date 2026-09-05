@@ -4,10 +4,10 @@ const { localLearningSummary } = require('../../utils/learningSummary')
 const { ensureWeChatSession } = require('../../utils/wechatAuth')
 
 const ENTRY_POINTS = [
-  { id: 'alevel', title: 'A-Level 学科', detail: 'IGCSE · AS · A2\n按学科和路线开始一题一拍', tag: 'STEM STUDIO', tone: 'alevel', url: '/pages/practice/index?category=alevel' },
-  { id: 'ielts', title: 'IELTS', detail: '四项技能 · 整套模拟 · 词汇\n沿用 IELTSist 完整工作区', tag: 'IELTSIST', tone: 'ielts', url: '/pages/practice/index?category=ielts' },
-  { id: 'competition', title: '竞赛 / 入学考试', detail: 'BPhO · AMC 12 · ESAT · TMUA\n独立题库和数据链路', tag: 'STEM STUDIO', tone: 'competition', url: '/pages/practice/index?category=competition' },
-  { id: 'calculator', title: 'Casio 计算器', detail: '科学计算器练习\n角度、函数、历史记录都在本机', tag: 'STEM TOOL', tone: 'calculator', url: '/pages/calculator/index' },
+  { id: 'alevel', title: 'A-Level 学科', detail: 'IGCSE · AS · A2', tag: 'STEM STUDIO', tone: 'alevel', url: '/pages/practice/index?category=alevel' },
+  { id: 'ielts', title: 'IELTS', detail: '听说读写 · 模考 · 词汇', tag: 'IELTSIST', tone: 'ielts', url: '/pages/practice/index?category=ielts' },
+  { id: 'competition', title: '竞赛 / 入学考试', detail: 'BPhO · AMC · ESAT · TMUA 真题', tag: 'STEM STUDIO', tone: 'competition', url: '/pages/papers/index?category=competition' },
+  { id: 'calculator', title: 'Casio 计算器', detail: '科学计算 · 历史记录', tag: 'STEM TOOL', tone: 'calculator', url: '/pages/calculator/index' },
 ]
 
 Page({
@@ -77,10 +77,9 @@ Page({
       if (this.__disposed || !result || !result.user) return
       this.setData({ user: result.user, aiStatus: '微信已登录 · AI 可用' })
     }).catch(() => {
-      if (!this.__disposed) this.setData({ entryError: '微信登录暂未完成，先进入本机模式；提交 AI 或同步记录前请在 Account 完成登录。' })
+      if (!this.__disposed) this.setData({ entryError: '' })
     })
-    wx.navigateTo({ url: entry.url, fail: (error) => this.setData({ entryError: error.errMsg || '暂时无法打开入口，请重试。' }) })
-    this.setData({ entryLoading: '' })
+    wx.navigateTo({ url: entry.url, fail: () => this.setData({ entryError: '暂时无法打开，请重试。' }), complete: () => this.setData({ entryLoading: '' }) })
   },
 
   openStem() { wx.navigateTo({ url: '/pages/stem/capture' }) },

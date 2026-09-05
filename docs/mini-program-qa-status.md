@@ -2,40 +2,31 @@
 
 更新时间：2026-09-05（Asia/Shanghai）
 
-当前实现基线：`master@478522f` 包含四入口首页、A-Level/竞赛隔离的数据范围、原生 Camera/裁剪、Practice/Coach/Progress/Notebook/Past papers/Web workspace 页面，以及完整 IELTSist 功能目录；GitHub Actions 已通过，仍待真实 DevTools/真机复验。
+## 当前验收范围
+
+本轮修复竞赛入口、照片返回、草稿保存、Notebook 乱序响应、跨产品认证头、错误恢复及手机排版；详情见 [修复验收记录](qa-2026-09-05-runtime-fixes.md)。这些是小程序客户端修复，不代表网站、真实设备或正式发布已全部验收。
 
 ## 已验证
 
-- GitHub `master@478522f`：Actions `33918857082` 的 `npm run test:all` 和编译契约均通过；远端绿色仍不替代微信真机验收。
-- `npm run test:all`：契约、API 客户端、账号身份、会话清理、AI Coach 状态、STEM Coach 页面、attempt 同步、inventory、路线镜像、裁剪、设备分类、拍照流程、图片管线、页面组件和 WXML/WXSS 编译全部通过。
-- 本轮新增门禁：统一五项导航、真题目录 normalization/cache、学习摘要、WebView 主机 allowlist、手机/iPad 触点尺寸与布局、正文颜色对比度；均通过 `npm run test:all`。
-- 路线镜像：26 个客户端 route ID 与 STEM `src/data/routeRegistry.js` 一致，包含 IGCSE Biology 0610、A-Level、竞赛和入学考试路线。
-- 生产只读烟雾：`stem.ieltsist.com/healthz`、`/api/ai/status`、9702 AS syllabus inventory、`ieltsist.com/` 均返回 HTTP 200；当前 9702 AS inventory 报告 120 个已审核可练习题组。
-- 2026-09-05 生产范围复核：`cie-9702-as-physics` 返回 `ready=true`；BPhO、AMC 12、ESAT、TMUA 路线接口均可访问但当前 `verified/available=0`，因此竞赛入口会如实显示“当前以拍题/学习为主”，不会把 A-Level 题库数量冒充竞赛数据。
-- IELTSist 生产深链 `#home/#sequence/#exam/#vocabulary/#mine/#subscription` 均返回 HTTP 200；`POST /api/help/chat` 的空请求按契约返回 HTTP 400，证明路由存在且不会为无输入调用 AI。
+- 本机 `npm run test:all`：实际源码行为回归、账号/API 契约、路线镜像、裁剪与图片管线、手机/iPad 设备规则，以及安装版微信编译器的 WXML/WXSS 编译。
+- 当前微信开发者工具已授权。通过官方 `miniprogram-automator` SDK 运行 `scripts/test-devtools-journeys.cjs`，8 段实际运行通过，捕获运行异常为 0。
+- 390px 手机：四入口卡片间距 12px；竞赛入口直接到真题，BPhO 返回 133 份，搜索 2024 得 6 份，ESAT 返回 16 份。这里是整卷目录数量，**不是 reviewed Topic 题组数量**。
+- A2 Mathematics 特定试卷组合恢复、IELTS 菜单进入 Reading、计算器真实键入与运算、Coach 上下文和空输入反馈均已运行。
+- IELTSist AI 通过小程序运行时实际请求：HTTP 200，`mode=ai`，返回有效文字，无 warning。未将此结果当成 STEM 视觉批卷或语音通话的验收。
+- 14 项行为回归覆盖已发现的故障，包括相机取消后重拍、Writing 返回原编辑页、即时离开草稿保存、Notebook 跨路线响应隔离、IELTS/STEM token 隔离、退出后取消延迟保存，以及口语错误后重试可见。
+- 页面默认状态移除了开发说明、重复引导和未提交时的“反馈状态待确认”。有真实失败或未保存状态时，仍保留简短反馈与恢复动作。
 
-## 本轮修复
+## 仍需独立验收
 
-- 裁剪缩放事件绑定到 `movable-view`，启用 `scale-area`，关闭惯性并同步缩放后的 x/y，避免双指缩放失效或定位跳动。
-- STEM 拍题先进入原生 `camera` 取景页并调用 `wx.createCameraContext().takePhoto`；没有相机能力的开发者工具才降级到 `sourceType:['camera']`，不自动打开相册。
-- 设备 class 优先于 CSS 宽度：横屏 iPhone 不再套 iPad 双栏，窄屏 iPad mini 仍使用 tablet chrome；竖屏 tablet 自动改单栏。
-- STEM 路线补齐 0610；拍照页读取服务端 syllabus inventory，数量缺失时显示“—”，接口失败不阻塞拍照。
-- AI Coach 显示真实连接/本地提示/离线状态；视觉照片请求预算 60 秒，与服务端视觉 deadline 对齐。
-- 高分辨率照片使用有限质量阶梯压缩，超过 4MB 时不发送超限 payload。
-- 登录正确读取 STEM 响应中的 `identity`；显式退出清理账号私有证据，401 只清理过期会话并保留草稿/照片；STEM 照片 Coach 在登录后同步 provisional attempt 摘要，并核对服务端返回的 attempt ID。
-- 首页入口和 Account 已接入 `wx.login → /api/auth/wechat`；服务端映射 openid/unionid，Web workspace 使用一次性 handoff，不把 bearer token 放进 URL。
-- A-Level 与竞赛/入学考试共用前端组件但使用独立 `category/family`：路线选择、拍题上下文、QP 目录、attempt 摘要和进度回放均保留范围标签；IELTS 原生快捷页使用 `https://ieltsist.com/api/help/chat`，完整 Dashboard、Same‑Test、Random Exam、Vocabulary、Mine/Account、Subscription 和沉浸式控制通过 allowlisted WebView 深链进入。
+1. iPad 横竖屏真实运行、手机真机相机/裁剪、麦克风与 Qwen 实时口语；设备分类单测不能替代这些检查。
+2. 微信公众平台真实 AppID、request / downloadFile / web-view 域名及隐私保护指引。当前本地私有调试配置关闭域名校验，不能沿用为正式发布验收。
+3. 生产微信身份交换、账号续接、AI 视觉批卷、完整 IELTSist WebView 登录态与正式学习记录。客户端契约通过不等于服务端部署完成。
+4. 运营主体、联系方式、数据保存期限、删除请求入口及第三方处理者披露。应用内简短隐私说明不是完整上线合规审核。
+5. GitHub CI 必须对应本轮实际提交 SHA；旧提交绿色不能作为新代码通过证据。
 
-## 尚未替代真机验收的项目
+## 交付边界
 
-1. 微信开发者工具 CLI 当前未授权 `Codex` 客户端，因此本轮没有伪造模拟器截图。一次性在开发者工具安全设置允许后执行：
-
-   ```powershell
-   D:\微信web开发者工具\wechatide.cmd auth -c Codex
-   ```
-
-   然后刷新 `D:\CodexWork\stemist-miniprogram`，再验证手机/iPad 横竖屏、相机授权拒绝/恢复、裁剪缩放、真实 AI 请求和 web-view 口语。
-
-2. 正式发布前仍需公众平台配置真实 AppID、服务器域名、`ieltsist.com` web-view 业务域名，并在真实设备检查相机、麦克风和隐私弹窗。GitHub 公共树保留通用 `touristappid`；本地 AppID 在未跟踪的 `project.config.json` 中，没有被提交。
-
-小程序的完整 PDF/真题浏览与 Apple Pencil 连续批注仍由 iOS/网页端承载；小程序只执行 STEM 一题一拍、裁剪和 AI Coach 闭环，以及 IELTS 的快速文本/照片反馈。IELTS 正式计时、音频、完整报告、词汇和会员数据仍以 IELTSist WebView 为准。
+- 竞赛 / 入学考试仅提供真题入口；不依赖 Topic 达标数量决定是否能看卷。
+- A-Level 学科保留章节、真题、模拟、进度和笔记；小程序的原生输入为拍照与裁剪，无 Apple Pencil 输入。
+- IELTSist 的完整音频、计时、报告、词汇和会员控制仍通过允许域名的 WebView 进入；原生听力/阅读页面提供文本记录，写作支持打字和照片。
+- 没有部署生产服务器，没有提高或伪造题库 reviewed 状态。本地 AppID 和私有调试配置不进入 Git。

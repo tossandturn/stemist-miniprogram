@@ -31,8 +31,8 @@ function isAuthError(error) {
   return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
 
-function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST' } = {}) {
-  const token = wx.getStorageSync('stemistSessionToken')
+function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true } = {}) {
+  const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
   return new Promise((resolve, reject) => {
     const request = {
       url: `${origin}${path}`,
@@ -51,7 +51,7 @@ function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST' } 
         if (response.statusCode === 401) {
           // Keep an in-progress draft so the same learner can sign in again;
           // explicit logout still clears drafts and evidence completely.
-          clearLocalSession({ preserveDrafts: true })
+          if (stemAuth && token && token === wx.getStorageSync('stemistSessionToken')) clearLocalSession({ preserveDrafts: true })
           reject(requestError('登录已过期，原始输入仍保留。请重新登录后再使用 AI。', 401, 'auth_required'))
           return
         }
@@ -72,7 +72,7 @@ function requestJson(path, data, options = {}) {
 }
 
 function requestIeltsJson(path, data, options = {}) {
-  return requestJsonAt(ieltsBaseUrl(), path, data, options)
+  return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false })
 }
 
 function getJson(path, { timeout = 8000 } = {}) {
@@ -91,7 +91,7 @@ function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = []
   const payload = {
     message,
     contextText: String(context && (context.contextText || context.sourceQuestionExtract) || ''),
-    helpContext: context,
+    helpContext: { ...context, activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice' } },
     history: Array.isArray(history) ? history.slice(-8) : [],
   }
   if (images[0]) payload.imageDataUrl = images[0]

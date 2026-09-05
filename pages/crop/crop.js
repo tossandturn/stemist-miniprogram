@@ -52,7 +52,7 @@ Page({
           }
         })
       },
-      fail: (error) => this.setData({ busy: false, error: error.errMsg || '图片读取失败' }),
+      fail: () => this.setData({ busy: false, error: '照片读取失败，请返回重新拍摄。' }),
     })
   },
   exportCrop(sx, sy, sw, sh) {
@@ -74,7 +74,7 @@ Page({
         fileType: 'jpg',
         quality: 0.86,
         success: ({ tempFilePath }) => this.finish(tempFilePath),
-        fail: (error) => this.setData({ busy: false, error: error.errMsg || '裁剪失败，请重试' }),
+        fail: () => this.setData({ busy: false, error: '裁剪失败，请重试。' }),
       }, this))
     })
   },
@@ -83,8 +83,11 @@ Page({
     wx.removeStorageSync('stemistCropReturn')
     if (returnInfo.route === 'writing') {
       wx.setStorageSync('stemistWritingPhoto', path)
+      const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+      const index = pages.map((page) => page.route).lastIndexOf('pages/ielts/writing')
+      if (index < 0) { wx.redirectTo({ url: '/pages/ielts/writing' }); return }
       wx.navigateBack({
-        delta: 2,
+        delta: pages.length - 1 - index,
         fail: () => wx.redirectTo({ url: '/pages/ielts/writing' }),
       })
       return

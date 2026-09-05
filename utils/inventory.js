@@ -4,6 +4,7 @@ const INVENTORY_CACHE_TTL_MS = 60 * 1000
 const inventoryCache = new Map()
 
 function countOrNull(value) {
+  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null
   const count = Number(value)
   return Number.isFinite(count) && count >= 0 ? Math.floor(count) : null
 }

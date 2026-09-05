@@ -14,3 +14,5 @@
   .coach-actions { display: flex; align-items: center; }
   .coach-actions .secondary { width: auto; min-width: 260px; }
 }
+.coach-scope-select { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 12px 16px; border: 1px solid #e1e5ed; border-radius: 12px; color: #18213d; background: #fff; font-size: 14px; }
+.coach-scope-select text { color: #66708a; font-size: 12px; }

@@ -21,6 +21,6 @@ for (const page of app.pages) {
   }
 }
 
-assert.equal(app.pageOrientation, 'auto')
+assert.equal(app.window.pageOrientation, 'auto')
 assert.match(read('.gitignore'), /project\.private\.config\.json/)
 console.log(`Page/component contract passed for ${app.pages.length} pages.`)

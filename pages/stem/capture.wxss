@@ -1,4 +1,6 @@
 .capture-intro { margin-top: 0; }
+.capture-scope { display: flex; align-items: center; justify-content: space-between; color: #66708a; font-size: 13px; }
+.capture-scope .text-button { margin-top: 0; }
 .capture-page .camera-card { margin-top: 24rpx; }
 .capture-page .tablet-capture-guide { border-left-color: #7357e8; }
 .capture-page .phone-capture-guide { border-left-color: #3a9d85; }

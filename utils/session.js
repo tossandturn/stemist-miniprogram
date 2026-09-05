@@ -1,3 +1,4 @@
+const { discardPendingDrafts } = require('./page')
 const PRIVATE_SCOPES = ['listening', 'reading', 'writing', 'stem-photo']
 
 function clearLocalSession({ preserveDrafts = false } = {}) {
@@ -8,6 +9,8 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   // without taking the question again. Explicit logout still removes all
   // private evidence and drafts for shared-device safety.
   if (!preserveDrafts) {
+    discardPendingDrafts()
+    wx.removeStorageSync('stemistCameraReturn')
     wx.removeStorageSync('stemistCropReturn')
     wx.removeStorageSync('stemistRetakeContext')
     wx.removeStorageSync('stemistCroppedImage')
@@ -24,7 +27,7 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   // notes. Drafts remain only when the caller explicitly requests preservation.
   if (!preserveDrafts) {
     const keys = wx.getStorageInfoSync ? (wx.getStorageInfoSync().keys || []) : []
-    keys.filter((key) => /^stemistNotebook:/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
+    keys.filter((key) => /^stemist(?:Notebook|Draft|Submission):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
   }
 }
 

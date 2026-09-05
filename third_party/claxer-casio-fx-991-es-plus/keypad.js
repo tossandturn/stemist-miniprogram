@@ -37,6 +37,8 @@ const SCIENTIFIC_KEYS = Object.freeze([
 const NUMBER_KEYS = Object.freeze([
   { label: '(', value: '(', tone: 'operator' },
   { label: ')', value: ')', tone: 'operator' },
+  { label: 'π', value: 'pi', tone: 'constant' },
+  { label: 'e', value: 'e', tone: 'constant' },
   { label: '7', value: '7' },
   { label: '8', value: '8' },
   { label: '9', value: '9' },

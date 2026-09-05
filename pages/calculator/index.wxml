@@ -1,6 +1,5 @@
 <view class="page {{deviceClass}} {{orientation}} calculator-page">
-  <stemist-header eyebrow="STEMIST · CALCULATOR" title="科学计算器" subtitle="为 A-Level 学习准备的常用科学计算工具" action-text="返回" bind:action="goBack" />
-  <view class="calculator-note">熟悉的科学计算器按键布局；计算在本机完成，不上传算式。</view>
+  <stemist-header eyebrow="STEMIST · CALCULATOR" title="科学计算器"  action-text="返回" bind:action="goBack" />
 
   <view class="calculator-shell">
     <view class="calculator-display">
@@ -34,6 +33,5 @@
     <view wx:if="{{!history.length}}" class="empty-state">还没有计算记录。</view>
     <button wx:if="{{history.length}}" class="text-button" bindtap="clearHistory">清空历史</button>
   </view>
-  <view class="notice">支持四则运算、括号、幂、阶乘、百分比、三角与反三角、log/ln、平方根与立方根、Ans、记忆和 DEG/RAD。SHIFT 可切换每个按键左上角的第二功能。本工具不是 Casio 官方模拟器，也不替代考试规定的计算器。</view>
   <ai-fab source="calculator" />
 </view>

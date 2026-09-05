@@ -7,6 +7,7 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 ## Product scope
 
 - Home: exactly four primary entrances — A-Level subjects, IELTS, competitions/admissions, and a Casio-style scientific calculator.
+- Competitions/admissions open the past-paper catalog directly. There is no competition Topic generator or readiness gate in this entrance.
 - STEM: the web product's Topic/paper/progress/Notebook capabilities remain reachable; the mini-program input path is one photographed question through the native rear-camera page, crop before AI Coach review.
 - STEM route selection reads the server's syllabus inventory and, when signed in, saves a provisional photo-attempt summary to the shared STEM attempts API (the original photo is not persisted there).
 - IELTS: complete IELTSist workspace map — Dashboard, four skills, Same-Test, Random Exam, Vocabulary, Mine/Account, Subscription and AI Coach. Listening/Reading native quick notes use IELTSist `/api/help/chat`; full audio, paper, timer and report controls open through the allowlisted IELTSist WebView.
@@ -44,9 +45,11 @@ D:\微信web开发者工具\wechatide.cmd -c Codex simulator_screenshot --projec
 
 If CLI authorization is not enabled, use the Developer Tools Compile button; the repository's `test:wechat` command still validates every template and stylesheet locally.
 
+For actual page clicks, inputs and geometry checks, enable the Developer Tools automation endpoint on local port 9420 and run `node scripts/test-devtools-journeys.cjs`. Install the official `miniprogram-automator` SDK outside the upload tree and set `WECHAT_AUTOMATOR_MODULE` to its absolute module directory. The script's default points to this workstation's QA-only install. See [current QA status](docs/mini-program-qa-status.md) for tested paths and remaining real-device checks.
+
 ## Photo pipeline
 
-`wx.chooseMedia` captures exactly one image. The crop page exports a bounded JPEG. The Coach page converts it to a JPEG data URL only at submit time, sends it to the server, and renders explicit loading/error/retry states. The server remains responsible for provider credentials, image limits, provenance and AI scoring.
+The native `camera` page captures exactly one image using `wx.createCameraContext().takePhoto`. Only an unavailable-camera development environment falls back to a camera-only media picker. The crop page exports a bounded JPEG. The Coach page converts it to a JPEG data URL only at submit time, sends it to the server, and renders explicit loading/error/retry states. The server remains responsible for provider credentials, image limits, provenance and AI scoring.
 
 ## Current integration notes
 

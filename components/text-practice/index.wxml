@@ -3,9 +3,9 @@
     <view class="context-card-title">{{contextTitle}}</view>
     <view wx:if="{{contextText}}" class="context-card-text">{{contextText}}</view>
   </view>
-  <view class="field-label">文本答案 / 复盘</view>
+  <view class="field-label">答案与笔记</view>
   <textarea value="{{text}}" maxlength="6000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="{{placeholder}}" bindinput="onInput" />
-  <view class="text-practice-meta"><text>{{draftStatus}}</text><text>{{status}} · {{text.length}} 字符</text></view>
+  <view class="text-practice-meta"><text>{{draftStatus}}</text><text>{{status ? status + ' · ' : ''}}{{text.length}} 字</text></view>
   <button data-testid="text-submit" class="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{loading || !text}}">{{loading ? 'AI 正在分析…' : submitLabel}}</button>
   <button class="secondary" bindtap="onClear" disabled="{{loading}}">清空当前记录</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>

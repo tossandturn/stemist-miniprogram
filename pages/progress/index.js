@@ -4,8 +4,8 @@ const { localLearningSummary, mergeLearningRecords, remoteLearningRecords } = re
 const { categoryForRoute, familyForCategoryStage } = require('../../utils/stemCatalog')
 
 function scopeLabel(record = {}) {
-  if (record.category === 'competition' || record.family === 'competition') return '竞赛 / 入学考试'
-  if (record.category === 'alevel' || record.category === 'stem' || ['exam', 'admissions'].includes(record.family)) return 'A-Level 学科'
+  if (record.category === 'competition' || ['competition', 'admissions'].includes(record.family)) return '竞赛 / 入学考试'
+  if (record.category === 'alevel' || record.category === 'stem' || record.family === 'exam') return 'A-Level 学科'
   return 'IELTSist'
 }
 
@@ -52,8 +52,9 @@ Page({
     }
     if (latest && latest.routeId) {
       const category = latest.category || categoryForRoute(latest.routeId)
+      if (category === 'competition') { wx.navigateTo({ url: '/pages/papers/index?category=competition' }); return }
       wx.setStorageSync('stemistRetakeContext', { category, family: latest.family || familyForCategoryStage(category, latest.stage || 'AS'), routeId: latest.routeId, stage: latest.stage || 'AS', subjectCode: latest.subjectCode || '9702', subject: latest.subject || 'Physics' })
     }
-    wx.navigateTo({ url: '/pages/practice/index' })
+    wx.navigateTo({ url: '/pages/practice/index?category=alevel' + (latest?.routeId ? '&routeId='+encodeURIComponent(latest.routeId) : '') })
   },
 })

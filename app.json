@@ -23,19 +23,15 @@
     "navigationBarTitleText": "Stemist",
     "navigationBarBackgroundColor": "#101a38",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#f5f7fb"
+    "backgroundColor": "#f5f7fb",
+    "pageOrientation": "auto"
   },
   "networkTimeout": {
     "request": 60000,
     "downloadFile": 60000,
     "connectSocket": 60000
   },
-  "pageOrientation": "auto",
   "lazyCodeLoading": "requiredComponents",
-  "permission": {
-    "scope.camera": { "desc": "用于拍摄 STEM 题目和 IELTS 手写作文" },
-    "scope.record": { "desc": "用于 IELTSist 实时口语练习" }
-  },
   "__usePrivacyCheck__": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json"

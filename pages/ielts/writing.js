@@ -6,7 +6,7 @@ const { ieltsWebUrl } = require('../../utils/ieltsCatalog')
 
 Page({
   data: deviceState({
-    text: '', prompt: '', photoPath: '', taskType: 'Task 2', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', draftStatus: '自动保存已开启', fullWorkspaceUrl: ieltsWebUrl('writing', { source: 'mini-writing' }),
+    text: '', prompt: '', photoPath: '', taskType: 'Task 2', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '', draftStatus: '自动保存已开启', fullWorkspaceUrl: ieltsWebUrl('writing', { source: 'mini-writing' }),
   }),
   onLoad() {
     this.__disposed = false
@@ -36,7 +36,7 @@ Page({
     if (this.data.loading) return
     wx.navigateTo({
       url: '/pages/stem/capture?returnPage=writing',
-      fail: (error) => this.setData({ error: error.errMsg || '无法打开拍照页，请重试' }),
+      fail: () => this.setData({ error: '无法打开拍照页，请返回重试。' }),
     })
   },
   async submit() {
@@ -54,16 +54,17 @@ Page({
       if (this.__disposed) return
       const answer = result.answer || 'AI 返回了空结果，请重试。'
       wx.setStorageSync('stemistSubmission:writing', { category: 'ielts', skill: 'writing', text, prompt, photoPath: this.data.photoPath, taskType: this.data.taskType, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
-      clearDraft('writing')
+      const receivedAi = result.mode === 'ai' && result.providerStatus === 'connected'
+      if (receivedAi) clearDraft('writing')
       const coachState = result.coachState || {}
-      this.setData({ answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
+      this.setData({ answer, warning: coachState.warning || '', canRetry: !receivedAi, coachStatus: coachState.label || '反馈状态待确认', draftStatus: receivedAi ? '反馈已收到' : '草稿已保留' })
     } catch (error) { if (!this.__disposed) this.setData({ error: error.message || 'AI 暂时不可用，原始作文已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' }) }
     finally { if (!this.__disposed) this.setData({ loading: false }) }
   },
   retry() { if (!this.data.loading) this.submit() },
   openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
   openFullWorkspace() {
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(this.data.fullWorkspaceUrl)}`, fail: (error) => this.setData({ error: error.errMsg || '完整 IELTSist Writing 暂时无法打开。' }) })
+    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(this.data.fullWorkspaceUrl)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
   },
   clear() {
     if (this.data.loading) return

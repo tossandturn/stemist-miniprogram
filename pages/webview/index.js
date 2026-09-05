@@ -34,6 +34,9 @@ function coachContextForUrl(url) {
 Page({
   data: deviceState({ url: '', error: '', loaded: false, coachSource: 'webview', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
   onLoad(options) {
+    this.__disposed = false
+    const epoch = (this.__epoch || 0) + 1
+    this.__epoch = epoch
     const url = allowedUrl(options && options.url)
     this.__rawUrl = url
     this.setData({ url: '', loaded: false, error: url ? '' : '这个网页地址不在 Stemist/IELTSist 安全范围内。', ...coachContextForUrl(url) })
@@ -51,17 +54,20 @@ Page({
       const returnTo = pathAndQuery
       requestJson('/api/auth/webview-handoff', { returnTo, target }, { method: 'POST', timeout: 6000 })
         .then((payload) => {
+          if (this.__disposed || epoch !== this.__epoch) return
           const handoff = allowedUrl(payload && payload.url)
           this.setData({ url: handoff || url })
         })
-        .catch(() => this.setData({ url, error: '账号接续暂不可用；网页仍可打开，必要时在网页内登录。' }))
+        .catch(() => { if (!this.__disposed && epoch === this.__epoch) this.setData({ url }) })
     } else {
       this.setData({ url })
     }
   },
   onShow() { syncDevice(this) },
+  onUnload() { this.__disposed = true; this.__epoch += 1 },
   onResize() { syncDevice(this) },
   onLoadWebView() { this.setData({ loaded: true }) },
-  onError() { this.setData({ error: '网页工作区暂时无法打开，请检查网络或业务域名配置。' }) },
+  onError() { this.setData({ url: '', loaded: false, error: '页面暂时无法打开，请重试。' }) },
+  retry() { this.onLoad({ url: encodeURIComponent(this.__rawUrl || '') }) },
   back() { wx.navigateBack() },
 })

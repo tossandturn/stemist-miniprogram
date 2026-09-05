@@ -1,13 +1,12 @@
 <view class="page {{deviceClass}} {{orientation}} crop-page">
-  <stemist-header eyebrow="STEMIST · EVIDENCE" title="裁剪照片" subtitle="Keep the question, diagram and answer in frame" action-text="取消" bind:action="cancel" />
-  <view class="subtitle crop-intro">拖动或缩放图片，让当前题目和答案落在框内。裁剪只在本机完成，确认后才会发送给 AI Coach。</view>
+  <stemist-header eyebrow="STEMIST · EVIDENCE" title="裁剪照片"  action-text="取消" bind:action="cancel" />
+  <view class="crop-intro">拖动、缩放，让题目与答案留在框内。</view>
   <movable-area class="crop-stage" scale-area="true">
     <movable-view class="crop-content" direction="all" x="{{x}}" y="{{y}}" scale="{{true}}" scale-value="{{scale}}" scale-min="1" scale-max="3" out-of-bounds="{{true}}" inertia="{{false}}" animation="{{false}}" bindchange="onMove" bindscale="onScale">
       <image class="crop-image" src="{{src}}" mode="aspectFit" />
     </movable-view>
     <view class="crop-box" aria-label="裁剪区域"></view>
   </movable-area>
-  <view class="crop-hint">建议：横屏 iPad 拍含图表的题目，手机竖屏拍单个题号；不要把多道题合并。</view>
   <button class="primary" bindtap="confirm" loading="{{busy}}" disabled="{{busy || !src}}">使用裁剪后的照片</button>
   <button class="secondary" bindtap="cancel">取消</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>

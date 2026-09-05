@@ -1,28 +1,25 @@
 <view class="page {{deviceClass}} {{orientation}} progress-page">
-  <stemist-header eyebrow="STEMIST · PROGRESS" title="看见下一步" subtitle="只显示本机或服务器真实记录，不猜分数。" />
+  <stemist-header eyebrow="STEMIST · PROGRESS" title="学习记录" />
   <app-nav active="progress" is-tablet="{{isTablet}}" />
 
   <view class="metric-grid progress-metrics">
-    <view class="metric"><text class="metric-label">本周提交</text><text class="metric-value">{{weekCount}}</text><text class="metric-detail">真实学习记录</text></view>
-    <view class="metric"><text class="metric-label">历史提交</text><text class="metric-value">{{localCount}}</text><text class="metric-detail">本机摘要</text></view>
+    <view class="metric"><text class="metric-label">本周提交</text><text class="metric-value">{{weekCount}}</text><text class="metric-detail"></text></view>
+    <view class="metric"><text class="metric-label">历史提交</text><text class="metric-value">{{localCount}}</text><text class="metric-detail"></text></view>
     <view class="metric"><text class="metric-label">待恢复草稿</text><text class="metric-value">{{draftCount}}</text><text class="metric-detail">返回即可继续</text></view>
     <view class="metric"><text class="metric-label">云端状态</text><text class="metric-value">{{remoteState === 'ready' ? '已同步' : (remoteState === 'loading' ? '读取中' : (remoteState === 'signed-out' ? '未连接' : '待重试'))}}</text><text class="metric-detail">{{remoteError || 'STEM 学习记录'}}</text></view>
   </view>
 
   <view class="card next-card">
-    <view class="section-kicker">NEXT BEST ACTION</view>
-    <view class="card-title">继续一个薄弱点，或打开你的 Notebook</view>
-    <view class="card-detail">Progress 只负责回到学习闭环；它不会把本地摘要冒充正式成绩。</view>
+    <view class="card-title">继续学习</view>
     <button class="primary" bindtap="continueLearning">继续练习</button>
-    <button class="secondary" bindtap="openNotebook">打开 Notebook</button>
+    <button class="secondary" bindtap="openNotebook">笔记本</button>
   </view>
 
   <view class="section-title">最近活动</view>
   <view wx:if="{{records.length}}" class="record-list">
     <view wx:for="{{records}}" wx:key="submittedAt" class="record-row"><view class="record-mark"></view><view class="record-copy"><text class="record-title">{{item.skill || item.taskType || '学习提交'}}</text><text class="record-detail">{{item.scopeLabel}}{{item.scopeRoute}} · {{item.coachMode === 'ai' ? 'AI 反馈' : '状态待确认'}}</text></view><text class="record-time">已提交</text></view>
   </view>
-  <view wx:else class="empty-state"><view class="empty-title">还没有提交记录</view><view class="empty-detail">先完成一题，Progress 会显示下一步。</view><button class="secondary" bindtap="continueLearning">开始第一题</button></view>
+  <view wx:else class="empty-state"><view class="empty-title">还没有提交记录</view><view class="empty-detail">完成练习后，记录会显示在这里。</view><button class="secondary" bindtap="continueLearning">开始第一题</button></view>
 
-  <view wx:if="{{remoteState === 'error'}}" class="warning">{{remoteError}} 登录状态和本机草稿不受影响；稍后可再次打开本页重试。</view>
-  <view class="notice">Notebook 只保存你主动写下的学习笔记；服务器端按账号隔离，其他人不可见。</view>
+  <view wx:if="{{remoteState === 'error'}}" class="warning">{{remoteError}} 稍后可重试。</view>
 </view>

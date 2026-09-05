@@ -74,6 +74,7 @@ Page({
     this.setData({ syncing: true, syncStatus: '正在同步学习记录…' })
     try {
       const synced = await syncStemPhotoAttempt(this.__pendingSync)
+      if (synced && synced.skipped) throw new Error('session_required')
       const previous = wx.getStorageSync('stemistSubmission:stem-photo') || {}
       wx.setStorageSync('stemistSubmission:stem-photo', { ...previous, attemptId: String(synced && (synced.clientAttemptId || synced.attempt?.attemptId) || this.__pendingSync.attemptId || ''), syncStatus: '已同步到 STEM 学习记录' })
       this.__pendingSync = null

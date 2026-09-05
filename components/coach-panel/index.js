@@ -1,14 +1,15 @@
 Component({
   properties: {
     message: { type: String, value: '' },
+    maxLength: { type: Number, value: 6000 },
     answer: { type: String, value: '' },
     warning: { type: String, value: '' },
-    status: { type: String, value: '反馈状态待确认' },
+    status: { type: String, value: '' },
     loading: { type: Boolean, value: false },
     disabled: { type: Boolean, value: false },
     placeholder: { type: String, value: '告诉 AI Coach 你想检查什么（可选）' },
     submitLabel: { type: String, value: '提交给 AI Coach' },
-    helper: { type: String, value: 'AI Coach 会基于当前证据给出下一步建议。' },
+    helper: { type: String, value: '' },
     error: { type: String, value: '' },
     canRetry: { type: Boolean, value: false },
     authRequired: { type: Boolean, value: false },

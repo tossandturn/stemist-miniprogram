@@ -1,8 +1,7 @@
 <view class="page {{deviceClass}} {{orientation}} webview-page">
-  <stemist-header eyebrow="STEMIST · 完整网页" title="打开完整学习空间" subtitle="完整 PDF、标答和沉浸式练习由网页承载。" action-text="返回" bind:action="back" />
+  <stemist-header eyebrow="STEMIST · 完整网页" title="学习工作区" action-text="返回" bind:action="back" />
   <web-view wx:if="{{url}}" class="full-webview" src="{{url}}" bindload="onLoadWebView" binderror="onError"></web-view>
-  <view wx:if="{{!loaded && url}}" class="loading-state">正在打开完整学习空间…</view>
-  <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view class="notice">只允许打开 Stemist 与 IELTSist 的 HTTPS 页面；小程序不会把其他网站嵌入到学习流程。</view>
+  <view wx:if="{{!loaded && url}}" class="loading-state">正在加载…</view>
+  <view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="retry">重试</button></view>
   <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>
