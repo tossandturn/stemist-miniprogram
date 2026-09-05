@@ -6,3 +6,4 @@ node_modules/
 !.env.example
 miniprogram_npm/
 project.private.config.json
+.learnings/

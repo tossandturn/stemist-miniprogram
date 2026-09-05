@@ -39,4 +39,5 @@ assert.equal(JSON.stringify(keypadModule.exports.NUMBER_KEYS.slice(4, 8).map(key
 assert.equal(tokenize('2×π').length, 3)
 assert.throws(() => evaluateExpression('1/0'), /不能除以 0/)
 assert.throws(() => evaluateExpression('unknown(2)'), /不支持的函数/)
+assert.throws(() => evaluateExpression('tan(90)'), /定义域/)
 console.log('Safe scientific calculator engine passed.')

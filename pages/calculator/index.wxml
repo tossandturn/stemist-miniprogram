@@ -1,37 +1,29 @@
 <view class="page {{deviceClass}} {{orientation}} calculator-page">
-  <stemist-header eyebrow="STEMIST · CALCULATOR" title="科学计算器"  action-text="返回" bind:action="goBack" />
-
+  <stemist-header compact="{{true}}" title="计算器" action-text="返回" bind:action="goBack" />
+  <ai-fab source="calculator" />
   <view class="calculator-shell">
     <view class="calculator-display">
-      <view class="display-status"><text>COMP</text><text>{{angleMode}}</text><text wx:if="{{shiftActive}}">SHIFT</text><text wx:if="{{memory}}">M</text></view>
-      <input class="expression-input" value="{{expression}}" maxlength="500" confirm-type="done" cursor-spacing="24" placeholder="输入算式，例如 sin(30)+2^3" bindinput="onInput" bindconfirm="onConfirm" />
-      <view class="display-result">{{display}}</view>
+      <view class="display-status"><text>{{angleMode}}{{shiftActive ? ' · SHIFT' : ''}}</text><text wx:if="{{memory}}">M {{memoryDisplay}}</text></view>
+      <input class="expression-input" value="{{expression}}" cursor="{{cursor}}" maxlength="500" confirm-type="done" cursor-spacing="24" placeholder="输入算式" aria-label="算式" bindinput="onInput" bindfocus="onEditorFocus" bindblur="onEditorBlur" bindconfirm="onConfirm" />
+      <view class="result-row"><view class="cursor-actions"><button class="cursor-key" data-action="left" aria-label="光标左移" bindtap="press">‹</button><button class="cursor-key" data-action="right" aria-label="光标右移" bindtap="press">›</button></view><scroll-view class="result-scroll" scroll-x><text class="display-result">{{display}}</text></scroll-view></view>
+      <view wx:if="{{error}}" class="calculator-error" role="alert">{{error}}</view>
     </view>
-
-    <view class="calculator-actions mode-actions">
-      <button wx:for="{{modeKeys}}" wx:key="action" class="calc-key calc-{{item.tone || 'default'}} {{item.action === 'shift' && shiftActive ? 'is-active' : ''}}" data-action="{{item.action}}" bindtap="press">{{item.label}}</button>
+    <view class="calculator-toolbar">
+      <button wx:if="{{!isTablet || orientation !== 'landscape'}}" class="calc-tool {{showScientific ? 'selected' : ''}}" bindtap="toggleScientific">函数</button>
+      <button class="calc-tool {{showMemory ? 'selected' : ''}}" bindtap="toggleMemory">记忆</button>
+      <button class="calc-tool {{showHistory ? 'selected' : ''}}" bindtap="toggleHistory">历史</button>
+      <button class="calc-tool" data-action="copy" bindtap="press" disabled="{{!hasResult}}">复制</button>
     </view>
-    <view class="calculator-actions scientific-actions">
-      <button wx:for="{{scientificKeys}}" wx:key="label" class="calc-key calc-{{item.tone || 'default'}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" data-shift-action="{{item.shiftAction || ''}}" data-shift-value="{{item.shiftValue || ''}}" bindtap="press">
-        <text wx:if="{{item.shiftLabel}}" class="shift-label">{{item.shiftLabel}}</text>
-        <text class="primary-label">{{item.label}}</text>
-      </button>
-    </view>
-    <view class="calculator-keypad">
-      <button wx:for="{{numberKeys}}" wx:key="label" class="calc-key calc-{{item.tone || 'number'}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" bindtap="press">{{item.label}}</button>
-      <button class="calc-key calc-equals" data-action="equals" bindtap="press">=</button>
-    </view>
-    <view class="calculator-actions memory-actions">
-      <button wx:for="{{memoryKeys}}" wx:key="action" class="calc-key calc-{{item.tone || 'default'}}" data-action="{{item.action}}" bindtap="press">{{item.label}}</button>
+    <view wx:if="{{showMemory}}" class="memory-panel"><view class="calculator-actions memory-actions"><button wx:for="{{memoryKeys}}" wx:key="action" class="calc-key calc-memory" data-action="{{item.action}}" bindtap="press">{{item.label}}</button></view></view>
+    <view class="calculator-keyboards">
+      <view wx:if="{{showScientific || (isTablet && orientation === 'landscape')}}" class="scientific-panel">
+        <view class="calculator-actions scientific-actions"><button wx:for="{{scientificKeys}}" wx:key="label" class="calc-key calc-function {{shiftActive ? 'shifted' : ''}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" data-shift-action="{{item.shiftAction || ''}}" data-shift-value="{{item.shiftValue || ''}}" bindtap="press"><text class="shift-label">{{shiftActive ? item.label : item.shiftLabel}}</text><text class="primary-label">{{shiftActive && item.shiftLabel ? item.shiftLabel : item.label}}</text></button></view>
+      </view>
+      <view class="numeric-panel">
+        <view class="calculator-actions mode-actions"><button wx:for="{{modeKeys}}" wx:key="action" class="calc-key calc-mode {{item.action === 'shift' && shiftActive ? 'is-active' : ''}} {{item.action === 'clear' ? 'calc-clear' : ''}}" data-action="{{item.action}}" bindtap="press">{{item.action === 'angle' ? angleMode : item.label}}</button></view>
+        <view class="calculator-keypad"><button wx:for="{{numberKeys}}" wx:key="label" class="calc-key calc-{{item.tone || 'number'}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" bindtap="press">{{item.label}}</button><button class="calc-key calc-operator" data-value="(" bindtap="press">(</button><button class="calc-key calc-operator" data-value=")" bindtap="press">)</button><button class="calc-key calc-constant" data-value="pi" bindtap="press">π</button><button class="calc-key calc-equals" data-action="equals" bindtap="press">=</button></view>
+      </view>
     </view>
   </view>
-
-  <view wx:if="{{error}}" class="error">{{error}}</view>
-  <view class="history-head"><view class="section-title">最近计算</view><button class="text-button" bindtap="toggleHistory">{{showHistory ? '收起' : '查看历史'}}</button></view>
-  <view wx:if="{{showHistory}}" class="history-list">
-    <view wx:for="{{history}}" wx:key="at" class="history-row" data-index="{{index}}" bindtap="restoreHistory"><text>{{item.expression}}</text><text>= {{item.result}}</text></view>
-    <view wx:if="{{!history.length}}" class="empty-state">还没有计算记录。</view>
-    <button wx:if="{{history.length}}" class="text-button" bindtap="clearHistory">清空历史</button>
-  </view>
-  <ai-fab source="calculator" />
+  <view wx:if="{{showHistory}}" class="history-list"><view class="history-head"><text>计算历史</text><button wx:if="{{history.length}}" class="text-button" bindtap="clearHistory">清空</button></view><button wx:for="{{history}}" wx:key="at" class="history-row" data-index="{{index}}" bindtap="restoreHistory"><view class="history-expression">{{item.expression}}</view><view class="history-result"><text>{{item.angleMode}}</text><text>= {{item.result}}</text></view></button><view wx:if="{{!history.length}}" class="empty-state">还没有计算记录</view></view>
 </view>

@@ -171,7 +171,7 @@ function applyFunction(name, value, { toRadians, fromRadians }) {
     sin: (input) => Math.sin(toRadians(input)),
     sinh: Math.sinh,
     sqrt: Math.sqrt,
-    tan: (input) => Math.tan(toRadians(input)),
+    tan: (input) => { const radians = toRadians(input); if (Math.abs(Math.cos(radians)) < 1e-14) fail('tan 的输入不在定义域内'); return Math.tan(radians) },
     tanh: Math.tanh,
   }
   const result = functions[name](value)

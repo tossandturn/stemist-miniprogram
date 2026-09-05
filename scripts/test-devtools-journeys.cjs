@@ -10,6 +10,7 @@ const timeout = (operation, ms=15000) => {
 ;(async()=>{
   const app=await timeout(automator.connect({wsEndpoint:'ws://127.0.0.1:9420'}))
   const report=[]
+  let calculatorBackup=false
   const exceptions=[]
   app.on('exception',error=>exceptions.push(String(error.message||error).slice(0,250)))
   const step=async(name,action)=>{ const detail=await timeout(action(),20000); report.push({name,status:'pass',detail}); console.log(JSON.stringify(report.at(-1))) }
@@ -61,13 +62,13 @@ const timeout = (operation, ms=15000) => {
       return {visibleFeatures:10,readingOpened:true}
     })
     await step('calculator real input and equals',async()=>{
-      await app.evaluate(()=>{getApp().__qaCalculatorHistory=wx.getStorageSync('stemistCalculatorHistory')})
+      await app.evaluate(()=>{const keys=['stemistCalculatorHistory','stemistCalculatorState'];const present=wx.getStorageInfoSync().keys;getApp().__qaJourneyCalculator=keys.map(key=>({key,exists:present.includes(key),value:wx.getStorageSync(key)}))})
+      calculatorBackup=true
       const page=await app.reLaunch('/pages/calculator/index');await page.waitFor('.expression-input')
       await(await page.$('.expression-input')).input('-2^2');await(await page.$('.calc-equals')).tap()
       await page.waitFor(async()=>await page.data('display')==='-4')
       const keys=await page.$$('.calculator-keypad .calc-key')
       for(const key of keys.slice(0,4)){const size=await key.size();assert.ok(Number(size.width)>=44&&Number(size.height)>=44)}
-      await app.evaluate(()=>{const value=getApp().__qaCalculatorHistory;if(value)wx.setStorageSync('stemistCalculatorHistory',value);else wx.removeStorageSync('stemistCalculatorHistory');delete getApp().__qaCalculatorHistory})
       return {result:await page.data('display')}
     })
     await step('Coach context and empty-submit handling',async()=>{
@@ -80,5 +81,8 @@ const timeout = (operation, ms=15000) => {
     assert.equal(exceptions.length,0,'runtime exceptions: '+exceptions.join(';'))
     await app.reLaunch('/pages/index/index')
     console.log(JSON.stringify({summary:'pass',steps:report.length,runtimeExceptions:exceptions.length,device:'WeChat DevTools iPhone 390x753'}))
-  } finally { app.disconnect() }
+  } finally {
+    if(calculatorBackup){await app.reLaunch('/pages/index/index');await app.evaluate(()=>{for(const item of getApp().__qaJourneyCalculator||[]){if(item.exists)wx.setStorageSync(item.key,item.value);else wx.removeStorageSync(item.key)}delete getApp().__qaJourneyCalculator})}
+    app.disconnect()
+  }
 })().catch(error=>{console.error(error.message);process.exitCode=1})

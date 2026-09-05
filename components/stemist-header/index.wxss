@@ -7,4 +7,8 @@
 .workspace-header-subtitle { margin-top: 8px; color: #66708a; font-size: 14px; line-height: 1.6; }
 .workspace-header-action { display: flex; align-items: center; min-width: 52px; min-height: 44px; width: auto; margin: 0; padding: 8px 12px; border: 0; border-radius: 10px; color: #5638b8; background: #f0ecfb; font-size: 14px; }
 .workspace-header-action::after { border: 0; }
+.workspace-header-compact { display: flex; align-items: center; min-height: 44px; padding-right: 128px; margin-bottom: 14px; gap: 8px; }
+button.workspace-header-back { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; min-width: 44px; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 12px; background: #ede9fa; color: #5434b5; font-size: 28px; line-height: 1; }
+button.workspace-header-back::after { border: 0; }
+.workspace-header-compact-title { color: #18213d; font-size: 20px; font-weight: 700; }
 @media (min-width: 768px) { .workspace-header-title { font-size: 28px; } }

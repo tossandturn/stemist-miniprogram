@@ -1,4 +1,7 @@
-<view class="workspace-header">
+<view wx:if="{{compact}}" class="workspace-header-compact">
+  <button wx:if="{{actionText}}" class="workspace-header-back" aria-label="{{actionText}}" bindtap="onAction">‹</button><text class="workspace-header-compact-title">{{title}}</text>
+</view>
+<view wx:else class="workspace-header">
   <view class="header-top">
     <button wx:if="{{actionText}}" class="workspace-header-action" bindtap="onAction">{{actionText}}</button>
     <text wx:else class="header-brand">STEMist</text>
