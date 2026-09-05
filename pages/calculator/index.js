@@ -3,6 +3,7 @@ const { evaluateExpression, formatNumber } = require('../../utils/calculator')
 const { CONTROL_KEYS, NUMBER_ROWS, SCIENTIFIC_ROWS, UPSTREAM } = require('../../utils/cwKeypad')
 const { cwMethods, VARIABLES } = require('../../utils/cwController')
 const { resultFormat } = require('../../utils/cwMath')
+const { insertKey, moveCursor, snapCursor, removeBackward } = require('../../utils/cwEditor')
 const HISTORY_KEY = 'stemistCalculatorHistory'
 const STATE_KEY = 'stemistCalculatorState'
 const MAX_HISTORY = 20
@@ -26,46 +27,87 @@ Page({
     history: [], showHistory: false, showScientific: false, showMemory: false,
     memoryKeys: MEMORY_KEYS, controlKeys: CONTROL_KEYS, scientificRows: SCIENTIFIC_ROWS, numberRows: NUMBER_ROWS, calculatorSource: UPSTREAM.repository,
     menu: '', menuTitle: '', menuItems: [], menuIndex: 0, workbench: '', workTitle: '', workFields: [], workResults: [], workError: '', workSubmitLabel:'计算', keyboardHeight:0,
-    powerOff: false, overwrite: false, typing: false, formatMode: 'decimal', formatted: {kind:'number',text:'0'}, expressionParts: [{kind:'text',text:'0'}],
+    workScrollHeight:120, workSheetHeight:286, workCompact:false, workFieldTarget:'', workGeneration:0, safeBottom:0, workDrafts:{},
+    powerOff: false, overwrite: false, typing: false, editorGeneration:0, formatMode: 'decimal', formatted: {kind:'number',text:'0'}, expressionParts: [{kind:'text',text:'0'}],
     variables: Object.fromEntries(VARIABLES.map(name=>[name,0])), functions: {},
   }),
   onLoad() {
+    this.__disposed = false
+    this.__closedEditorGeneration = -1
+    this.__savePending = false
     const saved = wx.getStorageSync(STATE_KEY)
     const state = saved && typeof saved === 'object' ? saved : {}
     const expression = typeof state.expression === 'string' ? state.expression.slice(0, MAX_INPUT) : ''
     this.__justEvaluated = Boolean(state.justEvaluated)
     this.__replayAnswer = typeof state.replayAnswer === 'number' ? finite(state.replayAnswer) : undefined
     this.__replayContext = state.replayContext
+    this.__historyDraft = state.historyDraft && typeof state.historyDraft.expression==='string' && state.historyDraft.expression.length<=MAX_INPUT ? state.historyDraft : null
+    this.__historyIndex = this.__historyDraft && Number.isInteger(state.historyIndex) ? Math.max(-1,Math.min(MAX_HISTORY-1,state.historyIndex)) : -1
     this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: finite(state.answer), memory: finite(state.memory), memoryDisplay: formatNumber(finite(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 60) : '0', history: readHistory(),
       variables: Object.fromEntries(VARIABLES.map(name=>[name,finite(state.variables?.[name])])),
       functions: Object.fromEntries(['f','g'].filter(name=>typeof state.functions?.[name]==='string').map(name=>[name,state.functions[name].slice(0,500)])),
       formatMode: ['decimal','fraction','mixed','engineering','fixed','scientific'].includes(state.formatMode) ? state.formatMode : 'decimal',
+      workDrafts: state.workDrafts && typeof state.workDrafts === 'object' && !Array.isArray(state.workDrafts) ? state.workDrafts : {},
     })
     if(this.data.hasResult) { try { this.setData({formatted:resultFormat(this.data.answer,this.data.formatMode)}) } catch { this.setData({formatMode:'decimal',formatted:resultFormat(this.data.answer)}) } }
     this.renderExpression()
   },
-  onShow() { syncDevice(this) },
-  onResize() { syncDevice(this) },
-  onUnload() { this.persistState() },
-  goBack() { wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/index/index' }) }) },
+  onShow() { syncDevice(this);this.updateWorkbenchLayout() },
+  onResize(event={}) { if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
+  onHide() { this.saveWorkbenchDraft();this.flushState() },
+  onUnload() { this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
+  goBack() { if(!this.__disposed)wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/index/index' }) }) },
   persistState() {
-    try {
-      const { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode } = this.data
-      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext })
-    } catch { this.setData({ error: '无法保存到本机，请检查存储空间。' }) }
+    if(this.__disposed)return
     this.renderExpression()
+    this.__savePending = true
+    if(this.__saveTimer)clearTimeout(this.__saveTimer)
+    this.__saveTimer=setTimeout(()=>this.flushState(),180)
+  },
+  flushState() {
+    if(this.__saveTimer)clearTimeout(this.__saveTimer)
+    this.__saveTimer=null
+    if(!this.__savePending)return
+    try {
+      const { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, workDrafts } = this.data
+      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, workDrafts, justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
+      this.__savePending=false
+    } catch { if(!this.__disposed)this.setData({ error: '无法保存到本机，请检查存储空间。' }) }
+  },
+  invalidateReplay() {
+    this.__replayAnswer=undefined
+    this.__replayContext=undefined
+    this.__lastAnswerBasis=undefined
+    this.__historyIndex=-1
+    this.__historyDraft=null
   },
   onInput(event) {
+    if(this.__disposed)return
+    const generation=event.currentTarget?.dataset?.editorGeneration
+    if(generation!==undefined&&(Number(generation)!==this.data.editorGeneration||Number(generation)<=this.__closedEditorGeneration))return
     const expression = String(event.detail.value || '').slice(0, MAX_INPUT)
-    if (this.__justEvaluated) { this.__replayAnswer = undefined; this.__replayContext = undefined }
+    if(expression !== this.data.expression)this.invalidateReplay()
     this.__justEvaluated = false
     this.setData({ expression, cursor: cursorIn(event.detail.cursor, expression), display: expression ? '' : '0', hasResult: false, error: '' })
     this.persistState()
   },
-  onEditorFocus() { this.__justEvaluated = false },
-  onEditorBlur(event) { this.setData({ cursor: cursorIn(event.detail.cursor, this.data.expression), typing:false }) },
-  onConfirm() { this.runAction('equals') },
+  onEditorFocus() { if(!this.__disposed)this.__justEvaluated = false },
+  onEditorBlur(event) {
+    if(this.__disposed)return
+    const generation=Number(event.currentTarget?.dataset?.editorGeneration ?? this.data.editorGeneration)
+    if(generation!==this.data.editorGeneration||generation<=this.__closedEditorGeneration)return
+    this.setData({ cursor: snapCursor(this.data.expression,cursorIn(event.detail.cursor,this.data.expression)), typing:false });this.persistState()
+  },
+  finishNativeEditor() {
+    if(!this.data.typing)return
+    this.__closedEditorGeneration=this.data.editorGeneration
+    this.setData({typing:false})
+    if(typeof wx.hideKeyboard==='function')wx.hideKeyboard({})
+  },
+  onConfirm() { this.finishNativeEditor();this.runAction('equals') },
   append(value) {
+    if(this.__disposed)return
+    this.finishNativeEditor()
     if(this.data.powerOff || this.data.menu) return
     let text = String(value || '')
     if (!text) return
@@ -77,14 +119,16 @@ Page({
       this.__replayAnswer = undefined
       this.__replayContext = undefined
     }
-    if (/(?:ans|pi|[ABCDEFexyz])$/.test(current.slice(0,cursor)) && /^[a-zA-Z]/.test(text)) text = '*' + text
-    const expression = current.slice(0, cursor) + text + current.slice(cursor + (this.data.overwrite && text.length === 1 ? 1 : 0))
+    const inserted=insertKey(current,cursor,text,this.data.overwrite)
+    const {expression}=inserted
     if (expression.length > MAX_INPUT) return this.setData({ error: '算式最多 500 个字符。' })
     this.__justEvaluated = false
-    this.setData({ expression, cursor: cursor + text.length, display: '', hasResult: false, error: '', typing:false })
+    this.invalidateReplay()
+    this.setData({ expression, cursor: inserted.cursor, display: '', hasResult: false, error: '', typing:false })
     this.persistState()
   },
   press(event) {
+    if(this.__disposed)return
     const item = event.currentTarget.dataset || {}
     const useShift = Boolean(this.data.shiftActive && (item.shiftAction || item.shiftValue))
     const action = String(useShift ? item.shiftAction || '' : item.action || '')
@@ -95,6 +139,8 @@ Page({
     this.append(value)
   },
   runAction(action) {
+    if(this.__disposed)return
+    this.finishNativeEditor()
     if(this.handleCwAction(action)) return
     if (action === 'shift') return this.setData({ shiftActive: !this.data.shiftActive, error: '' })
     if (action === 'clear') {
@@ -106,17 +152,18 @@ Page({
       const current = String(this.data.expression || '')
       const cursor = cursorIn(this.data.cursor, current)
       if (!cursor) return
-      const token = current.slice(0,cursor).match(/(?:sqrt|cbrt|asin|acos|atan|sin|cos|tan|logb|log|ln|exp|frac|root|abs|ncr|npr)\($|(?:ans|pi)$/)
-      const removed = token ? token[0].length : 1
-      const expression = current.slice(0, cursor - removed) + current.slice(cursor)
+      const removed=removeBackward(current,cursor)
+      const {expression}=removed
       this.__justEvaluated = false
-      this.setData({ expression, cursor: cursor - removed, display: expression ? '' : '0', hasResult: false, error: '' })
+      this.invalidateReplay()
+      this.setData({ expression, cursor: removed.cursor, display: expression ? '' : '0', hasResult: false, error: '' })
       return this.persistState()
     }
     if (action === 'left' || action === 'right') {
       this.__justEvaluated = false
       if(action==='right' && this.data.cursor===this.data.expression.length && (this.data.expression.match(/\(/g)||[]).length > (this.data.expression.match(/\)/g)||[]).length) return this.append(')')
-      return this.setData({ cursor: cursorIn(this.data.cursor + (action === 'left' ? -1 : 1), this.data.expression) })
+      this.setData({ cursor: moveCursor(this.data.expression,this.data.cursor,action==='left'?-1:1), hasResult:false })
+      return this.persistState()
     }
     if (action === 'angle') { this.setData({ angleMode: this.data.angleMode === 'DEG' ? 'RAD' : 'DEG', error: '' }); return this.persistState() }
     if (action === 'ans') return this.append('ans')
@@ -135,6 +182,7 @@ Page({
     if (action === 'equals') return this.calculate()
   },
   calculate() {
+    if(this.__disposed)return
     const expression = String(this.data.expression || '').trim()
     if (!expression) { this.setData({ error: '先输入一个算式。' }); return }
     try {
@@ -153,6 +201,7 @@ Page({
       const history = same ? this.data.history : [entry, ...this.data.history].slice(0, MAX_HISTORY)
       this.__justEvaluated = true; this.__lastAnswerBasis = answerBasis; this.__replayAnswer = answerBasis
       this.__historyIndex = -1
+      this.__historyDraft = null
       this.setData({ expression, cursor: expression.length, display, formatted, answer: result, history, hasResult: true, error: '',typing:false })
       try { wx.setStorageSync(HISTORY_KEY, history) } catch { this.setData({ error: '结果已计算，但历史未能保存。' }) }
       this.persistState()
@@ -166,6 +215,7 @@ Page({
   toggleMemory() { this.openMenu('memory') },
   toggleHistory() { this.runAction('history') },
   restoreHistory(event) {
+    if(this.__disposed)return
     const item = this.data.history[Number(event.currentTarget.dataset.index)]
     if (!item) return
     this.closeMenu()
@@ -176,8 +226,9 @@ Page({
     this.persistState()
   },
   clearHistory() {
+    if(this.__disposed)return
     wx.showModal({ title: '清空计算历史？', confirmText: '清空', success: ({ confirm }) => {
-      if (!confirm) return
+      if (!confirm || this.__disposed) return
       try { wx.removeStorageSync(HISTORY_KEY); this.setData({ history: [], showHistory: false }) } catch { this.setData({ error: '历史未能清空，请重试。' }) }
     } })
   },

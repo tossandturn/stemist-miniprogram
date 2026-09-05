@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
+import { miniRuntime } from './helpers/mini-runtime.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const source = fs.readFileSync(path.join(root, 'utils/calculator.js'), 'utf8')
@@ -17,9 +18,12 @@ vm.runInNewContext(keypadSource, { module: keypadModule, exports: keypadModule.e
 assert.equal(keypadModule.exports.UPSTREAM.license, 'MIT')
 assert.equal(keypadModule.exports.UPSTREAM.revision, 'c80addc72aa02fa7bb33104fff25cdc348fa5d05')
 assert.ok(keypadModule.exports.SCIENTIFIC_KEYS.some((key) => key.shiftValue === 'asin('))
-const pageSource = fs.readFileSync(path.join(root, 'pages/calculator/index.js'), 'utf8')
 const pageMarkup = fs.readFileSync(path.join(root, 'pages/calculator/index.wxml'), 'utf8')
-assert.match(pageSource, /onConfirm\(\)\s*\{\s*this\.runAction\('equals'\)/, 'calculator input confirm must evaluate')
+const page = miniRuntime().page('pages/calculator/index')
+page.onLoad();page.enableTyping();page.onInput({detail:{value:'2+3*4',cursor:5}});page.onConfirm()
+assert.equal(page.data.answer,14,'calculator input confirm must evaluate')
+assert.equal(page.data.typing,false,'confirm must leave native keyboard editing safely')
+page.onUnload()
 assert.match(pageMarkup, /bindconfirm="onConfirm"/, 'calculator input must use the explicit confirm handler')
 const close = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-9, `${message}: ${actual}`)
 close(evaluateExpression('2+3*4'), 14, 'operator precedence')

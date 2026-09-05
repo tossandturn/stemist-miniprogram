@@ -70,7 +70,7 @@ function addImplicitMultiplication(tokens) {
     // are multiplication. Unknown identifiers are left for the parser to
     // reject with a useful message.
     if (canEndValue(current) && canStartValue(next) && !(current.type === 'identifier' && FUNCTIONS.has(current.value) && !VARIABLE_NAMES.has(current.raw) && next.value === '(')) {
-      result.push({ type: 'symbol', value: '*' })
+      result.push({ type: 'symbol', value: '*', implicit: true })
     }
   }
   return result
@@ -99,12 +99,24 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0, variabl
   }
 
   function parseMulDiv() {
-    let value = parseUnary()
-    while (peek()?.value === '*' || peek()?.value === '/') {
+    let value = parseImplicitProduct()
+    while ((peek()?.value === '*' && !peek()?.implicit) || peek()?.value === '/') {
       const operator = take().value
-      const right = parseUnary()
+      const right = parseImplicitProduct()
       if (!syntaxOnly && operator === '/' && right === 0) fail('不能除以 0')
       value = syntaxOnly ? 1 : operator === '*' ? value * right : value / right
+    }
+    return value
+  }
+
+  // CW groups omitted multiplication in a divisor, e.g. 6/2π = 6/(2π).
+  // Explicit multiplication stays left-associative: 6/2*3 = 9.
+  function parseImplicitProduct() {
+    let value = parseUnary()
+    while (peek()?.value === '*' && peek()?.implicit) {
+      take()
+      const right = parseUnary()
+      value = syntaxOnly ? 1 : value * right
     }
     return value
   }

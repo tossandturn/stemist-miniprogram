@@ -2,6 +2,10 @@
 
 Date: 2026-09-06 (Windows local clock, Asia/Shanghai).
 
+This is the initial CW acceptance record. The user's subsequent report exposed
+additional defects; see [expanded retest and repairs](calculator-cw-retest-2026-09-06.md)
+before relying on the initial result as a production-quality claim.
+
 ## What changed
 
 The four-column general-purpose keypad has been replaced with the international

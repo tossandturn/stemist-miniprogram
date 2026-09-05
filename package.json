@@ -42,6 +42,6 @@
     "test:student-regressions": "node scripts/test-student-regressions.mjs && npm run test:native-practice",
     "test:native-practice": "node scripts/test-native-practice.mjs",
     "test:calculator-page": "node scripts/test-calculator-page.mjs && npm run test:cw",
-    "test:cw": "node scripts/test-cw-calculator.mjs"
+    "test:cw": "node scripts/test-cw-calculator.mjs && node scripts/test-cw-adversarial.mjs"
   }
 }
