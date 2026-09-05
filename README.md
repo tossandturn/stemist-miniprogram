@@ -7,6 +7,7 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 ## Product scope
 
 - Home: exactly four primary entrances — A-Level subjects, IELTS, competitions/admissions, and a Casio-style scientific calculator.
+- Calculator: native international fx-991CW key arrangement, LCD menus and fraction display; local scientific arithmetic, nine variables, f/g functions, real quadratic/2-variable equations, one-variable statistics, tables, ratio and signed 32-bit base conversion. This is not Casio firmware or a complete official emulator. [Current CW scope and QA](docs/calculator-cw-qa-2026-09-06.md).
 - Competitions/admissions open the past-paper catalog directly. There is no competition Topic generator or readiness gate in this entrance.
 - STEM Topic practice is native: select syllabus chapters/components/count, assemble from the existing API, display the current question's original image pages, capture/crop an answer and restore local progress. No WebView or PDF renderer is used in this path. See [native practice implementation and QA](docs/native-stem-practice.md). Full-paper/exam and some IELTS capabilities still use WebView and are not yet native.
 - STEM route selection reads the server's syllabus inventory and, when signed in, saves a provisional photo-attempt summary to the shared STEM attempts API (the original photo is not persisted there).

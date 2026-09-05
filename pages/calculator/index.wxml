@@ -1,29 +1,50 @@
+<template name="cw-key">
+  <button class="calc-key cw-key cw-id-{{key.id}} {{control ? 'cw-control' : ''}} {{numeric ? 'cw-number' : ''}} {{key.tone === 'shift' ? 'cw-shift' : ''}} {{key.action === 'equals' ? 'calc-equals' : ''}} {{key.action === 'format' ? 'cw-format-key' : ''}} {{shiftActive && key.action === 'shift' ? 'shift-on' : ''}}" style="{{control ? 'grid-column:' + key.col + ';grid-row:' + key.row : ''}}" data-key="{{key.id}}" data-action="{{key.action || ''}}" data-value="{{key.value || ''}}" data-shift-action="{{key.shiftAction || ''}}" data-shift-value="{{key.shiftValue || ''}}" bindtap="press" hover-class="cw-key-pressed" hover-stay-time="80" aria-label="{{key.label || key.action}} {{key.shiftLabel ? 'SHIFT ' + key.shiftLabel : ''}}">
+    <text class="cw-legend {{control && key.action !== 'shift' ? 'cw-control-legend' : ''}}">{{control ? key.label : key.shiftLabel || ' '}}</text>
+    <view class="cw-key-face"><view wx:if="{{key.face}}" class="cw-glyph glyph-{{key.face}}"></view><text wx:else class="cw-key-text">{{control ? key.text : key.label}}</text></view>
+  </button>
+</template>
+
 <view class="page {{deviceClass}} {{orientation}} calculator-page">
-  <stemist-header compact="{{true}}" title="计算器" action-text="返回" bind:action="goBack" />
+  <stemist-header compact="{{true}}" title="fx-991CW" action-text="返回" bind:action="goBack" />
   <ai-fab source="calculator" />
-  <view class="calculator-shell">
-    <view class="calculator-display">
-      <view class="display-status"><text>{{angleMode}}{{shiftActive ? ' · SHIFT' : ''}}</text><text wx:if="{{memory}}">M {{memoryDisplay}}</text></view>
-      <input class="expression-input" value="{{expression}}" cursor="{{cursor}}" maxlength="500" confirm-type="done" cursor-spacing="24" placeholder="输入算式" aria-label="算式" bindinput="onInput" bindfocus="onEditorFocus" bindblur="onEditorBlur" bindconfirm="onConfirm" />
-      <view class="result-row"><view class="cursor-actions"><button class="cursor-key" data-action="left" aria-label="光标左移" bindtap="press">‹</button><button class="cursor-key" data-action="right" aria-label="光标右移" bindtap="press">›</button></view><scroll-view class="result-scroll" scroll-x><text class="display-result">{{display}}</text></scroll-view></view>
-      <view wx:if="{{error}}" class="calculator-error" role="alert">{{error}}</view>
-    </view>
-    <view class="calculator-toolbar">
-      <button wx:if="{{!isTablet || orientation !== 'landscape'}}" class="calc-tool {{showScientific ? 'selected' : ''}}" bindtap="toggleScientific">函数</button>
-      <button class="calc-tool {{showMemory ? 'selected' : ''}}" bindtap="toggleMemory">记忆</button>
-      <button class="calc-tool {{showHistory ? 'selected' : ''}}" bindtap="toggleHistory">历史</button>
-      <button class="calc-tool" data-action="copy" bindtap="press" disabled="{{!hasResult}}">复制</button>
-    </view>
-    <view wx:if="{{showMemory}}" class="memory-panel"><view class="calculator-actions memory-actions"><button wx:for="{{memoryKeys}}" wx:key="action" class="calc-key calc-memory" data-action="{{item.action}}" bindtap="press">{{item.label}}</button></view></view>
-    <view class="calculator-keyboards">
-      <view wx:if="{{showScientific || (isTablet && orientation === 'landscape')}}" class="scientific-panel">
-        <view class="calculator-actions scientific-actions"><button wx:for="{{scientificKeys}}" wx:key="label" class="calc-key calc-function {{shiftActive ? 'shifted' : ''}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" data-shift-action="{{item.shiftAction || ''}}" data-shift-value="{{item.shiftValue || ''}}" bindtap="press"><text class="shift-label">{{shiftActive ? item.label : item.shiftLabel}}</text><text class="primary-label">{{shiftActive && item.shiftLabel ? item.shiftLabel : item.label}}</text></button></view>
+  <view class="cw-workspace">
+    <view class="calculator-shell cw-instrument">
+      <view class="cw-brand-row"><view><text class="cw-brand">STEMist</text><text class="cw-model">fx-991CW 键位</text></view><view class="cw-solar" aria-hidden="true"><view></view><view></view><view></view><view></view></view></view>
+      <view class="cw-display-bezel">
+        <view class="calculator-display {{powerOff ? 'is-off' : ''}}">
+          <block wx:if="{{!powerOff}}">
+            <view class="display-status"><text>{{shiftActive ? 'S  ' : ''}}{{angleMode === 'DEG' ? 'D' : angleMode === 'RAD' ? 'R' : 'G'}}  {{overwrite ? 'OVR' : ''}}</text><text>{{menu ? menuTitle : 'Calculate'}}</text><text>{{memory ? 'M' : ''}}</text></view>
+            <scroll-view wx:if="{{menu}}" class="cw-menu-scroll" scroll-y scroll-into-view="cw-menu-{{menuIndex}}">
+              <view wx:if="{{menu === 'home'}}" class="cw-home-grid"><button wx:for="{{menuItems}}" wx:key="id" id="cw-menu-{{index}}" class="cw-app {{menuIndex === index ? 'menu-active' : ''}}" data-id="{{item.id}}" bindtap="chooseMenu"><text class="cw-app-symbol">{{item.icon}}</text><text>{{item.label}}</text></button></view>
+              <block wx:else><button wx:for="{{menuItems}}" wx:key="id" id="cw-menu-{{index}}" class="cw-menu-item {{menuIndex === index ? 'menu-active' : ''}}" data-id="{{item.id}}" bindtap="chooseMenu"><text class="menu-label">{{item.label}}</text><text wx:if="{{item.detail}}" class="menu-detail">{{item.detail}}</text><text wx:else>›</text></button><view wx:if="{{!menuItems.length}}" class="cw-empty-history">No history</view></block>
+            </scroll-view>
+            <block wx:else>
+              <input wx:if="{{typing}}" class="expression-input" value="{{expression}}" cursor="{{cursor}}" focus="{{typing}}" maxlength="500" confirm-type="done" cursor-spacing="24" aria-label="算式" bindinput="onInput" bindfocus="onEditorFocus" bindblur="onEditorBlur" bindconfirm="onConfirm" />
+              <scroll-view wx:else class="cw-expression-scroll" scroll-x bindtap="enableTyping" aria-label="算式，轻点编辑"><view class="cw-expression"><block wx:for="{{expressionParts}}" wx:key="index"><view wx:if="{{item.kind === 'fraction'}}" class="lcd-fraction"><text>{{item.numerator}}</text><text>{{item.denominator}}</text></view><text wx:else>{{item.text}}</text></block><text wx:if="{{!hasResult}}" class="cw-caret">▏</text></view></scroll-view>
+              <view wx:if="{{error}}" class="calculator-error" role="alert">{{error}}</view>
+              <view wx:elif="{{hasResult}}" class="cw-result-row"><view wx:if="{{formatted.kind === 'fraction'}}" class="cw-fraction-result"><text wx:if="{{formatted.whole}}">{{formatted.whole}}</text><view class="lcd-fraction"><text>{{formatted.numerator}}</text><text>{{formatted.denominator}}</text></view></view><scroll-view wx:else class="result-scroll" scroll-x><text class="display-result">{{display}}</text></scroll-view></view>
+            </block>
+          </block>
+        </view>
+        <text class="cw-series">CW · LEARNING</text>
       </view>
-      <view class="numeric-panel">
-        <view class="calculator-actions mode-actions"><button wx:for="{{modeKeys}}" wx:key="action" class="calc-key calc-mode {{item.action === 'shift' && shiftActive ? 'is-active' : ''}} {{item.action === 'clear' ? 'calc-clear' : ''}}" data-action="{{item.action}}" bindtap="press">{{item.action === 'angle' ? angleMode : item.label}}</button></view>
-        <view class="calculator-keypad"><button wx:for="{{numberKeys}}" wx:key="label" class="calc-key calc-{{item.tone || 'number'}}" data-action="{{item.action || ''}}" data-value="{{item.value || ''}}" bindtap="press">{{item.label}}</button><button class="calc-key calc-operator" data-value="(" bindtap="press">(</button><button class="calc-key calc-operator" data-value=")" bindtap="press">)</button><button class="calc-key calc-constant" data-value="pi" bindtap="press">π</button><button class="calc-key calc-equals" data-action="equals" bindtap="press">=</button></view>
-      </view>
+      <view class="cw-control-grid"><block wx:for="{{controlKeys}}" wx:key="id"><template is="cw-key" data="{{key:item,control:true,numeric:false,shiftActive}}" /></block></view>
+      <view class="cw-scientific"><view wx:for="{{scientificRows}}" wx:for-item="row" wx:key="id" class="cw-six-grid"><block wx:for="{{row.keys}}" wx:key="id"><template is="cw-key" data="{{key:item,control:false,numeric:false,shiftActive}}" /></block></view></view>
+      <view class="calculator-keypad cw-numbers"><view wx:for="{{numberRows}}" wx:for-item="row" wx:key="id" class="cw-number-grid"><block wx:for="{{row.keys}}" wx:key="id"><template is="cw-key" data="{{key:item,control:false,numeric:true,shiftActive}}" /></block></view></view>
+    </view>
+    <view wx:if="{{showHistory || (isTablet && orientation === 'landscape')}}" class="history-list"><view class="history-head"><text>计算历史</text><button wx:if="{{history.length}}" class="text-button" bindtap="clearHistory">清空</button></view><button wx:for="{{history}}" wx:key="at" class="history-row" data-index="{{index}}" bindtap="restoreHistory"><view class="history-expression">{{item.expression}}</view><view class="history-result"><text>{{item.angleMode}}</text><text>= {{item.result}}</text></view></button><view wx:if="{{!history.length}}" class="empty-state">还没有计算记录</view></view>
+  </view>
+  <view wx:if="{{workbench}}" class="cw-sheet-backdrop" bindtap="closeWorkbench">
+    <view class="cw-sheet" style="bottom:{{keyboardHeight || 0}}px" catchtap="keepDrawer">
+      <view class="cw-sheet-header"><text>{{workTitle}}</text><button class="cw-sheet-close" bindtap="closeWorkbench" aria-label="关闭">×</button></view>
+      <scroll-view class="cw-sheet-scroll" scroll-y style="max-height:{{windowHeight - (keyboardHeight || 0) - 190}}px">
+        <view wx:if="{{workbench === 'about'}}" class="cw-about">STEMist 按 fx-991CW 键位设计的本地学习计算器，非 Casio 官方模拟器。支持常用科学计算、变量、函数、1-Variable 统计、数表、实数二次方程、二元联立方程、比例和进制转换。未实现完整 Casio 固件、复数/矩阵/分布或 QR 联网功能。数学输入与结果都在本机处理。</view>
+        <view wx:for="{{workFields}}" wx:key="id" class="cw-field"><text>{{item.label}}</text><input class="cw-field-input" value="{{item.value}}" data-id="{{item.id}}" maxlength="500" adjust-position="{{false}}" bindkeyboardheightchange="onWorkbenchKeyboard" bindinput="onFieldInput" aria-label="{{item.label}}" /></view>
+        <view wx:if="{{workError}}" class="error">{{workError}}</view>
+        <view wx:if="{{workResults.length}}" class="cw-work-results"><view wx:for="{{workResults}}" wx:key="index"><text>{{item.label}}</text><text selectable>{{item.value}}</text></view></view>
+      </scroll-view>
+      <button wx:if="{{workbench !== 'about'}}" class="primary cw-work-submit" bindtap="submitWorkbench">{{workSubmitLabel}}</button>
     </view>
   </view>
-  <view wx:if="{{showHistory}}" class="history-list"><view class="history-head"><text>计算历史</text><button wx:if="{{history.length}}" class="text-button" bindtap="clearHistory">清空</button></view><button wx:for="{{history}}" wx:key="at" class="history-row" data-index="{{index}}" bindtap="restoreHistory"><view class="history-expression">{{item.expression}}</view><view class="history-result"><text>{{item.angleMode}}</text><text>= {{item.result}}</text></view></button><view wx:if="{{!history.length}}" class="empty-state">还没有计算记录</view></view>
 </view>

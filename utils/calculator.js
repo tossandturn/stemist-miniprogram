@@ -2,7 +2,8 @@
 // It is intentionally parser-based: calculator input must never reach eval,
 // Function(), a WebView, or a remote service.
 
-const FUNCTIONS = new Set(['abs', 'acos', 'asin', 'atan', 'cbrt', 'cos', 'cosh', 'exp', 'ln', 'log', 'sin', 'sinh', 'sqrt', 'tan', 'tanh'])
+const FUNCTIONS = new Set(['abs', 'acos', 'asin', 'atan', 'acosh', 'asinh', 'atanh', 'cbrt', 'cos', 'cosh', 'exp', 'ln', 'log', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'frac', 'root', 'logb', 'ncr', 'npr', 'dms', 'floor', 'ceil', 'f', 'g'])
+const VARIABLE_NAMES = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'x', 'y', 'z'])
 
 function fail(message) { throw new Error(message) }
 
@@ -14,6 +15,7 @@ function factorial(value) {
 }
 
 function tokenize(expression) {
+  if (String(expression || '').length > 500) fail('算式最多 500 个字符')
   const source = String(expression || '')
     .replace(/[×✕]/g, '*')
     .replace(/[÷]/g, '/')
@@ -34,12 +36,12 @@ function tokenize(expression) {
     }
     const identifier = rest.match(/^[a-zA-Z][a-zA-Z0-9_]*/)
     if (identifier) {
-      tokens.push({ type: 'identifier', value: identifier[0].toLowerCase() })
+      tokens.push({ type: 'identifier', value: identifier[0].toLowerCase(), raw: identifier[0] })
       index += identifier[0].length
       continue
     }
     const symbol = source[index]
-    if ('+-*/^!%()'.includes(symbol)) {
+    if ('+-*/^!%(),'.includes(symbol)) {
       tokens.push({ type: 'symbol', value: symbol })
       index += 1
       continue
@@ -51,7 +53,7 @@ function tokenize(expression) {
 }
 
 function canEndValue(token) {
-  return token && (token.type === 'number' || token.value === 'pi' || token.value === 'e' || token.value === 'ans' || token.value === ')' || token.value === '!' || token.value === '%')
+  return token && (token.type === 'number' || VARIABLE_NAMES.has(token.raw) || token.value === 'pi' || token.value === 'e' || token.value === 'ans' || token.value === ')' || token.value === '!' || token.value === '%')
 }
 
 function canStartValue(token) {
@@ -67,19 +69,21 @@ function addImplicitMultiplication(tokens) {
     // `sin(` is a function call, while `2(`, `2pi`, `)sin(` and `2e`
     // are multiplication. Unknown identifiers are left for the parser to
     // reject with a useful message.
-    if (canEndValue(current) && canStartValue(next) && !(current.type === 'identifier' && FUNCTIONS.has(current.value) && next.value === '(')) {
+    if (canEndValue(current) && canStartValue(next) && !(current.type === 'identifier' && FUNCTIONS.has(current.value) && !VARIABLE_NAMES.has(current.raw) && next.value === '(')) {
       result.push({ type: 'symbol', value: '*' })
     }
   }
   return result
 }
 
-function evaluateExpression(expression, { angleMode = 'DEG', answer = 0 } = {}) {
+function evaluateExpression(expression, { angleMode = 'DEG', answer = 0, variables = {}, functions = {}, functionDepth = 0, syntaxOnly = false } = {}) {
+  if (functionDepth > 8) fail('函数递归层数过多')
   const tokens = tokenize(expression)
   let cursor = 0
-  const mode = String(angleMode || 'DEG').toUpperCase() === 'RAD' ? 'RAD' : 'DEG'
-  const toRadians = (value) => mode === 'DEG' ? value * Math.PI / 180 : value
-  const fromRadians = (value) => mode === 'DEG' ? value * 180 / Math.PI : value
+  const mode = String(angleMode || 'DEG').toUpperCase()
+  const scale = mode === 'RAD' ? 1 : mode === 'GRAD' ? Math.PI / 200 : Math.PI / 180
+  const toRadians = value => value * scale
+  const fromRadians = value => value / scale
 
   const peek = () => tokens[cursor]
   const take = () => tokens[cursor++]
@@ -89,7 +93,7 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0 } = {}) 
     while (peek()?.value === '+' || peek()?.value === '-') {
       const operator = take().value
       const right = parseMulDiv()
-      value = operator === '+' ? value + right : value - right
+      value = syntaxOnly ? 1 : operator === '+' ? value + right : value - right
     }
     return value
   }
@@ -99,8 +103,8 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0 } = {}) 
     while (peek()?.value === '*' || peek()?.value === '/') {
       const operator = take().value
       const right = parseUnary()
-      if (operator === '/' && right === 0) fail('不能除以 0')
-      value = operator === '*' ? value * right : value / right
+      if (!syntaxOnly && operator === '/' && right === 0) fail('不能除以 0')
+      value = syntaxOnly ? 1 : operator === '*' ? value * right : value / right
     }
     return value
   }
@@ -110,7 +114,7 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0 } = {}) 
     if (peek()?.value !== '^') return value
     take()
     const exponent = parseUnary()
-    return Math.pow(value, exponent)
+    return syntaxOnly ? 1 : Math.pow(value, exponent)
   }
 
   function parseUnary() {
@@ -123,7 +127,7 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0 } = {}) 
     let value = parsePrimary()
     while (peek()?.value === '!' || peek()?.value === '%') {
       const operator = take().value
-      value = operator === '!' ? factorial(value) : value / 100
+      value = syntaxOnly ? 1 : operator === '!' ? factorial(value) : value / 100
     }
     return value
   }
@@ -131,21 +135,53 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0 } = {}) 
   function parsePrimary() {
     const token = take()
     if (!token) fail('算式不完整')
-    if (token.type === 'number') return token.value
+    if (token.type === 'number') return syntaxOnly ? 1 : token.value
     if (token.value === '(') {
       const value = parseAddSub()
       if (take()?.value !== ')') fail('括号不匹配')
       return value
     }
     if (token.type === 'identifier') {
+      if (VARIABLE_NAMES.has(token.raw)) {
+        if(syntaxOnly) return 1
+        const value = variables[token.raw] === undefined ? 0 : Number(variables[token.raw])
+        if (!Number.isFinite(value)) fail('变量数值无效')
+        return value
+      }
       if (token.value === 'pi') return Math.PI
       if (token.value === 'e') return Math.E
       if (token.value === 'ans') return Number(answer) || 0
       if (!FUNCTIONS.has(token.value)) fail(`不支持的函数：${token.value}`)
       if (take()?.value !== '(') fail(`${token.value} 后需要括号`)
-      const argument = parseAddSub()
+      const args = [parseAddSub()]
+      while (peek()?.value === ',') { take(); args.push(parseAddSub()); if (args.length > 3) fail('函数参数过多') }
       if (take()?.value !== ')') fail('函数括号不匹配')
-      return applyFunction(token.value, argument, { toRadians, fromRadians })
+      if (token.value === 'f' || token.value === 'g') {
+        if(syntaxOnly) { if(args.length!==1) fail('函数需要一个参数');return 1 }
+        if (args.length !== 1 || typeof functions[token.value] !== 'string' || !functions[token.value].trim()) fail(`${token.value}(x) 尚未定义`)
+        return evaluateExpression(functions[token.value], { angleMode, answer, variables: { ...variables, x: args[0] }, functions, functionDepth: functionDepth + 1 })
+      }
+      if (['frac', 'root', 'logb', 'ncr', 'npr'].includes(token.value)) {
+        if (args.length !== 2) fail('这个函数需要两个参数')
+        if(syntaxOnly) return 1
+        const [a, b] = args
+        if (token.value === 'frac') { if (!b) fail('不能除以 0'); return a / b }
+        if (token.value === 'root') { if (!Number.isInteger(a) || a < 1 || a > 100 || (b < 0 && a % 2 === 0)) fail('根式不在定义域内'); return Math.sign(b) * Math.pow(Math.abs(b), 1 / a) }
+        if (token.value === 'logb') { if (a <= 0 || a === 1 || b <= 0) fail('对数不在定义域内'); return Math.log(b) / Math.log(a) }
+        if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || a > 1000 || b < 0 || b > a) fail('排列组合需要 0 ≤ r ≤ n ≤ 1000 的整数')
+        const k = token.value === 'ncr' ? Math.min(b, a - b) : b
+        let result = 1
+        for (let i = 0; i < k; i++) result = result * (a - i) / (token.value === 'ncr' ? i + 1 : 1)
+        return result
+      }
+      if (token.value === 'dms') {
+        if(syntaxOnly) { if(args.length!==3) fail('度分秒需要三个参数');return 1 }
+        if (args.length !== 3 || args[1] < 0 || args[1] >= 60 || args[2] < 0 || args[2] >= 60) fail('度分秒参数无效')
+        return (args[0] < 0 ? -1 : 1) * (Math.abs(args[0]) + args[1] / 60 + args[2] / 3600)
+      }
+      if (args.length !== 1) fail('这个函数需要一个参数')
+      if(syntaxOnly) return 1
+      return applyFunction(token.value, args[0], { toRadians, fromRadians })
     }
     fail('算式不完整')
   }
@@ -160,12 +196,17 @@ function applyFunction(name, value, { toRadians, fromRadians }) {
   const functions = {
     abs: Math.abs,
     acos: (input) => fromRadians(Math.acos(input)),
+    acosh: Math.acosh,
     asin: (input) => fromRadians(Math.asin(input)),
+    asinh: Math.asinh,
     atan: (input) => fromRadians(Math.atan(input)),
+    atanh: Math.atanh,
     cbrt: Math.cbrt,
     cos: (input) => Math.cos(toRadians(input)),
     cosh: Math.cosh,
     exp: Math.exp,
+    floor: Math.floor,
+    ceil: Math.ceil,
     ln: Math.log,
     log: Math.log10,
     sin: (input) => Math.sin(toRadians(input)),
@@ -188,4 +229,6 @@ function formatNumber(value) {
   return Number(number.toPrecision(12)).toString()
 }
 
-module.exports = { FUNCTIONS, evaluateExpression, factorial, formatNumber, tokenize }
+function validateExpression(expression) { evaluateExpression(expression,{syntaxOnly:true}); return true }
+
+module.exports = { FUNCTIONS, evaluateExpression, validateExpression, factorial, formatNumber, tokenize }

@@ -21,6 +21,10 @@ const bodyPairs = [
   ['#865f1e', '#fff6e8', 'warning copy'],
   ['#16735f', '#e7f8f0', 'success badge'],
   ['#b33b55', '#fff0f2', 'error copy'],
+  ['#17231a', '#d5e3cf', 'CW LCD text'],
+  ['#f2f3ee', '#494f50', 'CW key face'],
+  ['#f0d786', '#292d2e', 'CW SHIFT legends'],
+  ['#e1ebdb', '#24372a', 'CW selected menu'],
 ]
 
 for (const [foreground, background, label] of bodyPairs) {

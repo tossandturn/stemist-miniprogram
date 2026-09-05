@@ -64,7 +64,7 @@ const timeout = (operation, ms=15000) => {
     await step('calculator real input and equals',async()=>{
       await app.evaluate(()=>{const keys=['stemistCalculatorHistory','stemistCalculatorState'];const present=wx.getStorageInfoSync().keys;getApp().__qaJourneyCalculator=keys.map(key=>({key,exists:present.includes(key),value:wx.getStorageSync(key)}))})
       calculatorBackup=true
-      const page=await app.reLaunch('/pages/calculator/index');await page.waitFor('.expression-input')
+      const page=await app.reLaunch('/pages/calculator/index');await page.waitFor('.cw-expression-scroll');await(await page.$('.cw-expression-scroll')).tap();await page.waitFor('.expression-input')
       await(await page.$('.expression-input')).input('-2^2');await(await page.$('.calc-equals')).tap()
       await page.waitFor(async()=>await page.data('display')==='-4')
       const keys=await page.$$('.calculator-keypad .calc-key')
