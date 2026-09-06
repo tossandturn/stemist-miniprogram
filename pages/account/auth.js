@@ -25,7 +25,7 @@ Page({
     } finally { this.setData({ wechatLoading: false }) }
   },
   openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
-  openIeltsAccount() { wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent('https://ieltsist.com/?from=stemist#mine')}` }) },
+  openIeltsAccount() { wx.navigateTo({ url: '/pages/ielts/home?view=subscription' }) },
   logout() {
     if (this.data.loading) return
     signOut()

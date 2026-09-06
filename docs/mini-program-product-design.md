@@ -4,7 +4,9 @@
 
 ## 当前修复基线
 
-- 用户最新决定：使用小程序原生页面复用后端 API，不再以打开网页作为功能迁移。首批已改为原生的完整路径是 A-Level 章节选择、组卷、逐题原图、拍照裁剪和答案草稿恢复；详见 `native-stem-practice.md`。以下原有 WebView 条目是尚待迁移的现状，不是最终架构。
+- 2026-09-06：学习入口均已移除 WebView。执行与验收边界见 `native-migration-plan-2026-09-06.md`；原生页面已落地不等于网页全功能或真机验收全部完成。
+
+- 使用小程序原生页面复用后端 API，不再以打开网页作为功能迁移。学科章节、组卷、逐题原图、拍照裁剪、整卷和竞赛使用共享原生组件，保留各自的数据边界。
 - 首页只保留四个入口和右上角 AI Coach，主要学习页删除实现说明与重复引导。
 - **竞赛 / 入学考试直接进入历年真题目录**，不出现 Topic 练习、章节达标门槛或独立练习生成器。
 - 真题可搜索、逐批加载、打开原卷/参考答案或进入对应试卷练习。QP/MS 配对必须指向目录内存在的同组答案文件。
@@ -26,11 +28,11 @@
 它不替代网页/iOS 的完整 PDF 工作区：
 
 - STEM 在小程序中采用「一题一拍」，先进入原生后置相机取景页，再裁剪、AI Coach；没有相机能力的开发者工具才降级到仍限制为 `sourceType:['camera']` 的兼容调用，不打开相册。
-- IELTS 入口完整映射 IELTSist 的 Dashboard、四项技能、Same‑Test、Random Exam、Vocabulary、Mine/Account、Subscription 和 AI Coach；小程序提供快速入口，完整控制仍由 IELTSist WebView 承载。
+- IELTS 入口映射 Dashboard、四项技能、Same‑Test、Random Exam、Vocabulary、Mine/Account、Subscription 和 AI Coach；全部在原生页面实现，不以外链补缺口。
 - IELTS Listening / Reading 保留文本工作区，题库、音频、文章和证据链仍以 IELTSist 为准。
-- IELTS Writing 支持键入或一张手写作文照片，然后进入 IELTSist Coach；需要 Cambridge 题组、完整报告和重写工作区时可一键打开原生网页。
-- IELTS Speaking 通过 `web-view` 保留 IELTSist 的实时千问 examiner、转写、评分、录音和 retest。
-- STEM Topic 改为原生组卷和逐题拍照，不打开网页或 PDF 渲染器。原题图片按当前题加载并保留多页、图表及分问。整卷作答/模拟等尚存 WebView 的入口是待迁移范围，不能宣称已全量原生。
+- Writing 使用真实题库和题图、文字/照片、识别后核对、异步批改与原生 PDF 报告。重写训练等剩余细节仍须按功能对照表完成验收。
+- Speaking 使用原生录音、PCM WebSocket、WebAudio、对话和反馈；真机回声、长会话及双向录音导出尚未验收，不得宣称已完成。
+- STEM Topic 原图按当前题加载并保留多页、图表及分问。整卷及竞赛共用原生逐题照片工作区；完整原卷通过微信原生文档查看器打开。
 
 ## 2. 信息架构
 
@@ -42,7 +44,7 @@
 2. 四张入口卡：A-Level 学科、IELTS、竞赛/入学考试、Casio 计算器；不在首页平铺二级功能。
 3. 入口失败只显示可理解的恢复提示，不把内部 prompt、provider、路由调试词展示给学生。
 4. A-Level 可选择学科和阶段，再进入章节、拍题、真题、模拟、进度或笔记。竞赛直接进入真题目录，只筛选考试和试卷，不展示 Topic readiness。
-5. IELTS 按“开始学习 / 四项技能 / 整套模拟 / 词汇与账号”分组。完整网页能力由对应入口承接，不再重复添加“完整工作区”和第二张 AI Coach 卡片。账号续接仍须服务端与真机验收。
+5. IELTS 按“开始学习 / 四项技能 / 整套模拟 / 词汇与账号”分组，不重复添加“完整工作区”和第二张 AI Coach 卡片。遗留站内链接转到对应原生页。
 6. 进入工作区后不再重复放 A-Level/IELTS/竞赛三段筛选条，只显示“当前工作区 / 切换入口”；学科和阶段才是该页真正的筛选项。
 
 ### 技能工作区
@@ -97,7 +99,7 @@ A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，�
 - 主按钮最小 44px 高，显式覆盖微信原生默认宽度，保证卡片间距至少 8px。
 - 输入框和提交动作按垂直顺序排列，键盘弹出时不遮挡提交。
 - STEM 裁剪区约 650rpx 高，优先拍单题。
-- 口语 web-view 使用整页纵向空间。
+- 口语为原生控制区和对话区，录音/音频在离开页面后立即停止。
 
 ### iPad（系统识别为 tablet/iPad，宽度仅作回退）
 
@@ -117,7 +119,7 @@ A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，�
 页面输入
   → skillPage / photo pipeline 规范化
   → STEM: POST https://stem.ieltsist.com/api/ai/coach
-  → IELTS: POST https://ieltsist.com/api/help/chat（原生快速页）或安全 WebView handoff（完整工作区）
+  → IELTS: 独立原生会话 + POST https://ieltsist.com/api/help/chat
   → 服务端鉴权、上下文绑定、provider 路由
   → 结构化/安全结果
   → 页面 result + 下一步动作
@@ -131,7 +133,7 @@ A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，�
 - `inputMode` / `mode`：`text`、`typed` 或 `photo`；
 - 当前真实题目/学生文本/照片证据；
 - `source: stemist-miniprogram`。
-- IELTS 原生快速 Coach 只用于即时反馈；需要账号历史、正式题组、完整报告、词汇本或会员状态时统一进入 IELTSist WebView，由 IELTSist 会话 Cookie 负责持久化，不把 STEM bearer token 冒充成 IELTSist 登录态。
+- IELTS 通过专用交换接口获得独立短期会话，普通 IELTS 请求不能携带 STEM bearer。正式题组、报告、词汇及会员功能使用其原有服务端权限边界。
 
 客户端选择的 `subjectCode/stage/routeId` 只用于帮助 Coach 聚焦，不能作为权限或正式题目绑定的依据；服务端仍必须以已认证用户和权威 attempt/source 记录校验任何正式评分、历史或题库访问。
 
@@ -141,10 +143,10 @@ A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，�
 
 ## 6. 账号与草稿
 
-- 默认入口用 `wx.login → /api/auth/wechat → code2Session` 获取短期 `accessToken`，只存 `stemistSessionToken`；用户名/密码仅作为兼容恢复路径。
+- 默认入口用 `wx.login → /api/auth/wechat → code2Session` 获取短期会话；用户名/密码是兼容恢复路径。过期前自动续期，请求返回后复核账号及隐私版本，防止旧请求落入新账号。
 - `session_key`、App Secret 和 provider key 只留在服务端，绝不返回客户端或写入 WebView query。
 - 服务端通过 `WECHAT_MINIPROGRAM_APP_ID` / `WECHAT_MINIPROGRAM_APP_SECRET` 配置换票；生产只允许官方 `api.weixin.qq.com`，本地测试才允许 loopback mock。
-- 文本练习草稿以 `stemistDraft:<skill>` 本地保存，收到真实 AI 反馈后清理对应草稿并保存提交摘要；降级或失败保留草稿。离开立即保存最后输入，显式退出取消延迟写入并清理私有记录。
+- 文本、照片和反馈按当前账号/题目保存；已提交反馈也必须能恢复。离开立即保存最后输入，显式退出取消延迟写入并清理该应用自己创建的私有照片和导出文件，不删除原始相册文件。
 - 身份共用，STEM 与 IELTSist 学习记录按产品边界隔离；不把浏览器 Cookie 或数据库复制到小程序。
 
 ## 7. 质量门槛
@@ -162,13 +164,13 @@ A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，�
 - iPad：横屏双栏、竖屏改单栏；裁剪框和提交按钮可见且不覆盖内容。
 - Listening/Reading：草稿恢复、文本提交、AI 结果和清空。
 - Writing：Task 1/Task 2、打字、拍照裁剪、AI 反馈。
-- Speaking：web-view 加载 IELTSist 千问口语，麦克风/业务域名失败时有可理解提示。
+- Speaking：原生千问会话，麦克风拒绝、断网重连、静音、切后台、结束评分及反馈恢复逐项验收。
 - 登录过期：清理令牌、提示重新登录，不能把 401 当成空分数。
 
 ### 真实环境阻塞项
 
 - 替换 `project.config.json` 的正式 AppID（本地工具生成的 `project.private.config.json` 不提交）。
-- 配置微信服务器域名和 `ieltsist.com` web-view 业务域名。
+- 配置微信 request/download/socket 合法域名，以及账号服务器上的微信 AppID/AppSecret；不再依赖 WebView 业务域名。
 - 真机验证相机、裁剪、键盘、iPad 横竖屏、麦克风和 Qwen 实时口语。
 - 提交审核前补齐隐私政策、相机/麦克风用途说明和付费/内容资质。
 - `app.json` 已开启隐私检查；camera/record 不使用无效的静态 permission 字段。公众平台仍需配置隐私保护指引，并在真机首次调用时验证授权拒绝和重新授权路径。

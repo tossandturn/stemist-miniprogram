@@ -1,7 +1,7 @@
 const { runCoach } = require('./coach')
 const { isAuthError } = require('./api')
 const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDraft } = require('./page')
-const { ieltsWebUrl } = require('./ieltsCatalog')
+const { getIeltsFeature } = require('./ieltsCatalog')
 
 function makeTextSkillPage(config) {
   const scope = String(config.skill)
@@ -24,7 +24,7 @@ function makeTextSkillPage(config) {
       draftStatus: '自动保存已开启',
       canRetry: false,
       authRequired: false,
-      fullWorkspaceUrl: ieltsWebUrl(scope, { source: `mini-${scope}` }),
+      fullWorkspaceUrl: getIeltsFeature(scope)?.nativePage || '',
     }),
 
     onLoad() {
@@ -78,7 +78,7 @@ function makeTextSkillPage(config) {
     openFullWorkspace() {
       const url = this.data.fullWorkspaceUrl
       if (!url) return
-      wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: (error) => this.setData({ error: error.errMsg || '完整 IELTSist 工作区暂时无法打开。' }) })
+      wx.navigateTo({ url, fail: () => this.setData({ error: '试题未能打开，请重试。' }) })
     },
     openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
   }

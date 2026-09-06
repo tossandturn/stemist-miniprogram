@@ -29,6 +29,7 @@ export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
       module, exports: module.exports, wx: api, getApp: () => ({ globalData: {} }),
       getCurrentPages: () => [], Page: (value) => { definition = value },
       Component: (value) => { definition = value }, setTimeout, clearTimeout, console,
+      setInterval: (...args) => { const timer=setInterval(...args);timer.unref();return timer },clearInterval,
       require: (name) => load(path.posix.join(path.posix.dirname(normalized), name)),
       ...globals,
     }

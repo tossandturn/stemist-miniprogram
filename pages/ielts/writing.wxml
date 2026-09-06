@@ -1,9 +1,10 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-skill-page writing-page">
-  <stemist-header eyebrow="IELTSIST · 写作 AI 反馈" title="写作" action-text="返回" bind:action="openBack" />
+  <stemist-header compact="{{true}}" title="Writing" action-text="返回" bind:action="openBack" />
   <app-nav active="practice" source="writing" category="ielts" is-tablet="{{isTablet}}" />
   <view class="workspace-grid">
     <view class="context-card skill-identity writing-identity">
-      <view class="context-card-title">选择任务</view>
+      <view class="context-card-title">{{taskTitle || '选择任务'}}</view>
+      <image wx:for="{{taskImages}}" wx:key="id" class="writing-task-image" src="{{item.url}}" mode="widthFix" lazy-load data-index="{{index}}" bindtap="previewTask"/>
       <view class="task-switcher">
         <button class="task-chip {{taskType === 'Task 1' ? 'active' : ''}}" data-task="Task 1" bindtap="chooseTask">Task 1</button>
         <button class="task-chip {{taskType === 'Task 2' ? 'active' : ''}}" data-task="Task 2" bindtap="chooseTask">Task 2</button>
@@ -12,12 +13,14 @@
       <image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" />
     </view>
     <view class="writing-editor panel">
-      <view class="field-label">题目（建议填写）</view>
+      <view class="field-label">写作题目</view>
       <textarea class="prompt-input" value="{{prompt}}" maxlength="2000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="粘贴作文题目…" bindinput="onPromptInput" />
-      <coach-panel message="{{text}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="提交作文" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="" max-length="20000" bind:input="onInput" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+      <coach-panel message="{{text}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="{{examMode ? '保存本项' : '提交作文'}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="" max-length="20000" bind:input="onInput" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
     </view>
   </view>
   <button class="text-button" bindtap="clear" disabled="{{loading}}">清空当前作文和照片</button>
-  <button class="secondary full-workspace-link" bindtap="openFullWorkspace">Cambridge 写作题库</button>
+  <view wx:if="{{band !== null}}" class="writing-score"><text>AI 评分 · Band {{band}}</text><view wx:for="{{criteria}}" wx:key="label"><text>{{item.label}}</text><text>{{item.score}}</text></view></view>
+  <button wx:if="{{reportUrl}}" class="secondary" loading="{{downloading}}" disabled="{{downloading}}" bindtap="downloadReport">下载批改报告</button>
+  <button class="secondary full-workspace-link" bindtap="openFullWorkspace">选择其他写作题目</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
 </view>

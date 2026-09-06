@@ -1,9 +1,10 @@
 const { requestJson } = require('./api')
 const { clearLocalSession } = require('./session')
+const {rememberNativeSession}=require('./nativeSession')
 
 async function signIn(username, password, mode = 'login') {
   const normalizedUsername = String(username || '').trim().toLowerCase()
-  const payload = await requestJson(`/api/auth/${mode === 'register' ? 'register' : 'login'}`, { username: normalizedUsername, password })
+  const payload = await requestJson(`/api/auth/${mode === 'register' ? 'register' : 'login'}`, { username: normalizedUsername, password }, {stemAuth:false})
   if (!payload.accessToken) throw new Error('登录响应缺少会话令牌，请联系管理员')
   wx.setStorageSync('stemistSessionToken', payload.accessToken)
   const returnedUser = payload.user || payload.identity || {}
@@ -12,6 +13,7 @@ async function signIn(username, password, mode = 'login') {
     username: payload.username || returnedUser.username || normalizedUsername,
     roles: payload.roles || payload.workspaceRoles || returnedUser.roles || returnedUser.workspaceRoles || [],
   })
+  rememberNativeSession(payload,'password')
   return payload
 }
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { miniRuntime } from './helpers/mini-runtime.mjs'
+import {expandedWxml} from './helpers/wxml-source.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
@@ -16,7 +17,7 @@ function handlerNames(wxml) {
 }
 
 for (const page of app.pages) {
-  const wxml = read(`${page}.wxml`)
+  const wxml = expandedWxml(root,`${page}.wxml`)
   // Inspect the assembled Page object, including factories/controller mixins.
   // Text matching alone rejected legitimate imported handlers and skipped
   // generated pages without actually proving their event wiring.

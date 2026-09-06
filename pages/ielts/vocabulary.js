@@ -1,0 +1,26 @@
+const {deviceState,syncDevice}=require('../../utils/page')
+const {vocabularyIndex,vocabularyDetail}=require('../../utils/nativeVocabulary')
+const {requestIeltsLearning}=require('../../utils/ieltsLearning')
+const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
+const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
+Page({
+ data:deviceState({loading:true,error:'',bank:'ielts',query:'',items:[],total:0,page:0,pageCount:0,stages:[],stage:'',stageIndex:0,reviewOnly:false,word:null,revealed:false,detailBusy:false,status:'',mastered:0,due:0}),
+ onLoad(options={}){this.__disposed=false;this.__owner=owner();this.__epoch=epoch();this.__key='stemistVocabProgress:'+this.__owner;this.__progress=wx.getStorageSync(this.__key)||{};this.__request=0;this.__targetTerms=null;if(options.termIds){try{const ids=JSON.parse(options.termIds);this.__targetTerms=new Set(Array.isArray(ids)?ids.filter(id=>typeof id==='string').slice(0,200):[])}catch{this.__targetTerms=new Set()}}this.setData({bank:options.bank==='stem'?'stem':'ielts'});this.load()},
+ onShow(){syncDevice(this)},onResize(){syncDevice(this)},onUnload(){this.__disposed=true;this.__request++;clearTimeout(this.__searchTimer)},
+ current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
+ async load(){this.setData({loading:true,error:''});try{this.__index=await vocabularyIndex();if(this.current())this.filter()}catch(e){if(this.current())this.setData({error:e.message})}finally{if(this.current())this.setData({loading:false})}},
+ filter(){if(!this.__index)return;const query=this.data.query.trim().toLowerCase(),now=Date.now(),pool=this.__index.filter(item=>item.bank===this.data.bank&&(!this.__targetTerms||this.__targetTerms.has(item.id)));const stages=[{value:'',label:'全部阶段'},...[...new Set(pool.map(i=>i.stage).filter(Boolean))].map(value=>({value,label:value}))];this.__matched=pool.filter(item=>(!this.data.stage||item.stage===this.data.stage)&&(!query||(item.word+' '+item.meaning+' '+item.topicLabel).toLowerCase().includes(query))&&(!this.data.reviewOnly||(this.__progress[item.id]?.due||0)<=now));this.setData({stages,mastered:pool.filter(i=>(this.__progress[i.id]?.level||0)>=3).length,due:pool.filter(i=>(this.__progress[i.id]?.due||0)<=now).length});this.render()},
+ render(){const total=this.__matched.length,pageCount=Math.ceil(total/20),page=Math.max(0,Math.min(this.data.page,pageCount-1));this.setData({page,pageCount,total,items:this.__matched.slice(page*20,(page+1)*20).map(item=>({id:item.id,word:item.word,meaning:item.meaning,stage:item.stage,topicLabel:item.topicLabel}))})},
+ switchBank(event){this.closeWord();this.setData({bank:event.currentTarget.dataset.bank,stage:'',stageIndex:0,page:0});this.filter()},
+ chooseStage(event){this.closeWord();const stageIndex=Number(event.detail.value);this.setData({stageIndex,stage:this.data.stages[stageIndex]?.value||'',page:0});this.filter()},
+ search(event){this.closeWord();this.setData({query:String(event.detail.value||''),page:0});clearTimeout(this.__searchTimer);this.__searchTimer=setTimeout(()=>{if(this.current())this.filter()},180)},
+ toggleReview(){this.setData({reviewOnly:!this.data.reviewOnly,page:0});this.filter()},
+ next(){if(this.data.page+1<this.data.pageCount){this.setData({page:this.data.page+1});this.render();wx.pageScrollTo?.({scrollTop:0,duration:0})}},
+ previous(){if(this.data.page>0){this.setData({page:this.data.page-1});this.render();wx.pageScrollTo?.({scrollTop:0,duration:0})}},
+ async openWord(event){const id=String(event.currentTarget.dataset.id||''),request=++this.__request;this.setData({detailBusy:true,error:'',status:''});try{const item=await vocabularyDetail(id);if(!this.current()||request!==this.__request)return;this.setData({word:{id:item.id,word:item.word,meaning:item.meaning,phonetic:item.phonetic||'',definition:item.definition||'',explanation:item.conceptExplanation||item.cn||'',example:item.example||'',translation:item.translation||'',formula:item.formula||'',mistake:item.commonMistake||'',collocations:item.collocations||[]},revealed:false})}catch(e){if(this.current())this.setData({error:e.message})}finally{if(this.current()&&request===this.__request)this.setData({detailBusy:false})}},
+ reveal(){this.setData({revealed:!this.data.revealed})},
+ closeWord(){this.__request++;this.setData({word:null,detailBusy:false,status:''})},
+ remember(event){if(!this.current()||!this.data.word)return;const id=this.data.word.id,known=event.currentTarget.dataset.known==='yes',level=known?Math.min(5,(this.__progress[id]?.level||0)+1):0;this.__progress={...this.__progress,[id]:{level,due:Date.now()+(known?[1,3,7,14,30][Math.max(0,level-1)]*86400000:600000)}};wx.setStorageSync(this.__key,this.__progress);this.setData({status:known?'已加入间隔复习':'稍后再练'});this.filter()},
+ async saveWord(){if(!this.data.word||!this.current())return;const word=this.data.word;wx.setStorageSync('stemistSavedWord:'+this.__owner+':'+word.id,word);this.setData({status:'已收藏到本机'});try{await requestIeltsLearning('/api/vocabulary',{term:word.word,explanation:word.definition+'\n'+word.meaning,context:word.example,source:'Stemist vocabulary'});if(this.current())this.setData({status:'已收藏并同步账号'})}catch{if(this.current())this.setData({status:'已收藏到本机，账号同步暂未完成'})}},
+ back(){wx.navigateBack()}
+})

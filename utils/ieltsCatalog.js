@@ -1,7 +1,5 @@
-// A small, explicit map of the IELTSist production workspace. Native pages
-// handle the low-friction mobile flows; the full IELTSist WebView remains the
-// source of truth for Cambridge papers, reports, realtime speaking, account,
-// vocabulary and membership.
+// Native destinations preserve the IELTSist product map. Backend services stay
+// authoritative; no learning entry is completed by opening a website.
 
 const IELTS_WEB_ORIGIN = 'https://ieltsist.com'
 
@@ -11,7 +9,7 @@ const IELTS_FEATURE_GROUPS = Object.freeze([
     label: '开始学习',
     detail: '先看今日计划，再进入对应技能',
     features: Object.freeze([
-      Object.freeze({ id: 'dashboard', title: '今日计划', detail: '目标与近期练习', tone: 'dashboard', kind: 'web', hash: '#home' }),
+      Object.freeze({ id: 'dashboard', title: '今日计划', detail: '目标与近期练习', tone: 'dashboard', kind: 'native', nativePage:'/pages/ielts/home', hash: '#home' }),
       Object.freeze({ id: 'coach', title: 'AI Coach', detail: '随时提问、解释答案、安排下一步', tone: 'coach', kind: 'native', nativePage: '/pages/coach/index?source=ielts&category=ielts' }),
     ]),
   }),
@@ -20,10 +18,10 @@ const IELTS_FEATURE_GROUPS = Object.freeze([
     label: '四项技能',
     detail: '听、说、读、写',
     features: Object.freeze([
-      Object.freeze({ id: 'listening', title: 'Listening', detail: '听音频，做真题', tone: 'listening', kind: 'native', nativePage: '/pages/ielts/listening', module: 'listening', hash: '#single' }),
-      Object.freeze({ id: 'reading', title: 'Reading', detail: '文章阅读与答题', tone: 'reading', kind: 'native', nativePage: '/pages/ielts/reading', module: 'reading', hash: '#single' }),
-      Object.freeze({ id: 'writing', title: 'Writing', detail: '打字或拍照提交作文', tone: 'writing', kind: 'native', nativePage: '/pages/ielts/writing', module: 'writing', hash: '#writing-upload' }),
-      Object.freeze({ id: 'speaking', title: 'Speaking', detail: 'AI 对话与口语评分', tone: 'speaking', kind: 'embedded', nativePage: '/pages/ielts/speaking', module: 'speaking', hash: '#bank' }),
+      Object.freeze({ id: 'listening', title: 'Listening', detail: '听音频，做真题', tone: 'listening', kind: 'native', nativePage: '/pages/ielts/library?module=listening', module: 'listening', hash: '#single' }),
+      Object.freeze({ id: 'reading', title: 'Reading', detail: '文章阅读与答题', tone: 'reading', kind: 'native', nativePage: '/pages/ielts/library?module=reading', module: 'reading', hash: '#single' }),
+      Object.freeze({ id: 'writing', title: 'Writing', detail: '打字或拍照提交作文', tone: 'writing', kind: 'native', nativePage: '/pages/ielts/library?module=writing', module: 'writing', hash: '#writing-upload' }),
+      Object.freeze({ id: 'speaking', title: 'Speaking', detail: 'AI 对话与口语评分', tone: 'speaking', kind: 'native', nativePage: '/pages/ielts/library?module=speaking', module: 'speaking', hash: '#bank' }),
     ]),
   }),
   Object.freeze({
@@ -31,8 +29,8 @@ const IELTS_FEATURE_GROUPS = Object.freeze([
     label: '整套模拟',
     detail: '剑桥套题与随机模考',
     features: Object.freeze([
-      Object.freeze({ id: 'same-test', title: '剑桥套题', detail: '选择书册与 Test', tone: 'sequence', kind: 'web', hash: '#sequence' }),
-      Object.freeze({ id: 'random-exam', title: '随机模考', detail: '计时完成整套试题', tone: 'exam', kind: 'web', hash: '#exam' }),
+      Object.freeze({ id: 'same-test', title: '剑桥套题', detail: '选择书册与 Test', tone: 'sequence', kind: 'native', nativePage:'/pages/ielts/exam?mode=same-test', hash: '#sequence' }),
+      Object.freeze({ id: 'random-exam', title: '随机模考', detail: '计时完成整套试题', tone: 'exam', kind: 'native', nativePage:'/pages/ielts/exam?mode=random-exam', hash: '#exam' }),
     ]),
   }),
   Object.freeze({
@@ -40,9 +38,9 @@ const IELTS_FEATURE_GROUPS = Object.freeze([
     label: '词汇与账号',
     detail: '词汇复习与练习记录',
     features: Object.freeze([
-      Object.freeze({ id: 'vocabulary', title: '词汇', detail: '记忆与复习', tone: 'vocabulary', kind: 'web', hash: '#vocabulary' }),
-      Object.freeze({ id: 'mine', title: '我的记录', detail: '练习报告与词汇本', tone: 'mine', kind: 'web', hash: '#mine' }),
-      Object.freeze({ id: 'subscription', title: '会员', detail: '查看权益与方案', tone: 'subscription', kind: 'web', hash: '#subscription' }),
+      Object.freeze({ id: 'vocabulary', title: '词汇', detail: '记忆与复习', tone: 'vocabulary', kind: 'native', nativePage:'/pages/ielts/vocabulary', hash: '#vocabulary' }),
+      Object.freeze({ id: 'mine', title: '我的记录', detail: '练习报告与词汇本', tone: 'mine', kind: 'native', nativePage:'/pages/ielts/home?view=records', hash: '#mine' }),
+      Object.freeze({ id: 'subscription', title: '会员', detail: '查看权益与方案', tone: 'subscription', kind: 'native', nativePage:'/pages/ielts/home?view=subscription', hash: '#subscription' }),
     ]),
   }),
   Object.freeze({
@@ -50,7 +48,7 @@ const IELTS_FEATURE_GROUPS = Object.freeze([
     label: 'IELTSist',
     detail: '真题与学习记录',
     features: Object.freeze([
-      Object.freeze({ id: 'full-workspace', title: 'IELTSist', detail: '真题与学习记录', tone: 'full', kind: 'web', hash: '#home' }),
+      Object.freeze({ id: 'full-workspace', title: 'IELTSist', detail: '真题与学习记录', tone: 'full', kind: 'native', nativePage:'/pages/ielts/home', hash: '#home' }),
     ]),
   }),
 ])

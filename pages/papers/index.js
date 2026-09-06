@@ -19,12 +19,13 @@ Page({
   data: deviceState({
     category: 'alevel', categoryLabel: '学科真题', showStageFilter: true, subjects: scopes('alevel'),
     subject: '9702', subjectIndex: 0, stageFilters: STAGE_FILTERS, stage: 'all', stageIndex: 0,
-    query: '', loading: false, error: '', catalog: null, items: [], totalQuestionPapers: 0,
-    pairedQuestionPapers: 0, matchCount: 0, hasMore: false, pdfBusy: '', routeId: '', family: 'exam',
+    query: '', loading: false, error: '', catalog: null, items: [], totalQuestionPapers: 0, mode:'past-paper-practice',
+    pairedQuestionPapers: 0, matchCount: 0, hasMore: false, pageNumber:1, pageCount:0, pdfBusy: '', routeId: '', family: 'exam',
   }),
   onLoad(options = {}) {
-    this.__requestId = 0; this.__limit = PAGE_SIZE; this.__disposed = false
+    this.__requestId = 0; this.__page = 0; this.__disposed = false;this.__catalog=null;this.__matches=[]
     const requested = String(options.subject || '')
+    this.setData({mode:options.mode==='exam-simulation'?'exam-simulation':'past-paper-practice'})
     const category = normalizeStemCategory(options.category || (requested ? categoryForSubject(requested) : 'alevel'))
     const subjects = scopes(category)
     const subject = subjects.find(item => item.code === requested) || subjects[0]
@@ -33,12 +34,12 @@ Page({
   },
   onShow() { syncDevice(this) },
   onResize() { syncDevice(this) },
-  onUnload() { this.__disposed = true; this.__requestId += 1 },
+  onUnload() { this.__disposed = true; this.__requestId += 1;clearTimeout(this.__searchTimer) },
   chooseSubject(event) {
     const index = event.detail?.value !== undefined ? Number(event.detail.value) : this.data.subjects.findIndex(item => item.code === event.currentTarget?.dataset?.subject)
     const subject = this.data.subjects[index]
     if (!subject) return
-    this.__limit = PAGE_SIZE
+    this.__page = 0
     this.setData({ subject: subject.code, subjectIndex: index, stage: 'all', stageIndex: 0, query: '' })
     this.loadCatalog(subject.code)
   },
@@ -46,41 +47,47 @@ Page({
     const index = Number(event.detail?.value)
     const option = this.data.stageFilters[index]
     if (!option || !this.data.showStageFilter) return
-    this.__limit = PAGE_SIZE
+    this.__page = 0
     this.setData({ stage: option.id, stageIndex: index }); this.applyFilters()
   },
-  onSearch(event) { this.__limit = PAGE_SIZE; this.setData({ query: String(event.detail.value || '') }); this.applyFilters() },
-  clearSearch() { this.__limit = PAGE_SIZE; this.setData({ query: '' }); this.applyFilters() },
+  onSearch(event) { this.__page=0;this.setData({query:String(event.detail.value||'')});clearTimeout(this.__searchTimer);this.__searchTimer=setTimeout(()=>{if(!this.__disposed)this.applyFilters()},180) },
+  clearSearch() { clearTimeout(this.__searchTimer);this.__page=0;this.setData({ query: '' }); this.applyFilters() },
   retry() { this.loadCatalog(this.data.subject) },
   async loadCatalog(subject) {
     const requestId = ++this.__requestId
+    this.__catalog=null;this.__matches=[];this.__page=0;clearTimeout(this.__searchTimer)
     const scopeRoute = STEM_ROUTES.find(route => route.subjectCode === subject)
     this.setData({ loading: true, error: '', catalog: null, items: [], matchCount: 0, hasMore: false, totalQuestionPapers: 0, pairedQuestionPapers: 0, routeId: scopeRoute?.routeId || '', family: scopeRoute?.stage === 'Admissions' ? 'admissions' : this.data.category === 'competition' ? 'competition' : 'exam' })
     try {
       const catalog = await fetchPaperCatalog(subject)
       if (this.__disposed || requestId !== this.__requestId) return
-      this.setData({ catalog, totalQuestionPapers: catalog.items.length, pairedQuestionPapers: catalog.items.filter(item => item.markScheme).length })
+      this.__catalog={...catalog,items:catalog.items.slice().sort((a,b)=>(Number(b.year||0)-Number(a.year||0))||b.file.localeCompare(a.file))}
+      this.setData({ catalog: true, totalQuestionPapers: catalog.items.length, pairedQuestionPapers: catalog.items.filter(item => item.markScheme).length })
       this.applyFilters()
     } catch { if (!this.__disposed && requestId === this.__requestId) this.setData({ error: '真题暂时无法加载，请重试。' }) }
     finally { if (!this.__disposed && requestId === this.__requestId) this.setData({ loading: false }) }
   },
   applyFilters() {
-    if (!this.data.catalog) return
+    if (!this.__catalog) return
     const query = this.data.query.trim().toLowerCase()
-    const all = this.data.catalog.items.filter(item => (this.data.stage === 'all' || item.stages.includes(this.data.stage)) && (!query || (item.file+' '+item.title+' '+item.year+' '+item.season).toLowerCase().includes(query)))
-      .sort((a,b) => (Number(b.year || 0)-Number(a.year || 0)) || b.file.localeCompare(a.file))
-    const items = all.slice(0, this.__limit || PAGE_SIZE).map(item => ({ ...item, stageLabel: stageLabel(item), displayTitle: item.file.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' '), pairLabel: item.markScheme ? '含参考答案' : '' }))
-    this.setData({ items, matchCount: all.length, hasMore: all.length > items.length })
+    this.__matches=this.__catalog.items.filter(item => (this.data.stage === 'all' || item.stages.includes(this.data.stage)) && (!query || (item.file+' '+item.title+' '+item.year+' '+item.season).toLowerCase().includes(query)))
+    this.renderCatalogPage()
   },
-  loadMore() { this.__limit = (this.__limit || PAGE_SIZE) + PAGE_SIZE; this.applyFilters() },
-  onReachBottom() { if (this.data.hasMore) this.loadMore() },
+  renderCatalogPage() {
+    const all=this.__matches||[],pageCount=Math.ceil(all.length/PAGE_SIZE)
+    this.__page=Math.max(0,Math.min(this.__page,pageCount-1))
+    const items=all.slice(this.__page*PAGE_SIZE,(this.__page+1)*PAGE_SIZE).map(item=>({...item,stageLabel:stageLabel(item),displayTitle:item.file.replace(/\.pdf$/i,'').replace(/[_-]+/g,' '),pairLabel:item.markScheme?'含参考答案':''}))
+    this.setData({items,matchCount:all.length,hasMore:this.__page+1<pageCount,pageNumber:this.__page+1,pageCount})
+  },
+  loadMore() { if(!this.data.hasMore)return;this.__page++;this.renderCatalogPage();wx.pageScrollTo?.({scrollTop:0,duration:0}) },
+  previousPage() { if(this.__page<1)return;this.__page--;this.renderCatalogPage();wx.pageScrollTo?.({scrollTop:0,duration:0}) },
   openPaper(event) {
     const item = this.data.items.find(candidate => candidate.id === String(event.currentTarget.dataset.id || ''))
     if (!item) return
     const route = paperRoute(item, this.data.stage)
     if (!route) return this.setData({ error: '这份试卷暂时无法开始练习。' })
-    const url = 'https://stem.ieltsist.com/papers?course='+encodeURIComponent(item.subject)+'&routeId='+encodeURIComponent(route.routeId)+'&stage='+encodeURIComponent(route.stage)+'&paperId='+encodeURIComponent(item.id)+'&paperMode=past-paper-practice&from=stemist'
-    wx.navigateTo({ url: '/pages/webview/index?url='+encodeURIComponent(url), fail: () => this.setData({ error: '练习暂时无法打开，请重试。' }) })
+    const url = '/pages/stem/paper?subject='+encodeURIComponent(item.subject)+'&routeId='+encodeURIComponent(route.routeId)+'&stage='+encodeURIComponent(route.stage)+'&paperId='+encodeURIComponent(item.id)+'&mode='+encodeURIComponent(this.data.mode)
+    wx.navigateTo({ url, fail: () => this.setData({ error: '练习暂时无法打开，请重试。' }) })
   },
   openPdf(event) {
     const item = this.data.items.find(candidate => candidate.id === String(event.currentTarget.dataset.id || ''))

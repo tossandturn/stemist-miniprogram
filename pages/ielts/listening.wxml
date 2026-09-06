@@ -1,8 +1,1 @@
-<view class="page {{deviceClass}} {{orientation}} ielts-skill-page listening-page">
-  <stemist-header eyebrow="{{eyebrow}}" title="{{title}}" subtitle="{{subtitle}}" action-text="返回" bind:action="openBack" />
-  <app-nav active="practice" source="listening" category="ielts" is-tablet="{{isTablet}}" />
-  <button class="secondary full-workspace-link" bindtap="openFullWorkspace">真题与音频</button>
-  <view class="workspace-grid">
-    <text-practice text="{{text}}" answer="{{answer}}" warning="{{warning}}" loading="{{loading}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" placeholder="{{placeholder}}" submit-label="提交给 AI Coach" context-title="{{contextTitle}}" context-text="{{contextText}}" draft-status="{{draftStatus}}" bind:input="onInput" bind:submit="submit" bind:clear="clear" bind:retry="retry" bind:account="openAccount" />
-  </view>
-</view>
+<include src="objective.wxml"/>

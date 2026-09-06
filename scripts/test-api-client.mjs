@@ -16,7 +16,7 @@ const wx = {
 }
 const module = { exports: {} }
 let sessionCleanupOptions
-const fakeRequire = (name) => name === './session' ? { clearLocalSession: (options) => {
+const fakeRequire = (name) => name === './ieltsLearning' ? {requestIeltsLearning:(...args)=>module.exports.requestIeltsJson(...args)} : name === './nativeSession' ? {captureNativeCookie(){},refreshNativeSession:async()=>{}} : name === './session' ? { clearLocalSession: (options) => {
   sessionCleanupOptions = options
   delete storage.stemistSessionToken
   delete storage.stemistUser

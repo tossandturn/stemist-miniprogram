@@ -1,7 +1,6 @@
 {
-  "navigationBarTitleText": "Stemist · Web workspace",
+  "navigationBarTitleText": "Stemist · 学习",
   "usingComponents": {
-    "stemist-header": "/components/stemist-header/index",
-    "ai-fab": "/components/ai-fab/index"
+    "stemist-header": "/components/stemist-header/index"
   }
 }

@@ -21,7 +21,8 @@ function readDeviceProfile() {
     isTablet,
     windowWidth: width,
     windowHeight: height,
-    orientation: isTablet ? (width >= height ? 'landscape' : 'portrait') : 'phone',
+    // Keyboard resizing changes the usable window, not the device rotation.
+    orientation: isTablet ? (Number(info.screenWidth||width) >= Number(info.screenHeight||height) ? 'landscape' : 'portrait') : 'phone',
   }
 }
 

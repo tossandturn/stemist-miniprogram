@@ -30,12 +30,25 @@ function walk(directory) {
   return files
 }
 
+function compilationFiles(entry, extension, seen = new Set()) {
+  const absolute = path.resolve(entry)
+  if (seen.has(absolute)) return []
+  const relative = path.relative(root, absolute)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Compiler import escapes the project')
+  seen.add(absolute)
+  const source = fs.readFileSync(absolute, 'utf8')
+  const pattern = extension === '.wxss' ? /@import\s+["']([^"']+)["']/g : /<(?:include|import)\s+src=["']([^"']+)["']/g
+  const dependencies = [...source.matchAll(pattern)].flatMap(match => compilationFiles(
+    match[1].startsWith('/') ? path.join(root, match[1].slice(1)) : path.resolve(path.dirname(absolute), match[1]), extension, seen))
+  return [relative.replace(/\\/g, '/'), ...dependencies]
+}
+
 try {
   for (const absolute of walk(root)) {
     const relative = path.relative(root, absolute)
     if (relative.includes(`${path.sep}node_modules${path.sep}`)) continue
-    if (absolute.endsWith('.wxml')) compile(wcc, [absolute, '-o', path.join(tempRoot, `${path.basename(absolute)}.js`)], `WXML ${relative}`)
-    if (absolute.endsWith('.wxss')) compile(wcsc, ['-lc', absolute, '-o', path.join(tempRoot, `${path.basename(absolute)}.js`)], `WXSS ${relative}`)
+    if (absolute.endsWith('.wxml')) compile(wcc, [...compilationFiles(absolute,'.wxml'), '-o', path.join(tempRoot, `${path.basename(absolute)}.js`)], `WXML ${relative}`)
+    if (absolute.endsWith('.wxss')) compile(wcsc, ['-lc', ...compilationFiles(absolute,'.wxss'), '-o', path.join(tempRoot, `${path.basename(absolute)}.js`)], `WXSS ${relative}`)
   }
   console.log('WeChat WXML/WXSS compiler checks passed.')
 } finally {

@@ -9,3 +9,4 @@
 .prompt-input { min-height: 190rpx !important; }
 .writing-page .text-button { display: block; margin: 18rpx auto 0; }
 .writing-page .full-workspace-link { margin-top: 14rpx; }
+.writing-task-image { display:block;width:100%;margin:12px 0;background:#f5f6fb; }.writing-score { padding:16px;margin-top:16px;border:1px solid #e4e7f0;border-radius:14px;background:#fff; }.writing-score>text { font-size:20px;font-weight:700; }.writing-score>view { display:flex;justify-content:space-between;gap:16px;padding:10px 0;font-size:14px; }

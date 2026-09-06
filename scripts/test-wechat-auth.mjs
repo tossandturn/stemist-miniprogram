@@ -21,6 +21,7 @@ vm.runInNewContext(source, {
     setStorageSync: (key, value) => { storage[key] = value },
   },
   require(name) {
+    if(name === './nativeSession') return {rememberNativeSession(){},refreshNativeSession:async()=>{}}
     assert.equal(name, './api')
     return { requestJson: async (url, payload, options) => {
       requestCount += 1

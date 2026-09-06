@@ -48,3 +48,13 @@ assert.equal(values.stemistCroppedImage, undefined)
 assert.equal(values['stemistNotebook:cie-9702-as-physics'], undefined)
 assert.equal(values.stemistPendingAttemptSync, undefined)
 console.log('Session-local privacy cleanup passed.')
+
+const removed=[]
+wx.env={USER_DATA_PATH:'/owned'}
+wx.getFileSystemManager=()=>({unlink:({filePath})=>removed.push(filePath)})
+values.stemistSpeakingExportPath='/owned/ielts-speaking-transcript.txt'
+values['stemistDraft:ielts-writing:x']={photoPath:'/owned/native-writing/writing-test-1.jpg'}
+values['stemistDraft:unrelated']={photoPath:'/camera/original.jpg'}
+module.exports.clearLocalSession()
+assert.deepEqual(removed.sort(),['/owned/ielts-speaking-transcript.txt','/owned/native-writing/writing-test-1.jpg'].sort())
+assert.equal(values.stemistSpeakingExportPath,undefined)

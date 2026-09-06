@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict'
+import {miniRuntime,settle} from './helpers/mini-runtime.mjs'
+const data=Array.from({length:4000},(_,i)=>({id:'paper-'+i,subject:'9702',year:2025-Math.floor(i/200),file:`9702_${i}_qp.pdf`,stages:['as'],routeIds:['cie-9702-as-physics'],kind:'qp',localUrl:`/local-pdf/9702/9702_${i}_qp.pdf`}))
+const runtime=miniRuntime({modules:{'utils/paperCatalog':{PAPER_SUBJECTS:[{code:'9702',label:'Physics'}],fetchPaperCatalog:async()=>({items:data})}}})
+const page=runtime.page('pages/papers/index');page.onLoad({category:'alevel',subject:'9702'});await settle()
+assert.ok(!page.data.catalog||!page.data.catalog.items,'the complete catalog must not enter the renderer')
+assert.equal(page.data.items.length,30)
+assert.ok(JSON.stringify(page.data).length<40000)
+for(let i=0;i<50;i++)page.loadMore()
+assert.equal(page.data.items.length,30,'pagination must keep a bounded render window')
+assert.equal(page.data.pageNumber,51)
+page.previousPage();assert.equal(page.data.pageNumber,50)
+page.onSearch({detail:{value:'9702_3999'}});await new Promise(r=>setTimeout(r,220))
+assert.equal(page.data.items.length,1);assert.equal(page.data.pageNumber,1)
+page.onUnload()
+console.log('Native catalog performance: 4,000 records, bounded 30-row rendering, paging and search passed.')

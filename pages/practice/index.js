@@ -1,7 +1,7 @@
 const { deviceState, syncDevice } = require('../../utils/page')
 const { fetchRouteInventory } = require('../../utils/inventory')
 const { familyForCategoryStage, normalizeStemCategory, routesForSubjectStage, stemCategoryProfile, subjectsForCategory } = require('../../utils/stemCatalog')
-const { IELTS_FEATURE_GROUPS, getIeltsFeature, ieltsWebUrl } = require('../../utils/ieltsCatalog')
+const { IELTS_FEATURE_GROUPS, getIeltsFeature } = require('../../utils/ieltsCatalog')
 const { routeById } = require('../../utils/stemRoutes')
 
 const STEM_TOOLS = [
@@ -132,21 +132,15 @@ Page({
       wx.navigateTo({ url: feature.nativePage, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
       return
     }
-    const url = ieltsWebUrl(feature.id, { source: `mini-${feature.id}` })
-    if (!url) return
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
+    this.setData({error:'暂时无法打开，请返回重试。'})
   },
   openCoach() { wx.navigateTo({ url: '/pages/coach/index?source=alevel&category=alevel&routeId='+encodeURIComponent(this.data.routeId)+'&stage='+encodeURIComponent(this.data.stage)+'&subjectCode='+encodeURIComponent(this.data.subjectCode) }) },
   openPapers() { wx.navigateTo({ url: `/pages/papers/index?category=${encodeURIComponent(this.data.activeCategory)}&subject=${encodeURIComponent(this.data.subjectCode)}` }) },
   openFullStudio() {
     if (this.data.activeCategory === 'ielts') {
-      const url = ieltsWebUrl('full-workspace', { source: 'mini-full' })
-      return wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
+      return wx.navigateTo({url:'/pages/ielts/home'})
     }
-    const profile = this.data.categoryProfile || stemCategoryProfile(this.data.activeCategory)
-    const family = familyForCategoryStage(this.data.activeCategory, this.data.stage)
-    const url = `https://stem.ieltsist.com/today?routeId=${encodeURIComponent(this.data.routeId || '')}&stage=${encodeURIComponent(this.data.stage || '')}&category=${encodeURIComponent(this.data.activeCategory)}&family=${encodeURIComponent(family || profile.family)}&from=stemist`
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
+    wx.navigateTo({url:'/pages/progress/index'})
   },
   openStemTool(event) {
     const tool = String(event.currentTarget.dataset.tool || '')
@@ -155,10 +149,7 @@ Page({
     if (tool === 'topics') return wx.navigateTo({ url: `/pages/stem/topics?routeId=${encodeURIComponent(this.data.routeId)}`, fail: () => this.setData({ error: '章节练习未能打开，请重试。' }) })
     if (tool === 'progress') return wx.navigateTo({ url: '/pages/progress/index' })
     if (tool === 'notebook') return wx.navigateTo({ url: `/pages/notebook/index?category=${encodeURIComponent(this.data.activeCategory)}&routeId=${encodeURIComponent(this.data.routeId || '')}` })
-    const tab = tool === 'exams' ? 'exams' : 'topics'
-    const profile = this.data.categoryProfile || stemCategoryProfile(this.data.activeCategory)
-    const family = familyForCategoryStage(this.data.activeCategory, this.data.stage)
-    const url = `https://stem.ieltsist.com/practice?tab=${tab}&routeId=${encodeURIComponent(this.data.routeId || '')}&stage=${encodeURIComponent(this.data.stage || '')}&category=${encodeURIComponent(this.data.activeCategory)}&family=${encodeURIComponent(family || profile.family)}&from=stemist`
-    wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(url)}`, fail: () => this.setData({ error: '暂时无法打开，请返回重试。' }) })
+    if(tool==='exams')return wx.navigateTo({url:'/pages/papers/index?category='+encodeURIComponent(this.data.activeCategory)+'&subject='+encodeURIComponent(this.data.subjectCode)+'&mode=exam-simulation'})
+    if(tool==='vocabulary')return wx.navigateTo({url:'/pages/ielts/vocabulary?bank=stem&routeId='+encodeURIComponent(this.data.routeId)})
   },
 })

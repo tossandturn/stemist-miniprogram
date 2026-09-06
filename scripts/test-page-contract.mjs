@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {expandedWxml} from './helpers/wxml-source.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
@@ -17,7 +18,7 @@ for (const page of app.pages) {
   for (const [tag, componentPath] of Object.entries(config.usingComponents || {})) {
     const expectedDirectory = path.basename(String(componentPath).replace(/\/index$/, ''))
     assert.equal(componentFiles.has(expectedDirectory), true, `${page} references missing component ${tag}`)
-    assert.match(read(`${page}.wxml`), new RegExp(`<${tag}(?:\\s|>)`), `${page} must use ${tag}`)
+    assert.match(expandedWxml(root,`${page}.wxml`), new RegExp(`<${tag}(?:\\s|>)`), `${page} must use ${tag}`)
   }
 }
 

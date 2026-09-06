@@ -1,7 +1,1 @@
-<view class="page {{deviceClass}} {{orientation}} webview-page">
-  <stemist-header eyebrow="STEMIST · 完整网页" title="学习工作区" action-text="返回" bind:action="back" />
-  <web-view wx:if="{{url}}" class="full-webview" src="{{url}}" bindload="onLoadWebView" binderror="onError"></web-view>
-  <view wx:if="{{!loaded && url}}" class="loading-state">正在加载…</view>
-  <view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="retry">重试</button></view>
-  <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
-</view>
+<view class="page {{deviceClass}} {{orientation}}"><stemist-header compact="{{true}}" title="学习" action-text="返回" bind:action="back"/><view wx:if="{{error}}" class="error">{{error}}</view><view wx:else class="loading-state">正在打开学习页面…</view></view>

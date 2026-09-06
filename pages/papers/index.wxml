@@ -21,7 +21,7 @@
       </view>
     </view>
     <view wx:if="{{catalog && !items.length}}" class="empty-state">没有匹配的试卷<button class="secondary" bindtap="clearSearch">清空搜索</button></view>
-    <button wx:if="{{hasMore}}" class="secondary more-papers" bindtap="loadMore">加载更多</button>
+    <view wx:if="{{pageCount > 1}}" class="paper-pagination"><button class="secondary" disabled="{{pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary" disabled="{{!hasMore}}" bindtap="loadMore">下一页</button></view>
     <view wx:if="{{error && catalog}}" class="error">{{error}}</view>
   </block>
 </view>

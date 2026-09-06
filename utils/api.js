@@ -1,4 +1,6 @@
 const { clearLocalSession } = require('./session')
+const {captureNativeCookie,refreshNativeSession}=require('./nativeSession')
+const {requestIeltsLearning}=require('./ieltsLearning')
 const { DEFAULT_API_BASE, DEFAULT_IELTS_API_BASE, safeApiBase, safeIeltsApiBase } = require('./apiOrigin')
 
 function baseUrl() {
@@ -41,10 +43,12 @@ function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', s
       header: {
         ...(String(method || 'POST').toUpperCase() === 'GET' ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(origin===baseUrl()&&path==='/api/auth/logout'&&wx.getStorageSync('stemistNativeSessionCookie')?{Cookie:'stem_session='+wx.getStorageSync('stemistNativeSessionCookie')}:{})
       },
       success(response) {
         const payload = response.data || {}
         if (response.statusCode >= 200 && response.statusCode < 300) {
+          captureNativeCookie(origin,path,response)
           resolve(payload)
           return
         }
@@ -67,7 +71,10 @@ function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', s
   })
 }
 
-function requestJson(path, data, options = {}) {
+async function requestJson(path, data, options = {}) {
+  const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
+  if(options.stemAuth!==false&&!path.startsWith('/api/auth/'))await refreshNativeSession()
+  if(!path.startsWith('/data/')&&(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')
   return requestJsonAt(baseUrl(), path, data, options)
 }
 
@@ -95,7 +102,7 @@ function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = []
     history: Array.isArray(history) ? history.slice(-8) : [],
   }
   if (images[0]) payload.imageDataUrl = images[0]
-  return requestIeltsJson('/api/help/chat', payload, {
+  return requestIeltsLearning('/api/help/chat', payload, {
     timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
   }).then((result) => ({
     ...result,

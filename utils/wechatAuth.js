@@ -1,4 +1,5 @@
 const { requestJson } = require('./api')
+const {rememberNativeSession,refreshNativeSession}=require('./nativeSession')
 
 let exchangeInFlight = null
 
@@ -16,6 +17,7 @@ function storeIdentity(payload = {}) {
     username: payload.username || identity.username || '微信用户',
     roles: payload.roles || payload.workspaceRoles || identity.roles || identity.workspaceRoles || [],
   })
+  rememberNativeSession(payload,'wechat')
   return wx.getStorageSync('stemistUser')
 }
 
@@ -34,12 +36,15 @@ function wxLoginCode() {
 }
 
 async function exchangeCode(code) {
-  const payload = await requestJson('/api/auth/wechat', { code }, { method: 'POST', timeout: 10000 })
+  const payload = await requestJson('/api/auth/wechat', { code }, { method: 'POST', timeout: 10000, stemAuth:false })
   return { status: 'authenticated', user: storeIdentity(payload), payload }
 }
 
 async function ensureWeChatSession({ silent = true } = {}) {
-  if (storedToken()) return { status: 'authenticated', user: wx.getStorageSync('stemistUser') || null, reused: true }
+  if (storedToken()) {
+    try{await refreshNativeSession();return { status: 'authenticated', user: wx.getStorageSync('stemistUser') || null, reused: true }}
+    catch(error){if(silent)return{status:'unavailable',error};throw error}
+  }
   if (exchangeInFlight) return exchangeInFlight
   exchangeInFlight = wxLoginCode()
     .then((code) => exchangeCode(code))

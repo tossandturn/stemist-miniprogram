@@ -1,10 +1,14 @@
 const { deviceState, syncDevice } = require('../../utils/page')
 const { computeCropRect, resizedCropSize } = require('../../utils/crop')
 const { attachPhoto } = require('../../utils/nativePractice')
+const {attachPaperPhoto}=require('../../utils/nativePaper')
+const {persistWritingPhoto}=require('../../utils/nativeWritingPhoto')
 
 Page({
   data: deviceState({ src: '', x: 0, y: 0, scale: 1, busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
   onLoad(options) {
+    this.__owner=String((wx.getStorageSync('stemistUser')||{}).id||'guest')
+    this.__epoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
     options = options || {}
     let src = ''
     try { src = options.src ? decodeURIComponent(options.src) : '' } catch { src = '' }
@@ -79,8 +83,20 @@ Page({
       }, this))
     })
   },
-  finish(path) {
+  async finish(path) {
+    const expected={owner:this.__owner??String((wx.getStorageSync('stemistUser')||{}).id||'guest'),epoch:this.__epoch??(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)}
+    if(expected.owner!==String((wx.getStorageSync('stemistUser')||{}).id||'guest')||expected.epoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))return this.setData({busy:false,error:'账号已变化，请返回重新拍摄。'})
     const returnInfo = wx.getStorageSync('stemistCropReturn') || { route: 'stem' }
+    if(returnInfo.route==='native-paper'){
+      return attachPaperPhoto(returnInfo.context,path).then(result=>{
+        wx.removeStorageSync('stemistCropReturn')
+        const pages=typeof getCurrentPages==='function'?getCurrentPages():[]
+        const index=pages.map(page=>page.route).lastIndexOf('pages/stem/paper')
+        const fallback=()=>wx.redirectTo({url:'/pages/stem/paper?paperId='+encodeURIComponent(result.paperId)+'&subject='+encodeURIComponent(result.subject)+'&routeId='+encodeURIComponent(result.routeId)+'&mode='+encodeURIComponent(result.mode)})
+        if(index<0)return fallback()
+        wx.navigateBack({delta:pages.length-1-index,fail:fallback})
+      }).catch(error=>this.setData({busy:false,error:error.message||'照片尚未保存，请重试。'}))
+    }
     if (returnInfo.route === 'native-practice') {
       return attachPhoto(returnInfo.context, path).then(sessionId => {
         wx.removeStorageSync('stemistCropReturn')
@@ -91,9 +107,11 @@ Page({
         wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
       }).catch(error => this.setData({ busy: false, error: error.message || '照片未保存，请重试。' }))
     }
-    wx.removeStorageSync('stemistCropReturn')
     if (returnInfo.route === 'writing') {
+      try{path=await persistWritingPhoto(path,expected)}catch(error){this.setData({busy:false,error:error.message});return}
+      wx.removeStorageSync('stemistCropReturn')
       wx.setStorageSync('stemistWritingPhoto', path)
+      wx.setStorageSync('stemistWritingPhotoMeta',{...expected,scope:returnInfo.context?.writingScope||''})
       const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
       const index = pages.map((page) => page.route).lastIndexOf('pages/ielts/writing')
       if (index < 0) { wx.redirectTo({ url: '/pages/ielts/writing' }); return }
@@ -103,6 +121,7 @@ Page({
       })
       return
     }
+    wx.removeStorageSync('stemistCropReturn')
     wx.setStorageSync('stemistCoachContext', returnInfo.context || {})
     wx.setStorageSync('stemistCroppedImage', path)
     wx.redirectTo({ url: `/pages/stem/coach?src=${encodeURIComponent(path)}` })

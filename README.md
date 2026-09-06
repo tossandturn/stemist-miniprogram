@@ -9,11 +9,11 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 - Home: exactly four primary entrances — A-Level subjects, IELTS, competitions/admissions, and a Casio-style scientific calculator.
 - Calculator: native international fx-991CW key arrangement, LCD menus and fraction display; local scientific arithmetic, nine variables, f/g functions, real quadratic/2-variable equations, one-variable statistics, tables, ratio and signed 32-bit base conversion. This is not Casio firmware or a complete official emulator. [Current CW scope and QA](docs/calculator-cw-qa-2026-09-06.md).
 - Competitions/admissions open the past-paper catalog directly. There is no competition Topic generator or readiness gate in this entrance.
-- STEM Topic practice is native: select syllabus chapters/components/count, assemble from the existing API, display the current question's original image pages, capture/crop an answer and restore local progress. No WebView or PDF renderer is used in this path. See [native practice implementation and QA](docs/native-stem-practice.md). Full-paper/exam and some IELTS capabilities still use WebView and are not yet native.
+- STEM Topic practice is native: select syllabus chapters/components/count, assemble from the existing API, display the current question's original image pages, capture/crop an answer and restore local progress. Full-paper and competition workspaces are now native too. Original PDFs open through `wx.openDocument`, not a website. See [native migration and acceptance](docs/native-migration-plan-2026-09-06.md).
 - STEM route selection reads the server's syllabus inventory and, when signed in, saves a provisional photo-attempt summary to the shared STEM attempts API (the original photo is not persisted there).
-- IELTS: complete IELTSist workspace map — Dashboard, four skills, Same-Test, Random Exam, Vocabulary, Mine/Account, Subscription and AI Coach. Listening/Reading native quick notes use IELTSist `/api/help/chat`; full audio, paper, timer and report controls open through the allowlisted IELTSist WebView.
-- IELTS Writing: typed essay or one-question photo upload, then IELTSist AI feedback; the full Cambridge writing workspace remains one tap away.
-- IELTS Speaking: opens the existing IELTSist Qwen speaking experience in `web-view`.
+- IELTS: native catalog, Listening/Reading source images, audio player, question-by-question text answers, local recovery and server objective scoring. Same-Test, Random Exam, Vocabulary, records and membership have native pages. The existence of these pages is not a claim of complete web feature parity; remaining acceptance work is explicitly listed in the migration document.
+- IELTS Writing: original task images, typed essay or cropped photo with durable local storage, transcription confirmation, asynchronous feedback, saved results and native PDF report download.
+- IELTS Speaking: native recorder, PCM WebSocket input and WebAudio output through the existing Qwen service. Transcript and feedback restore locally. Real-device voice acceptance is still outstanding.
 - AI Coach remains available for STEM, Listening, Reading and Writing; Speaking keeps its dedicated realtime Qwen examiner instead of being forced through the text Coach.
 - No Apple Pencil in the Mini Program. Full PDF annotation and PencilKit remain in the iOS app.
 - Phone and iPad are explicit layouts: phone uses a single column and bottom navigation; iPad uses a wide top navigation and two-column workspaces with a portrait fallback.
@@ -25,12 +25,12 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 1. Install WeChat Developer Tools.
 2. Import this directory.
 3. Replace `appid` in `project.config.json` with your Mini Program app ID.
-4. Configure `stem.ieltsist.com` as a business/server domain and enable HTTPS checks before release.
+4. Configure the required request, download and socket HTTPS/WSS domains for STEM/IELTSist in the Mini Program console. There is no WebView business-domain dependency in the current learning routes.
 5. Run `npm run test:all` for the full local contract suite. When the sibling STEM checkout is present, `npm run test:route-mirror` compares every client route ID with `src/data/routeRegistry.js`. On Windows with WeChat Developer Tools installed, `npm run test:wechat` compiles every WXML/WXSS file with the installed compiler.
 
-The client never contains an AI provider key. STEM requests use the server-side `/api/ai/coach` endpoint; IELTS quick Coach requests use the allowlisted `https://ieltsist.com/api/help/chat`; both use bounded 55s/60s client budgets. API origins are allowlisted to STEM/IELTSist production or loopback developer runs. Entry cards and Account call `wx.login` and exchange the one-time code through `/api/auth/wechat`; the IELTSist account service keeps the WeChat identity mapping server-side and never returns `session_key`. The existing username/password screen remains a recovery path and stores only the short-lived `accessToken` in `stemistSessionToken`.
+The client never contains an AI provider key. STEM uses `/api/ai/coach`; IELTS Coach uses its own native account session with `/api/help/chat`. API origins are allowlisted. `wx.login` exchanges a one-time code through `/api/auth/wechat`; the server never returns the WeChat `session_key`. Expired native sessions are renewed through WeChat or the app's own password-login session. Credentials issued to this app stay in private runtime storage and are cleared on logout; they are never packaged or logged.
 
-IELTS quick pages are stateless convenience surfaces. Account history, official reports, vocabulary notebooks, subscriptions and full timers are opened in the allowlisted IELTSist WebView, where the one-time handoff establishes the real IELTSist session cookie; a STEM bearer token is never treated as an IELTSist cookie.
+`/api/auth/native-session` exchanges a validated STEM identity for a separate bounded IELTS session. Ordinary IELTS API calls never receive the STEM bearer. Old own-site links are resolved to native pages; `pages/webview/index` is a compatibility redirect, not a WebView.
 
 Developer Tools `develop`/`trial` builds set `globalData.debugMode` so every product surface stays visible for QA; this is a feature-visibility flag, not a forged account or bypass token. Real AI and cloud writes still require the server-issued WeChat session.
 
@@ -46,7 +46,9 @@ D:\微信web开发者工具\wechatide.cmd -c Codex simulator_screenshot --projec
 
 If CLI authorization is not enabled, use the Developer Tools Compile button; the repository's `test:wechat` command still validates every template and stylesheet locally.
 
-For actual page clicks, inputs and geometry checks, enable the Developer Tools automation endpoint on local port 9420 and run `node scripts/test-devtools-journeys.cjs`. Install the official `miniprogram-automator` SDK outside the upload tree and set `WECHAT_AUTOMATOR_MODULE` to its absolute module directory. The script's default points to this workstation's QA-only install. See [current QA status](docs/mini-program-qa-status.md) for tested paths and remaining real-device checks.
+For actual native-page clicks and recovery checks, use `scripts/test-devtools-native-ielts.cjs` and `scripts/test-devtools-native-modules.cjs` against the automation endpoint on port 9420. Install the official `miniprogram-automator` SDK outside the upload tree and set `WECHAT_AUTOMATOR_MODULE` to its absolute module directory. Production API/AI smoke scripts are explicitly opt-in and are not run by the unit suite.
+
+After committing reviewed runtime files, `node scripts/build-native-package.mjs --out D:\CodexWork\stemist-native-upload-<commit>` creates a clean upload directory and hash manifest, excluding QA scripts, documents, raw banks and OCR outputs. It does not overwrite the original IDE project configuration.
 
 ## Photo pipeline
 
@@ -54,6 +56,6 @@ The native `camera` page captures exactly one image using `wx.createCameraContex
 
 ## Current integration notes
 
-- `stem.ieltsist.com` and `ieltsist.com` must be configured as WeChat business domains; the Mini Program account cannot be personal if it uses `web-view`.
 - All API and WebSocket traffic must use configured HTTPS/WSS domains.
-- Add a dedicated WeChat identity adapter that exchanges `wx.login` code on the server and maps the result to the existing IELTSist account. Never send `session_key` to the client.
+- The native identity adapters are deployed. The latest production check reports `wechatConfigured: false`; the Mini Program AppID/AppSecret must be configured securely on the account server before WeChat login can pass real acceptance. Do not put the secret in client files, Git or chat.
+- Local data is reused through source catalogs and versioned assets. OCR completion is not permission to release unreviewed questions; source images, stage isolation and the 6/12 Topic gates remain intact.

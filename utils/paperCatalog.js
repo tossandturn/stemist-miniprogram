@@ -17,6 +17,8 @@ const PAPER_SUBJECTS = [
   { code: 'tmua', label: 'TMUA' },
 ]
 const catalogCache = new Map()
+const MAX_CACHED_SUBJECTS = 3
+const CACHE_MS = 5 * 60 * 1000
 
 const IGCSE_SUBJECTS = new Set(['0580', '0606', '0610', '0625'])
 const A_LEVEL_SUBJECTS = new Set(['9231', '9700', '9701', '9702', '9708', '9709'])
@@ -59,6 +61,11 @@ function normalizePaperItem(item = {}) {
     paperNumber: profile.code ? String(profile.code) : '',
     title: String(profile.title || ''),
     mode: String(profile.mode || ''),
+    durationMinutes: Number.isFinite(Number(profile.durationMinutes))&&Number(profile.durationMinutes)>0?Number(profile.durationMinutes):null,
+    maxMarks: Number.isFinite(Number(profile.maxMarks))&&Number(profile.maxMarks)>0?Number(profile.maxMarks):null,
+    // A component-wide default is not the source paper's actual last number.
+    // Never truncate a student's photo answers at that guessed total.
+    questionCount: null,
     stages: canonicalStages(subject, rawStages),
     rawStages,
     routeIds: routes.map((route) => String(route)),
@@ -75,7 +82,10 @@ async function fetchPaperCatalog(subject) {
   const code = String(subject || '').trim().toLowerCase()
   if (!PAPER_SUBJECTS.some((item) => item.code === code)) throw new Error('暂不支持这条学科目录')
   const cached = catalogCache.get(code)
-  if (cached && cached.items) return cached
+  if (cached && cached.items && Date.now()-cached.loadedAt<CACHE_MS) {
+    catalogCache.delete(code);catalogCache.set(code,cached)
+    return cached
+  }
   if (cached && cached.promise) return cached.promise
   const promise = getJson(`/data/papers/${encodeURIComponent(code)}.json`, { timeout: 30000 }).then((payload) => {
     if (!payload || payload.schemaVersion !== 2 || !Array.isArray(payload.items)) throw new Error('真题目录响应无效')
@@ -90,8 +100,14 @@ async function fetchPaperCatalog(subject) {
       totals: payload.totals || {},
       paperGovernance: payload.paperGovernance || null,
       items,
+      loadedAt:Date.now(),
     }
     catalogCache.set(code, normalized)
+    while([...catalogCache.values()].filter(value=>value.items).length>MAX_CACHED_SUBJECTS){
+      const oldest=[...catalogCache].find(([key,value])=>key!==code&&value.items)
+      if(!oldest)break
+      catalogCache.delete(oldest[0])
+    }
     return normalized
   }).finally(() => {
     const current = catalogCache.get(code)

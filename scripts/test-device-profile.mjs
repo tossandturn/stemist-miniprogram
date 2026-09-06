@@ -20,4 +20,5 @@ assert.equal(load({ windowWidth: 1024, screenWidth: 1024, deviceType: 'unknown',
 assert.equal(load({ windowWidth: 1280, screenWidth: 1280, deviceType: 'unknown', model: 'Pixel Tablet' }).isTablet, true)
 assert.equal(load({ windowWidth: 1024, screenWidth: 1024, windowHeight: 768, deviceType: 'tablet', model: 'iPad' }).orientation, 'landscape')
 assert.equal(load({ windowWidth: 768, screenWidth: 768, windowHeight: 1024, deviceType: 'tablet', model: 'iPad' }).orientation, 'portrait')
+assert.equal(load({windowWidth:834,windowHeight:480,screenWidth:834,screenHeight:1194,deviceType:'tablet',model:'iPad'}).orientation,'portrait','keyboard must not turn portrait iPad into landscape')
 console.log('Phone/iPad device profile checks passed.')

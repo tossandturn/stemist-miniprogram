@@ -27,7 +27,11 @@ await check('paper deep link carries STEM course, route and stage', async () => 
   page.data.items = [{ id: 'bpho-2024_Nov_R1_S1_QP', subject: 'bpho', stages: ['competition'], routeIds: [] }]
   page.openPaper({ currentTarget: { dataset: { id: page.data.items[0].id } } })
   const nav = runtime.calls[0].url
-  assert.ok(nav.includes('/pages/paper/') || decodeURIComponent(nav).includes('course=bpho'), nav)
+  const target=new URL(nav,'https://mini.example')
+  assert.equal(target.pathname,'/pages/stem/paper')
+  assert.equal(target.searchParams.get('subject'),'bpho')
+  assert.equal(target.searchParams.get('routeId'),'bpho-admissions-physics')
+  assert.equal(target.searchParams.get('stage'),'Competition')
 })
 await check('cancelling crop lets the camera take another photograph', async () => {
   let captures = 0
@@ -36,9 +40,9 @@ await check('cancelling crop lets the camera take another photograph', async () 
   assert.equal(captures, 2)
 })
 await check('writing photo returns to the writing editor through the full page stack', async () => {
-  const runtime = miniRuntime({ globals: { getCurrentPages: () => ['pages/ielts/writing','pages/stem/capture','pages/stem/camera','pages/crop/crop'].map(route=>({route})) } })
+  const runtime = miniRuntime({ modules:{'utils/nativeWritingPhoto':{persistWritingPhoto:async()=>'/owned/essay.jpg'}}, globals: { getCurrentPages: () => ['pages/ielts/writing','pages/stem/capture','pages/stem/camera','pages/crop/crop'].map(route=>({route})) } })
   runtime.storage.set('stemistCropReturn', { route: 'writing' })
-  runtime.page('pages/crop/crop').finish('/tmp/essay.jpg')
+  await runtime.page('pages/crop/crop').finish('/tmp/essay.jpg')
   assert.equal(runtime.calls[0].delta, 3)
 })
 await check('leaving immediately after typing preserves the last characters', async () => {
@@ -66,9 +70,13 @@ await check('IELTS requests never forward the STEM token or clear its session on
   let outgoing
   const runtime = miniRuntime({ wx: { request: (options) => { outgoing=options; options.success({ statusCode: 401, data: {} }) } } })
   runtime.storage.set('stemistSessionToken','test-stem-session')
+  runtime.storage.set('stemistUser',{id:'ielts:7'})
+  runtime.storage.set('stemistIeltsSessionState',{owner:'ielts:7',epoch:0,token:'separate-ielts-session',expiresAt:new Date(Date.now()+300000).toISOString()})
   await runtime.load('utils/api').askIeltsCoach({ message:'hello' }).catch(()=>{})
-  assert.equal(outgoing.header.Authorization, undefined)
+  assert.equal(outgoing.header.Authorization, 'Bearer separate-ielts-session')
+  assert.equal(outgoing.header['X-Stem-Identity'], undefined)
   assert.equal(runtime.storage.get('stemistSessionToken'),'test-stem-session')
+  assert.equal(runtime.storage.get('stemistIeltsSessionState').token,'')
 })
 await check('logout clears general Coach drafts and camera context', async () => {
   const runtime = miniRuntime()
@@ -93,14 +101,11 @@ await check('navigation errors show a recovery action instead of raw SDK output'
   assert.match(page.data.error,/重试/)
   assert.doesNotMatch(page.data.error,/navigateTo|internal|\.js/)
 })
-await check('Speaking failure removes the native webview before showing retry', async () => {
-  const runtime=miniRuntime();const page=runtime.page('pages/ielts/speaking')
-  const original=page.data.webviewUrl
-  page.onWebViewError()
-  assert.equal(page.data.webviewUrl,'')
-  assert.doesNotMatch(page.data.webviewError,/业务域名|examiner/)
-  page.retryWebView()
-  assert.ok(page.data.webviewUrl.startsWith(original.split('#')[0]))
-  assert.equal(page.data.webviewState,'loading')
+await check('Leaving native Speaking immediately closes capture and playback', async () => {
+  const runtime=miniRuntime();const page=runtime.page('pages/ielts/speaking');page.onLoad()
+  let closed=0;page.__engine={close(){closed++}}
+  page.setData({active:true});page.onHide()
+  assert.equal(closed,1);assert.equal(page.data.active,false)
+  assert.equal(page.data.webviewUrl,undefined)
 })
 if (failures.length) { console.error(`${failures.length} user journey regressions failed`); process.exitCode=1 }
