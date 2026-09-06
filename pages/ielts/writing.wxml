@@ -1,6 +1,7 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-skill-page writing-page">
   <stemist-header compact="{{true}}" title="Writing" action-text="返回" bind:action="openBack" />
   <app-nav active="practice" source="writing" category="ielts" is-tablet="{{isTablet}}" />
+  <view wx:if="{{examMode}}" class="writing-time">写作共用时间 {{remaining}}<text wx:if="{{timeExpired}}"> · 时间已到，请保存本项</text></view>
   <view class="workspace-grid">
     <view class="context-card skill-identity writing-identity">
       <view class="context-card-title">{{taskTitle || '选择任务'}}</view>
@@ -14,8 +15,8 @@
     </view>
     <view class="writing-editor panel">
       <view class="field-label">写作题目</view>
-      <textarea class="prompt-input" value="{{prompt}}" maxlength="2000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="粘贴作文题目…" bindinput="onPromptInput" />
-      <coach-panel message="{{text}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="{{examMode ? '保存本项' : '提交作文'}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="" max-length="20000" bind:input="onInput" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+      <textarea class="prompt-input" value="{{prompt}}" disabled="{{loading || timeExpired}}" maxlength="2000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="粘贴作文题目…" bindinput="onPromptInput" />
+      <coach-panel message="{{text}}" read-only="{{timeExpired}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="{{examMode ? '保存本项' : '提交作文'}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="" max-length="20000" bind:input="onInput" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
     </view>
   </view>
   <button class="text-button" bindtap="clear" disabled="{{loading}}">清空当前作文和照片</button>

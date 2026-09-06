@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
+const r=miniRuntime(),{createClock,clockState}=r.load('utils/practiceClock')
+const timer=createClock(60,1000)
+assert.equal(clockState(timer,1000).label,'60:00')
+assert.equal(clockState(timer,3601001).expired,true)
+assert.equal(clockState({...timer,finishedAt:61000},9999999).remaining,3540,'finished modules freeze rather than continuing to expire')
+assert.throws(()=>createClock(null));assert.equal(clockState({}),null)
+r.storage.set('stemistIeltsExam:test',{key:'test',owner:'guest',epoch:0,modules:{},submitted:false})
+const exams=r.load('utils/nativeExam')
+const first=exams.startExamModuleClock('test','writing1',20)
+const second=exams.startExamModuleClock('test','writing2',40)
+assert.equal(first.deadlineAt,second.deadlineAt,'both writing tasks share one 60-minute allowance')
+assert.equal(first.limitSeconds,3600)
+exams.completeExamModule('test','writing1',{complete:true});assert.equal(exams.readExam('test').clocks.writing.finishedAt,undefined)
+exams.completeExamModule('test','writing2',{complete:true});assert.ok(exams.readExam('test').clocks.writing.finishedAt)
+assert.throws(()=>exams.startExamModuleClock('missing','reading',60))
+console.log('Native timers: persisted deadlines, background expiry, completed freeze and shared Writing time passed.')

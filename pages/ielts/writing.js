@@ -4,7 +4,7 @@ const {deviceState,syncDevice,readDraft,scheduleDraft,cancelDraft,clearDraft}=re
 const {getIeltsTask}=require('../../utils/ieltsContent')
 const {startWritingFeedback,writingJob}=require('../../utils/ieltsWriting')
 const {rememberRecord}=require('../../utils/nativeRecords')
-const {readExam,completeExamModule}=require('../../utils/nativeExam')
+const {readExam,completeExamModule,startExamModuleClock,clockState}=require('../../utils/nativeExam')
 const {removeWritingPhoto}=require('../../utils/nativeWritingPhoto')
 const {IELTS_API_BASE}=require('../../utils/api')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
@@ -19,6 +19,7 @@ Page({
   if(this.__examKey){const exam=readExam(this.__examKey);if(!exam||!exam.sources.writing.includes(taskId)){this.setData({error:'写作题目不属于当前模拟。'});return}this.__examModule=exam.sources.writing[0]===taskId?'writing1':'writing2'}
   this.__scope=(taskId?'ielts-writing:'+taskId:'writing')+(this.__examKey?':'+this.__examKey:'')
   this.__valid=true
+  if(this.__examKey){this.__examClock=startExamModuleClock(this.__examKey,this.__examModule,60);this.__timer=setInterval(()=>this.updateClock(),1000);this.updateClock()}
   const saved=readDraft(this.__scope)||{}
   const draft=(!saved.owner&&this.__owner==='guest')||saved.owner===this.__owner&&saved.epoch===this.__epoch?saved:{}
   this.__jobId=String(draft.jobId||'')
@@ -27,6 +28,7 @@ Page({
  },
  onShow(){
   syncDevice(this)
+  if(this.__examClock){clearInterval(this.__timer);this.updateClock();this.__timer=setInterval(()=>this.updateClock(),1000)}
   const photo=wx.getStorageSync('stemistWritingPhoto')
   const photoMeta=wx.getStorageSync('stemistWritingPhotoMeta')
   if(photo&&this.current()&&(!photoMeta||photoMeta.owner===this.__owner&&photoMeta.epoch===this.__epoch&&(!photoMeta.scope||photoMeta.scope===this.__scope))){
@@ -37,7 +39,9 @@ Page({
   }
  },
  onResize(){syncDevice(this)},
- onUnload(){this.__disposed=true;this.__generation++;clearTimeout(this.__pollTimer);this.__pollResolve?.();this.__pollResolve=null;cancelDraft(this)},
+ onHide(){cancelDraft(this);clearInterval(this.__timer)},
+ onUnload(){this.__disposed=true;this.__generation++;clearInterval(this.__timer);clearTimeout(this.__pollTimer);this.__pollResolve?.();this.__pollResolve=null;cancelDraft(this)},
+ updateClock(){if(!this.current())return;const clock=clockState(this.__examClock);if(clock)this.setData({remaining:clock.label,timeExpired:clock.expired})},
  current(){return !this.__disposed&&this.__valid&&this.__owner===owner()&&this.__epoch===epoch()},
  async loadTask(){
   try{
@@ -52,8 +56,8 @@ Page({
   const {text,prompt,photoPath,taskType,taskId,answer,band,criteria,warning,reportUrl}=this.data
   scheduleDraft(this,this.__scope,{owner:this.__owner,epoch:this.__epoch,text,prompt,photoPath,taskType,taskId,answer,band,criteria,warning,reportUrl,jobId:this.__jobId})
  },
-  onInput(event){if(this.data.loading||!this.current())return;this.__jobId='';this.setData({text:String(event.detail.value||''),error:'',draftStatus:'正在保存…',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
-  onPromptInput(event){if(this.data.loading||!this.current())return;this.__jobId='';this.setData({prompt:String(event.detail.value||''),error:'',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
+  onInput(event){if(this.data.loading||!this.current()||clockState(this.__examClock)?.expired)return;this.__jobId='';this.setData({text:String(event.detail.value||''),error:'',draftStatus:'正在保存…',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
+  onPromptInput(event){if(this.data.loading||!this.current()||clockState(this.__examClock)?.expired)return;this.__jobId='';this.setData({prompt:String(event.detail.value||''),error:'',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
  chooseTask(event){if(this.data.loading||this.data.taskId)return;this.setData({taskType:event.currentTarget.dataset.task});this.saveDraft()},
   takePhoto(){if(this.data.loading||!this.current())return;wx.setStorageSync('stemistCameraReturn',{route:'writing',context:{product:'IELTSist',skill:'writing',writingScope:this.__scope},createdAt:Date.now()});wx.navigateTo({url:'/pages/stem/camera',fail:()=>this.setData({error:'相机未能打开，请重试。'})})},
  previewTask(event){const current=this.data.taskImages[Number(event.currentTarget.dataset.index)]?.url;if(current)wx.previewImage({current,urls:this.data.taskImages.map(i=>i.url)})},

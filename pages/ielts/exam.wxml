@@ -1,4 +1,23 @@
-<view class="page {{deviceClass}} {{orientation}} native-exam-page"><stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/><ai-fab wx:if="{{!examKey || submitted}}" source="ielts" category="ielts"/>
- <view wx:if="{{loading}}" class="loading-state">正在整理套题…</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{!examKey}}" class="exam-setup"><picker wx:if="{{context === 'same-test'}}" range="{{choices}}" range-key="title" value="{{choiceIndex}}" bindchange="choose"><view class="exam-picker">{{choices[choiceIndex].title || '暂无完整套题'}}</view></picker><text>听力、阅读、两篇写作与口语</text><button class="primary" loading="{{busy}}" disabled="{{busy || loading || (context === 'same-test' && !choices.length)}}" bindtap="start">开始模拟</button></view>
- <view wx:else><view class="exam-modules"><button wx:for="{{cards}}" wx:key="id" class="exam-module" data-module="{{item.id}}" bindtap="openModule" disabled="{{submitted}}"><text>{{item.title}}</text><text>{{item.complete ? '已保存' : '进入练习'}}</text></button></view><button wx:if="{{!submitted}}" class="primary" loading="{{busy}}" disabled="{{busy || !canSubmit}}" bindtap="submit">提交整套模拟</button><text wx:if="{{feedback}}" selectable class="exam-report">{{feedback}}</text></view>
+<view class="page {{deviceClass}} {{orientation}} native-exam-page">
+<stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/>
+<ai-fab wx:if="{{!examKey || submitted}}" source="ielts" category="ielts"/>
+ <view wx:if="{{loading}}" class="loading-state">正在整理套题…</view>
+<view wx:if="{{error}}" class="error">{{error}}</view>
+<view wx:if="{{!examKey}}" class="exam-setup">
+<picker wx:if="{{context === 'same-test'}}" range="{{choices}}" range-key="title" value="{{choiceIndex}}" bindchange="choose">
+<view class="exam-picker">{{choices[choiceIndex].title || '暂无完整套题'}}</view>
+</picker>
+<text>听力、阅读、两篇写作与口语</text>
+<button class="primary" loading="{{busy}}" disabled="{{busy || loading || (context === 'same-test' && !choices.length)}}" bindtap="start">开始模拟</button>
+</view>
+ <view wx:else>
+<view class="exam-modules">
+<button wx:for="{{cards}}" wx:key="id" class="exam-module" data-module="{{item.id}}" bindtap="openModule" disabled="{{submitted}}">
+<text>{{item.title}}</text>
+<text>{{item.complete ? '已保存' : '进入练习'}}</text>
+</button>
+</view>
+<button wx:if="{{!submitted}}" class="primary" loading="{{busy}}" disabled="{{busy || !canSubmit}}" bindtap="submit">提交整套模拟</button>
+<text wx:if="{{feedback}}" selectable class="exam-report">{{feedback}}</text>
+</view>
 </view>

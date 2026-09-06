@@ -33,7 +33,7 @@ async function requestIeltsLearning(path,data,{method='POST',timeout=20000,heade
  const started=await ensureIeltsSession()
  if(originalOwner!==owner()||originalEpoch!==epoch())throw new Error('账号已变化，当前请求已取消。')
  return new Promise((resolve,reject)=>wx.request({url:base+path,method,timeout,data,
-  header:{'Content-Type':'application/json',...(started.token?{Authorization:'Bearer '+started.token}:{}),...(started.guest?{Cookie:'ieltsist_objective_guest='+started.guest}:{}),...headers},
+  header:{'Content-Type':'application/json','X-Stemist-Native':'1',...(started.token?{Authorization:'Bearer '+started.token}:{}),...(started.guest?{Cookie:'ieltsist_objective_guest='+started.guest}:{}),...headers},
   success(response){
    if(owner()!==started.owner||epoch()!==started.epoch)return reject(new Error('账号已变化，当前请求已取消。'))
    // Keep only this app's newly issued guest capability, never browser cookies

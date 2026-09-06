@@ -1,16 +1,90 @@
 <view class="page {{deviceClass}} {{orientation}} objective-page">
- <stemist-header title="{{title}}" compact="{{true}}" action-text="返回" bind:action="openBack"/><ai-fab wx:if="{{!examMode}}" source="{{module}}" category="ielts"/>
- <view wx:if="{{loading}}" class="loading-state">正在打开试题…</view><view wx:if="{{error}}" class="error">{{error}}</view>
- <view wx:if="{{!loading && !total}}"><button class="secondary" bindtap="load">重试</button><button class="secondary" bindtap="openFullWorkspace">重新选题</button></view>
+ <stemist-header title="{{title}}" compact="{{true}}" action-text="返回" bind:action="openBack"/>
+<ai-fab wx:if="{{!examMode}}" source="{{module}}" category="ielts"/>
+ <view wx:if="{{loading}}" class="loading-state">正在打开试题…</view>
+<view wx:if="{{error}}" class="error">{{error}}</view>
+ <view wx:if="{{!loading && !total}}">
+<button class="secondary" bindtap="load">重试</button>
+<button class="secondary" bindtap="openFullWorkspace">重新选题</button>
+</view>
  <block wx:if="{{total}}">
-  <view class="objective-top"><text class="objective-name">{{taskTitle}}</text><view><text>{{elapsed}}</text><text>{{saveStatus}}</text></view></view>
-  <view wx:if="{{audioAvailable}}" class="native-player"><button class="player-toggle" bindtap="toggleAudio">{{audioPlaying ? '暂停' : '播放'}}</button><picker range="{{audioTracks}}" range-key="label" value="{{audioIndex}}" bindchange="selectAudio"><view class="player-track">{{audioTracks[audioIndex].label}}</view></picker><slider min="0" max="{{audioDuration || 1}}" value="{{audioPosition}}" bindchange="seekAudio" activeColor="#7357e8"/><text>{{audioPosition}} / {{audioDuration}}s</text></view>
-  <scroll-view class="question-nav" scroll-x scroll-into-view="question-nav-{{current}}"><view class="question-nav-row"><button wx:for="{{questionNav}}" wx:key="id" id="question-nav-{{item.index}}" class="question-nav-key {{item.current ? 'current' : ''}} {{item.answered ? 'answered' : ''}}" data-index="{{item.index}}" bindtap="chooseQuestion">{{item.label}}</button></view></scroll-view>
-  <view wx:if="{{!isTablet || orientation !== 'landscape'}}" class="objective-jumps"><button data-target="source" bindtap="jumpTo">看题</button><button data-target="answer" bindtap="jumpTo">作答 · {{current + 1}} / {{total}}</button></view>
+  <view class="objective-top">
+<text class="objective-name">{{taskTitle}}</text>
+<view>
+<text>{{timeLabel}} {{elapsed}}</text>
+<text>{{saveStatus}}</text>
+</view>
+</view>
+  <view wx:if="{{audioAvailable}}" class="native-player">
+<button class="player-toggle" bindtap="toggleAudio">{{audioPlaying ? '暂停' : '播放'}}</button>
+<picker range="{{audioTracks}}" range-key="label" value="{{audioIndex}}" bindchange="selectAudio">
+<view class="player-track">{{audioTracks[audioIndex].label}}</view>
+</picker>
+<slider min="0" max="{{audioDuration || 1}}" value="{{audioPosition}}" bindchange="seekAudio" activeColor="#7357e8"/>
+<text>{{audioPosition}} / {{audioDuration}}s</text>
+</view>
+<view wx:if="{{audioAvailable && !examMode}}" class="caption-controls"><button bindtap="toggleCaptions">{{captionsEnabled ? '隐藏字幕' : '字幕'}}</button></view>
+<view wx:if="{{captionsEnabled}}" class="native-captions">
+<text wx:if="{{captionStatus}}">{{captionStatus}}</text>
+<view wx:for="{{captionBubbles}}" wx:key="key" class="caption-bubble caption-tone-{{item.tone}}"><text class="caption-speaker">{{item.speaker}}</text><text>{{item.text}}</text></view>
+</view>
+  <scroll-view class="question-nav" scroll-x scroll-into-view="question-nav-{{current}}">
+<view class="question-nav-row">
+<button wx:for="{{questionNav}}" wx:key="id" id="question-nav-{{item.index}}" class="question-nav-key {{item.current ? 'current' : ''}} {{item.answered ? 'answered' : ''}}" data-index="{{item.index}}" bindtap="chooseQuestion">{{item.label}}</button>
+</view>
+</scroll-view>
+  <view wx:if="{{!isTablet || orientation !== 'landscape'}}" class="objective-jumps">
+<button data-target="source" bindtap="jumpTo">看题</button>
+<button data-target="answer" bindtap="jumpTo">作答 · {{current + 1}} / {{total}}</button>
+</view>
   <view class="objective-workspace">
-   <view class="objective-source"><view class="source-toolbar"><text>原题</text><button wx:if="{{module === 'reading'}}" bindtap="togglePassage">{{showPassage ? '查看题图' : '阅读文章'}}</button><button bindtap="previewImage">放大</button></view><scroll-view wx:if="{{showPassage}}" class="passage-scroll" scroll-y><text class="passage-text" selectable>{{passageText || '正在读取文章…'}}</text></scroll-view><block wx:else><image wx:for="{{sourceImages}}" wx:key="id" class="native-question-image" src="{{item.url}}" mode="widthFix" lazy-load bindtap="previewImage" binderror="imageFailed"/><view wx:if="{{imageCount > 1}}" class="source-pages"><button data-direction="previous" disabled="{{imageIndex <= 0}}" bindtap="changeImage">上一页</button><text>{{imageIndex+1}} / {{imageCount}}</text><button data-direction="next" disabled="{{imageIndex + 1 >= imageCount}}" bindtap="changeImage">下一页</button></view></block></view>
-   <view class="objective-answer"><view class="answer-heading">Question {{current + 1}}</view><text class="answer-question">{{questions[0].text}}</text><view wx:if="{{questions[0].options.length}}" class="question-options"><text wx:for="{{questions[0].options}}" wx:key="index">{{item}}</text></view><text class="answer-label">你的答案</text><input class="objective-input" value="{{answer}}" disabled="{{submitted}}" placeholder="输入答案" maxlength="160" cursor-spacing="28" bindinput="inputAnswer"/><view class="answer-navigation"><button class="secondary" disabled="{{current <= 0}}" bindtap="previousQuestion">上一题</button><button class="secondary" disabled="{{current + 1 >= total}}" bindtap="nextQuestion">下一题</button></view><text class="answer-progress">{{answered}} / {{total}} 题已填写</text><button wx:if="{{!submitted}}" class="primary" loading="{{busy}}" disabled="{{busy}}" bindtap="submit">{{examMode ? '保存本项' : '提交本套答案'}}</button></view>
+   <view class="objective-source">
+<view class="source-toolbar">
+<text>原题</text>
+<button wx:if="{{module === 'reading'}}" bindtap="togglePassage">{{showPassage ? '查看题图' : '阅读文章'}}</button>
+<button bindtap="previewImage">放大</button>
+</view>
+<scroll-view wx:if="{{showPassage}}" class="passage-scroll" scroll-y>
+<text class="passage-text" selectable>{{passageText || '正在读取文章…'}}</text>
+</scroll-view>
+<block wx:else>
+<image wx:for="{{sourceImages}}" wx:key="id" class="native-question-image" src="{{item.url}}" mode="widthFix" lazy-load bindtap="previewImage" binderror="imageFailed"/>
+<view wx:if="{{imageCount > 1}}" class="source-pages">
+<button data-direction="previous" disabled="{{imageIndex <= 0}}" bindtap="changeImage">上一页</button>
+<text>{{imageIndex+1}} / {{imageCount}}</text>
+<button data-direction="next" disabled="{{imageIndex + 1 >= imageCount}}" bindtap="changeImage">下一页</button>
+</view>
+</block>
+</view>
+   <view class="objective-answer">
+<view class="answer-heading">Question {{questions[0].number}}</view>
+<text class="answer-question">{{questions[0].text}}</text>
+<view wx:if="{{questions[0].options.length}}" class="question-options">
+<text wx:for="{{questions[0].options}}" wx:key="index">{{item}}</text>
+</view>
+<text class="answer-label">你的答案</text>
+<input class="objective-input" value="{{answer}}" disabled="{{submitted || timeExpired}}" placeholder="输入答案" maxlength="160" cursor-spacing="28" bindinput="inputAnswer"/>
+<text wx:if="{{timeExpired && !submitted}}" class="answer-progress">时间已到，答案已保留，请提交本项。</text>
+<view class="answer-navigation">
+<button class="secondary" disabled="{{current <= 0}}" bindtap="previousQuestion">上一题</button>
+<button class="secondary" disabled="{{current + 1 >= total}}" bindtap="nextQuestion">下一题</button>
+</view>
+<text class="answer-progress">{{answered}} / {{total}} 题已填写</text>
+<button wx:if="{{!submitted}}" class="primary" loading="{{busy}}" disabled="{{busy}}" bindtap="submit">{{examMode ? '保存本项' : '提交本套答案'}}</button>
+</view>
   </view>
-  <view wx:if="{{submitted && examMode}}" class="objective-result">本项已保存<button class="secondary" bindtap="openBack">返回模拟</button></view><view wx:if="{{submitted && !examMode}}" class="objective-result"><view class="answer-heading">练习结果</view><text wx:if="{{result.answerAvailable}}">{{result.correct}} / {{result.total}} · Band {{result.band}}</text><text wx:else>参考答案尚未齐备，暂不显示分数。</text><view wx:for="{{review}}" wx:key="id" class="review-row"><text>{{item.id}} · {{item.correct ? '正确' : '需复习'}}</text><text>你的答案：{{item.actual || '未填写'}}</text><text wx:if="{{item.expected}}">参考答案：{{item.expected}}</text></view><button wx:if="{{review.length < total}}" class="secondary" bindtap="reviewMore">查看更多</button></view>
+  <view wx:if="{{submitted && examMode}}" class="objective-result">本项已保存<button class="secondary" bindtap="openBack">返回模拟</button>
+</view>
+<view wx:if="{{submitted && !examMode}}" class="objective-result">
+<view class="answer-heading">练习结果</view>
+<text wx:if="{{result.answerAvailable}}">{{result.correct}} / {{result.total}}<text wx:if="{{result.band !== null}}"> · Band {{result.band}}</text></text>
+<text wx:else>参考答案尚未齐备，暂不显示分数。</text>
+<view wx:for="{{review}}" wx:key="id" class="review-row">
+<text>{{item.id}} · {{item.correct ? '正确' : '需复习'}}</text>
+<text>你的答案：{{item.actual || '未填写'}}</text>
+<text wx:if="{{item.expected}}">参考答案：{{item.expected}}</text>
+</view>
+<button wx:if="{{review.length < total}}" class="secondary" bindtap="reviewMore">查看更多</button>
+</view>
  </block>
 </view>

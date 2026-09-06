@@ -14,7 +14,7 @@ const runtime=miniRuntime({modules:{
  }
 }})
 const content=runtime.load('utils/ieltsContent')
-await Promise.all([content.loadIeltsContent(),content.loadIeltsContent()]);assert.equal(requests,1)
+await Promise.all([content.loadIeltsContent({refresh:true}),content.loadIeltsContent({refresh:true})]);assert.equal(requests,1)
 const task=await content.getIeltsTask('reading',fixture.id);assert.doesNotMatch(JSON.stringify(task),/must-not-render|layoutLines/)
 assert.equal(content.assetUrl('https://evil.example/steal'),'')
 const p=runtime.page('pages/ielts/reading');p.onLoad({taskId:fixture.id});await settle()

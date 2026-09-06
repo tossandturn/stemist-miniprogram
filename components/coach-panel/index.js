@@ -7,6 +7,7 @@ Component({
     status: { type: String, value: '' },
     loading: { type: Boolean, value: false },
     disabled: { type: Boolean, value: false },
+    readOnly: { type: Boolean, value: false },
     placeholder: { type: String, value: '告诉 AI Coach 你想检查什么（可选）' },
     submitLabel: { type: String, value: '提交给 AI Coach' },
     helper: { type: String, value: '' },
@@ -15,7 +16,7 @@ Component({
     authRequired: { type: Boolean, value: false },
   },
   methods: {
-    onInput(event) { this.triggerEvent('input', { value: event.detail.value }) },
+    onInput(event) { if(!this.data.readOnly&&!this.data.loading)this.triggerEvent('input', { value: event.detail.value }) },
     onSubmit() { if (!this.data.disabled && !this.data.loading) this.triggerEvent('submit') },
     onRetry() { if (!this.data.disabled && !this.data.loading && this.data.canRetry) this.triggerEvent('retry') },
     onAccount() { this.triggerEvent('account') },
