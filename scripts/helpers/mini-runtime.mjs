@@ -42,7 +42,15 @@ export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
     const definition = load(relative)
     // Copy definition before data; Object.assign in the previous harness
     // overwrote the cloned data with the shared Page definition.
-    return { ...definition, data: JSON.parse(JSON.stringify(definition.data)), setData(patch, callback) { Object.assign(this.data, patch); callback?.() } }
+    return { ...definition, data: JSON.parse(JSON.stringify(definition.data)), setData(patch, callback) {
+      for (const [key, value] of Object.entries(patch)) {
+        const parts = key.replace(/\[(\d+)\]/g, '.$1').split('.')
+        let target = this.data
+        for (const part of parts.slice(0, -1)) target = target[part]
+        target[parts.at(-1)] = value
+      }
+      callback?.()
+    } }
   }
   return { load, page, wx: api, storage, calls }
 }

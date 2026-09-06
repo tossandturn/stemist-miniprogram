@@ -93,5 +93,15 @@ function makeObjectivePage(module){return{
  openBack(){wx.navigateBack({fail:()=>wx.redirectTo({url:`/pages/ielts/library?module=${module}`})})},
  openFullWorkspace(){wx.navigateTo({url:`/pages/ielts/library?module=${module}`})},
  openAccount(){wx.navigateTo({url:'/pages/account/auth'})}
+ ,getCoachContext(){
+  if(!this.__task||this.data.examMode&&!this.data.submitted)return null
+  const question=this.__task.questions[this.data.current]
+  if(!question)return null
+  const focusedQuestion={module,number:question.number,id:question.id},section=this.__section||this.__task.sections?.find(s=>s.questionIds.includes(question.id))?.number||1
+  const playingSection=Number(this.__task.audioSections?.[this.data.audioIndex]?.section)||1
+  return {product:'IELTSist',skill:module,taskId:this.data.taskId,title:this.__task.title,section,focusedQuestion,
+   coach:{focusedQuestion},surface:{title:this.__task.title,module,view:'native-objective',viewLabel:module,mode:'practice',focusedQuestion},
+   [module]:{id:this.data.taskId,title:this.__task.title,mode:'practice',questions:[{id:question.id,number:question.number,question:question.text,type:question.type,studentAnswer:this.data.answer}],paperText:this.data.passageText||'',activeSection:String(section),audioTime:playingSection===section?this.data.audioPosition:0}}
+ }
 }}
 module.exports={makeObjectivePage}

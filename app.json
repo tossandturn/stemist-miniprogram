@@ -21,6 +21,7 @@
     "pages/ielts/vocabulary",
     "pages/ielts/reading",
     "pages/ielts/writing",
+    "pages/ielts/writing-full",
     "pages/ielts/speaking",
     "pages/crop/crop",
     "pages/account/auth",

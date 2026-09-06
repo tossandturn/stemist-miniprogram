@@ -1,12 +1,15 @@
 const { deviceState, syncDevice } = require('../../utils/page')
+const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
+const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
 Page({
   data: deviceState({ busy: false, ready: false, error: '', flash: 'auto', returnPage: 'stem', context: {}, coachSource: 'capture', category: 'alevel', family: 'exam', routeId: '', stage: '', subjectCode: '', hint: '把题目、图表和答案完整放进取景框。' }),
   onLoad() {
+    this.__disposed=false;this.__owner=owner();this.__epoch=epoch()
     const info = wx.getStorageSync('stemistCameraReturn') || {}
     wx.removeStorageSync('stemistCameraReturn')
     const returnPage = ['writing', 'native-practice', 'native-paper'].includes(info.route) ? info.route : 'stem'
-    const hint = returnPage === 'writing' ? '保持纸张平整，拍清整页手写作文和题目。' : returnPage === 'native-practice' ? '拍清本题的全部解题过程和答案。' : '把题目、图表和答案完整放进取景框。'
+    const hint = returnPage === 'writing' ? '拍清整页手写作文，保留段落与修改痕迹。' : returnPage === 'native-practice' ? '拍清本题的全部解题过程和答案。' : '把题目、图表和答案完整放进取景框。'
     const context = info.context || {}
     this.setData({ returnPage, context, coachSource: returnPage === 'writing' ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: returnPage === 'writing' ? 'ielts' : context.category || 'alevel', family: returnPage === 'writing' ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '', hint })
   },
@@ -16,8 +19,10 @@ Page({
   },
   onShow() { syncDevice(this); this.setData({ busy: false }) },
   onResize() { syncDevice(this) },
-  onUnload() { this.__camera = null },
+  onUnload() { this.__disposed=true;this.__camera = null },
+  current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
   onCameraError(event) {
+    if(!this.current())return
     const raw = String(event && event.detail && event.detail.errMsg || '')
     if (/cancel|取消/i.test(raw)) {
       this.setData({ busy: false })
@@ -36,7 +41,7 @@ Page({
     this.setData({ flash: next })
   },
   takePhoto() {
-    if (this.data.busy) return
+    if (this.data.busy||!this.current()) return
     this.setData({ busy: true, error: '' })
     if (this.__camera && typeof this.__camera.takePhoto === 'function') {
       this.__camera.takePhoto({ quality: 'high', success: ({ tempImagePath }) => this.usePhoto(tempImagePath), fail: (error) => { this.setData({ busy: false }); this.onCameraError({ detail: error }) } })
@@ -59,9 +64,10 @@ Page({
     }
   },
   usePhoto(path) {
+    if(!this.current())return
     if (!path) { this.setData({ busy: false, error: '没有获得照片，原路线仍保留。请重新拍摄。' }); return }
-    wx.setStorageSync('stemistCropReturn', { route: this.data.returnPage, context: this.data.context || {}, createdAt: Date.now() })
+    wx.setStorageSync('stemistCropReturn', { route: this.data.returnPage, context: this.data.context || {}, captureId:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),createdAt: Date.now() })
     wx.navigateTo({ url: `/pages/crop/crop?src=${encodeURIComponent(path)}`, fail: () => this.setData({ busy: false, error: '无法打开裁剪页，请重试。' }) })
   },
-  cancel() { wx.removeStorageSync('stemistCameraReturn'); wx.navigateBack() },
+  cancel() { this.__disposed=true;wx.navigateBack() },
 })

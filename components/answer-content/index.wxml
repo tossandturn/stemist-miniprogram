@@ -1,0 +1,1 @@
+<view class="native-answer"><rich-text nodes="{{nodes}}" user-select="{{true}}"/><view class="answer-links"><button wx:for="{{links}}" wx:key="id" class="secondary" data-index="{{index}}" bindtap="openLink">{{item.label}}</button></view><text wx:if="{{error}}" class="error">{{error}}</text></view>

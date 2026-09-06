@@ -86,9 +86,9 @@ function getJson(path, { timeout = 8000 } = {}) {
   return requestJson(path, undefined, { timeout, method: 'GET' })
 }
 
-function askCoach({ message, context = {}, imageDataUrls = [] }) {
+function askCoach({ message, context = {}, imageDataUrls = [], history = [] }) {
   const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
-  return requestJson('/api/ai/coach', { message, context, imageDataUrls: images }, {
+  return requestJson('/api/ai/coach', { message, context, imageDataUrls: images,history:history.slice(-10) }, {
     timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
   })
 }
@@ -98,7 +98,7 @@ function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = []
   const payload = {
     message,
     contextText: String(context && (context.contextText || context.sourceQuestionExtract) || ''),
-    helpContext: { ...context, activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice' } },
+    helpContext: { ...context, activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice',...(context.surface||{}) } },
     history: Array.isArray(history) ? history.slice(-8) : [],
   }
   if (images[0]) payload.imageDataUrl = images[0]

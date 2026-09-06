@@ -44,15 +44,15 @@ function coachState(result = {}) {
   return { label: '反馈状态待确认', isConnected: false, isFallback: true, warning: '请确认反馈状态后再把结果当作学习依据。' }
 }
 
-async function runCoach({ message = '', context = {}, imageDataUrls = [] } = {}) {
+async function runCoach({ message = '', context = {}, imageDataUrls = [], history = [] } = {}) {
   const cleanMessage = String(message || '').trim()
   const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
   if (!cleanMessage && !images.length) throw new Error('请先输入内容或提供照片证据')
   const normalizedContext = normalizeCoachContext(context)
   const isIelts = String(normalizedContext.product || '').toLowerCase() === 'ieltsist'
   const result = isIelts
-    ? await askIeltsCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images })
-    : await askCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images })
+    ? await askIeltsCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history })
+    : await askCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history })
   return { ...result, answer: coachAnswer(result), coachState: coachState(result) }
 }
 

@@ -11,10 +11,14 @@ function computeCropRect({ viewport, box, imageWidth, imageHeight }) {
   const offsetX = Number(viewport.left) + (Number(viewport.width) - renderedWidth) / 2
   const offsetY = Number(viewport.top) + (Number(viewport.height) - renderedHeight) / 2
   const sourceScale = fitScale
-  const sx = clamp(Math.round((Number(box.left) - offsetX) / sourceScale), 0, width - 1)
-  const sy = clamp(Math.round((Number(box.top) - offsetY) / sourceScale), 0, height - 1)
-  const sw = clamp(Math.round(Number(box.width) / sourceScale), 1, width - sx)
-  const sh = clamp(Math.round(Number(box.height) / sourceScale), 1, height - sy)
+  const left = Math.max(offsetX, Number(box.left)), top = Math.max(offsetY, Number(box.top))
+  const right = Math.min(offsetX + renderedWidth, Number(box.left) + Number(box.width))
+  const bottom = Math.min(offsetY + renderedHeight, Number(box.top) + Number(box.height))
+  if (![left,top,right,bottom].every(Number.isFinite) || right <= left || bottom <= top) throw new Error('请把照片移回裁剪框内。')
+  const sx = clamp(Math.round((left - offsetX) / sourceScale), 0, width - 1)
+  const sy = clamp(Math.round((top - offsetY) / sourceScale), 0, height - 1)
+  const sw = clamp(Math.round((right - offsetX) / sourceScale) - sx, 1, width - sx)
+  const sh = clamp(Math.round((bottom - offsetY) / sourceScale) - sy, 1, height - sy)
   return { sx, sy, sw, sh, sourceScale }
 }
 

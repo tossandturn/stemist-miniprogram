@@ -11,7 +11,7 @@ const wx = {
   navigateTo: ({ url }) => { navigated = url },
   redirectTo: ({ url }) => { navigated = url },
 }
-vm.runInNewContext(source, { Component: (config) => { componentConfig = config }, wx, encodeURIComponent, String, Error })
+vm.runInNewContext(source, { Component: (config) => { componentConfig = config }, wx, require:()=>({stageCoachEntry:()=>''}), encodeURIComponent, String, Error })
 const instance = { data: { source: 'competition', routeId: 'bpho-admissions-physics', stage: 'Competition', subjectCode: 'bpho', category: 'competition', family: 'competition' } }
 componentConfig.methods.openCoach.call(instance)
 assert.match(navigated, /^\/pages\/coach\/index\?/)

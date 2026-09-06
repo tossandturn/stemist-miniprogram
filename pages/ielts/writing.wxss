@@ -1,10 +1,11 @@
 .writing-identity { border-left-color: #f19a3e; }
-.task-switcher { display: flex; margin-top: 18rpx; }
-.task-chip { flex: 1; min-height: 70rpx; margin-right: 10rpx; padding: 0 14rpx; border: 1rpx solid #e4e7f0; color: #66708a; background: #fff; font-size: 23rpx; font-weight: 750; }
+.task-switcher { display:flex; gap:10px; margin:12px 0; }
+.writing-page .task-chip { flex:1; width:auto; min-height:44px; margin:0; padding:8px 14px; border:1px solid #e4e7f0; color:#66708a; background:#fff; font-size:15px; font-weight:700; line-height:26px; }
 .task-chip:last-child { margin-right: 0; }
 .task-chip.active { border-color: #f19a3e; color: #a95c12; background: #fff4e6; }
 .photo-button { margin-top: 18rpx; }
-.writing-page .photo-preview { height: 300rpx; }
+.writing-page .photo-preview { display:block;width:100%;height:260px; }
+.writing-photo-input { padding:14px;border:1px solid #e4e7f0;border-radius:14px;background:#fff;margin-bottom:12px; }
 .writing-editor { margin-top: 12rpx; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .prompt-input { min-height: 190rpx !important; }
 .writing-page .text-button { display: block; margin: 18rpx auto 0; }

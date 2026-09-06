@@ -1,0 +1,1 @@
+.native-answer { font-size:16px;color:#18213d;line-height:1.75;word-break:break-word; }.answer-links { display:flex;flex-direction:column;gap:8px;margin:12px 0; }.answer-links button { min-height:44px;width:100%;margin:0;padding:10px 12px;font-size:14px;line-height:1.6;text-align:left; }

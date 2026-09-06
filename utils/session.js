@@ -4,6 +4,7 @@ const PRIVATE_SCOPES = ['listening', 'reading', 'writing', 'speaking', 'stem-pho
 function clearLocalSession({ preserveDrafts = false } = {}) {
   const speakingExport=wx.getStorageSync('stemistSpeakingExportPath')
   const pendingWritingPhoto=wx.getStorageSync('stemistWritingPhoto')
+  const pendingStemPhoto=wx.getStorageSync('stemistCroppedImage')
   wx.removeStorageSync('stemistSessionToken')
   wx.removeStorageSync('stemistUser')
   // A 401 clears only the expired identity. Preserve the in-progress photo,
@@ -17,9 +18,11 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
     wx.setStorageSync('stemistPrivacyEpoch', (Number(wx.getStorageSync('stemistPrivacyEpoch')) || 0) + 1)
     discardPendingDrafts()
     wx.removeStorageSync('stemistCameraReturn')
+    wx.removeStorageSync('stemistCoachEntry')
     wx.removeStorageSync('stemistCropReturn')
     wx.removeStorageSync('stemistRetakeContext')
     wx.removeStorageSync('stemistCroppedImage')
+    wx.removeStorageSync('stemistCroppedImageMeta')
     wx.removeStorageSync('stemistCoachContext')
     wx.removeStorageSync('stemistWritingPhoto')
     wx.removeStorageSync('stemistWritingPhotoMeta')
@@ -35,8 +38,8 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   if (!preserveDrafts) {
     const keys = wx.getStorageInfoSync ? (wx.getStorageInfoSync().keys || []) : []
     const privatePhotos = keys.filter(key => /^stemistNative(?:Practice|Paper):/.test(key)).flatMap(key => Object.values(wx.getStorageSync(key)?.answers || {}).map(answer => answer.photo).filter(Boolean))
-    const writingPhotos=keys.filter(key=>/^stemistDraft:/.test(key)).map(key=>wx.getStorageSync(key)?.photoPath).filter(Boolean).concat(pendingWritingPhoto||[])
-    keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|NativeRecent|NativePaper|IeltsObjective|IeltsSpeaking|IeltsExam|VocabProgress|SavedWord|RecordIndex|Goal):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
+    const writingPhotos=keys.filter(key=>/^stemistDraft:/.test(key)).flatMap(key=>{const draft=wx.getStorageSync(key)||{};return [draft.photoPath,...(draft.items||[]).map(item=>item.photo)].filter(Boolean)}).concat(pendingWritingPhoto||[],pendingStemPhoto||[])
+    keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|NativeRecent|NativePaper|IeltsObjective|IeltsSpeaking|IeltsExam|VocabProgress|SavedWord|RecordIndex|Goal|CoachTurns):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
     // Only our app-private answer copies are deleted; original camera files
     // and unrelated folders are never touched.
     if (wx.env?.USER_DATA_PATH && wx.getFileSystemManager) {

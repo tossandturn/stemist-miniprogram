@@ -8,6 +8,7 @@ Component({
     loading: { type: Boolean, value: false },
     disabled: { type: Boolean, value: false },
     readOnly: { type: Boolean, value: false },
+    hideInput: { type: Boolean, value: false },
     placeholder: { type: String, value: '告诉 AI Coach 你想检查什么（可选）' },
     submitLabel: { type: String, value: '提交给 AI Coach' },
     helper: { type: String, value: '' },

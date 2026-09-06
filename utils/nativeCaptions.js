@@ -1,4 +1,4 @@
-const {requestIeltsJson}=require('./api')
+const {requestIeltsLearning}=require('./ieltsLearning')
 const cache=new Map(),pending=new Map()
 function captionModel(payload){
  if(!payload?.available||!Array.isArray(payload.timedWords)||!payload.timedWords.length||payload.timedWords.length>12000)return null
@@ -30,7 +30,7 @@ async function loadCaptions(taskId,section){
  const key=taskId+':'+section
  if(cache.has(key)){const model=cache.get(key);cache.delete(key);cache.set(key,model);return model}
  if(pending.has(key))return pending.get(key)
- const request=requestIeltsJson('/api/listening/asr-cache?id='+encodeURIComponent(taskId)+'&section='+section,undefined,{method:'GET',timeout:12000}).then(data=>{
+ const request=requestIeltsLearning('/api/listening/asr-cache?id='+encodeURIComponent(taskId)+'&section='+section,undefined,{method:'GET',timeout:12000}).then(data=>{
   const model=captionModel(data);if(!model)throw new Error('这段音频暂无可用字幕。')
   cache.set(key,model);while(cache.size>4)cache.delete(cache.keys().next().value);return model
  }).finally(()=>pending.delete(key))

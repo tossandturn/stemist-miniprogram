@@ -5,6 +5,7 @@ const bank={listening:[{...source,id:'cam15-l-test1'}],reading:[{...source,id:'c
 const requests=[]
 const r=miniRuntime({modules:{
  'utils/ieltsContent':{loadIeltsContent:async()=>bank},
+ 'utils/ieltsWriting':{startWritingFeedback:async(prompt,essay,id)=>'job-'+id,writingJob:async()=>({status:'done'})},
  'utils/ieltsLearning':{requestIeltsLearning:async(path,payload)=>{
   requests.push({path,payload})
   return path==='/api/objective/exams'

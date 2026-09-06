@@ -1,6 +1,6 @@
 # Stemist 小程序统一产品设计与技术基线
 
-版本：2026-09-06
+版本：2026-09-07
 
 ## 当前修复基线
 
@@ -30,7 +30,7 @@
 - STEM 在小程序中采用「一题一拍」，先进入原生后置相机取景页，再裁剪、AI Coach；没有相机能力的开发者工具才降级到仍限制为 `sourceType:['camera']` 的兼容调用，不打开相册。
 - IELTS 入口映射 Dashboard、四项技能、Same‑Test、Random Exam、Vocabulary、Mine/Account、Subscription 和 AI Coach；全部在原生页面实现，不以外链补缺口。
 - IELTS Listening / Reading 保留文本工作区，题库、音频、文章和证据链仍以 IELTSist 为准。
-- Writing 使用真实题库和题图、文字/照片、识别后核对、异步批改与原生 PDF 报告。重写训练等剩余细节仍须按功能对照表完成验收。
+- Writing 使用真实题库和题图，支持文字或照片直接提交多模态批改；不要求先 OCR、转录或核对文字。文字稿与照片稿明确切换，照片模式不携带旧文字。批改异步执行，支持原生 PDF 报告；重写训练等剩余细节仍须按功能对照表完成验收。
 - Speaking 使用原生录音、PCM WebSocket、WebAudio、对话和反馈；真机回声、长会话及双向录音导出尚未验收，不得宣称已完成。
 - STEM Topic 原图按当前题加载并保留多页、图表及分问。整卷及竞赛共用原生逐题照片工作区；完整原卷通过微信原生文档查看器打开。
 
@@ -132,6 +132,8 @@ A-Level 章节摘要读取 `GET /api/stem/routes/{routeId}/syllabus-topics`，�
 - `stage`：`practice`；
 - `inputMode` / `mode`：`text`、`typed` 或 `photo`；
 - 当前真实题目/学生文本/照片证据；
+- 照片必须作为独立 `image_url` 图像内容交给视觉模型；不能用 OCR 文字代替图片。内部的模型证据锚定不得变成学生需要完成的额外识别步骤。
+- Writing 照片采用专用异步视觉批改任务，保留任务 ID、可自动恢复查询，不重复上传。部署了可用 DashScope 视觉凭证时，照片写作由已实测的 Qwen3.7-Plus 处理；AI Coach 保留其独立模型配置。
 - `source: stemist-miniprogram`。
 - IELTS 通过专用交换接口获得独立短期会话，普通 IELTS 请求不能携带 STEM bearer。正式题组、报告、词汇及会员功能使用其原有服务端权限边界。
 

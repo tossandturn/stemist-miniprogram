@@ -1,6 +1,7 @@
 const {requestIeltsJson,IELTS_API_BASE}=require('./api')
 const BOOTSTRAP=require('./ieltsBootstrap')
 const {unpackTask}=require('./nativeDataPack')
+const {writingPrompt}=require('./writingPrompt')
 const TYPES={listening:'listeningTests',reading:'readingTests',writing:'writingTasks',speaking:'speakingSets'}
 const PUBLIC_INDEX='stemistPublicIeltsCatalog'
 let snapshot=null,pending=null,loadedAt=0,lastAttemptAt=0,refreshTimer=null,catalogVersion='',bundledTasks=null
@@ -23,7 +24,7 @@ function normalizeTask(task,module,{indexOnly=false}={}){
   audioSections:(Array.isArray(task.audioUrls)?task.audioUrls:[]).map((url,index)=>({section:index+1,url:assetUrl(url)})).filter(track=>track.url),
   sections:(task.nativeSections||task.sections||[]).map(section=>({number:Number(section.number),label:String(section.label||''),title:String(section.title||''),topicKey:String(section.topicKey||''),topicLabel:String(section.topicLabel||''),questionCount:Number(section.questionCount)||section.questionIds?.length||0,questionIds:Array.isArray(section.questionIds)?section.questionIds.filter(id=>typeof id==='string'):[],minutes:Number(section.minutes)||20})),
   passageStarts:task.readingPassageStartPages||{},visual:task.visual||null,
-  prompt:String(task.prompt||''),data:String(task.data||''),contentVersion:String(task.contentVersion||''),contentLifecycle:String(task.contentLifecycle||''),humanReviewStatus:String(task.humanReviewStatus||''),
+  prompt:module==='writing'?writingPrompt(task.prompt,task.id):String(task.prompt||''),data:String(task.data||''),contentVersion:String(task.contentVersion||''),contentLifecycle:String(task.contentLifecycle||''),humanReviewStatus:String(task.humanReviewStatus||''),
   part1Topic:String(task.part1Topic||''),part1:task.part1||[],part2:task.part2||'',part3:task.part3||[]}
 }
 function normalizeCatalog(payload){catalogVersion=String(payload.version||'');return Object.fromEntries(Object.entries(TYPES).map(([module,key])=>[module,(payload[key]||[]).map(task=>normalizeTask(task,module,{indexOnly:payload.schemaVersion==='native-ielts-catalog-v1'})).filter(Boolean)]))}

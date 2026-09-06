@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-library">
  <stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/><ai-fab source="ielts" category="ielts"/>
- <view wx:if="{{module === 'listening' || module === 'reading'}}" class="native-scopes"><button wx:for="{{scopes}}" wx:key="id" class="{{scope === item.id ? 'active' : ''}}" data-scope="{{item.id}}" bindtap="chooseScope">{{item.label}}</button></view>
+ <view wx:if="{{module === 'listening' || module === 'reading' || module === 'writing'}}" class="native-scopes"><button wx:for="{{scopes}}" wx:key="id" class="{{scope === item.id ? 'active' : ''}}" data-scope="{{item.id}}" bindtap="chooseScope">{{item.label}}</button></view>
  <view class="native-filters"><picker range="{{books}}" range-key="label" value="{{bookIndex}}" bindchange="chooseBook"><view class="native-filter">{{books[bookIndex].label || '全部书册'}} · 更换</view></picker><input class="native-search" placeholder="搜索试题" value="{{query}}" bindinput="search"/></view>
  <picker wx:if="{{scope === 'topic'}}" range="{{topics}}" range-key="label" value="{{topicIndex}}" bindchange="chooseTopic"><view class="native-filter">{{topics[topicIndex].label || '全部主题'}}</view></picker>
  <view wx:if="{{loading}}" class="loading-state">正在加载试题…</view>

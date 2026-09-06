@@ -1,0 +1,19 @@
+<view class="page {{deviceClass}} {{orientation}} writing-full-page">
+<stemist-header compact="{{true}}" title="完整写作" action-text="返回" bind:action="back"/><ai-fab source="writing" category="ielts"/>
+<view class="pair-heading"><text>{{title}}</text><text>剩余 {{remaining}}</text></view>
+<view wx:if="{{loading}}" class="loading-state">正在打开题组…</view><view wx:if="{{error}}" class="error">{{error}}</view>
+<button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录后继续批改</button>
+<view class="pair-grid">
+<view wx:for="{{items}}" wx:for-index="taskIndex" wx:key="id" class="pair-task">
+<text class="pair-title">Task {{item.number}}</text>
+<image wx:for="{{item.images}}" wx:for-item="source" wx:key="id" class="pair-source" src="{{source.url}}" mode="widthFix" lazy-load data-index="{{taskIndex}}" bindtap="preview"/>
+<text wx:if="{{!item.images.length}}" class="pair-prompt">{{item.prompt}}</text>
+<view class="task-switcher"><button class="{{item.inputMode === 'typed' ? 'active' : ''}}" data-index="{{taskIndex}}" data-mode="typed" bindtap="chooseInputMode" disabled="{{busy || phase !== 'draft' || timeExpired}}">打字</button><button class="{{item.inputMode === 'photo' ? 'active' : ''}}" data-index="{{taskIndex}}" data-mode="photo" bindtap="chooseInputMode" disabled="{{busy || phase !== 'draft' || timeExpired}}">拍照</button></view>
+<textarea wx:if="{{item.inputMode !== 'photo'}}" class="pair-essay" value="{{item.text}}" maxlength="20000" disabled="{{busy || timeExpired || phase !== 'draft'}}" placeholder="输入你的作文" data-index="{{taskIndex}}" bindinput="input" cursor-spacing="24"/>
+<block wx:if="{{item.inputMode === 'photo'}}"><button class="secondary" data-index="{{taskIndex}}" bindtap="takePhoto" disabled="{{busy || timeExpired || phase !== 'draft'}}">{{item.photo ? '重新拍照' : '拍摄作文'}}</button>
+<image wx:if="{{item.photo}}" class="pair-photo" src="{{item.photo}}" mode="aspectFit"/></block>
+</view>
+</view>
+<view class="pair-footer"><text>{{status}}</text><text wx:if="{{timeExpired}}">时间已到，作文已保留。</text><button wx:if="{{phase !== 'done'}}" class="primary" loading="{{busy}}" disabled="{{busy || loading}}" bindtap="submit">{{canRetry ? '继续查看批改' : '提交两篇作文'}}</button><button wx:else class="secondary" bindtap="startNew">再练一次</button></view>
+<view wx:if="{{feedback}}" class="pair-result"><text wx:if="{{band !== null}}" class="pair-title">AI 练习估分 · {{band}}</text><text wx:if="{{band !== null}}">Task 1 : Task 2 = 1 : 2</text><text class="warning">{{warning}}</text><answer-content text="{{feedback}}"/><button wx:if="{{reportUrl}}" class="secondary" bindtap="downloadReport" loading="{{downloading}}" disabled="{{downloading}}">下载批改报告</button></view>
+</view>

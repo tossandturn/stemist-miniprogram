@@ -10,13 +10,16 @@ const fakeRequire = (name) => {
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {}, readDraft: () => null, scheduleDraft: () => {}, clearDraft: () => {}, cancelDraft: () => {} }
   if (name === '../../utils/coach') return { runCoach: async () => ({ answer: 'ok', mode: 'ai', providerStatus: 'connected', coachState: { label: 'AI 已连接' } }) }
   if (name === '../../utils/api') return { isAuthError: () => false }
+  if (name === '../../utils/ieltsLearning') return { requestIeltsLearning: async () => ({}) }
+  if (name === '../../utils/coachEntry') return { takeCoachEntry: () => null, focusPassage: value => value }
+  if (name === '../../utils/nativeCaptions') return { loadCaptions: async () => ({words:[]}) }
+  if (name === '../../utils/image') return { readAsJpegDataUrl: async () => {throw Error('No photo belongs to this text-only context')} }
   throw new Error(`unexpected module ${name}`)
 }
 vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require: fakeRequire, wx: { getStorageSync: () => '', setStorageSync: () => {}, navigateTo: () => {} }, String, Number, Boolean, Object, Array, Set, Date, Promise, Error })
 
 function makePage() {
-  const page = { data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update) { Object.assign(this.data, update) } }
-  Object.assign(page, pageConfig)
+  const page = { ...pageConfig, data: JSON.parse(JSON.stringify(pageConfig.data)), setData(update) { Object.assign(this.data, update) } }
   return page
 }
 

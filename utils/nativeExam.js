@@ -1,6 +1,8 @@
 const {loadIeltsContent}=require('./ieltsContent')
 const {requestIeltsLearning}=require('./ieltsLearning')
 const {createClock,clockState}=require('./practiceClock')
+const {startWritingFeedback,writingJob}=require('./ieltsWriting')
+const {readAsJpegDataUrl}=require('./image')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const PREFIX='stemistIeltsExam:'
@@ -49,7 +51,27 @@ async function submitExam(key){
  const exam=readExam(key);if(!exam)throw new Error('未找到这次模拟。')
  if(exam.submitted)return exam
  if(!['listening','reading','writing1','writing2','speaking'].every(name=>exam.modules[name]?.complete))throw new Error('请先完成各项练习。')
- const result=await requestIeltsLearning('/api/exam/report',{examContext:exam.context,fullExamManifest:exam.manifest,listening:exam.modules.listening.submission,reading:exam.modules.reading.submission,writing:{tasks:[exam.modules.writing1,exam.modules.writing2].map((m,i)=>({id:exam.sources.writing[i],type:'Task '+(i+1),title:m.title,prompt:m.prompt,essay:m.essay}))},speaking:{title:exam.modules.speaking.title,selfReportedBand:exam.modules.speaking.band??'',notes:exam.modules.speaking.feedback||''}},{timeout:60000})
+ exam.writingJobs=exam.writingJobs||[]
+ const writingModules=[exam.modules.writing1,exam.modules.writing2]
+ for(let index=0;index<2;index++){
+  if(exam.writingJobs[index])continue
+  const item=writingModules[index],images=item.photoPath?[await readAsJpegDataUrl(item.photoPath)]:[]
+  if(!readExam(key))throw new Error('账号已变化。')
+  exam.writingJobs[index]=await startWritingFeedback(item.prompt,item.photoPath?'':item.essay,exam.sources.writing[index],images)
+  saveExam(exam)
+ }
+ const started=Date.now()
+ for(let index=0;index<2;index++){
+  while(true){
+   if(!readExam(key))throw new Error('账号已变化。')
+   try{const job=await writingJob(exam.writingJobs[index]);if(job.status==='done')break}
+   catch(error){if(error.terminalJob||error.statusCode===404){exam.writingJobs[index]='';saveExam(exam)}throw error}
+   if(Date.now()-started>210000)throw new Error('写作仍在批改，答案已保存；稍后可继续生成报告。')
+   await new Promise(resolve=>setTimeout(resolve,1800))
+  }
+ }
+ if(!readExam(key))throw new Error('账号已变化。')
+ const result=await requestIeltsLearning('/api/exam/report',{examContext:exam.context,fullExamManifest:exam.manifest,listening:exam.modules.listening.submission,reading:exam.modules.reading.submission,writing:{feedbackJobIds:exam.writingJobs,tasks:writingModules.map((m,i)=>({id:exam.sources.writing[i],type:'Task '+(i+1),title:m.title,prompt:m.prompt,essay:m.photoPath?'':m.essay}))},speaking:{title:exam.modules.speaking.title,selfReportedBand:exam.modules.speaking.band??'',notes:exam.modules.speaking.feedback||''}},{timeout:30000})
  if(!readExam(key))throw new Error('账号已变化。')
  const feedback=String(result.feedback||result.report||'');if(!feedback)throw new Error('报告未完整返回，答案已保留。')
  exam.submitted=true;exam.result={feedback,mode:String(result.mode||'local')};saveExam(exam);return exam
