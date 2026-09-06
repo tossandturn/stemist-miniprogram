@@ -15,7 +15,7 @@ const CONTROL_KEYS = [
   { id: 'right', label: '', face: 'right', action: 'right', shiftAction:'template-end', row: 2, col: 5 },
   { id: 'page-down', label: '', face: 'page-down', action: 'page-down', row: 2, col: 6 },
   { id: 'shift', label: 'SHIFT', text: '⇧', action: 'shift', tone: 'shift', row: 3, col: 1 },
-  { id: 'variable', label: 'VARIABLE', text: 'x↔', action: 'variables', row: 3, col: 2 },
+  { id: 'variable', label: 'VARIABLE', face: 'variable', text: 'x↔', action: 'variables', row: 3, col: 2 },
   { id: 'function', label: 'FUNCTION', text: 'f(x)', action: 'functions', row: 3, col: 3 },
   { id: 'down', label: '', face: 'down', action: 'down', row: 3, col: 4 },
   { id: 'catalog', label: 'CATALOG', face: 'book', action: 'catalog', row: 3, col: 5 },
@@ -23,17 +23,17 @@ const CONTROL_KEYS = [
 ]
 const SCIENTIFIC_ROWS = [
   { id: 'powers', keys: [
-    { id: 'x', label: 'x', value: 'x' },
+    { id: 'x', label: 'x', value: 'x', shiftLabel: 'QR', shiftAction: 'qr' },
     { id: 'fraction', label: '▱', face: 'fraction', action: 'fraction', shiftLabel: 'a b/c', shiftAction: 'mixed-input' },
-    { id: 'sqrt', label: '√', value: 'sqrt(', shiftLabel: 'ⁿ√', shiftAction: 'root-input' },
-    { id: 'power', label: 'xʸ', value: '^(', shiftLabel: 'x⁻¹', shiftValue: '^(-1)' },
-    { id: 'square', label: 'x²', value: '^2', shiftLabel: 'log', shiftValue: 'log(' },
-    { id: 'log-base', label: 'logₐ', action: 'log-input', shiftLabel: 'ln', shiftValue: 'ln(' },
+    { id: 'sqrt', label: '√', face: 'root-slot', value: 'sqrt(', shiftLabel: 'ⁿ√', shiftAction: 'root-input' },
+    { id: 'power', label: 'xʸ', face: 'power-slots', value: '^(', shiftLabel: '□⁻¹', shiftValue: '^(-1)' },
+    { id: 'square', label: 'x²', face: 'square-slot', value: '^2', shiftLabel: 'log', shiftValue: 'log(' },
+    { id: 'log-base', label: 'logₐ', face: 'log-slots', action: 'log-input', shiftLabel: 'ln', shiftValue: 'ln(' },
   ] },
   { id: 'trig', keys: [
     { id: 'ans', label: 'Ans', action: 'ans' },
     { ...from('sin'), id: 'sin' }, { ...from('cos'), id: 'cos' }, { ...from('tan'), id: 'tan' },
-    { id: 'open-paren', label: '(', value: '(' },
+    { id: 'open-paren', label: '(', value: '(', shiftLabel: '=', shiftAction: 'equation-equals' },
     { id: 'close-paren', label: ')', value: ')', shiftLabel: ',', shiftValue: ',' },
   ] },
 ]
@@ -41,8 +41,8 @@ const NUMBER_ROWS = [
   { id: 'top', keys: [
     { id: '7', label: '7', value: '7', shiftLabel: 'π', shiftValue: 'pi' },
     { id: '8', label: '8', value: '8', shiftLabel: 'e', shiftValue: 'e' },
-    { id: '9', label: '9', value: '9' },
-    { id: 'del', label: 'DEL', action: 'delete', shiftLabel: 'INS', shiftAction: 'insert-mode' },
+    { id: '9', label: '9', value: '9', shiftLabel: 'i', shiftAction: 'complex-i' },
+    { id: 'del', label: 'DEL', face: 'delete', action: 'delete', shiftLabel: 'INS', shiftAction: 'insert-mode' },
     { id: 'ac', label: 'AC', action: 'clear', shiftLabel: 'OFF', shiftAction: 'power-off' },
   ] },
   { id: 'mid', keys: [
@@ -55,8 +55,8 @@ const NUMBER_ROWS = [
     { id: '1', label: '1', value: '1', shiftLabel: 'D', shiftValue: 'D' },
     { id: '2', label: '2', value: '2', shiftLabel: 'E', shiftValue: 'E' },
     { id: '3', label: '3', value: '3', shiftLabel: 'F', shiftValue: 'F' },
-    { id: 'plus', label: '+', value: '+', shiftLabel: '° ′ ″', shiftAction: 'dms-input' },
-    { id: 'minus', label: '−', value: '-', shiftLabel: '(−)', shiftValue: '-' },
+    { id: 'plus', label: '+', value: '+', shiftLabel: '°′″', shiftAction: 'dms-input' },
+    { id: 'minus', label: '−', value: '-', shiftLabel: '(−)', shiftValue: '⁻' },
   ] },
   { id: 'bottom', keys: [
     { id: '0', label: '0', value: '0', shiftLabel: 'x', shiftValue: 'x' },

@@ -27,6 +27,13 @@ function resultFormat(value, mode = 'decimal', digits = 6) {
     return resultFormat(value,'decimal',digits)
   }
   const precision = Math.max(0, Math.min(9, Number(digits) || 0))
+  if(mode==='sexagesimal'){
+    if(Math.abs(value)>=1e9)throw new Error('结果过大，无法显示度分秒')
+    const absolute=Math.abs(value);let degrees=Math.floor(absolute),minutes=Math.floor((absolute-degrees)*60),seconds=Math.round(((absolute-degrees)*3600-minutes*60)*1e6)/1e6
+    if(seconds>=60){seconds=0;minutes++}
+    if(minutes>=60){minutes=0;degrees++}
+    return {text:`${value<0?'−':''}${degrees}°${minutes}′${seconds}″`,kind:'number'}
+  }
   if (mode === 'fraction' || mode === 'mixed') {
     const f = fraction(value)
     if (!f) throw new Error('这个结果不能在当前精度下转为简单分数')

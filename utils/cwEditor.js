@@ -77,7 +77,7 @@ function fractionAt(text,start) {
   return depth||comma<0?null:{start,comma,end}
 }
 function pretty(text) {
-  return text.replace(/ans/gi,'Ans').replace(/pi/gi,'π').replace(/sqrt\(/g,'√(').replace(/\*/g,'×').replace(/\//g,'÷').replace(/\^2\b/g,'²')
+  return text.replace(/ans/gi,'Ans').replace(/pi/gi,'π').replace(/sqrt\(/g,'√(').replace(/\*/g,'×').replace(/\//g,'÷').replace(/⁻/g,'−').replace(/\^2\b/g,'²')
 }
 function renderParts(text, cursor, showCursor=true) {
   const at=showCursor?clamp(cursor,text):-1,parts=[]

@@ -49,7 +49,7 @@ Page({
     this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: finite(state.answer), memory: finite(state.memory), memoryDisplay: formatNumber(finite(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 60) : '0', history: readHistory(),
       variables: Object.fromEntries(VARIABLES.map(name=>[name,finite(state.variables?.[name])])),
       functions: Object.fromEntries(['f','g'].filter(name=>typeof state.functions?.[name]==='string').map(name=>[name,state.functions[name].slice(0,500)])),
-      formatMode: ['standard','decimal','fraction','mixed','engineering','fixed','scientific'].includes(state.formatMode) ? state.formatMode : 'standard',
+      formatMode: ['standard','decimal','fraction','mixed','engineering','fixed','scientific','sexagesimal'].includes(state.formatMode) ? state.formatMode : 'standard',
       calculationFormat: ['standard','fixed','scientific'].includes(state.calculationFormat)?state.calculationFormat:['fixed','scientific'].includes(state.formatMode)?state.formatMode:'standard',
       workDrafts: state.workDrafts && typeof state.workDrafts === 'object' && !Array.isArray(state.workDrafts) ? state.workDrafts : {},
     })
@@ -59,7 +59,7 @@ Page({
   },
   onShow() { syncDevice(this);this.updateWorkbenchLayout() },
   onResize(event={}) { if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
-  onHide() { this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
+  onHide() { this.setData({shiftActive:false});this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
   onUnload() { this.cancelSolver();this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
   goBack() { if(!this.__disposed)wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/index/index' }) }) },
   persistState() {
@@ -159,10 +159,20 @@ Page({
   },
   runAction(action) {
     if(this.__disposed)return
+    // SHIFT belongs to the instrument, including every Solver screen. A mode
+    // handler must never swallow the prefix before OFF or another second key.
+    if(action==='shift'){if(!this.data.powerOff)this.setData({shiftActive:!this.data.shiftActive,error:''});return}
+    if(this.data.powerOff&&action!=='on')return
+    if(this.data.menu&&action==='template-start')action='left'
+    if(this.data.menu&&action==='template-end')action='right'
+    if(action==='qr'||action==='complex-i'){this.setData({error:action==='qr'?'QR 联网功能暂未提供。':'当前尚未提供 Complex 复数模式。'});return}
+    if(action==='equation-equals'){
+      if(this.data.solverPhase==='equation'&&!this.data.menu)return this.append('=')
+      this.setData({error:'等号用于 Equation → Solver。'});return
+    }
     this.finishNativeEditor()
     if(this.handleSolverAction(action))return
     if(this.handleCwAction(action)) return
-    if (action === 'shift') return this.setData({ shiftActive: !this.data.shiftActive, error: '' })
     if (action === 'clear') {
       this.__justEvaluated = false; this.__replayAnswer = undefined; this.__replayContext = undefined; this.__historyIndex = -1
       this.setData({ expression: '', cursor: 0, display: '0', hasResult: false, error: '', shiftActive: false, typing:false,argumentMode:false })
@@ -219,7 +229,7 @@ Page({
       const storedContext = this.__replayContext || {}
       const context = {variables:storedContext.variables || this.data.variables,functions:storedContext.functions || this.data.functions}
       const result = evaluateExpression(calculation, { angleMode: this.data.angleMode, answer: answerBasis, ...context })
-      const formatMode=formatOverride==='decimal'?'decimal':this.data.calculationFormat
+      const formatMode=formatOverride==='decimal'?'decimal':this.data.calculationFormat==='standard'&&/\bdms\(/.test(calculation)?'sexagesimal':this.data.calculationFormat
       const formatted=resultFormat(result,formatMode)
       const display = formatted.text
       const entry = { expression, result: display, answerBasis, angleMode: this.data.angleMode, variables:{...context.variables},functions:{...context.functions},at: Date.now() }

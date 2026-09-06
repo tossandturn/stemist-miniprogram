@@ -10,7 +10,7 @@ const MENUS = {
   settings: [item('angle-menu', 'Angle Unit'), item('output-menu', 'Number Format')],
   angle: [item('angle-DEG', 'Degree'), item('angle-RAD', 'Radian'), item('angle-GRAD', 'Gradian')],
   output: [item('number-standard', 'Norm'), item('number-fixed', 'Fix · 6 decimal places'), item('number-scientific', 'Sci · 6 significant digits')],
-  format: [item('format-standard', 'Standard'),item('format-decimal', 'Decimal'), item('format-fraction', 'Improper Fraction'), item('format-mixed', 'Mixed Fraction'), item('format-engineering', 'ENG Notation')],
+  format: [item('format-standard', 'Standard'),item('format-decimal', 'Decimal'), item('format-fraction', 'Improper Fraction'), item('format-mixed', 'Mixed Fraction'), item('format-engineering', 'ENG Notation'),item('format-sexagesimal','Sexagesimal')],
   catalog: [item('catalog-analysis', 'Function Analysis'), item('catalog-probability', 'Probability'), item('catalog-trig', 'Trigonometric'), item('catalog-numeric', 'Numeric Calculations')],
   'catalog-analysis': [item('insert-sqrt(', 'Square root'), item('insert-cbrt(', 'Cube root'), item('action-root-input', 'Nth root'), item('insert-log(', 'log'), item('insert-ln(', 'ln'), item('insert-exp(', 'eˣ'), item('action-log-input', 'Logarithm base a')],
   'catalog-probability': [item('action-ncr-input', 'Combination · nCr'), item('action-npr-input', 'Permutation · nPr'), item('insert-!', 'Factorial · x!'), item('insert-%', 'Percent · %')],
@@ -41,7 +41,7 @@ const cwMethods = {
     this.setData({ menu, menuTitle: TITLES[menu] || menu.replace('catalog-', ''), menuItems: entries, menuIndex: 0, typing: false, error: '' })
   },
   closeMenu() { this.__menuStack = []; this.setData({ menu: '', menuItems: [], menuIndex: 0 }) },
-  chooseMenu(event) { this.executeMenu(String(event.currentTarget.dataset.id || '')) },
+  chooseMenu(event) { if(this.__disposed)return;this.setData({shiftActive:false});this.executeMenu(String(event.currentTarget.dataset.id || '')) },
   executeMenu(id) {
     if(this.__disposed)return
     if (!this.data.menuItems.some(entry => entry.id === id)) return
@@ -99,9 +99,18 @@ const cwMethods = {
       else { this.closeMenu(); this.setData({ typing: false, error: '' }) }
       return true
     }
+    if(this.data.menu&&this.data.menu!=='home'&&['left','right'].includes(action)){
+      if(action==='left')this.handleCwAction('back')
+      else{
+        const id=this.data.menuItems[this.data.menuIndex]?.id||''
+        if(id.endsWith('-menu')||id.startsWith('catalog-')||id.startsWith('variable-')||id.startsWith('define-')||id.startsWith('work-'))this.executeMenu(id)
+      }
+      return true
+    }
     if (this.data.menu && ['up', 'down', 'left', 'right', 'page-up', 'page-down'].includes(action)) {
       const count = this.data.menuItems.length
-      const delta = action === 'page-up' ? -3 : action === 'page-down' ? 3 : ['up', 'left'].includes(action) ? -1 : 1
+      const pageSize=this.data.menu==='home'?6:2
+      const delta = action === 'page-up' ? -pageSize : action === 'page-down' ? pageSize : ['up', 'left'].includes(action) ? -1 : 1
       const step = this.data.menu === 'home' && ['up', 'down'].includes(action) ? delta * 3 : delta
       this.setData({ menuIndex: Math.max(0, Math.min(count - 1, this.data.menuIndex + step)) }); return true
     }

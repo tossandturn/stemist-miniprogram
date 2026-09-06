@@ -41,6 +41,7 @@ function tokenize(expression) {
       continue
     }
     const symbol = source[index]
+    if(symbol==='⁻'){tokens.push({type:'symbol',value:'negative-sign'});index+=1;continue}
     if ('+-*/^!%(),'.includes(symbol)) {
       tokens.push({ type: 'symbol', value: symbol })
       index += 1
@@ -57,7 +58,7 @@ function canEndValue(token) {
 }
 
 function canStartValue(token) {
-  return token && (token.type === 'number' || token.type === 'identifier' || token.value === '(')
+  return token && (token.type === 'number' || token.type === 'identifier' || token.value === '(' || token.value === 'negative-sign')
 }
 
 function addImplicitMultiplication(tokens) {
@@ -131,7 +132,7 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0, variabl
 
   function parseUnary() {
     if (peek()?.value === '+') { take(); return parseUnary() }
-    if (peek()?.value === '-') { take(); return -parseUnary() }
+    if (peek()?.value === '-' || peek()?.value === 'negative-sign') { take(); return -parseUnary() }
     return parsePower()
   }
 
