@@ -20,7 +20,7 @@ const solverMethods={
  openSolver(){
   if(this.__disposed)return
   this.cancelSolver(false)
-  if(!this.data.solverPhase&&!this.__solverCalculateDraft)this.__solverCalculateDraft=copyDraft(this.data)
+  if(!this.data.solverPhase&&!this.__solverCalculateDraft)this.__solverCalculateDraft={...copyDraft(this.data),replayAnswer:this.__replayAnswer,replayContext:this.__replayContext,justEvaluated:this.__justEvaluated}
   const equation=this.data.solverPhase==='equation'?this.data.expression:this.data.solverEquation||''
   this.finishNativeEditor();this.closeMenu();this.__justEvaluated=false;this.invalidateReplay()
   this.setData({solverPhase:'equation',solverEquation:equation,expression:equation,cursor:equation.length,solverResult:null,hasResult:false,display:'',error:'',workbench:'',shiftActive:false})
@@ -31,7 +31,7 @@ const solverMethods={
   const equation=this.data.solverPhase==='equation'?this.data.expression:this.data.solverEquation
   this.cancelSolver(false)
   const draft=this.__solverCalculateDraft||{expression:'',cursor:0,hasResult:false,display:'0',formatted:{kind:'number',text:'0'}}
-  this.setData({...draft,solverEquation:equation,solverPhase:'',solverResult:null,error:''});this.__solverCalculateDraft=null;this.__justEvaluated=Boolean(draft.hasResult);this.persistState()
+  this.setData({...copyDraft(draft),solverEquation:equation,solverPhase:'',solverResult:null,error:''});this.__solverCalculateDraft=null;this.__justEvaluated=Boolean(draft.justEvaluated??draft.hasResult);this.__replayAnswer=Number.isFinite(draft.replayAnswer)?draft.replayAnswer:undefined;this.__replayContext=draft.replayContext;this.persistState()
  },
  solverEquationScreen(){
   this.cancelSolver(false)
