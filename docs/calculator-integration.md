@@ -4,6 +4,11 @@
 
 ## 结论
 
+2026-09-06 的最新修复是 **原生 LCD 内的自然数学输入**，详见
+[按键操作回归](calculator-cw-natural-input-2026-09-06.md)。分数、带分数、
+根式、指数、对数底数不再打开表单；它们使用计算器本身的按键与方向键。
+EXE 默认显示可表示的简单分数，SHIFT EXE 临时输出小数。
+
 最新实现已改为 **fx-991CW 键位的原生学习计算器**：石墨色机身、LCD 数学显示、16 个控制键、2×6 科学键、4×5 数字键，菜单在 LCD 内操作；不是此前被用户否定的四列普通键盘。新增 VARIABLE / FUNCTION、分数模板与 FORMAT、实数二次方程、二元联立方程、1-Variable 统计、Table、Ratio 和 32-bit Base-N。实现边界与验收见 [CW 验收记录](calculator-cw-qa-2026-09-06.md)。
 
 CW 键位按 [Casio 国际版 fx-991CW 官方正面图](https://www.casio.com/intl/scientific-calculators/product.FX-991CW/) 和 [官方用户手册](https://support.casio.com/global/en/calc/manual/fx-570CW_991CW_en/) 核对；保留 Claxer MIT 科学键映射和许可证，但不再把 ES PLUS 分组误当作 CW 布局。

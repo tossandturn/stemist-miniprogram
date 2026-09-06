@@ -20,6 +20,17 @@ Date: 2026-09-06, Asia/Shanghai.
   but the entire key cell is interactive. Do not scale the whole UI to fake fit.
 - All visible keys must do something supported; no invented official licensing,
   solar/battery state, QR service or claim of complete Casio firmware emulation.
+- Math input follows the CW's LCD templates, not web forms. Fraction, mixed
+  fraction, square/nth root, exponent and base logarithm slots are edited with
+  the instrument's own keys. UP/DOWN choose vertical slots; RIGHT exits a
+  completed denominator/exponent; SHIFT arrows leave a whole template.
+- SHIFT DEL arms argument capture for the next template, rather than enabling
+  overwrite mode in the natural editor. The LCD is not a text-box launcher.
+- EXE uses the normal calculation format; SHIFT EXE returns a decimal for that
+  calculation only. FORMAT changes presentation without changing Ans.
+- Empty slots must stay visible and cannot evaluate as zero. The expression and
+  its denominator remain fully visible for ordinary fractions after EXE; longer
+  nested expressions scroll inside a fixed LCD without shifting the keys.
 - This is a STEMist learning implementation with Casio key conventions, not a
   Casio-issued emulator. Put the scope/attribution in an About menu, not a wall
   of implementation text on the student's screen.
@@ -28,8 +39,8 @@ Date: 2026-09-06, Asia/Shanghai.
 
 1. Extend the safe parser for multi-argument fractions/log/root/combinatorics,
    variables and bounded f/g functions. No eval, Function, ROM or remote script.
-2. Add CW keypad metadata, menu/navigation state, result formats and template
-   inputs; preserve old Ans, memory, cursor and history behavior.
+2. Add CW keypad metadata, menu/navigation state, result formats and inline
+   mathematical slots; preserve old Ans, memory, cursor and history behavior.
 3. Implement Calculate, Table, Equation, Statistics, Ratio and Base-N workspaces
    with explicit supported ranges, not placeholder icons for missing apps.
 4. Render the native WXML/WXSS instrument; verify actual button geometry and

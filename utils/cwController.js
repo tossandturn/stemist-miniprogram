@@ -2,14 +2,15 @@ const { resultFormat, quadratic, linearSystem, statistics, numberTable, baseConv
 const { evaluateExpression, formatNumber } = require('./calculator')
 const { HOME_APPS } = require('./cwKeypad')
 const { renderParts,verticalCursor } = require('./cwEditor')
+const { layoutExpression } = require('./cwMathLayout')
 const VARIABLES = ['A', 'B', 'C', 'D', 'E', 'F', 'x', 'y', 'z']
 const item = (id, label, detail = '') => ({ id, label, detail })
 const MENUS = {
   home: HOME_APPS,
   settings: [item('angle-menu', 'Angle Unit'), item('output-menu', 'Number Format')],
   angle: [item('angle-DEG', 'Degree'), item('angle-RAD', 'Radian'), item('angle-GRAD', 'Gradian')],
-  output: [item('format-decimal', 'Norm'), item('format-fixed', 'Fix · 6 decimal places'), item('format-scientific', 'Sci · 6 significant digits')],
-  format: [item('format-decimal', 'Decimal'), item('format-fraction', 'Improper Fraction'), item('format-mixed', 'Mixed Fraction'), item('format-engineering', 'ENG Notation')],
+  output: [item('number-standard', 'Norm'), item('number-fixed', 'Fix · 6 decimal places'), item('number-scientific', 'Sci · 6 significant digits')],
+  format: [item('format-standard', 'Standard'),item('format-decimal', 'Decimal'), item('format-fraction', 'Improper Fraction'), item('format-mixed', 'Mixed Fraction'), item('format-engineering', 'ENG Notation')],
   catalog: [item('catalog-analysis', 'Function Analysis'), item('catalog-probability', 'Probability'), item('catalog-trig', 'Trigonometric'), item('catalog-numeric', 'Numeric Calculations')],
   'catalog-analysis': [item('insert-sqrt(', 'Square root'), item('insert-cbrt(', 'Cube root'), item('action-root-input', 'Nth root'), item('insert-log(', 'log'), item('insert-ln(', 'ln'), item('insert-exp(', 'eˣ'), item('action-log-input', 'Logarithm base a')],
   'catalog-probability': [item('action-ncr-input', 'Combination · nCr'), item('action-npr-input', 'Permutation · nPr'), item('insert-!', 'Factorial · x!'), item('insert-%', 'Percent · %')],
@@ -27,7 +28,7 @@ const field = (id, label, value = '') => ({ id, label, value: String(value) })
 const cwMethods = {
   renderExpression() {
     if(this.__disposed)return
-    this.setData({expressionParts:renderParts(this.data.expression,this.data.cursor,!this.data.hasResult)})
+    this.setData({expressionParts:renderParts(this.data.expression,this.data.cursor,!this.data.hasResult),expressionLayout:layoutExpression(this.data.expression,this.data.cursor,!this.data.hasResult)})
   },
   openMenu(menu, { reset = false } = {}) {
     if(this.__disposed)return
@@ -44,6 +45,7 @@ const cwMethods = {
     if (['angle-menu', 'output-menu', 'memory-menu'].includes(id)) return this.openMenu(id.replace('-menu', ''))
     if (id.startsWith('catalog-')) return this.openMenu(id)
     if (id.startsWith('angle-')) { this.setData({ angleMode: id.slice(6) }); this.closeMenu(); return this.persistState() }
+    if (id.startsWith('number-')) { this.setData({calculationFormat:id.slice(7)});this.closeMenu();return this.persistState() }
     if (id.startsWith('format-')) {
       const formatMode = id.slice(7)
       try {
@@ -119,22 +121,18 @@ const cwMethods = {
       this.restoreHistory({ currentTarget: { dataset: { index: this.__historyIndex } } }); return true
     }
     if (action === 'ok') { this.calculate(); return true }
-    if (action === 'equals-decimal') { this.setData({ formatMode: 'decimal' }); this.calculate(); return true }
-    if (action === 'insert-mode') { this.setData({ overwrite: !this.data.overwrite }); return true }
-    if (['fraction', 'mixed-input', 'root-input', 'log-input', 'ncr-input', 'npr-input', 'dms-input'].includes(action)) { this.openWorkbench(action); return true }
+    if (action === 'equals-decimal') { this.calculate('decimal'); return true }
+    if (action === 'insert-mode') { this.setData({ argumentMode: !this.data.argumentMode,overwrite:false }); return true }
+    const templateNames={fraction:'frac','mixed-input':'mixed','root-input':'root','log-input':'logb','ncr-input':'ncr','npr-input':'npr','dms-input':'dms'}
+    if (templateNames[action]) { this.insertMathTemplate(templateNames[action]); return true }
     return false
   },
   enableTyping() { if (!this.data.powerOff&&!this.data.typing) this.setData({ typing: true,editorGeneration:this.data.editorGeneration+1 }) },
   openWorkbench(kind) {
     if(this.__disposed)return
+    const inline={fraction:'frac','mixed-input':'mixed','root-input':'root','log-input':'logb','ncr-input':'ncr','npr-input':'npr','dms-input':'dms'}
+    if(inline[kind])return this.insertMathTemplate(inline[kind])
     const definitions = {
-      fraction: ['Fraction', [field('numerator', '分子'), field('denominator', '分母')]],
-      'mixed-input': ['Mixed fraction', [field('whole', '整数部分'), field('numerator', '分子'), field('denominator', '分母')]],
-      'root-input': ['Nth root', [field('degree', '根指数 n', 3), field('value', '被开方数')]],
-      'log-input': ['Logarithm', [field('base', '底数 a', 10), field('value', '真数')]],
-      'ncr-input': ['Combination · nCr', [field('n', 'n'), field('r', 'r')]],
-      'npr-input': ['Permutation · nPr', [field('n', 'n'), field('r', 'r')]],
-      'dms-input': ['Degree · minute · second', [field('degrees', '度', 0), field('minutes', '分', 0), field('seconds', '秒', 0)]],
       statistics: ['Statistics · 1-Variable', [field('values', '数据（逗号或空格分隔）')]],
       table: ['Table', [field('expression', 'f(x)', this.data.functions.f || 'x^2'), field('start', 'Start', -1), field('end', 'End', 1), field('step', 'Step', 1)]],
       quadratic: ['ax² + bx + c = 0', [field('a', 'a', 1), field('b', 'b', -5), field('c', 'c', 6)]],
@@ -201,17 +199,6 @@ const cwMethods = {
     const list = text => String(text || '').trim().split(/[\s,，;；]+/).filter(Boolean).map(v => evaluateExpression(v, context))
     const show = rows => {this.setData({ workResults: rows.map(([label, value]) => ({ label, value: typeof value === 'number' ? formatNumber(value) : String(value) })), workError: '' });this.updateWorkbenchLayout();this.focusWorkbenchTarget('cw-results')}
     try {
-      let insertion = ''
-      if (kind === 'fraction' || kind === 'mixed-input') {
-        value('numerator'); if (!value('denominator')) throw new Error('分母不能为 0')
-        insertion = `frac(${values.numerator},${values.denominator})`
-        if (kind === 'mixed-input') { const whole = value('whole'); if(!Number.isInteger(whole)||value('numerator')<0||value('denominator')<=0||value('numerator')>=value('denominator'))throw new Error('带分数需要整数部分和非负真分数'); insertion = `(${values.whole}${whole < 0 ? '-' : '+'}${insertion})` }
-      }
-      if (kind === 'root-input') insertion = `root(${value('degree')},${value('value')})`
-      if (kind === 'log-input') insertion = `logb(${value('base')},${value('value')})`
-      if (kind === 'ncr-input' || kind === 'npr-input') insertion = `${kind.slice(0, 3)}(${value('n')},${value('r')})`
-      if (kind === 'dms-input') insertion = `dms(${value('degrees')},${value('minutes')},${value('seconds')})`
-      if (insertion) { evaluateExpression(insertion, context); this.closeWorkbench(); this.append(insertion); return }
       if (kind.startsWith('define-')) {
         if (!values.expression) throw new Error('请输入函数定义')
         // Parse the whole grammar without assuming f(0) is in the domain.

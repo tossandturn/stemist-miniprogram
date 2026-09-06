@@ -34,7 +34,7 @@ const automator=require(process.env.WECHAT_AUTOMATOR_MODULE||'D:/CodexWork/qa-ar
   const key=id=>tap(`[data-key="${id}"]`)
   const menu=id=>tap(`[data-id="${id}"]`,'.cw-menu-scroll')
   const clear=async()=>{await key('ac');await wait('expression','')}
-  const type=async value=>{await tap('.cw-expression-scroll');await until('.expression-input');await(await p.$('.expression-input')).input(value);await wait('expression',value)}
+  const type=async value=>{await key('tools');await wait('menu','tools');await menu('keyboard');await until('.expression-input');await(await p.$('.expression-input')).input(value);await wait('expression',value)}
   const field=async(id,value)=>{const selector=`.cw-field-input[data-id="${id}"]`;await tap(selector,'.cw-sheet-scroll');await(await p.$(selector)).input(String(value));await until(async()=>(await p.data('workFields')).find(f=>f.id===id)?.value===String(value))}
   const log=(name,details={})=>{steps++;console.log(JSON.stringify({name,status:'pass',...details}))}
   const screenshot=name=>{
@@ -51,15 +51,16 @@ const automator=require(process.env.WECHAT_AUTOMATOR_MODULE||'D:/CodexWork/qa-ar
   await clear();await key('6');await wait('expression','6');await key('divide');await key('2');await key('shift');await wait('shiftActive',true);await key('7');await wait('shiftActive',false);await key('exe');await wait('hasResult',true);assert.ok(Math.abs(await p.data('answer')-6/(2*Math.PI))<1e-12)
   log('Casio omitted-multiplication denominator priority')
   await clear();await type('12+34');for(const pos of [4,3,2]){await key('left');await wait('cursor',pos)}
-  await until(async()=>{const c=await p.$('.cw-caret'),t=(await p.$$('.cw-expression text'))[0];return c&&t&&await t.text()==='12'})
-  const caret=await rect(await p.$('.cw-caret')), prefix=await rect((await p.$$('.cw-expression text'))[0])
+  await until(async()=>{const c=await p.$('.cw-math-caret'),t=(await p.$$('.cw-expression text'))[1];return c&&t&&await t.text()==='2'})
+  const caret=await rect(await p.$('.cw-math-caret')), prefix=await rect((await p.$$('.cw-expression text'))[1])
   assert.ok(Math.abs(caret.left-prefix.left-Number(prefix.width))<1)
   await key('0');await wait('expression','120+34');await key('del');await wait('expression','12+34')
   log('visible caret matches the actual insertion coordinate',{caretLeft:caret.left})
   screenshot('visible-cursor')
-  await clear();await key('fraction');await wait('workbench','fraction');await field('numerator',1);await field('denominator',2);await p.callMethod('onWorkbenchConfirm');await tap('.cw-work-submit');await wait('workbench','');await key('left');await wait('cursor',8);await key('up');await wait('cursor',6)
-  const c=await rect(await p.$('.cw-caret')), n=await rect(await p.$('.cw-fraction-numerator'))
-  assert.ok(c.top>=n.top-2&&c.top<=n.top+Number(n.height))
+  await clear();await key('fraction');await wait('expression','frac(,)');await key('1');await key('down');await key('2');await wait('cursor',8);await key('up');await wait('cursor',6)
+  await until(async()=>{const c=await p.$('.cw-math-caret');return c&&(await p.data('expressionLayout')).items.find(i=>i.kind==='caret').y<(await p.data('expressionLayout')).items.find(i=>i.kind==='rule').y})
+  const c=await rect(await p.$('.cw-math-caret')), bar=await rect(await p.$('.cw-math-rule'))
+  assert.ok(c.top<bar.top)
   await key('down');await wait('cursor',8);await key('3');await wait('expression','frac(1,23)');await key('del');await wait('expression','frac(1,2)')
   log('fraction vertical navigation and denominator editing')
   await clear();await key('catalog');await wait('menu','catalog');await menu('catalog-numeric');await wait('menu','catalog-numeric');await menu('insert-pi');await wait('menu','');assert.equal(await p.data('expression'),'pi')

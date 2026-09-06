@@ -2,7 +2,7 @@
 // It is intentionally parser-based: calculator input must never reach eval,
 // Function(), a WebView, or a remote service.
 
-const FUNCTIONS = new Set(['abs', 'acos', 'asin', 'atan', 'acosh', 'asinh', 'atanh', 'cbrt', 'cos', 'cosh', 'exp', 'ln', 'log', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'frac', 'root', 'logb', 'ncr', 'npr', 'dms', 'floor', 'ceil', 'f', 'g'])
+const FUNCTIONS = new Set(['abs', 'acos', 'asin', 'atan', 'acosh', 'asinh', 'atanh', 'cbrt', 'cos', 'cosh', 'exp', 'ln', 'log', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'frac', 'mixed', 'root', 'logb', 'ncr', 'npr', 'dms', 'floor', 'ceil', 'f', 'g'])
 const VARIABLE_NAMES = new Set(['A', 'B', 'C', 'D', 'E', 'F', 'x', 'y', 'z'])
 
 function fail(message) { throw new Error(message) }
@@ -173,18 +173,24 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0, variabl
         if (args.length !== 1 || typeof functions[token.value] !== 'string' || !functions[token.value].trim()) fail(`${token.value}(x) 尚未定义`)
         return evaluateExpression(functions[token.value], { angleMode, answer, variables: { ...variables, x: args[0] }, functions, functionDepth: functionDepth + 1 })
       }
-      if (['frac', 'root', 'logb', 'ncr', 'npr'].includes(token.value)) {
+      if (['frac', 'root', 'logb', 'ncr', 'npr'].includes(token.value)||(token.value==='log'&&args.length===2)) {
         if (args.length !== 2) fail('这个函数需要两个参数')
         if(syntaxOnly) return 1
         const [a, b] = args
         if (token.value === 'frac') { if (!b) fail('不能除以 0'); return a / b }
         if (token.value === 'root') { if (!Number.isInteger(a) || a < 1 || a > 100 || (b < 0 && a % 2 === 0)) fail('根式不在定义域内'); return Math.sign(b) * Math.pow(Math.abs(b), 1 / a) }
-        if (token.value === 'logb') { if (a <= 0 || a === 1 || b <= 0) fail('对数不在定义域内'); return Math.log(b) / Math.log(a) }
+        if (token.value === 'logb'||token.value==='log') { if (a <= 0 || a === 1 || b <= 0) fail('对数不在定义域内'); return Math.log(b) / Math.log(a) }
         if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || a > 1000 || b < 0 || b > a) fail('排列组合需要 0 ≤ r ≤ n ≤ 1000 的整数')
         const k = token.value === 'ncr' ? Math.min(b, a - b) : b
         let result = 1
         for (let i = 0; i < k; i++) result = result * (a - i) / (token.value === 'ncr' ? i + 1 : 1)
         return result
+      }
+      if (token.value === 'mixed') {
+        if(args.length!==3)fail('带分数需要三个参数')
+        if(syntaxOnly)return 1
+        if(!Number.isInteger(args[0])||args[1]<0||args[2]<=0)fail('请检查带分数的整数、分子和分母')
+        return args[0]+(args[0]<0?-1:1)*args[1]/args[2]
       }
       if (token.value === 'dms') {
         if(syntaxOnly) { if(args.length!==3) fail('度分秒需要三个参数');return 1 }

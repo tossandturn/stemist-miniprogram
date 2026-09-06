@@ -3,7 +3,7 @@ const { evaluateExpression, formatNumber } = require('../../utils/calculator')
 const { CONTROL_KEYS, NUMBER_ROWS, SCIENTIFIC_ROWS, UPSTREAM } = require('../../utils/cwKeypad')
 const { cwMethods, VARIABLES } = require('../../utils/cwController')
 const { resultFormat } = require('../../utils/cwMath')
-const { insertKey, moveCursor, snapCursor, removeBackward } = require('../../utils/cwEditor')
+const { insertKey, moveCursor, snapCursor, removeBackward, insertTemplate, keyTemplate, firstEmptySlot, jumpTemplate } = require('../../utils/cwEditor')
 const HISTORY_KEY = 'stemistCalculatorHistory'
 const STATE_KEY = 'stemistCalculatorState'
 const MAX_HISTORY = 20
@@ -28,7 +28,7 @@ Page({
     memoryKeys: MEMORY_KEYS, controlKeys: CONTROL_KEYS, scientificRows: SCIENTIFIC_ROWS, numberRows: NUMBER_ROWS, calculatorSource: UPSTREAM.repository,
     menu: '', menuTitle: '', menuItems: [], menuIndex: 0, workbench: '', workTitle: '', workFields: [], workResults: [], workError: '', workSubmitLabel:'计算', keyboardHeight:0,
     workScrollHeight:120, workSheetHeight:286, workCompact:false, workFieldTarget:'', workGeneration:0, safeBottom:0, workDrafts:{},
-    powerOff: false, overwrite: false, typing: false, editorGeneration:0, formatMode: 'decimal', formatted: {kind:'number',text:'0'}, expressionParts: [{kind:'text',text:'0'}],
+    powerOff: false, overwrite: false, argumentMode:false, typing: false, editorGeneration:0, calculationFormat:'standard',formatMode: 'standard', formatted: {kind:'number',text:'0'}, expressionParts: [{kind:'text',text:'0'}], expressionLayout:{width:24,height:42,items:[]},
     variables: Object.fromEntries(VARIABLES.map(name=>[name,0])), functions: {},
   }),
   onLoad() {
@@ -46,7 +46,8 @@ Page({
     this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: finite(state.answer), memory: finite(state.memory), memoryDisplay: formatNumber(finite(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 60) : '0', history: readHistory(),
       variables: Object.fromEntries(VARIABLES.map(name=>[name,finite(state.variables?.[name])])),
       functions: Object.fromEntries(['f','g'].filter(name=>typeof state.functions?.[name]==='string').map(name=>[name,state.functions[name].slice(0,500)])),
-      formatMode: ['decimal','fraction','mixed','engineering','fixed','scientific'].includes(state.formatMode) ? state.formatMode : 'decimal',
+      formatMode: ['standard','decimal','fraction','mixed','engineering','fixed','scientific'].includes(state.formatMode) ? state.formatMode : 'standard',
+      calculationFormat: ['standard','fixed','scientific'].includes(state.calculationFormat)?state.calculationFormat:['fixed','scientific'].includes(state.formatMode)?state.formatMode:'standard',
       workDrafts: state.workDrafts && typeof state.workDrafts === 'object' && !Array.isArray(state.workDrafts) ? state.workDrafts : {},
     })
     if(this.data.hasResult) { try { this.setData({formatted:resultFormat(this.data.answer,this.data.formatMode)}) } catch { this.setData({formatMode:'decimal',formatted:resultFormat(this.data.answer)}) } }
@@ -69,8 +70,8 @@ Page({
     this.__saveTimer=null
     if(!this.__savePending)return
     try {
-      const { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, workDrafts } = this.data
-      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, workDrafts, justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
+      const { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts } = this.data
+      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
       this.__savePending=false
     } catch { if(!this.__disposed)this.setData({ error: '无法保存到本机，请检查存储空间。' }) }
   },
@@ -119,12 +120,23 @@ Page({
       this.__replayAnswer = undefined
       this.__replayContext = undefined
     }
-    const inserted=insertKey(current,cursor,text,this.data.overwrite)
+    const template=keyTemplate(text)
+    const inserted=this.data.argumentMode&&template?insertTemplate(current,cursor,template,{captureRight:true}):insertKey(current,cursor,text,this.data.overwrite)
     const {expression}=inserted
     if (expression.length > MAX_INPUT) return this.setData({ error: '算式最多 500 个字符。' })
     this.__justEvaluated = false
     this.invalidateReplay()
-    this.setData({ expression, cursor: inserted.cursor, display: '', hasResult: false, error: '', typing:false })
+    this.setData({ expression, cursor: inserted.cursor, display: '', hasResult: false, error: '', typing:false,argumentMode:false })
+    this.persistState()
+  },
+  insertMathTemplate(kind) {
+    if(this.__disposed||this.data.powerOff)return
+    this.finishNativeEditor();this.closeMenu()
+    const current=this.__justEvaluated?'ans':this.data.expression
+    const inserted=insertTemplate(current,this.__justEvaluated?current.length:this.data.cursor,kind,{captureRight:this.data.argumentMode})
+    if(inserted.expression.length>MAX_INPUT)return this.setData({error:'算式最多 500 个字符。'})
+    this.__justEvaluated=false;this.invalidateReplay()
+    this.setData({...inserted,hasResult:false,display:'',error:'',typing:false,argumentMode:false})
     this.persistState()
   },
   press(event) {
@@ -145,7 +157,7 @@ Page({
     if (action === 'shift') return this.setData({ shiftActive: !this.data.shiftActive, error: '' })
     if (action === 'clear') {
       this.__justEvaluated = false; this.__replayAnswer = undefined; this.__replayContext = undefined; this.__historyIndex = -1
-      this.setData({ expression: '', cursor: 0, display: '0', hasResult: false, error: '', shiftActive: false, typing:false })
+      this.setData({ expression: '', cursor: 0, display: '0', hasResult: false, error: '', shiftActive: false, typing:false,argumentMode:false })
       return this.persistState()
     }
     if (action === 'delete') {
@@ -157,6 +169,11 @@ Page({
       this.__justEvaluated = false
       this.invalidateReplay()
       this.setData({ expression, cursor: removed.cursor, display: expression ? '' : '0', hasResult: false, error: '' })
+      return this.persistState()
+    }
+    if (action === 'template-start' || action === 'template-end') {
+      this.__justEvaluated=false
+      this.setData({cursor:jumpTemplate(this.data.expression,this.data.cursor,action==='template-start'?-1:1),hasResult:false,argumentMode:false})
       return this.persistState()
     }
     if (action === 'left' || action === 'right') {
@@ -181,19 +198,21 @@ Page({
     if (action === 'copy') { if (this.data.hasResult && wx.setClipboardData) wx.setClipboardData({ data: this.data.display }); return }
     if (action === 'equals') return this.calculate()
   },
-  calculate() {
+  calculate(formatOverride) {
     if(this.__disposed)return
     const expression = String(this.data.expression || '').trim()
     if (!expression) { this.setData({ error: '先输入一个算式。' }); return }
     try {
+      const empty=firstEmptySlot(expression)
+      if(empty!==null){this.setData({cursor:empty,hasResult:false,error:'请填写光标所在的空格。',display:''});this.persistState();return}
       const answerBasis = this.__justEvaluated && Number.isFinite(this.__lastAnswerBasis) ? this.__lastAnswerBasis : (this.__replayAnswer === undefined ? this.data.answer : this.__replayAnswer)
       const open = (expression.match(/\(/g)||[]).length - (expression.match(/\)/g)||[]).length
       const calculation = expression + ')'.repeat(Math.max(0,open))
       const storedContext = this.__replayContext || {}
       const context = {variables:storedContext.variables || this.data.variables,functions:storedContext.functions || this.data.functions}
       const result = evaluateExpression(calculation, { angleMode: this.data.angleMode, answer: answerBasis, ...context })
-      let formatted
-      try { formatted = resultFormat(result,this.data.formatMode) } catch { formatted = resultFormat(result); this.setData({formatMode:'decimal'}) }
+      const formatMode=formatOverride==='decimal'?'decimal':this.data.calculationFormat
+      const formatted=resultFormat(result,formatMode)
       const display = formatted.text
       const entry = { expression, result: display, answerBasis, angleMode: this.data.angleMode, variables:{...context.variables},functions:{...context.functions},at: Date.now() }
       const previous = this.data.history[0]
@@ -202,7 +221,7 @@ Page({
       this.__justEvaluated = true; this.__lastAnswerBasis = answerBasis; this.__replayAnswer = answerBasis
       this.__historyIndex = -1
       this.__historyDraft = null
-      this.setData({ expression, cursor: expression.length, display, formatted, answer: result, history, hasResult: true, error: '',typing:false })
+      this.setData({ expression, cursor: expression.length, display, formatted,formatMode, answer: result, history, hasResult: true, error: '',typing:false })
       try { wx.setStorageSync(HISTORY_KEY, history) } catch { this.setData({ error: '结果已计算，但历史未能保存。' }) }
       this.persistState()
       return result

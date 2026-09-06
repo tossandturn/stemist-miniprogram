@@ -18,6 +18,14 @@ function fraction(value) {
 
 function resultFormat(value, mode = 'decimal', digits = 6) {
   if (!Number.isFinite(value)) throw new Error('没有可转换的结果')
+  if(mode==='standard'){
+    const f=fraction(value)
+    // The CW guide limits a fraction display to ten digits including its
+    // separator. Irrationals and overlong fractions retain a numeric result;
+    // never invent a symbolic root/pi representation from a floating point fit.
+    if(f&&String(Math.abs(f.numerator)).length+String(f.denominator).length+1<=10)return resultFormat(value,'fraction',digits)
+    return resultFormat(value,'decimal',digits)
+  }
   const precision = Math.max(0, Math.min(9, Number(digits) || 0))
   if (mode === 'fraction' || mode === 'mixed') {
     const f = fraction(value)

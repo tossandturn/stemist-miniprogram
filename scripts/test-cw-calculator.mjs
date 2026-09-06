@@ -72,9 +72,8 @@ test('HOME/SETTINGS/CATALOG/FORMAT are menus, not decorative buttons', () => {
 test('CW fraction template inserts a real expression and EXE calculates it', () => {
   const r=miniRuntime(),p=r.page('pages/calculator/index');p.onLoad()
   p.runAction('fraction')
-  p.onFieldInput({currentTarget:{dataset:{id:'numerator'}},detail:{value:'1'}})
-  p.onFieldInput({currentTarget:{dataset:{id:'denominator'}},detail:{value:'2'}})
-  p.submitWorkbench();p.calculate();assert.equal(p.data.answer,.5)
+  assert.equal(p.data.workbench,'')
+  p.append('1');p.runAction('down');p.append('2');p.calculate();assert.equal(p.data.answer,.5)
   p.runAction('power-off');assert.equal(p.data.powerOff,true)
   p.runAction('on');assert.equal(p.data.powerOff,false)
   assert.equal(p.data.answer,.5)
@@ -89,9 +88,7 @@ test('function registration checks syntax without rejecting legitimate restricte
 test('template input escapes another menu and format errors remain visible', () => {
   const r=miniRuntime(),p=r.page('pages/calculator/index');p.onLoad()
   p.runAction('settings');p.runAction('fraction');assert.equal(p.data.menu,'')
-  p.onFieldInput({currentTarget:{dataset:{id:'numerator'}},detail:{value:'1'}})
-  p.onFieldInput({currentTarget:{dataset:{id:'denominator'}},detail:{value:'4'}})
-  p.submitWorkbench();p.calculate();assert.equal(p.data.answer,.25)
+  p.append('1');p.runAction('down');p.append('4');p.calculate();assert.equal(p.data.answer,.25)
   p.runAction('clear');p.onInput({detail:{value:'1e-19',cursor:5}});p.calculate();p.runAction('format');p.chooseMenu({currentTarget:{dataset:{id:'format-fraction'}}})
   assert.equal(p.data.menu,'');assert.ok(p.data.error);assert.equal(p.data.answer,1e-19)
 })
