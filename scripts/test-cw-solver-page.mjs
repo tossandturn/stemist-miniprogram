@@ -18,6 +18,10 @@ p.runAction('back');assert.equal(p.data.solverPhase,'initial');assert.equal(p.da
 p.append('-1');p.runAction('equals');p.runAction('equals');await p.__solverPromise
 assert.ok(p.data.solverResult.value<0,'a different initial value can choose another root')
 assert.equal(p.data.answer,ans,'Solver does not overwrite Calculate Ans')
+p.flushState()
+const resultRuntime=miniRuntime();resultRuntime.storage.set('stemistCalculatorState',JSON.parse(JSON.stringify(r.storage.get('stemistCalculatorState'))))
+const resultPage=resultRuntime.page('pages/calculator/index');resultPage.onLoad();assert.equal(resultPage.data.solverPhase,'result')
+resultPage.runAction('back');resultPage.runAction('back');assert.ok(resultPage.data.solverTargets.includes('x'),'a restored result still has a usable Solve Target screen');resultPage.onUnload()
 p.runAction('equals');assert.equal(p.data.expression,enteredEquation)
 p.onUnload()
 const reopened=r.page('pages/calculator/index');reopened.onLoad();assert.equal(reopened.data.solverPhase,'equation');assert.equal(reopened.data.expression,enteredEquation)

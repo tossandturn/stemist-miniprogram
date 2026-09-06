@@ -8,14 +8,24 @@ const solverMethods={
  renderSolverInput(){if(!this.__disposed&&['initial','parameter'].includes(this.data.solverPhase)){const value=this.data.solverInitialText,cursor=this.data.solverInitialCursor;this.setData({solverInitialDisplay:this.data.solverInputFresh?value:value.slice(0,cursor)+'▏'+value.slice(cursor)})}},
  solverContext(){return {angleMode:this.data.angleMode,answer:this.data.answer,variables:{...this.data.variables},functions:{...this.data.functions}}},
  solverSnapshot(){
-  return {active:Boolean(this.data.solverPhase),phase:this.data.solverPhase,equation:this.data.solverPhase==='equation'?this.data.expression:this.data.solverEquation,target:this.data.solverTarget,initialText:this.data.solverInitialText,result:this.data.solverResult,calculate:this.__solverCalculateDraft}
+  return {active:Boolean(this.data.solverPhase),phase:this.data.solverPhase,equation:this.data.solverPhase==='equation'?this.data.expression:this.data.solverEquation,target:this.data.solverTarget,initialText:this.data.solverInitialText,initialCursor:this.data.solverInitialCursor,initialIndex:this.data.solverInitialIndex,result:this.data.solverResult,calculate:this.__solverCalculateDraft}
  },
  restoreSolver(saved){
   if(!saved||typeof saved!=='object')return
   const equation=cleanText(saved.equation),target=['A','B','C','D','E','F','x','y','z'].includes(saved.target)?saved.target:'x'
   this.__solverCalculateDraft=saved.calculate&&typeof saved.calculate.expression==='string'?{...saved.calculate,expression:cleanText(saved.calculate.expression)}:null
   this.setData({solverEquation:equation,solverTarget:target,solverInitialText:cleanText(saved.initialText)||'0'})
-  if(saved.active){this.openSolver();if(saved.phase==='result'&&Number.isFinite(saved.result?.value)&&Number.isFinite(saved.result?.residual))this.setData({solverPhase:'result',solverResult:saved.result,solverValueText:formatNumber(saved.result.value),solverResidualText:formatNumber(saved.result.residual)})}
+  if(saved.active){
+   this.openSolver()
+   try{
+    const parsed=parseEquation(equation,this.solverContext())
+    if(!parsed.variables.includes(target))return
+    this.setData({solverTargets:parsed.variables,solverTargetIndex:parsed.variables.indexOf(target)})
+    if(saved.phase==='result'&&Number.isFinite(saved.result?.value)&&Number.isFinite(saved.result?.residual))this.setData({solverPhase:'result',solverResult:saved.result,solverValueText:formatNumber(saved.result.value),solverResidualText:formatNumber(saved.result.residual)})
+    else if(['initial','target','running','continue','failed'].includes(saved.phase))this.setData({solverPhase:saved.phase==='target'?'target':'initial',solverInitialCursor:Math.min(this.data.solverInitialText.length,Math.max(0,Number(saved.initialCursor)||0)),solverInitialIndex:saved.initialIndex===1?1:0,solverInputFresh:false})
+    this.persistState()
+   }catch{/* An incomplete saved equation remains editable in the LCD. */}
+  }
  },
  openSolver(){
   if(this.__disposed)return
