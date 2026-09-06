@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
+import {execFileSync} from 'node:child_process'
 const root=path.resolve(import.meta.dirname,'..')
 const read=file=>fs.readFileSync(path.join(root,file),'utf8')
 const app=JSON.parse(read('app.json'))
@@ -12,6 +13,7 @@ assert.equal(app.pageOrientation,undefined,'orientation belongs under window')
 assert.equal(app.permission?.['scope.camera'],undefined,'camera use is runtime-authorized; not a supported manifest permission entry')
 const files=fs.readdirSync(root,{recursive:true}).filter(f=>typeof f==='string' && /\.js$/.test(f) && !/^(?:node_modules|scripts|\.git)[/\\]/.test(f))
 for(const file of files) {
+  execFileSync(process.execPath,['--check',path.join(root,file)],{stdio:'pipe'})
   const source=read(file)
   for(const match of source.matchAll(/require\(['"]([^'"]+)['"]\)/g)) {
     assert.ok(match[1].startsWith('.'),'student runtime must not import an unbundled Node dependency: '+file)

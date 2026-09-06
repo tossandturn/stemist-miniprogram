@@ -43,6 +43,6 @@
     "test:native-ielts": "node scripts/test-native-ielts.mjs && node scripts/test-native-catalog-performance.mjs && node scripts/test-native-speaking.mjs && node scripts/test-native-flow-contracts.mjs && node scripts/test-native-paper.mjs && node scripts/test-native-recovery.mjs && node scripts/test-native-session-refresh.mjs && node scripts/test-native-content-loading.mjs && node scripts/test-native-bootstrap.mjs && node scripts/test-native-data-pack.mjs && node scripts/test-native-units.mjs && node scripts/test-native-captions.mjs && node scripts/test-native-timers.mjs && node scripts/test-native-cloud-learning.mjs",
     "test:native-practice": "node scripts/test-native-practice.mjs",
     "test:calculator-page": "node scripts/test-calculator-page.mjs && npm run test:cw",
-    "test:cw": "node scripts/test-cw-calculator.mjs && node scripts/test-cw-adversarial.mjs && node scripts/test-cw-natural-input.mjs"
+    "test:cw": "node scripts/test-cw-calculator.mjs && node scripts/test-cw-adversarial.mjs && node scripts/test-cw-natural-input.mjs && node scripts/test-cw-solver.mjs && node scripts/test-cw-solver-page.mjs"
   }
 }

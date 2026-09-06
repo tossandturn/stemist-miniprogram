@@ -11,8 +11,14 @@ function call(tool,params={}){
  const args=['-e',bootstrap,entry,'-c','Codex',tool,'--project',project]
  for(const [key,value] of Object.entries(params))args.push('--'+key,typeof value==='string'?value:JSON.stringify(value))
  return new Promise((resolve,reject)=>execFile(exe,args,{cwd:root,env:{...process.env,ELECTRON_RUN_AS_NODE:'1',cwd:project},windowsHide:true,timeout:25000,maxBuffer:2*1024*1024,encoding:'utf8'},(error,stdout)=>{
-  if(error)return reject(new Error('WeChat '+tool+' failed: '+String(error.code||'unavailable')))
-  try{const result=JSON.parse(stdout.slice(stdout.indexOf('{')));if(result.ok!==true||result.result?.success===false)throw new Error('WeChat '+tool+' rejected the action');resolve(result.result)}catch(e){reject(new Error('WeChat '+tool+' did not return a valid result'))}
+  let result
+  try{result=JSON.parse(stdout.slice(stdout.indexOf('{')))}catch{}
+  if(error||result?.ok!==true||result.result?.success===false){
+    const details=result?.error||result?.result?.error||{}
+    const safe=String(details.message||result?.message||'').replace(/Bearer\s+\S+|sk-[A-Za-z0-9_-]+/g,'[redacted]').replace(/([?&](?:token|key|session_key|access_token)=)[^&\s]+/gi,'$1[redacted]').slice(0,1200)
+    return reject(new Error('WeChat '+tool+' failed: '+String(details.code||error?.code||'unknown')+(safe?' · '+safe:'')))
+  }
+  resolve(result.result)
  }))
 }
 async function evaluate(fn){const output=await call('automation_evaluate',{'fn-source':typeof fn==='string'?fn:fn.toString()});return output.result?.result}

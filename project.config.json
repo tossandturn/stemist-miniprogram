@@ -1,7 +1,54 @@
 {
   "description": "Stemist photo-first international education mini program",
-  "packOptions": { "ignore": [] },
-  "setting": { "es6": true, "minified": true, "urlCheck": true, "postcss": true },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "scripts"
+      },
+      {
+        "type": "folder",
+        "value": "docs"
+      },
+      {
+        "type": "folder",
+        "value": ".github"
+      },
+      {
+        "type": "folder",
+        "value": ".git"
+      },
+      {
+        "type": "folder",
+        "value": "node_modules"
+      },
+      {
+        "type": "file",
+        "value": "AGENTS.md"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
+      },
+      {
+        "type": "file",
+        "value": "package-lock.json"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": true,
+    "postcss": true,
+    "enhance": true,
+    "uploadWithSourceMap": false
+  },
   "compileType": "miniprogram",
   "appid": "touristappid",
   "projectname": "stemist-miniprogram",

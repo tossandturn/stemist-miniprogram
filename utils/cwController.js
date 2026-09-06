@@ -19,7 +19,8 @@ const MENUS = {
   functions: [item('define-f', 'Define f(x)'), item('define-g', 'Define g(x)'), item('insert-f(', 'Use f(x)'), item('insert-g(', 'Use g(x)')],
   tools: [item('history', 'Calculation history'), item('keyboard', 'Keyboard input'), item('copy', 'Copy result'), item('memory-menu', 'Memory'), item('about', 'About this calculator')],
   memory: [item('memoryAdd', 'M+'), item('memorySub', 'M−'), item('memoryRecall', 'MR'), item('memoryClear', 'MC')],
-  equation: [item('work-quadratic', 'Polynomial · degree 2'), item('work-linear', 'Simultaneous · 2 unknowns')],
+  equation: [item('work-linear', 'Simultaneous · 2 unknowns'), item('work-quadratic', 'Polynomial · degree 2'),item('work-solver','Solver')],
+  'catalog-equation':[item('insert-=','=')],
   'variable-actions': [item('recall-variable', 'Recall'), item('store-variable', 'Store current result')],
 }
 const TITLES = { home: 'HOME', settings: 'SETTINGS', angle: 'Angle Unit', output: 'Number Format', format: 'FORMAT', catalog: 'CATALOG', variables: 'VARIABLE', tools: 'TOOLS', functions: 'FUNCTION', memory: 'Memory', equation: 'Equation' }
@@ -34,7 +35,9 @@ const cwMethods = {
     if(this.__disposed)return
     if (reset) this.__menuStack = []
     else if (this.data.menu && this.data.menu !== menu) (this.__menuStack ||= []).push(this.data.menu)
-    const entries = menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name, formatNumber(Number(this.data.variables[name]) || 0))) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []
+    let entries = menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name, formatNumber(Number(this.data.variables[name]) || 0))) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []
+    if(menu==='catalog'&&this.data.solverPhase==='equation')entries=[...entries,item('catalog-equation','Equation')]
+    if(menu==='variable-actions'&&this.data.solverPhase==='equation')entries=[item('recall-variable','Recall'),item('store-variable','Edit value')]
     this.setData({ menu, menuTitle: TITLES[menu] || menu.replace('catalog-', ''), menuItems: entries, menuIndex: 0, typing: false, error: '' })
   },
   closeMenu() { this.__menuStack = []; this.setData({ menu: '', menuItems: [], menuIndex: 0 }) },
@@ -60,16 +63,18 @@ const cwMethods = {
     if (id.startsWith('app-')) {
       this.closeMenu()
       const app = id.slice(4)
-      if (app === 'calculate') return
+      if (app === 'calculate') {this.leaveSolver?.();return}
       if (app === 'equation') return this.openMenu('equation')
       return this.openWorkbench(app)
     }
-    if (id.startsWith('work-')) { this.closeMenu(); this.openWorkbench(id.slice(5)); return }
+    if(id==='work-solver'){this.openSolver();return}
+    if (id.startsWith('work-')) { this.closeMenu(); this.leaveSolver?.();this.openWorkbench(id.slice(5)); return }
     if (id.startsWith('define-')) { this.closeMenu(); this.openWorkbench(id); return }
     if (id.startsWith('variable-')) { this.__variable = id.slice(9); return this.openMenu('variable-actions') }
     if(id.startsWith('history-')) { this.closeMenu(); this.restoreHistory({currentTarget:{dataset:{index:Number(id.slice(8))}}}); return }
     if (id === 'recall-variable') { this.closeMenu(); this.append(this.__variable); return }
     if (id === 'store-variable') {
+      if(this.data.solverPhase==='equation'){this.__solverPreviousInitial=this.data.solverInitialText;this.solverEditParameter(this.__variable);return}
       const value = this.data.hasResult ? this.data.answer : this.calculate()
       if (!Number.isFinite(value) || !VARIABLES.includes(this.__variable)) { this.closeMenu(); return }
       this.invalidateReplay()

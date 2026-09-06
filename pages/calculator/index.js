@@ -2,6 +2,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { evaluateExpression, formatNumber } = require('../../utils/calculator')
 const { CONTROL_KEYS, NUMBER_ROWS, SCIENTIFIC_ROWS, UPSTREAM } = require('../../utils/cwKeypad')
 const { cwMethods, VARIABLES } = require('../../utils/cwController')
+const {solverMethods}=require('../../utils/cwSolverController')
 const { resultFormat } = require('../../utils/cwMath')
 const { insertKey, moveCursor, snapCursor, removeBackward, insertTemplate, keyTemplate, firstEmptySlot, jumpTemplate } = require('../../utils/cwEditor')
 const HISTORY_KEY = 'stemistCalculatorHistory'
@@ -21,6 +22,7 @@ function readHistory() {
 
 Page({
   ...cwMethods,
+  ...solverMethods,
   data: deviceState({
     expression: '', cursor: 0, display: '0', answer: 0, angleMode: 'DEG',
     shiftActive: false, memory: 0, memoryDisplay: '0', error: '', hasResult: false,
@@ -30,6 +32,7 @@ Page({
     workScrollHeight:120, workSheetHeight:286, workCompact:false, workFieldTarget:'', workGeneration:0, safeBottom:0, workDrafts:{},
     powerOff: false, overwrite: false, argumentMode:false, typing: false, editorGeneration:0, calculationFormat:'standard',formatMode: 'standard', formatted: {kind:'number',text:'0'}, expressionParts: [{kind:'text',text:'0'}], expressionLayout:{width:24,height:42,items:[]},
     variables: Object.fromEntries(VARIABLES.map(name=>[name,0])), functions: {},
+    solverPhase:'',solverEquation:'',solverTarget:'x',solverTargets:[],solverTargetIndex:0,solverInitialText:'0',solverInitialDisplay:'0',solverInitialCursor:1,solverInitialIndex:0,solverContinueIndex:0,solverInputFresh:true,solverParameter:'',solverResult:null,solverValueText:'',solverResidualText:'',solverIterations:0,
   }),
   onLoad() {
     this.__disposed = false
@@ -52,15 +55,17 @@ Page({
     })
     if(this.data.hasResult) { try { this.setData({formatted:resultFormat(this.data.answer,this.data.formatMode)}) } catch { this.setData({formatMode:'decimal',formatted:resultFormat(this.data.answer)}) } }
     this.renderExpression()
+    this.restoreSolver(state.solver)
   },
   onShow() { syncDevice(this);this.updateWorkbenchLayout() },
   onResize(event={}) { if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
-  onHide() { this.saveWorkbenchDraft();this.flushState() },
-  onUnload() { this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
+  onHide() { this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
+  onUnload() { this.cancelSolver();this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
   goBack() { if(!this.__disposed)wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/index/index' }) }) },
   persistState() {
     if(this.__disposed)return
     this.renderExpression()
+    this.renderSolverInput()
     this.__savePending = true
     if(this.__saveTimer)clearTimeout(this.__saveTimer)
     this.__saveTimer=setTimeout(()=>this.flushState(),180)
@@ -71,7 +76,7 @@ Page({
     if(!this.__savePending)return
     try {
       const { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts } = this.data
-      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
+      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, solver:this.solverSnapshot(),justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
       this.__savePending=false
     } catch { if(!this.__disposed)this.setData({ error: '无法保存到本机，请检查存储空间。' }) }
   },
@@ -107,7 +112,9 @@ Page({
   },
   onConfirm() { this.finishNativeEditor();this.runAction('equals') },
   append(value) {
-    if(this.__disposed)return
+    if(this.__disposed||this.data.powerOff)return
+    if(!this.data.menu&&this.solverAppend(value))return
+    if(this.data.solverPhase&&!['equation','initial','parameter'].includes(this.data.solverPhase))return
     this.finishNativeEditor()
     if(this.data.powerOff || this.data.menu) return
     let text = String(value || '')
@@ -153,6 +160,7 @@ Page({
   runAction(action) {
     if(this.__disposed)return
     this.finishNativeEditor()
+    if(this.handleSolverAction(action))return
     if(this.handleCwAction(action)) return
     if (action === 'shift') return this.setData({ shiftActive: !this.data.shiftActive, error: '' })
     if (action === 'clear') {
