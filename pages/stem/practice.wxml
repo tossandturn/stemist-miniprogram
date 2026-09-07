@@ -11,7 +11,10 @@
         <view class="question-meta"><text>{{question.number}}</text><text>{{question.marks}} 分</text></view>
         <view class="source-caption">{{question.sourceLabel}}</view>
         <view wx:for="{{question.images}}" wx:key="id" class="source-page">
-          <image wx:if="{{item.url && !item.failed}}" class="question-image" src="{{item.url}}" mode="widthFix" lazy-load="{{true}}" data-id="{{item.id}}" bindload="imageLoaded" binderror="imageFailed" bindtap="previewQuestion" aria-label="题目原图，轻点放大" />
+          <view wx:if="{{item.cropped && item.url && !item.failed}}" class="source-region" style="{{item.clipStyle}}">
+            <image class="question-region-image" style="{{item.imageStyle}}" src="{{item.url}}" mode="scaleToFill" lazy-load="{{true}}" data-id="{{item.id}}" bindload="imageLoaded" binderror="imageFailed" bindtap="previewQuestion" aria-label="题目原图，轻点查看原页" />
+          </view>
+          <image wx:elif="{{item.url && !item.failed}}" class="question-image" src="{{item.url}}" mode="widthFix" lazy-load="{{true}}" data-id="{{item.id}}" bindload="imageLoaded" binderror="imageFailed" bindtap="previewQuestion" aria-label="题目原图，轻点放大" />
           <view wx:if="{{!item.loaded && !item.failed}}" class="image-status">正在加载原图…</view>
           <view wx:if="{{item.failed}}" class="image-status"><text>原图加载失败</text><button class="text-button" data-id="{{item.id}}" bindtap="retryImage">重试</button></view>
         </view>

@@ -1,6 +1,7 @@
 const { requestJson } = require('./api')
 const { readAsJpegDataUrl, compressImage } = require('./image')
 const { DEFAULT_API_BASE, safeApiBase } = require('./apiOrigin')
+const { normalizeSourceRegion, sourceRegionStyle } = require('./sourceRegion')
 
 const SESSION_PREFIX = 'stemistNativePractice:'
 const RECENT_PREFIX = 'stemistNativeRecent:'
@@ -24,20 +25,34 @@ function selectionState(inventory, topicIds, components, questionCount) {
   const componentValid = scope.length > 0 && scope.every(c => allowed.includes(c))
   const all = new Set()
   const topicCounts = {}
+  const topicFormal = {}, topicStartable = {}
+  const policy = inventory?.practicePolicy
+  const versioned = policy?.schemaVersion === 'stem-topic-practice-policy-v1' && policy.minSourceGroups === MIN_SET && policy.minReviewedGroups === TOPIC_FLOOR
   for (const topic of inventory?.topics || []) {
-    const ids = new Set(scope.flatMap(c => unique(topic.questionIdsByComponent?.[c]?.verifiedQuestionIds)))
+    const reviewed = new Set(scope.flatMap(c => unique(topic.questionIdsByComponent?.[c]?.verifiedQuestionIds)))
+    const explicit = versioned && scope.every(c => Array.isArray(topic.questionIdsByComponent?.[c]?.apiReadyQuestionIds))
+    const ids = explicit ? new Set(scope.flatMap(c => unique(topic.questionIdsByComponent[c].apiReadyQuestionIds))) : reviewed
+    const reviewedCount = [...reviewed].filter(q => ids.has(q)).length
     topicCounts[topic.id] = ids.size
+    topicFormal[topic.id] = reviewedCount >= TOPIC_FLOOR
+    // Only an explicit API-ready list can admit released study sources. Raw
+    // OCR/study IDs and topic membership sums never authorize a practice set.
+    topicStartable[topic.id] = explicit
+      ? topic.apiStartable === true && (topicFormal[topic.id] || (ids.size >= MIN_SET && ids.size > reviewedCount))
+      : topicFormal[topic.id]
     if (selected.includes(topic.id)) ids.forEach(q => all.add(q))
   }
-  const ready = componentValid && selected.length > 0 && selected.every(t => topicCounts[t] >= TOPIC_FLOOR)
-  const sizes = [6, 10, 15].filter(n => n <= all.size)
-  return { availableCount: all.size, topicCounts, sizes, ready,
-    canStart: ready && sizes.includes(Number(questionCount)),
-    hint: !selected.length ? '选择要练习的章节' : !ready ? '所选章节或卷型的题目尚未备齐，请调整选择。' : '' }
+  const startable = componentValid && selected.length > 0 && selected.every(t => topicStartable[t])
+  const ready = startable && selected.every(t => topicFormal[t])
+  const sizes = (versioned ? policy.setSizes : [6, 10, 15]).filter(n => n <= all.size)
+  return { availableCount: all.size, topicCounts, sizes, ready, studyReady: startable && !ready,
+    canStart: startable && sizes.includes(Number(questionCount)),
+    hint: !selected.length ? '选择要练习的章节' : !startable ? '所选章节或卷型的题目尚未备齐，请调整选择。' : '' }
 }
 
 function questionAsset(value) {
   const raw = String(value || '').replace(/^https:\/\/stem\.ieltsist\.com/i, '')
+  if (/^\/api\/stem\/practice-source-image\?routeId=[a-z0-9-]+&sourceQuestionId=[-a-zA-Z0-9_%:]+&region=(?:[0-9]|1[0-9])&v=[a-f0-9]{64}$/.test(raw)) return raw
   if (!/^\/question-assets\/[a-zA-Z0-9_-]+\/(?:qp|ms)-\d+\.(?:jpg|jpeg|png|webp)$/.test(raw)) throw new Error('题目原图地址无效，请重新组卷。')
   return raw
 }
@@ -60,9 +75,19 @@ function validatePracticeSet(payload, expected) {
     seen.add(group.id)
     if (group.studentStudyEligible !== true || group.sourceContent?.complete !== true || group.sourceContent?.fileComplete !== true || !group.sourceRef?.paperId) throw new Error('题目原文或图表不完整，请重试。')
     if (!group.syllabusMapping?.topicIds?.some(t => expected.syllabusTopicIds.includes(t))) throw new Error('题目与所选章节不匹配。')
-    const images = unique(group.sourceContent.assetUrls).map(questionAsset)
-    if(images.some(url=>!url.startsWith('/question-assets/'+group.sourceRef.paperId+'/')))throw new Error('题图与原卷不匹配，请重新组卷。')
-    if (!images.length || images.some(path => !/\/qp-/.test(path)) || (Array.isArray(group.sourceContent.pages) && images.length !== group.sourceContent.pages.length)) throw new Error('题目原图尚未完整返回，请重试。')
+    let images = unique(group.sourceContent.assetUrls).map(questionAsset)
+    let sourceRegions = []
+    if (images.length) {
+      if (images.some(url => !url.startsWith('/question-assets/' + group.sourceRef.paperId + '/'))) throw new Error('题图与原卷不匹配，请重新组卷。')
+      if (images.some(path => !/\/qp-/.test(path)) || (Array.isArray(group.sourceContent.pages) && images.length !== group.sourceContent.pages.length)) throw new Error('题目原图尚未完整返回，请重试。')
+    } else {
+      if (group.sourceContent.schemaVersion !== 'ai-verified-coordinate-source-v1' || !Array.isArray(group.nativeSourceImages) || !group.nativeSourceImages.length || group.nativeSourceImages.length > 20) throw new Error('题目原图尚未完整返回，请重试。')
+      sourceRegions = group.nativeSourceImages.map(image => normalizeSourceRegion(image, group.routeId, group.id))
+      const pages = [...new Set(sourceRegions.map(image => image.page))]
+      if (!Array.isArray(group.sourceContent.pages) || pages.length !== group.sourceContent.pages.length || group.sourceContent.pages.some(page => !pages.includes(page))) throw new Error('题目原图尚未完整返回，请重试。')
+      images = sourceRegions.map(image => image.url)
+      if (new Set(images).size !== images.length) throw new Error('题目原图重复，请重新组卷。')
+    }
     const parts = (group.parts || []).map(part => {
       const provenance = part.markingProvenance
       const bound = provenance?.sourceQuestionId === group.id && provenance?.questionPartId === part.partId && Boolean(provenance.bindingSignature)
@@ -75,7 +100,7 @@ function validatePracticeSet(payload, expected) {
     return { id: group.id, number: String(group.questionNumber || ''), marks: Number(group.totalMarks),
       component: Number(group.paperComponent), paperId: group.sourceRef.paperId,
       sourceLabel: [group.sourceRef.paper, group.questionNumber].filter(Boolean).join(' · '),
-      images, parts, studyOnly: payload.practiceMode === 'study-only' }
+      images, sourceRegions, parts, studyOnly: payload.practiceMode === 'study-only' }
   })
   return { routeId: expected.routeId, stage: expected.stage, subjectCode: String(expected.subjectCode),
     components: expected.components.slice(), topicIds: expected.syllabusTopicIds.slice(),
@@ -133,12 +158,13 @@ function questionView(session, index) {
   const current = Math.max(0, Math.min(session.questions.length - 1, Number(index) || 0))
   const q = session.questions[current]
   const answer = session.answers[q.id] || {}
-  const results = q.parts.map(p => answer.results?.[p.id] ? { label: p.label, ...answer.results[p.id] } : null).filter(Boolean)
+  const results = q.parts.map(p => answer.results?.[p.id] ? { label: p.label === 'main' ? '本题' : p.label, ...answer.results[p.id] } : null).filter(Boolean)
   return { index: current, total: session.questions.length,
     answeredCount: session.questions.filter(item => Boolean(session.answers[item.id]?.photo)).length,
     question: { id: q.id, number: q.number, sourceLabel: q.sourceLabel, marks: q.marks,
-      images: q.images.map((path, i) => ({ id: `${q.id}-${i}`, url: imageUrl(path), loaded: false, failed: false })),
-      partsLabel: q.parts.map(p => p.label).filter(Boolean).join(' · '),
+      images: q.images.map((path, i) => ({ id: `${q.id}-${i}`, url: imageUrl(path), loaded: false, failed: false,
+        ...(q.sourceRegions?.[i] ? sourceRegionStyle(q.sourceRegions[i]) : {}) })),
+      partsLabel: q.parts.map(p => p.label).filter(label => label && label !== 'main').join(' · '),
       canMark: q.parts.some(p => p.canMark), studyOnly: q.studyOnly },
     photo: answer.photo || '', results, reviewedCount: results.length,
     reviewComplete: q.parts.some(p => p.canMark) && q.parts.filter(p => p.canMark).every(p => Boolean(answer.results?.[p.id])),

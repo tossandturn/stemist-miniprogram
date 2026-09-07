@@ -2,9 +2,12 @@ const {requestIeltsJson,IELTS_API_BASE}=require('./api')
 const BOOTSTRAP=require('./ieltsBootstrap')
 const {unpackTask}=require('./nativeDataPack')
 const {writingPrompt}=require('./writingPrompt')
+const {sourceMatches,sourceLabel}=require('./ieltsSource')
 const TYPES={listening:'listeningTests',reading:'readingTests',writing:'writingTasks',speaking:'speakingSets'}
 const PUBLIC_INDEX='stemistPublicIeltsCatalog'
-let snapshot=null,pending=null,loadedAt=0,lastAttemptAt=0,refreshTimer=null,catalogVersion='',bundledTasks=null
+let snapshot=null,pending=null,loadedAt=0,lastAttemptAt=0,refreshTimer=null,catalogVersion='',baseVersion='',bundledTasks=null
+const listeners=new Set()
+function subscribeIeltsContent(listener){listeners.add(listener);return ()=>listeners.delete(listener)}
 const taskCache=new Map(),taskPending=new Map()
 function assetUrl(value){
  const text=String(value||'')
@@ -17,17 +20,17 @@ function normalizeTask(task,module,{indexOnly=false}={}){
  if(!task||typeof task.id!=='string'||!/^[-a-zA-Z0-9_]+$/.test(task.id))return null
  const book=Number(task.book||task.id.match(/^cam(\d+)/)?.[1])||0
  const test=Number(task.test||task.id.match(/test(\d+)/)?.[1])||0
- return {id:task.id,module,book,test,detailsLoaded:!indexOnly,questionCount:Number(task.questionCount)||(task.questions||[]).length,title:String(task.title||''),type:String(task.type||''),source:String(task.source||''),minutes:Number(task.minutes)||({listening:40,reading:60,writing:40,speaking:15})[module],
+ return {id:task.id,module,book,test,detailsLoaded:!indexOnly,questionCount:Number(task.questionCount)||(task.questions||[]).length,title:String(task.title||''),type:String(task.type||''),source:String(task.source||''),sourceKind:String(task.sourceKind||''),topicKey:String(task.topicKey||''),topicLabel:String(task.topicLabel||''),topicIcon:String(task.topicIcon||''),topicEmoji:String(task.topicEmoji||'').slice(0,24),minutes:Number(task.minutes)||({listening:40,reading:60,writing:40,speaking:15})[module],
   questions:(task.questions||[]).map((q,index)=>({id:String(q.id||'q'+(index+1)),number:Number(String(q.id||'').match(/^(?:q)?(\d+)$/)?.[1])||index+1,text:String(q.text||''),type:String(q.type||''),page:Number(q.questionPage)||0,options:q.optionsVerified===true?(q.options||[]).map(o=>typeof o==='string'?o:[o.value,o.label||o.text].filter(Boolean).join('. ')):[],selectionLimit:Number(q.selectionLimit)||1})),
   questionImages:images(task.questionPageImages||task.readingQuestionPageImages),passageImages:images(task.readingPassagePageImages),images:images(task.readingPageImages||task.writingPageImages||task.speakingPageImages||task.questionPageImages),
   audioUrls:(Array.isArray(task.audioUrls)?task.audioUrls:[task.audioUrl]).map(assetUrl).filter(Boolean),
   audioSections:(Array.isArray(task.audioUrls)?task.audioUrls:[]).map((url,index)=>({section:index+1,url:assetUrl(url)})).filter(track=>track.url),
-  sections:(task.nativeSections||task.sections||[]).map(section=>({number:Number(section.number),label:String(section.label||''),title:String(section.title||''),topicKey:String(section.topicKey||''),topicLabel:String(section.topicLabel||''),questionCount:Number(section.questionCount)||section.questionIds?.length||0,questionIds:Array.isArray(section.questionIds)?section.questionIds.filter(id=>typeof id==='string'):[],minutes:Number(section.minutes)||20})),
+  sections:(task.nativeSections||task.sections||[]).map(section=>({number:Number(section.number),label:String(section.label||''),title:String(section.title||''),topicKey:String(section.topicKey||''),topicLabel:String(section.topicLabel||''),topicIcon:String(section.topicIcon||''),topicEmoji:String(section.topicEmoji||'').slice(0,24),questionCount:Number(section.questionCount)||section.questionIds?.length||0,questionIds:Array.isArray(section.questionIds)?section.questionIds.filter(id=>typeof id==='string'):[],minutes:Number(section.minutes)||20})),
   passageStarts:task.readingPassageStartPages||{},visual:task.visual||null,
   prompt:module==='writing'?writingPrompt(task.prompt,task.id):String(task.prompt||''),data:String(task.data||''),contentVersion:String(task.contentVersion||''),contentLifecycle:String(task.contentLifecycle||''),humanReviewStatus:String(task.humanReviewStatus||''),
   part1Topic:String(task.part1Topic||''),part1:task.part1||[],part2:task.part2||'',part3:task.part3||[]}
 }
-function normalizeCatalog(payload){catalogVersion=String(payload.version||'');return Object.fromEntries(Object.entries(TYPES).map(([module,key])=>[module,(payload[key]||[]).map(task=>{const result=normalizeTask(task,module,{indexOnly:payload.schemaVersion==='native-ielts-catalog-v1'});return result?{...result,catalogVersion}:null}).filter(Boolean)]))}
+function normalizeCatalog(payload){catalogVersion=String(payload.version||'');baseVersion=String(payload.baseVersion||payload.version||'');return Object.fromEntries(Object.entries(TYPES).map(([module,key])=>[module,(payload[key]||[]).map(task=>{const result=normalizeTask(task,module,{indexOnly:payload.schemaVersion==='native-ielts-catalog-v1'});return result?{...result,catalogVersion}:null}).filter(Boolean)]))}
 function validCatalog(payload){return payload?.schemaVersion==='native-ielts-catalog-v1'&&Object.values(TYPES).every(key=>Array.isArray(payload[key])&&payload[key].length<3000)}
 function refreshCatalog(){
  if(pending)return pending
@@ -38,9 +41,11 @@ function refreshCatalog(){
   if(error.statusCode===404)return requestIeltsJson('/api/tasks',undefined,{method:'GET',timeout:20000})
   throw error
  }).then(payload=>{
-  if(!payload||!Array.isArray(payload.listeningTests)||!Array.isArray(payload.readingTests))throw new Error('题库返回不完整，请重试。')
+  if(!payload||!Object.values(TYPES).every(key=>Array.isArray(payload[key])&&payload[key].length<3000))throw new Error('题库返回不完整，请重试。')
+  const previousVersion=catalogVersion
   snapshot=normalizeCatalog(payload);loadedAt=Date.now()
   if(validCatalog(payload)){try{wx.setStorageSync(PUBLIC_INDEX,{payload,at:loadedAt,builtAgainst:BOOTSTRAP.catalog.version})}catch{/* Public cache must never prevent opening a task. */}}
+  if(previousVersion!==catalogVersion)for(const listener of listeners){try{listener(snapshot)}catch{/* A disposed view must not break public cache refresh. */}}
   return snapshot
  }).finally(()=>{pending=null})
  return pending
@@ -63,10 +68,10 @@ async function getIeltsTask(module,id){
  if(cached&&Date.now()-cached.at<300000){taskCache.delete(key);taskCache.set(key,cached);return cached.task}
  if(catalogVersion){
   if(!bundledTasks)bundledTasks=require('./ieltsTaskBootstrap')
-  if(bundledTasks.version===catalogVersion){
+  if(bundledTasks.version===baseVersion){
    const raw=unpackTask(bundledTasks,id)
    if(raw&&(!raw.module||raw.module===module)){
-    const task=normalizeTask(raw,module);taskCache.set(key,{task,at:Date.now()});while(taskCache.size>6)taskCache.delete(taskCache.keys().next().value);return task
+    const task={...normalizeTask(raw,module),topicKey:item.topicKey,topicLabel:item.topicLabel,topicIcon:item.topicIcon,topicEmoji:item.topicEmoji};taskCache.set(key,{task,at:Date.now()});while(taskCache.size>6)taskCache.delete(taskCache.keys().next().value);return task
    }
   }
  }
@@ -80,8 +85,8 @@ async function getIeltsTask(module,id){
  taskPending.set(key,request);return request
 }
 function catalogPage(tasks,{query='',book=0,page=0,pageSize=20}={}){
- const q=String(query).trim().toLowerCase(),selected=tasks.filter(t=>(!book||t.book===Number(book))&&(!q||(t.title+' '+t.source+' '+(t.topicLabel||'')).toLowerCase().includes(q)))
+ const q=String(query).trim().toLowerCase(),selected=tasks.filter(t=>sourceMatches(t,book)&&(!q||(t.title+' '+t.source+' '+(t.topicLabel||'')).toLowerCase().includes(q)))
  const count=Math.ceil(selected.length/pageSize),index=Math.min(Math.max(0,page),Math.max(0,count-1))
- return {items:selected.slice(index*pageSize,(index+1)*pageSize).map(t=>({id:t.id,title:t.title.replace(/^Cambridge IELTS \d+ Academic\s*[-–]\s*/i,''),book:t.book,test:t.test,type:t.type,minutes:t.minutes,questionCount:t.questionCount??t.questions.length})),total:selected.length,page:index,pageCount:count}
+ return {items:selected.slice(index*pageSize,(index+1)*pageSize).map(t=>({id:t.id,title:t.title.replace(/^Cambridge IELTS \d+ Academic\s*[-–]\s*/i,''),book:t.book,test:t.test,type:t.type,sourceLabel:sourceLabel(t),minutes:t.minutes,questionCount:t.questionCount??t.questions.length})),total:selected.length,page:index,pageCount:count}
 }
-module.exports={assetUrl,images,normalizeTask,loadIeltsContent,getIeltsTask,catalogPage}
+module.exports={assetUrl,images,normalizeTask,loadIeltsContent,getIeltsTask,catalogPage,subscribeIeltsContent}

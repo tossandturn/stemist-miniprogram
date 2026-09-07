@@ -1,1 +1,1 @@
-{"navigationBarTitleText":"IELTS 真题","usingComponents":{"stemist-header":"/components/stemist-header/index","ai-fab":"/components/ai-fab/index"}}
+{"navigationBarTitleText":"IELTS 题库","enablePullDownRefresh":true,"usingComponents":{"stemist-header":"/components/stemist-header/index","ai-fab":"/components/ai-fab/index"}}

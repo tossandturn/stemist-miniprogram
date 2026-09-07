@@ -19,7 +19,7 @@ function completeSets(bank){
 async function examChoices(){return completeSets(await loadIeltsContent())}
 async function newExam(context,selected){
  const expectedOwner=owner(),expectedEpoch=epoch()
- const bank=await loadIeltsContent(),pick=items=>items[Math.floor(Math.random()*items.length)]
+ const all=await loadIeltsContent(),bank=Object.fromEntries(Object.entries(all).map(([module,tasks])=>[module,tasks.filter(t=>/^cam\d+-/.test(t.id))])),pick=items=>items[Math.floor(Math.random()*items.length)]
  if(expectedOwner!==owner()||expectedEpoch!==epoch())throw new Error('账号已变化。')
  const sources=context==='same-test'?completeSets(bank).find(set=>set.id===selected):{id:'random',title:'随机模拟',listening:pick(bank.listening),reading:pick(bank.reading),writing:[pick(bank.writing.filter(t=>/task1$/i.test(t.id))),pick(bank.writing.filter(t=>/task2$/i.test(t.id)))],speaking:pick(bank.speaking)}
  if(!sources||!sources.listening||!sources.reading||!sources.speaking||sources.writing.some(t=>!t))throw new Error('当前题库还不能组成完整模拟。')

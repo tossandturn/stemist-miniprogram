@@ -4,6 +4,8 @@
 .ielts-library button.native-topic-card { display:flex;flex-direction:column;align-items:flex-start;width:100%;min-width:0;margin:0;padding:16px;border:1px solid #e4e7f0;border-radius:14px;background:#fff;text-align:left;line-height:1.4; }
 .native-topic-icon { display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin-bottom:12px;border-radius:12px;background:#f0ecff; }
 .native-topic-icon image { width:32px;height:32px; }
+.native-topic-icon .topic-emoji { font-size:30px;line-height:34px; }
+.topic-breadcrumb .topic-emoji { font-size:24px;line-height:28px; }
 .topic-label { min-height:42px;color:#18213d;font-size:16px;font-weight:650; }
 .topic-count { margin-top:8px;color:#66708a;font-size:13px; }
 .topic-breadcrumb { display:flex;align-items:center;gap:10px;margin:8px 0 16px;flex-wrap:wrap;font-size:14px; }

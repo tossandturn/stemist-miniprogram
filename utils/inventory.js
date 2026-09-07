@@ -2,6 +2,17 @@ const { getJson } = require('./api')
 
 const INVENTORY_CACHE_TTL_MS = 60 * 1000
 const inventoryCache = new Map()
+const uniqueIds = value => [...new Set((Array.isArray(value) ? value : []).filter(id => typeof id === 'string' && id))]
+
+function normalizePracticePolicy(value) {
+  if (value === undefined || value === null) return null
+  if (value.schemaVersion !== 'stem-topic-practice-policy-v1' || value.minSourceGroups !== 6 || value.minReviewedGroups !== 12 ||
+    !Array.isArray(value.setSizes) || !value.setSizes.length || value.setSizes.some(n => ![6, 10, 15].includes(n))) {
+    throw new Error('题库练习规则不兼容，请更新后重试。')
+  }
+  return { schemaVersion: value.schemaVersion, minSourceGroups: value.minSourceGroups,
+    minReviewedGroups: value.minReviewedGroups, setSizes: [...new Set(value.setSizes)].sort((a, b) => a - b) }
+}
 
 function countOrNull(value) {
   if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null
@@ -24,9 +35,14 @@ function normalizeInventory(payload, expectedRouteId = '') {
       indexedQuestionCount: countOrNull(topic && topic.indexedQuestionCount),
       pendingReviewCount: countOrNull(topic && topic.pendingReviewCount),
       questionIdsByComponent: Object.fromEntries(Object.entries(topic?.questionIdsByComponent || {}).filter(([key]) => /^\d+$/.test(key)).map(([key, value]) => [key, {
-        verifiedQuestionIds: [...new Set((value?.verifiedQuestionIds || []).filter(id => typeof id === 'string' && id))],
-        studyQuestionIds: [...new Set((value?.studyQuestionIds || []).filter(id => typeof id === 'string' && id))],
+        verifiedQuestionIds: uniqueIds(value?.verifiedQuestionIds),
+        studyQuestionIds: uniqueIds(value?.studyQuestionIds),
+        ...(Array.isArray(value?.apiReadyQuestionIds) ? { apiReadyQuestionIds: uniqueIds(value.apiReadyQuestionIds) } : {}),
+        ...(Array.isArray(value?.releasedStudyQuestionIds) ? { releasedStudyQuestionIds: uniqueIds(value.releasedStudyQuestionIds) } : {}),
       }])),
+      apiStartable: topic?.apiStartable === true,
+      formalScoreReady: topic?.formalScoreReady === true,
+      availableSetSizes: Array.isArray(topic?.availableSetSizes) ? topic.availableSetSizes.filter(n => [6, 10, 15].includes(n)) : [],
       ready: Boolean(topic && topic.ready),
       studyReady: Boolean(topic && topic.studyReady),
       ctaPolicy: String((topic && topic.ctaPolicy) || ''),
@@ -34,6 +50,7 @@ function normalizeInventory(payload, expectedRouteId = '') {
     : []
   return {
     routeId,
+    practicePolicy: normalizePracticePolicy(payload.practicePolicy),
     paperComponents: [...new Set((Array.isArray(payload.paperComponents) ? payload.paperComponents : []).map(Number).filter(n => Number.isInteger(n) && n > 0))],
     syllabusVersion: String(payload.syllabusVersion || ''),
     officialPaperCount: countOrNull(payload.officialPaperCount),

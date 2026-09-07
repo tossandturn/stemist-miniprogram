@@ -5,15 +5,18 @@
     <picker mode="selector" range="{{subjects}}" range-key="label" value="{{subjectIndex}}" bindchange="chooseSubject"><view class="filter-select"><text>{{subjects[subjectIndex].label}}</text><text class="filter-chevron">更换</text></view></picker>
     <picker wx:if="{{showStageFilter}}" mode="selector" range="{{stageFilters}}" range-key="label" value="{{stageIndex}}" bindchange="chooseStage"><view class="filter-select"><text>{{stageFilters[stageIndex].label}}</text><text class="filter-chevron">选择</text></view></picker>
     <picker wx:if="{{showStageFilter && showRouteFilter}}" mode="selector" range="{{routeOptions}}" range-key="label" value="{{routeIndex}}" bindchange="chooseRoute"><view class="filter-select"><text>{{routeOptions[routeIndex].label}}</text><text class="filter-chevron">选择</text></view></picker>
+    <picker wx:if="{{filterReady}}" class="paper-year-filter" mode="selector" range="{{yearOptions}}" range-key="label" value="{{yearIndex}}" bindchange="chooseYear"><view class="filter-select"><text>{{yearOptions[yearIndex].label}}</text><text class="filter-chevron">年份</text></view></picker>
+    <picker wx:if="{{filterReady}}" class="paper-season-filter" mode="selector" range="{{seasonOptions}}" range-key="label" value="{{seasonIndex}}" bindchange="chooseSeason"><view class="filter-select"><text>{{seasonOptions[seasonIndex].label}}</text><text class="filter-chevron">{{category === 'competition' ? '场次' : '考试季'}}</text></view></picker>
     <view class="search-box"><input value="{{query}}" placeholder="搜索年份或试卷" bindinput="onSearch" confirm-type="search" /><button wx:if="{{query}}" class="search-clear" bindtap="clearSearch">清空</button></view>
   </view>
+  <button wx:if="{{query || year !== 'all' || season !== 'all'}}" class="text-button paper-filter-reset" bindtap="clearFilters">重置筛选</button>
   <view wx:if="{{loading}}" class="loading-state">正在加载真题…</view>
   <view wx:elif="{{error && !catalog}}" class="error">{{error}}<button class="secondary" bindtap="retry">重新加载</button></view>
   <block wx:else>
     <view wx:if="{{catalog}}" class="catalog-caption">{{matchCount}} 份试卷</view>
     <view class="paper-list">
       <view wx:for="{{items}}" wx:key="id" class="paper-row">
-        <view class="paper-copy"><text class="paper-year">{{item.year || '历年真题'}} · {{item.stageLabel}}</text><text class="paper-title">{{item.displayTitle}}</text><text class="paper-topic">{{item.title}}</text><text wx:if="{{item.pairLabel}}" class="paper-detail">{{item.pairLabel}}</text></view>
+        <view class="paper-copy"><text class="paper-year">{{item.year || '历年真题'}}{{item.seasonLabel ? ' · ' + item.seasonLabel : ''}} · {{item.stageLabel}}</text><text class="paper-title">{{item.displayTitle}}</text><text class="paper-topic">{{item.title}}</text><text wx:if="{{item.pairLabel}}" class="paper-detail">{{item.pairLabel}}</text></view>
         <view class="paper-actions">
           <button wx:if="{{item.canPractice}}" class="paper-open" data-id="{{item.id}}" bindtap="openPaper">开始练习</button>
           <button class="paper-pdf" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" loading="{{pdfBusy === item.id}}" disabled="{{!!pdfBusy || !item.hasPdf}}">原卷</button>
@@ -21,7 +24,7 @@
         </view>
       </view>
     </view>
-    <view wx:if="{{catalog && !items.length}}" class="empty-state">没有匹配的试卷<button class="secondary" bindtap="clearSearch">清空搜索</button></view>
+    <view wx:if="{{catalog && !items.length}}" class="empty-state">没有匹配的试卷<button class="secondary" bindtap="clearFilters">重置筛选</button></view>
     <view wx:if="{{pageCount > 1}}" class="paper-pagination"><button class="secondary paper-previous" disabled="{{pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary paper-next" disabled="{{!hasMore}}" bindtap="loadMore">下一页</button></view>
     <view wx:if="{{error && catalog}}" class="error">{{error}}</view>
   </block>
