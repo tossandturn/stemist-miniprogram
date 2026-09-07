@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import {miniRuntime,settle} from './helpers/mini-runtime.mjs'
+let network=0
+const r=miniRuntime({modules:{'utils/api':{requestIeltsJson:async()=>{network++;throw Error('unexpected request')}}}})
+const raw=r.load('utils/ieltsBootstrap').catalog,sourceBytes=JSON.stringify(raw),data=await r.load('utils/ieltsContent').loadIeltsContent(),topics=r.load('utils/ieltsTopics'),units=r.load('utils/ieltsUnits'),index=r.load('utils/ieltsTopicIndex')
+assert.equal(index.version,raw.version)
+assert.equal(index.items['cam4-w-test1-task2'].key,'writing-media-advertising','adjacent Speaking text must not classify a media essay as Food')
+assert.equal(index.items['cam5-w-test1-task2'].key,'writing-education-learning')
+assert.equal(index.items['cam8-w-test2-task2'].key,'writing-technology-digital')
+assert.equal(data.writing.length,raw.writingTasks.length)
+const writingTopics=topics.topicDirectory(data.writing),writingUnits=units.libraryUnits(data.writing,'topic')
+assert.equal(writingUnits.length,72);assert.equal(writingTopics.reduce((n,t)=>n+t.count,0),72)
+assert.equal(new Set(writingUnits.map(t=>t.id)).size,72);assert.ok(writingUnits.every(t=>/task2$/i.test(t.id)))
+assert.equal(units.libraryUnits(data.writing,'paper').length,144,'Task 1 remains in the single-task library')
+const speakingTopics=topics.topicDirectory(data.speaking)
+assert.equal(speakingTopics.reduce((n,t)=>n+t.count,0),raw.speakingSets.length)
+assert.deepEqual(Array.from(speakingTopics,t=>t.label).sort(),['Culture','Friends','Money'],'the existing IELTSist taxonomy groups History under Culture')
+for(const topic of [...writingTopics,...speakingTopics])assert.ok(fs.existsSync('.'+topic.icon),topic.icon)
+const unknown=topics.taskTopicUnits(data.writing.map(t=>({...t,catalogVersion:'a future source version'})))
+assert.equal(unknown.length,72);assert.ok(unknown.every(t=>t.topicLabel==='其他话题'),'unknown display metadata never removes source tasks')
+assert.equal(JSON.stringify(raw),sourceBytes);assert.equal(network,0,'topic categories do not fetch or decode every task at runtime')
+assert.ok(Object.values(index.items).every(item=>Object.keys(item).sort().join(',')==='icon,key,label'),'derived index contains display labels, not another question bank')
+const p=r.page('pages/ielts/library');p.onLoad({module:'writing'});await settle();assert.equal(p.data.total,144);p.chooseScope({currentTarget:{dataset:{scope:'topic'}}});assert.ok(p.data.topics.length>5);p.chooseScope({currentTarget:{dataset:{scope:'paper'}}});assert.equal(p.data.total,144);p.onUnload()
+console.log('IELTS topics: four-skill icons, exact task IDs, 144 Writing tasks retained, Task 2-only topic scope, source-version fallback and zero bulk requests passed.')

@@ -22,7 +22,7 @@
     "test:pages": "node scripts/test-page-contract.mjs",
     "test:wechat": "node scripts/test-wechat-compile.mjs",
     "test:navigation-shell": "node scripts/test-navigation-shell.mjs",
-    "test:paper-catalog": "node scripts/test-paper-catalog.mjs && node scripts/test-paper-page-service.mjs && node scripts/test-paper-source-mapping.mjs && node scripts/test-native-topic-directory.mjs",
+    "test:paper-catalog": "node scripts/test-paper-catalog.mjs && node scripts/test-paper-page-service.mjs && node scripts/test-paper-source-mapping.mjs && node scripts/test-native-topic-directory.mjs && node scripts/test-ielts-topic-integrity.mjs",
     "test:learning-summary": "node scripts/test-learning-summary.mjs",
     "test:webview-policy": "node scripts/test-webview-policy.mjs",
     "test:responsive": "node scripts/test-responsive-contract.mjs",

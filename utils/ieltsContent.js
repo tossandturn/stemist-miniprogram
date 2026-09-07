@@ -27,7 +27,7 @@ function normalizeTask(task,module,{indexOnly=false}={}){
   prompt:module==='writing'?writingPrompt(task.prompt,task.id):String(task.prompt||''),data:String(task.data||''),contentVersion:String(task.contentVersion||''),contentLifecycle:String(task.contentLifecycle||''),humanReviewStatus:String(task.humanReviewStatus||''),
   part1Topic:String(task.part1Topic||''),part1:task.part1||[],part2:task.part2||'',part3:task.part3||[]}
 }
-function normalizeCatalog(payload){catalogVersion=String(payload.version||'');return Object.fromEntries(Object.entries(TYPES).map(([module,key])=>[module,(payload[key]||[]).map(task=>normalizeTask(task,module,{indexOnly:payload.schemaVersion==='native-ielts-catalog-v1'})).filter(Boolean)]))}
+function normalizeCatalog(payload){catalogVersion=String(payload.version||'');return Object.fromEntries(Object.entries(TYPES).map(([module,key])=>[module,(payload[key]||[]).map(task=>{const result=normalizeTask(task,module,{indexOnly:payload.schemaVersion==='native-ielts-catalog-v1'});return result?{...result,catalogVersion}:null}).filter(Boolean)]))}
 function validCatalog(payload){return payload?.schemaVersion==='native-ielts-catalog-v1'&&Object.values(TYPES).every(key=>Array.isArray(payload[key])&&payload[key].length<3000)}
 function refreshCatalog(){
  if(pending)return pending
@@ -80,7 +80,7 @@ async function getIeltsTask(module,id){
  taskPending.set(key,request);return request
 }
 function catalogPage(tasks,{query='',book=0,page=0,pageSize=20}={}){
- const q=String(query).trim().toLowerCase(),selected=tasks.filter(t=>(!book||t.book===Number(book))&&(!q||(t.title+' '+t.source).toLowerCase().includes(q)))
+ const q=String(query).trim().toLowerCase(),selected=tasks.filter(t=>(!book||t.book===Number(book))&&(!q||(t.title+' '+t.source+' '+(t.topicLabel||'')).toLowerCase().includes(q)))
  const count=Math.ceil(selected.length/pageSize),index=Math.min(Math.max(0,page),Math.max(0,count-1))
  return {items:selected.slice(index*pageSize,(index+1)*pageSize).map(t=>({id:t.id,title:t.title.replace(/^Cambridge IELTS \d+ Academic\s*[-–]\s*/i,''),book:t.book,test:t.test,type:t.type,minutes:t.minutes,questionCount:t.questionCount??t.questions.length})),total:selected.length,page:index,pageCount:count}
 }

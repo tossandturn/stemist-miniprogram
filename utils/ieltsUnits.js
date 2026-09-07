@@ -1,5 +1,6 @@
 function libraryUnits(tasks,scope='paper',topic=''){
  if(scope==='paper')return tasks
+ if(scope==='topic'&&tasks.some(task=>['writing','speaking'].includes(task.module)))return require('./ieltsTopics').taskTopicUnits(tasks).filter(task=>!topic||task.topicKey===topic)
  return tasks.flatMap(task=>(task.sections||[]).filter(section=>scope!=='topic'||section.topicKey&&(!topic||section.topicKey===topic)).map(section=>({
   ...task,id:task.id+'::section::'+section.number,baseTaskId:task.id,section:section.number,
   title:scope==='topic'?(section.title||section.topicLabel||section.label):task.title+' · '+section.label,

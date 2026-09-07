@@ -1,4 +1,5 @@
 const {DEFAULT_IELTS_API_BASE,safeIeltsApiBase}=require('./apiOrigin')
+const {ensureRecordPermission,recordingError}=require('./recordPermission')
 
 function pcmRms(buffer) {
  const samples=new Int16Array(buffer,0,Math.floor(buffer.byteLength/2))
@@ -9,19 +10,20 @@ function pcmRms(buffer) {
 }
 
 class NativeSpeaking {
- constructor({task,turns=[],startedAt=Date.now(),onState=()=>{},onTurn=()=>{},onError=()=>{},onFinish=()=>{}}={}) {
-  Object.assign(this,{task,turns:turns.slice(),startedAt,onState,onTurn,onError,onFinish})
+ constructor({task,turns=[],startedAt=Date.now(),onState=()=>{},onTurn=()=>{},onError=()=>{},onFinish=()=>{},onReady=()=>{}}={}) {
+  Object.assign(this,{task,turns:turns.slice(),startedAt,onState,onTurn,onError,onFinish,onReady})
   this.closed=false;this.generation=0;this.retries=0;this.sources=new Set();this.playUntil=0;this.lastVoice=0;this.voicedBytes=0;this.waiting=false;this.assistant=''
  }
  async start(){
   if(!wx.getRecorderManager||!wx.createWebAudioContext||!wx.connectSocket)throw new Error('当前微信版本不支持实时口语，请升级微信后重试。')
-  this.audio=wx.createWebAudioContext();await this.audio.resume?.()
-  await new Promise((resolve,reject)=>wx.authorize({scope:'scope.record',success:resolve,fail:()=>reject(new Error('需要麦克风权限才能开始口语练习。'))}))
+  await ensureRecordPermission({cancelled:()=>this.closed})
   if(this.closed)return
+  this.audio=wx.createWebAudioContext();await this.audio.resume?.()
+  if(this.closed){this.audio?.close?.();return}
   this.recorder=wx.getRecorderManager()
   this.frameHandler=event=>this.frame(event.frameBuffer)
   this.stopHandler=event=>{if(event.tempFilePath)this.lastRecording=event.tempFilePath;if(!this.closed&&this.ready)this.record()}
-  this.errorHandler=()=>this.fail('麦克风未能录音，请检查权限后重试。')
+  this.errorHandler=error=>this.fail(recordingError(error))
   this.recorder.onFrameRecorded(this.frameHandler);this.recorder.onStop(this.stopHandler);this.recorder.onError(this.errorHandler)
   wx.setKeepScreenOn?.({keepScreenOn:true})
   this.connect()
@@ -36,11 +38,11 @@ class NativeSpeaking {
   if(this.closed)return
   const generation=++this.generation
   const base=safeIeltsApiBase(getApp()?.globalData?.ieltsApiBaseUrl)||DEFAULT_IELTS_API_BASE
-  this.onState({active:true,status:this.retries?'正在恢复连接…':'正在连接考官…'})
+  this.onState({connecting:true,status:this.retries?'正在恢复连接…':'正在连接考官…'})
   const socket=wx.connectSocket({url:base.replace(/^http/,'ws')+'/qwen-client'})
   this.socket=socket;this.ready=false
   clearTimeout(this.connectionTimer);this.connectionTimer=setTimeout(()=>{if(!this.closed&&generation===this.generation&&!this.ready)this.fail('考官连接超时，请重试。')},18000)
-  socket.onOpen(()=>{if(!this.closed&&generation===this.generation)this.send({type:'connect',voice:'Ethan',turnDetection:'manual',instructions:this.instructions(this.retries>0)})})
+  socket.onOpen(()=>{if(!this.closed&&generation===this.generation)this.send({type:'connect',voice:'Ethan',turnDetection:'manual',instructions:this.instructions(this.retries>0||this.turns.length>0)})})
   socket.onMessage(event=>{if(this.closed||generation!==this.generation)return;try{this.message(JSON.parse(event.data))}catch{this.fail('语音数据格式异常，请重试。')}})
   socket.onError(()=>{if(!this.closed&&generation===this.generation)this.recover()})
   socket.onClose(()=>{if(!this.closed&&generation===this.generation)this.recover()})
@@ -80,9 +82,9 @@ class NativeSpeaking {
   const payload=message.payload||{},type=message.eventType||payload.type
   if(type==='response.created'){this.assistant='';this.assistantSource='';this.waiting=true}
   if(type==='session.updated'&&!this.ready){
-   this.ready=true;clearTimeout(this.connectionTimer);this.record();this.onState({active:true,status:'考官已连接'})
+   this.ready=true;clearTimeout(this.connectionTimer);this.onReady();if(this.closed)return;this.record();this.onState({active:true,connecting:false,status:'考官已连接'})
    this.waiting=true
-   this.send({type:'response.create',instructions:this.retries?'Resume the dialogue with one next question. Do not repeat the greeting or the last answered question.':'Greet briefly, then ask exactly one Part 1 question and wait.'});return
+   this.send({type:'response.create',instructions:this.retries||this.turns.length?'Resume the dialogue with one next question. Do not repeat the greeting or the last answered question.':'Greet briefly, then ask exactly one Part 1 question and wait.'});return
   }
   if(type==='error')return this.fail('语音服务返回错误，对话已保留。')
   if(type==='response.audio.delta'&&payload.delta){this.play(payload.delta);this.onState({status:'考官正在说话…'});return}
@@ -147,7 +149,7 @@ class NativeSpeaking {
   this.recorder?.offFrameRecorded?.(this.frameHandler);this.recorder?.offStop?.(this.stopHandler);this.recorder?.offError?.(this.errorHandler);this.recorder?.stop()
   this.socket?.close({code:1000,reason:'practice stopped'})
   for(const source of this.sources){try{source.stop()}catch{}source.disconnect?.()}this.sources.clear();this.audio?.close?.()
-  wx.setKeepScreenOn?.({keepScreenOn:false});this.onState({active:false,status:'已停止录音'})
+  wx.setKeepScreenOn?.({keepScreenOn:false});this.onState({active:false,connecting:false,status:'已停止录音'})
  }
 }
 module.exports={NativeSpeaking,pcmRms}
