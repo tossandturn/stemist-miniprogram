@@ -57,7 +57,8 @@ async function fetchRouteInventory(routeId) {
   const cached = inventoryCache.get(id)
   if (cached && cached.value && cached.expiresAt > Date.now()) return cached.value
   if (cached && cached.promise) return cached.promise
-  const promise = getJson(`/api/stem/routes/${encodeURIComponent(id)}/syllabus-topics`)
+  // This public source catalog must not renew or forward a learner session.
+  const promise = getJson(`/api/stem/routes/${encodeURIComponent(id)}/syllabus-topics`, { stemAuth: false })
     .then((payload) => {
       const value = normalizeInventory(payload, id)
       inventoryCache.set(id, { value, expiresAt: Date.now() + INVENTORY_CACHE_TTL_MS })

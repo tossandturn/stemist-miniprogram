@@ -2,16 +2,17 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { routeById } = require('../../utils/stemRoutes')
 const { fetchRouteInventory } = require('../../utils/inventory')
 const { selectionState, generatePractice, saveSession, recentSession } = require('../../utils/nativePractice')
+const loadMessage=error=>error?.code==='network_domain_blocked'?'当前版本无法连接题库，请更新小程序后重试。':error?.code==='network_tls_error'?'题库安全连接未能建立，请稍后重试。':error?.code==='network_timeout'?'章节请求超时，请重新加载。':error?.code==='network_error'?'无法连接题库，请检查网络后重试。':Number(error?.statusCode)>=500?'章节服务暂时不可用，请稍后重试。':'章节信息未能加载，请重试。'
 
 Page({
-  data: deviceState({ routeId: '', stage: '', subjectCode: '', title: '', loading: true, busy: false, error: '',
+  data: deviceState({ routeId: '', stage: '', subjectCode: '', title: '', loading: true, busy: false, error: '', inventoryFailed: false,
     topics: [], selected: [], components: [], componentOptions: [], counts: [], questionCount: 10, availableCount: 0, canStart: false, hint: '', recentId: '', recentLabel: '' }),
   onLoad(options = {}) {
     this.__disposed = false
     this.__loadId = 0
     const route = routeById(String(options.routeId || ''))
     if (!route || !['IGCSE', 'IG', 'AS', 'A2'].includes(route.stage)) {
-      this.setData({ loading: false, error: '当前路线不支持章节组卷。' }); return
+      this.setData({ loading: false, inventoryFailed: true, error: '当前路线不支持章节组卷。' }); return
     }
     this.setData({ routeId: route.routeId, stage: route.stage, subjectCode: route.subjectCode, title: route.subjectLabel.startsWith(route.stage) ? route.subjectLabel : `${route.stage} ${route.subjectLabel}` })
     this.refresh()
@@ -26,7 +27,7 @@ Page({
   async refresh() {
     if (!this.data.routeId || this.data.busy) return
     const loadId = ++this.__loadId
-    this.setData({ loading: true, error: '' })
+    this.setData({ loading: true, error: '', inventoryFailed: false, canStart: false })
     try {
       const inventory = await fetchRouteInventory(this.data.routeId)
       if (this.__disposed || loadId !== this.__loadId) return
@@ -34,7 +35,7 @@ Page({
       const components = this.data.components.filter(c => inventory.paperComponents.includes(c))
       this.setData({ components: components.length ? components : inventory.paperComponents, selected: this.data.selected.filter(id => inventory.topics.some(t => t.id === id)) })
       this.recompute()
-    } catch { if (!this.__disposed && loadId === this.__loadId) this.setData({ error: '章节加载失败，请检查网络后重试。' }) }
+    } catch (error) { if (!this.__disposed && loadId === this.__loadId) this.setData({ error: loadMessage(error), inventoryFailed: true, canStart: false }) }
     finally { if (!this.__disposed && loadId === this.__loadId) this.setData({ loading: false }) }
   },
   recompute() {

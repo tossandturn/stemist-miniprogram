@@ -35,8 +35,8 @@ await check('paper deep link carries STEM course, route and stage', async () => 
 })
 await check('cancelling crop lets the camera take another photograph', async () => {
   let captures = 0
-  const runtime = miniRuntime({ wx: { createCameraContext: () => ({ takePhoto: ({ success }) => { captures++; success({ tempImagePath: '/tmp/photo.jpg' }) } }) } })
-  const page = runtime.page('pages/stem/camera'); page.onLoad(); page.onReady(); page.takePhoto(); page.onShow(); page.takePhoto()
+  const runtime = miniRuntime({ wx: { getSetting:o=>o.success({authSetting:{'scope.camera':true}}),createCameraContext: () => ({ takePhoto: ({ success }) => { captures++; success({ tempImagePath: '/tmp/photo.jpg' }) } }) } })
+  const page = runtime.page('pages/stem/camera'); page.onLoad();await page.onReady();page.onCameraInitialized();page.takePhoto();page.onHide();await page.onShow();page.onCameraInitialized();page.takePhoto();page.onUnload()
   assert.equal(captures, 2)
 })
 await check('writing photo returns to the writing editor through the full page stack', async () => {

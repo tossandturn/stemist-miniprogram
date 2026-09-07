@@ -63,6 +63,8 @@ function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', s
       },
       fail(error) {
         const raw = String(error && error.errMsg || '')
+        if (/not in (?:domain|legal domain) list|不在.*合法域名|域名.*校验/i.test(raw)) return reject(requestError('当前版本的服务连接配置有误，请更新小程序后重试。', 0, 'network_domain_blocked'))
+        if (/ssl|tls|certificate|cert[ _-]|证书/i.test(raw)) return reject(requestError('安全连接未能建立，请稍后重试。', 0, 'network_tls_error'))
         reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试', 0, /timeout|超时/i.test(raw) ? 'network_timeout' : 'network_error'))
       },
     }

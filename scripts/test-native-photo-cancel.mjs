@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 let captured
-const camera=miniRuntime({wx:{createCameraContext:()=>({takePhoto:options=>{captured=options}})}})
-const c=camera.page('pages/stem/camera');c.onLoad();c.onReady();c.takePhoto();c.onUnload();captured.success({tempImagePath:'/camera/late.jpg'})
+const camera=miniRuntime({wx:{getSetting:o=>o.success({authSetting:{'scope.camera':true}}),createCameraContext:()=>({takePhoto:options=>{captured=options}})}})
+const c=camera.page('pages/stem/camera');c.onLoad();await c.onReady();c.onCameraInitialized();c.takePhoto();c.onUnload();captured.success({tempImagePath:'/camera/late.jpg'})
 assert.equal(camera.calls.length,0,'camera completion after leaving cannot reopen a crop page')
 
 const r=miniRuntime({modules:{'utils/nativeWritingPhoto':{persistWritingPhoto:async()=>'/owned/photo.jpg',removeWritingPhoto:()=>{}}}})

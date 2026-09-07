@@ -1,6 +1,6 @@
 .camera-frame { position: relative; width: 100%; height: 860rpx; margin-top: 18rpx; overflow: hidden; border-radius: 22rpx; background: #10182d; }
-.camera-view { width: 100%; height: 100%; }
-.camera-loading { display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; font-size: 25rpx; }
+.camera-view { display:block; width: 100%; height: 100%; }
+.camera-loading { position:absolute;inset:0;display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; font-size: 16px;pointer-events:none; }
 .camera-guides { position: absolute; left: 10%; right: 10%; top: 14%; bottom: 14%; pointer-events: none; }
 .guide-corner { position: absolute; width: 54rpx; height: 54rpx; border-color: #fff; border-style: solid; }
 .guide-tl { left: 0; top: 0; border-width: 5rpx 0 0 5rpx; }
@@ -9,11 +9,13 @@
 .guide-br { right: 0; bottom: 0; border-width: 0 5rpx 5rpx 0; }
 .camera-hint { margin-top: 16rpx; color: #66708a; font-size: 23rpx; line-height: 1.5; }
 .camera-controls { display: grid; grid-template-columns: 1fr 1.8fr; gap: 12rpx; margin-top: 18rpx; }
-.camera-control, .camera-shutter { min-height: 88rpx; margin-top: 0; }
-@media (min-width: 768px) {
-  .camera-page { max-width: 980px; }
-  .camera-frame { height: 620px; border-radius: 16px; }
-  .camera-hint { font-size: 14px; }
-  .camera-controls { grid-template-columns: 180px 300px; justify-content: center; gap: 12px; }
-  .camera-control, .camera-shutter { min-height: 48px; font-size: 16px; }
-}
+.camera-control, .camera-shutter { min-height: 48px; margin-top: 0;font-size:16px; }
+.camera-page button.camera-control { padding:0 8px;line-height:1.4;white-space:nowrap; }
+.camera-error .secondary,.camera-retry { margin-top:12px; }
+.camera-page.device-tablet { max-width:980px; }
+.device-tablet .camera-frame { height:620px;border-radius:16px; }
+.device-tablet .camera-hint { font-size:14px; }
+.device-tablet .camera-controls { grid-template-columns:180px 300px;justify-content:center;gap:12px; }
+.device-tablet.landscape .camera-frame { height:calc(100vh - 240px);min-height:240px;max-height:620px; }
+.device-phone.landscape .camera-frame { height:52vh;min-height:180px; }
+.camera-page .camera-frame.camera-inactive { height:180px;min-height:0; }

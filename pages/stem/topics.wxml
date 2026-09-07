@@ -3,6 +3,7 @@
   <app-nav active="practice" source="practice" category="alevel" family="exam" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
   <button wx:if="{{recentId}}" class="resume-button" bindtap="resume" disabled="{{busy}}">{{recentLabel}} <text>›</text></button>
   <view wx:if="{{loading}}" class="empty-state">正在加载章节…</view>
+  <view wx:elif="{{inventoryFailed && !topics.length}}" class="empty-state chapter-load-error" role="alert"><text>{{error}}</text><button wx:if="{{routeId}}" class="secondary" bindtap="refresh">重新加载章节</button></view>
   <view wx:else class="builder-layout">
     <view class="topic-section">
       <view class="builder-heading"><text>选择章节</text><text class="subtle">已选 {{selected.length}}</text></view>
