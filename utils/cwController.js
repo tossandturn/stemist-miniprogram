@@ -33,10 +33,15 @@ const field = (id, label, value = '') => ({ id, label, value: String(value) })
 const cwMethods = {
   renderExpression() {
     if(this.__disposed)return
-    this.setData({expressionParts:renderParts(this.data.expression,this.data.cursor,!this.data.hasResult),expressionLayout:layoutExpression(this.data.expression,this.data.cursor,!this.data.hasResult)})
+    const layout=layoutExpression(this.data.expression,this.data.cursor,!this.data.hasResult)
+    this.__expressionTouchLayout=layout
+    this.__expressionRenderVersion=(this.__expressionRenderVersion||0)+1
+    const {hitMap,...paint}=layout
+    this.setData({expressionParts:renderParts(this.data.expression,this.data.cursor,!this.data.hasResult),expressionLayout:paint,expressionRevision:this.__expressionRenderVersion})
   },
   openMenu(menu, { reset = false } = {}) {
     if(this.__disposed)return
+    this.onExpressionScroll?.()
     if (reset) this.__menuStack = []
     else if (this.data.menu && this.data.menu !== menu) (this.__menuStack ||= []).push(this.data.menu)
     let entries = menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name,typeof this.data.variables[name]==='number'?formatNumber(this.data.variables[name]):formatComplex(this.data.variables[name]).text)) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []

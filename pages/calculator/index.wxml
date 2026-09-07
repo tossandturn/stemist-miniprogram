@@ -27,10 +27,10 @@
             <view wx:elif="{{solverPhase === 'result'}}" class="cw-solver-panel"><view class="cw-solver-output"><text>{{solverTarget}} =</text><text selectable>{{solverValueText}}</text></view><view class="cw-solver-residual"><text>L−R</text><text selectable>{{solverResidualText}}</text></view><button class="cw-solver-key solver-change-initial" bindtap="solverChangeInitial">← Initial Value</button></view>
             <block wx:else>
               <input wx:if="{{typing}}" class="expression-input" data-editor-generation="{{editorGeneration}}" value="{{expression}}" cursor="{{cursor}}" focus="{{typing}}" maxlength="500" confirm-type="done" cursor-spacing="24" aria-label="算式" bindinput="onInput" bindfocus="onEditorFocus" bindblur="onEditorBlur" bindconfirm="onConfirm" />
-              <scroll-view wx:else class="cw-expression-scroll {{hasResult ? 'cw-expression-result' : error ? 'cw-expression-error' : ''}}" scroll-x scroll-y scroll-into-view="{{!hasResult ? 'cw-cursor-' + cursor : ''}}" aria-label="算式，使用计算器方向键编辑">
+              <scroll-view wx:else class="cw-expression-scroll {{hasResult ? 'cw-expression-result' : error ? 'cw-expression-error' : ''}}" scroll-x scroll-y scroll-into-view="{{!hasResult ? 'cw-cursor-' + cursor : ''}}" data-expression-revision="{{expressionRevision}}" bindtap="onExpressionTap" bindtouchstart="onExpressionTouchStart" bindtouchmove="onExpressionTouchMove" bindtouchend="onExpressionTouchEnd" bindtouchcancel="cancelExpressionTouch" bindlongpress="cancelExpressionTouch" bindscroll="onExpressionScroll" aria-label="算式，轻点定位光标，也可使用方向键编辑">
                 <view class="cw-expression" style="width:{{expressionLayout.width}}px;height:{{expressionLayout.height}}px">
                   <block wx:for="{{expressionLayout.items}}" wx:key="id">
-                    <text wx:if="{{item.kind === 'text'}}" class="cw-math-glyph" style="{{item.style}}">{{item.text}}</text>
+                    <text wx:if="{{item.kind === 'text'}}" id="cw-math-{{item.id}}" class="cw-math-glyph" style="{{item.style}}">{{item.text}}</text>
                     <view wx:else id="{{item.kind === 'caret' ? 'cw-cursor-' + cursor : 'cw-math-' + item.id}}" class="cw-math-{{item.kind}} {{item.active ? 'cw-slot-active' : ''}}" style="{{item.style}}"></view>
                   </block>
                 </view>

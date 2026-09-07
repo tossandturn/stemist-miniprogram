@@ -3,6 +3,7 @@ const { evaluateExpression, formatNumber } = require('../../utils/calculator')
 const { CONTROL_KEYS, NUMBER_ROWS, SCIENTIFIC_ROWS, UPSTREAM } = require('../../utils/cwKeypad')
 const { cwMethods, VARIABLES } = require('../../utils/cwController')
 const {solverMethods}=require('../../utils/cwSolverController')
+const {touchCursorMethods}=require('../../utils/cwTouchCursor')
 const { resultFormat } = require('../../utils/cwMath')
 const {evaluateComplex,formatComplex,isScalar,storedScalar,scalar,add:complexAdd,subtract:complexSubtract,scalarExpression}=require('../../utils/cwComplex')
 const { insertKey, moveCursor, snapCursor, removeBackward, insertTemplate, keyTemplate, firstEmptySlot, jumpTemplate } = require('../../utils/cwEditor')
@@ -31,6 +32,7 @@ const validHistoryDraft=draft=>draft&&typeof draft.expression==='string'&&draft.
 Page({
   ...cwMethods,
   ...solverMethods,
+  ...touchCursorMethods,
   data: deviceState({
     expression: '', cursor: 0, display: '0', answer: 0, angleMode: 'DEG',
     calculatorApp:'calculate',complexResult:'rectangular',resultValue:0,
@@ -45,6 +47,7 @@ Page({
   }),
   onLoad() {
     this.__disposed = false
+    this.__expressionVisible = true
     this.__closedEditorGeneration = -1
     this.__savePending = false
     const saved = wx.getStorageSync(STATE_KEY)
@@ -68,10 +71,10 @@ Page({
     this.renderExpression()
     if(calculatorApp!=='complex')this.restoreSolver(state.solver)
   },
-  onShow() { syncDevice(this);this.updateWorkbenchLayout() },
-  onResize(event={}) { if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
-  onHide() { this.setData({shiftActive:false});this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
-  onUnload() { this.cancelSolver();this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
+  onShow() { this.__expressionVisible=true;this.__expressionGesture=null;syncDevice(this);this.updateWorkbenchLayout() },
+  onResize(event={}) { this.onExpressionScroll();if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
+  onHide() { this.__expressionVisible=false;this.cancelExpressionTouch();this.setData({shiftActive:false});this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
+  onUnload() { this.__expressionVisible=false;this.cancelExpressionTouch();this.cancelSolver();this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
   goBack() { if(!this.__disposed)wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/index/index' }) }) },
   persistState() {
     if(this.__disposed)return
