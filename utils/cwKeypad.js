@@ -23,7 +23,7 @@ const CONTROL_KEYS = [
 ]
 const SCIENTIFIC_ROWS = [
   { id: 'powers', keys: [
-    { id: 'x', label: 'x', value: 'x', shiftLabel: 'QR', shiftAction: 'qr' },
+    { id: 'x', label: 'x', value: 'x' },
     { id: 'fraction', label: '▱', face: 'fraction', action: 'fraction', shiftLabel: 'a b/c', shiftAction: 'mixed-input' },
     { id: 'sqrt', label: '√', face: 'root-slot', value: 'sqrt(', shiftLabel: 'ⁿ√', shiftAction: 'root-input' },
     { id: 'power', label: 'xʸ', face: 'power-slots', value: '^(', shiftLabel: '□⁻¹', shiftValue: '^(-1)' },
@@ -71,6 +71,7 @@ const HOME_APPS = [
   { id: 'app-statistics', label: 'Statistics', icon: 'x̄' },
   { id: 'app-table', label: 'Table', icon: 'f(x)' },
   { id: 'app-equation', label: 'Equation', icon: 'x = ?' },
+  { id: 'app-complex', label: 'Complex', icon: 'a+bi' },
   { id: 'app-ratio', label: 'Ratio', icon: 'a : b' },
   { id: 'app-base', label: 'Base-N', icon: '₂ ₁₆' },
 ]

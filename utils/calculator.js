@@ -14,7 +14,7 @@ function factorial(value) {
   return result
 }
 
-function tokenize(expression) {
+function tokenize(expression, {complex=false}={}) {
   if (String(expression || '').length > 500) fail('算式最多 500 个字符')
   const source = String(expression || '')
     .replace(/[×✕]/g, '*')
@@ -41,6 +41,7 @@ function tokenize(expression) {
       continue
     }
     const symbol = source[index]
+    if(complex && symbol==='∠'){tokens.push({type:'symbol',value:'∠'});index+=1;continue}
     if(symbol==='⁻'){tokens.push({type:'symbol',value:'negative-sign'});index+=1;continue}
     if ('+-*/^!%(),'.includes(symbol)) {
       tokens.push({ type: 'symbol', value: symbol })
@@ -50,18 +51,18 @@ function tokenize(expression) {
     fail(`无法识别的字符：${symbol}`)
   }
   if (!tokens.length) fail('请输入算式')
-  return addImplicitMultiplication(tokens)
+  return addImplicitMultiplication(tokens,complex)
 }
 
-function canEndValue(token) {
-  return token && (token.type === 'number' || VARIABLE_NAMES.has(token.raw) || token.value === 'pi' || token.value === 'e' || token.value === 'ans' || token.value === ')' || token.value === '!' || token.value === '%')
+function canEndValue(token,complex=false) {
+  return token && (token.type === 'number' || VARIABLE_NAMES.has(token.raw) || token.value === 'pi' || token.value === 'e' || token.value === 'ans' || complex&&token.value==='i' || token.value === ')' || token.value === '!' || token.value === '%')
 }
 
 function canStartValue(token) {
   return token && (token.type === 'number' || token.type === 'identifier' || token.value === '(' || token.value === 'negative-sign')
 }
 
-function addImplicitMultiplication(tokens) {
+function addImplicitMultiplication(tokens,complex=false) {
   const result = []
   for (let index = 0; index < tokens.length; index += 1) {
     const current = tokens[index]
@@ -70,7 +71,7 @@ function addImplicitMultiplication(tokens) {
     // `sin(` is a function call, while `2(`, `2pi`, `)sin(` and `2e`
     // are multiplication. Unknown identifiers are left for the parser to
     // reject with a useful message.
-    if (canEndValue(current) && canStartValue(next) && !(current.type === 'identifier' && FUNCTIONS.has(current.value) && !VARIABLE_NAMES.has(current.raw) && next.value === '(')) {
+    if (canEndValue(current,complex) && canStartValue(next) && !(current.type === 'identifier' && FUNCTIONS.has(current.value) && !VARIABLE_NAMES.has(current.raw) && next.value === '(')) {
       result.push({ type: 'symbol', value: '*', implicit: true })
     }
   }
@@ -157,13 +158,13 @@ function evaluateExpression(expression, { angleMode = 'DEG', answer = 0, variabl
     if (token.type === 'identifier') {
       if (VARIABLE_NAMES.has(token.raw)) {
         if(syntaxOnly) return 1
-        const value = variables[token.raw] === undefined ? 0 : Number(variables[token.raw])
+        const value = realScalar(variables[token.raw] === undefined ? 0 : variables[token.raw])
         if (!Number.isFinite(value)) fail('变量数值无效')
         return value
       }
       if (token.value === 'pi') return Math.PI
       if (token.value === 'e') return Math.E
-      if (token.value === 'ans') return Number(answer) || 0
+      if (token.value === 'ans') return syntaxOnly?1:realScalar(answer)
       if (!FUNCTIONS.has(token.value)) fail(`不支持的函数：${token.value}`)
       if (take()?.value !== '(') fail(`${token.value} 后需要括号`)
       const args = [parseAddSub()]
@@ -250,4 +251,14 @@ function formatNumber(value) {
 
 function validateExpression(expression) { evaluateExpression(expression,{syntaxOnly:true}); return true }
 
-module.exports = { FUNCTIONS, evaluateExpression, validateExpression, factorial, formatNumber, tokenize }
+function realScalar(value){
+  if(value&&typeof value==='object'&&Number.isFinite(value.re)&&Number.isFinite(value.im)){
+    if(value.im!==0)fail('该数值是复数，请使用 Complex 模式')
+    return value.re
+  }
+  const number=Number(value)
+  if(!Number.isFinite(number))fail('数值无效')
+  return number
+}
+
+module.exports = { FUNCTIONS, evaluateExpression, validateExpression, factorial, formatNumber, tokenize, realScalar }

@@ -4,6 +4,7 @@ const { CONTROL_KEYS, NUMBER_ROWS, SCIENTIFIC_ROWS, UPSTREAM } = require('../../
 const { cwMethods, VARIABLES } = require('../../utils/cwController')
 const {solverMethods}=require('../../utils/cwSolverController')
 const { resultFormat } = require('../../utils/cwMath')
+const {evaluateComplex,formatComplex,isScalar,storedScalar,scalar,add:complexAdd,subtract:complexSubtract,scalarExpression}=require('../../utils/cwComplex')
 const { insertKey, moveCursor, snapCursor, removeBackward, insertTemplate, keyTemplate, firstEmptySlot, jumpTemplate } = require('../../utils/cwEditor')
 const HISTORY_KEY = 'stemistCalculatorHistory'
 const STATE_KEY = 'stemistCalculatorState'
@@ -13,18 +14,26 @@ const MEMORY_KEYS = [
   { label: 'M+', action: 'memoryAdd' }, { label: 'M−', action: 'memorySub' },
   { label: 'MR', action: 'memoryRecall' }, { label: 'MC', action: 'memoryClear' },
 ]
-const finite = (value, fallback = 0) => typeof value === 'number' && Number.isFinite(value) ? value : fallback
+const valueText=value=>typeof value==='number'?formatNumber(value):formatComplex(value).text
 const cursorIn = (value, text) => Number.isInteger(value) ? Math.max(0, Math.min(value, text.length)) : text.length
 function readHistory() {
   const value = wx.getStorageSync(HISTORY_KEY)
   return Array.isArray(value) ? value.filter(item => item && typeof item.expression === 'string' && item.expression.length <= MAX_INPUT && item.result !== undefined).slice(0, MAX_HISTORY) : []
 }
+const appHistory=(items,app)=>items.filter(item=>(item.calculatorApp||'calculate')===app)
+const sameValue=(a,b)=>JSON.stringify(a)===JSON.stringify(b)
+function editorDraft(page){
+ const {expression,cursor,display,hasResult,resultValue,formatMode}=page.data
+ return {expression,cursor,display,hasResult,resultValue,formatMode,justEvaluated:Boolean(page.__justEvaluated),replayAnswer:page.__replayAnswer,replayContext:page.__replayContext,lastAnswerBasis:page.__lastAnswerBasis,historyDraft:page.__historyDraft,historyIndex:page.__historyIndex}
+}
+const validHistoryDraft=draft=>draft&&typeof draft.expression==='string'&&draft.expression.length<=MAX_INPUT?draft:null
 
 Page({
   ...cwMethods,
   ...solverMethods,
   data: deviceState({
     expression: '', cursor: 0, display: '0', answer: 0, angleMode: 'DEG',
+    calculatorApp:'calculate',complexResult:'rectangular',resultValue:0,
     shiftActive: false, memory: 0, memoryDisplay: '0', error: '', hasResult: false,
     history: [], showHistory: false, showScientific: false, showMemory: false,
     memoryKeys: MEMORY_KEYS, controlKeys: CONTROL_KEYS, scientificRows: SCIENTIFIC_ROWS, numberRows: NUMBER_ROWS, calculatorSource: UPSTREAM.repository,
@@ -41,21 +50,23 @@ Page({
     const saved = wx.getStorageSync(STATE_KEY)
     const state = saved && typeof saved === 'object' ? saved : {}
     const expression = typeof state.expression === 'string' ? state.expression.slice(0, MAX_INPUT) : ''
+    const calculatorApp=state.calculatorApp==='complex'?'complex':'calculate'
+    this.__calculatorDrafts=Object.fromEntries(['calculate','complex'].filter(app=>state.calculatorDrafts?.[app]&&typeof state.calculatorDrafts[app]==='object'&&!Array.isArray(state.calculatorDrafts[app])).map(app=>[app,state.calculatorDrafts[app]]))
     this.__justEvaluated = Boolean(state.justEvaluated)
-    this.__replayAnswer = typeof state.replayAnswer === 'number' ? finite(state.replayAnswer) : undefined
+    this.__replayAnswer = isScalar(state.replayAnswer) ? storedScalar(state.replayAnswer) : undefined
     this.__replayContext = state.replayContext
-    this.__historyDraft = state.historyDraft && typeof state.historyDraft.expression==='string' && state.historyDraft.expression.length<=MAX_INPUT ? state.historyDraft : null
+    this.__historyDraft = validHistoryDraft(state.historyDraft)
     this.__historyIndex = this.__historyDraft && Number.isInteger(state.historyIndex) ? Math.max(-1,Math.min(MAX_HISTORY-1,state.historyIndex)) : -1
-    this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: finite(state.answer), memory: finite(state.memory), memoryDisplay: formatNumber(finite(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 60) : '0', history: readHistory(),
-      variables: Object.fromEntries(VARIABLES.map(name=>[name,finite(state.variables?.[name])])),
+    this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: storedScalar(state.answer),resultValue:storedScalar(state.resultValue,storedScalar(state.answer)),calculatorApp,complexResult:state.complexResult==='polar'?'polar':'rectangular', memory: storedScalar(state.memory), memoryDisplay: valueText(storedScalar(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 120) : '0', history: appHistory(readHistory(),calculatorApp),
+      variables: Object.fromEntries(VARIABLES.map(name=>[name,storedScalar(state.variables?.[name])])),
       functions: Object.fromEntries(['f','g'].filter(name=>typeof state.functions?.[name]==='string').map(name=>[name,state.functions[name].slice(0,500)])),
-      formatMode: ['standard','decimal','fraction','mixed','engineering','fixed','scientific','sexagesimal'].includes(state.formatMode) ? state.formatMode : 'standard',
+      formatMode: ['standard','decimal','fraction','mixed','engineering','fixed','scientific','sexagesimal','polar','rectangular'].includes(state.formatMode) ? state.formatMode : 'standard',
       calculationFormat: ['standard','fixed','scientific'].includes(state.calculationFormat)?state.calculationFormat:['fixed','scientific'].includes(state.formatMode)?state.formatMode:'standard',
       workDrafts: state.workDrafts && typeof state.workDrafts === 'object' && !Array.isArray(state.workDrafts) ? state.workDrafts : {},
     })
-    if(this.data.hasResult) { try { this.setData({formatted:resultFormat(this.data.answer,this.data.formatMode)}) } catch { this.setData({formatMode:'decimal',formatted:resultFormat(this.data.answer)}) } }
+    this.restoreDisplayResult()
     this.renderExpression()
-    this.restoreSolver(state.solver)
+    if(calculatorApp!=='complex')this.restoreSolver(state.solver)
   },
   onShow() { syncDevice(this);this.updateWorkbenchLayout() },
   onResize(event={}) { if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
@@ -75,8 +86,8 @@ Page({
     this.__saveTimer=null
     if(!this.__savePending)return
     try {
-      const { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts } = this.data
-      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, solver:this.solverSnapshot(),justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
+      const { expression, cursor, display, answer, resultValue,calculatorApp,complexResult,memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts } = this.data
+      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer,resultValue,calculatorApp,complexResult,calculatorDrafts:this.__calculatorDrafts, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, solver:this.solverSnapshot(),justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
       this.__savePending=false
     } catch { if(!this.__disposed)this.setData({ error: '无法保存到本机，请检查存储空间。' }) }
   },
@@ -86,6 +97,25 @@ Page({
     this.__lastAnswerBasis=undefined
     this.__historyIndex=-1
     this.__historyDraft=null
+  },
+  formatResultValue(value,formatMode){return this.data.calculatorApp==='complex'?formatComplex(value,formatMode,this.data.angleMode,this.data.calculationFormat):resultFormat(value,formatMode)},
+  restoreDisplayResult(){
+    if(!this.data.hasResult)return
+    try{const formatted=this.formatResultValue(this.data.resultValue,this.data.formatMode);this.setData({formatted,display:formatted.text})}
+    catch{this.setData({hasResult:false,display:'',error:'保存的结果无法在当前模式显示，请重新计算。'})}
+  },
+  switchCalculatorApp(app){
+    if(this.__disposed||!['calculate','complex'].includes(app)||app===this.data.calculatorApp)return
+    this.leaveSolver();this.finishNativeEditor();this.closeMenu()
+    this.__calculatorDrafts[this.data.calculatorApp]=editorDraft(this)
+    const saved=this.__calculatorDrafts[app]||{},expression=typeof saved.expression==='string'?saved.expression.slice(0,MAX_INPUT):''
+    this.invalidateReplay();this.__justEvaluated=Boolean(saved.justEvaluated)
+    this.__replayAnswer=isScalar(saved.replayAnswer)?storedScalar(saved.replayAnswer):undefined;this.__replayContext=saved.replayContext;this.__lastAnswerBasis=isScalar(saved.lastAnswerBasis)?storedScalar(saved.lastAnswerBasis):undefined
+    this.__historyDraft=validHistoryDraft(saved.historyDraft);this.__historyIndex=this.__historyDraft&&Number.isInteger(saved.historyIndex)?Math.max(-1,Math.min(MAX_HISTORY-1,saved.historyIndex)):-1
+    const formatMode=app==='complex'?(saved.formatMode==='polar'?'polar':'rectangular'):(['standard','decimal','fraction','mixed','engineering','fixed','scientific','sexagesimal'].includes(saved.formatMode)?saved.formatMode:'standard')
+    this.setData({calculatorApp:app,expression,cursor:cursorIn(saved.cursor,expression),display:typeof saved.display==='string'?saved.display.slice(0,120):'0',hasResult:Boolean(saved.hasResult),resultValue:storedScalar(saved.resultValue),formatMode,history:appHistory(readHistory(),app),shiftActive:false,error:'',showHistory:false,workbench:''})
+    this.restoreDisplayResult()
+    this.persistState()
   },
   onInput(event) {
     if(this.__disposed)return
@@ -165,7 +195,7 @@ Page({
     if(this.data.powerOff&&action!=='on')return
     if(this.data.menu&&action==='template-start')action='left'
     if(this.data.menu&&action==='template-end')action='right'
-    if(action==='qr'||action==='complex-i'){this.setData({error:action==='qr'?'QR 联网功能暂未提供。':'当前尚未提供 Complex 复数模式。'});return}
+    if(action==='complex-i'){if(this.data.calculatorApp==='complex')return this.append('i');this.setData({error:'请先在 HOME 中选择 Complex 复数模式。'});return}
     if(action==='equation-equals'){
       if(this.data.solverPhase==='equation'&&!this.data.menu)return this.append('=')
       this.setData({error:'等号用于 Equation → Solver。'});return
@@ -203,14 +233,14 @@ Page({
     if (action === 'angle') { this.setData({ angleMode: this.data.angleMode === 'DEG' ? 'RAD' : 'DEG', error: '' }); return this.persistState() }
     if (action === 'ans') return this.append('ans')
     if (action === 'memoryAdd' || action === 'memorySub') {
-      let delta = this.data.answer
-      if (!this.__justEvaluated) { delta = this.data.expression.trim() ? this.calculate() : 0; if (typeof delta !== 'number') return }
-      const memory = this.data.memory + (action === 'memoryAdd' ? delta : -delta)
-      if (!Number.isFinite(memory)) return this.setData({ error: '记忆数值超出范围。' })
-      this.setData({ memory, memoryDisplay: formatNumber(memory), error: '' })
+      let delta = this.data.hasResult?this.data.resultValue:this.data.answer
+      if (!this.__justEvaluated) { delta = this.data.expression.trim() ? this.calculate() : 0; if (!isScalar(delta)) return }
+      let memory
+      try{memory=scalar((action==='memoryAdd'?complexAdd:complexSubtract)(this.data.memory,delta))}catch{return this.setData({error:'记忆数值超出范围。'})}
+      this.setData({ memory, memoryDisplay: valueText(memory), error: '' })
       return this.persistState()
     }
-    if (action === 'memoryRecall') return this.append('(' + String(this.data.memory) + ')')
+    if (action === 'memoryRecall') return this.append('(' + scalarExpression(this.data.memory) + ')')
     if (action === 'memoryClear') { this.setData({ memory: 0, memoryDisplay: '0', error: '' }); return this.persistState() }
     if (action === 'history') return this.setData({ showHistory: !this.data.showHistory })
     if (action === 'copy') { if (this.data.hasResult && wx.setClipboardData) wx.setClipboardData({ data: this.data.display }); return }
@@ -223,24 +253,26 @@ Page({
     try {
       const empty=firstEmptySlot(expression)
       if(empty!==null){this.setData({cursor:empty,hasResult:false,error:'请填写光标所在的空格。',display:''});this.persistState();return}
-      const answerBasis = this.__justEvaluated && Number.isFinite(this.__lastAnswerBasis) ? this.__lastAnswerBasis : (this.__replayAnswer === undefined ? this.data.answer : this.__replayAnswer)
+      const answerBasis = this.__justEvaluated && isScalar(this.__lastAnswerBasis) ? this.__lastAnswerBasis : (this.__replayAnswer === undefined ? this.data.answer : this.__replayAnswer)
       const open = (expression.match(/\(/g)||[]).length - (expression.match(/\)/g)||[]).length
       const calculation = expression + ')'.repeat(Math.max(0,open))
       const storedContext = this.__replayContext || {}
       const context = {variables:storedContext.variables || this.data.variables,functions:storedContext.functions || this.data.functions}
-      const result = evaluateExpression(calculation, { angleMode: this.data.angleMode, answer: answerBasis, ...context })
-      const formatMode=formatOverride==='decimal'?'decimal':this.data.calculationFormat==='standard'&&/\bdms\(/.test(calculation)?'sexagesimal':this.data.calculationFormat
-      const formatted=resultFormat(result,formatMode)
+      const complex=this.data.calculatorApp==='complex'
+      const result = complex?scalar(evaluateComplex(calculation,{angleMode:this.data.angleMode,answer:answerBasis,...context})):evaluateExpression(calculation, { angleMode: this.data.angleMode, answer: answerBasis, ...context })
+      const formatMode=complex?this.data.complexResult:formatOverride==='decimal'?'decimal':this.data.calculationFormat==='standard'&&/\bdms\(/.test(calculation)?'sexagesimal':this.data.calculationFormat
+      const formatted=this.formatResultValue(result,formatMode)
       const display = formatted.text
-      const entry = { expression, result: display, answerBasis, angleMode: this.data.angleMode, variables:{...context.variables},functions:{...context.functions},at: Date.now() }
+      const entry = { calculatorApp:this.data.calculatorApp,expression, result: display,answerBasis, angleMode: this.data.angleMode, variables:{...context.variables},functions:{...context.functions},at: Date.now() }
       const previous = this.data.history[0]
-      const same = previous && previous.expression === expression && previous.result === display && previous.answerBasis === answerBasis && previous.angleMode === entry.angleMode && JSON.stringify(previous.variables)===JSON.stringify(entry.variables) && JSON.stringify(previous.functions)===JSON.stringify(entry.functions)
-      const history = same ? this.data.history : [entry, ...this.data.history].slice(0, MAX_HISTORY)
+      const same = previous && previous.expression === expression && previous.result === display && sameValue(previous.answerBasis,answerBasis) && previous.angleMode === entry.angleMode && JSON.stringify(previous.variables)===JSON.stringify(entry.variables) && JSON.stringify(previous.functions)===JSON.stringify(entry.functions)
+      const allHistory=same?readHistory():[entry,...readHistory()].slice(0,MAX_HISTORY)
+      const history = appHistory(allHistory,this.data.calculatorApp)
       this.__justEvaluated = true; this.__lastAnswerBasis = answerBasis; this.__replayAnswer = answerBasis
       this.__historyIndex = -1
       this.__historyDraft = null
-      this.setData({ expression, cursor: expression.length, display, formatted,formatMode, answer: result, history, hasResult: true, error: '',typing:false })
-      try { wx.setStorageSync(HISTORY_KEY, history) } catch { this.setData({ error: '结果已计算，但历史未能保存。' }) }
+      this.setData({ expression, cursor: expression.length, display, formatted,formatMode, answer: result,resultValue:result, history, hasResult: true, error: '',typing:false })
+      try { wx.setStorageSync(HISTORY_KEY, allHistory) } catch { this.setData({ error: '结果已计算，但历史未能保存。' }) }
       this.persistState()
       return result
     } catch (error) {
@@ -256,17 +288,17 @@ Page({
     const item = this.data.history[Number(event.currentTarget.dataset.index)]
     if (!item) return
     this.closeMenu()
-    if (/ans/i.test(item.expression) && !Number.isFinite(item.answerBasis)) return this.setData({ error: '这条旧记录缺少 Ans 数值，请重新输入。' })
-    this.__justEvaluated = false; this.__replayAnswer = Number.isFinite(item.answerBasis) ? item.answerBasis : undefined
+    if (/ans/i.test(item.expression) && !isScalar(item.answerBasis)) return this.setData({ error: '这条旧记录缺少 Ans 数值，请重新输入。' })
+    this.__justEvaluated = false; this.__replayAnswer = isScalar(item.answerBasis) ? storedScalar(item.answerBasis) : undefined
     this.__replayContext = item.variables || item.functions ? {variables:item.variables||{},functions:item.functions||{}} : undefined
     this.setData({ expression: item.expression, cursor: item.expression.length, display: '', hasResult: false, error: '', showHistory: false, angleMode: ['DEG','RAD','GRAD'].includes(item.angleMode) ? item.angleMode : 'DEG' })
     this.persistState()
   },
   clearHistory() {
     if(this.__disposed)return
-    wx.showModal({ title: '清空计算历史？', confirmText: '清空', success: ({ confirm }) => {
+    wx.showModal({ title: '清空当前模式的计算历史？', confirmText: '清空', success: ({ confirm }) => {
       if (!confirm || this.__disposed) return
-      try { wx.removeStorageSync(HISTORY_KEY); this.setData({ history: [], showHistory: false }) } catch { this.setData({ error: '历史未能清空，请重试。' }) }
+      try { const keep=readHistory().filter(item=>(item.calculatorApp||'calculate')!==this.data.calculatorApp);if(keep.length)wx.setStorageSync(HISTORY_KEY,keep);else wx.removeStorageSync(HISTORY_KEY);this.setData({ history: [], showHistory: false }) } catch { this.setData({ error: '历史未能清空，请重试。' }) }
     } })
   },
 })

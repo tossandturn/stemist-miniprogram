@@ -1,5 +1,6 @@
 const { resultFormat, quadratic, linearSystem, statistics, numberTable, baseConvert } = require('./cwMath')
 const { evaluateExpression, formatNumber } = require('./calculator')
+const {isScalar,formatComplex}=require('./cwComplex')
 const { HOME_APPS } = require('./cwKeypad')
 const { renderParts,verticalCursor } = require('./cwEditor')
 const { layoutExpression } = require('./cwMathLayout')
@@ -21,9 +22,12 @@ const MENUS = {
   memory: [item('memoryAdd', 'M+'), item('memorySub', 'M−'), item('memoryRecall', 'MR'), item('memoryClear', 'MC')],
   equation: [item('work-linear', 'Simultaneous · 2 unknowns'), item('work-quadratic', 'Polynomial · degree 2'),item('work-solver','Solver')],
   'catalog-equation':[item('insert-=','=')],
+  'catalog-complex':[item('insert-i','i'),item('insert-∠','∠'),item('insert-arg(','Argument'),item('insert-conjg(','Conjugate'),item('insert-rep(','Real Part'),item('insert-imp(','Imaginary Part')],
+  'complex-format':[item('complex-format-rectangular','Rectangular Coord','a+bi'),item('complex-format-polar','Polar Coord','r∠θ')],
+  'complex-result':[item('complex-result-rectangular','a+bi'),item('complex-result-polar','r∠θ')],
   'variable-actions': [item('recall-variable', 'Recall'), item('store-variable', 'Store current result')],
 }
-const TITLES = { home: 'HOME', settings: 'SETTINGS', angle: 'Angle Unit', output: 'Number Format', format: 'FORMAT', catalog: 'CATALOG', variables: 'VARIABLE', tools: 'TOOLS', functions: 'FUNCTION', memory: 'Memory', equation: 'Equation' }
+const TITLES = { home: 'HOME', settings: 'SETTINGS', angle: 'Angle Unit', output: 'Number Format', format: 'FORMAT', catalog: 'CATALOG', variables: 'VARIABLE', tools: 'TOOLS', functions: 'FUNCTION', memory: 'Memory', equation: 'Equation','complex-format':'FORMAT','complex-result':'Complex Result','catalog-complex':'Complex' }
 const field = (id, label, value = '') => ({ id, label, value: String(value) })
 
 const cwMethods = {
@@ -35,7 +39,9 @@ const cwMethods = {
     if(this.__disposed)return
     if (reset) this.__menuStack = []
     else if (this.data.menu && this.data.menu !== menu) (this.__menuStack ||= []).push(this.data.menu)
-    let entries = menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name, formatNumber(Number(this.data.variables[name]) || 0))) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []
+    let entries = menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name,typeof this.data.variables[name]==='number'?formatNumber(this.data.variables[name]):formatComplex(this.data.variables[name]).text)) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []
+    if(this.data.calculatorApp==='complex'&&menu==='catalog')entries=[item('catalog-complex','Complex'),...entries]
+    if(this.data.calculatorApp==='complex'&&menu==='settings')entries=[item('angle-menu','Angle Unit'),item('complex-result-menu','Complex Result'),item('output-menu','Number Format')]
     if(menu==='catalog'&&this.data.solverPhase==='equation')entries=[...entries,item('catalog-equation','Equation')]
     if(menu==='variable-actions'&&this.data.solverPhase==='equation')entries=[item('recall-variable','Recall'),item('store-variable','Edit value')]
     this.setData({ menu, menuTitle: TITLES[menu] || menu.replace('catalog-', ''), menuItems: entries, menuIndex: 0, typing: false, error: '' })
@@ -45,14 +51,19 @@ const cwMethods = {
   executeMenu(id) {
     if(this.__disposed)return
     if (!this.data.menuItems.some(entry => entry.id === id)) return
-    if (['angle-menu', 'output-menu', 'memory-menu'].includes(id)) return this.openMenu(id.replace('-menu', ''))
+    if (['angle-menu', 'output-menu', 'memory-menu','complex-result-menu'].includes(id)) return this.openMenu(id.replace('-menu', ''))
     if (id.startsWith('catalog-')) return this.openMenu(id)
-    if (id.startsWith('angle-')) { this.setData({ angleMode: id.slice(6) }); this.closeMenu(); return this.persistState() }
+    if (id.startsWith('angle-')) { this.setData({ angleMode: id.slice(6) });if(this.data.calculatorApp==='complex'&&this.data.hasResult){const formatted=this.formatResultValue(this.data.resultValue,this.data.formatMode);this.setData({formatted,display:formatted.text})}this.closeMenu(); return this.persistState() }
+    if(id.startsWith('complex-result-')){this.setData({complexResult:id.slice(15)});this.closeMenu();this.persistState();return}
+    if(id.startsWith('complex-format-')){
+      try{const formatMode=id.slice(15),formatted=this.formatResultValue(this.data.resultValue,formatMode);this.setData({formatMode,formatted,display:formatted.text});this.persistState()}catch(error){this.setData({error:error.message})}
+      this.closeMenu();return
+    }
     if (id.startsWith('number-')) { this.setData({calculationFormat:id.slice(7)});this.closeMenu();return this.persistState() }
     if (id.startsWith('format-')) {
       const formatMode = id.slice(7)
       try {
-        const formatted = this.data.hasResult ? resultFormat(this.data.answer, formatMode) : null
+        const formatted = this.data.hasResult ? this.formatResultValue(this.data.resultValue, formatMode) : null
         this.setData({ formatMode, ...(formatted ? { display: formatted.text, formatted } : {}) })
         this.closeMenu(); this.persistState()
       } catch (error) { this.closeMenu(); this.setData({ error: error.message }) }
@@ -63,7 +74,9 @@ const cwMethods = {
     if (id.startsWith('app-')) {
       this.closeMenu()
       const app = id.slice(4)
-      if (app === 'calculate') {this.leaveSolver?.();return}
+      if(app==='complex'){this.switchCalculatorApp('complex');return}
+      if (app === 'calculate') {this.leaveSolver?.();this.switchCalculatorApp('calculate');return}
+      this.switchCalculatorApp('calculate')
       if (app === 'equation') return this.openMenu('equation')
       return this.openWorkbench(app)
     }
@@ -75,8 +88,8 @@ const cwMethods = {
     if (id === 'recall-variable') { this.closeMenu(); this.append(this.__variable); return }
     if (id === 'store-variable') {
       if(this.data.solverPhase==='equation'){this.__solverPreviousInitial=this.data.solverInitialText;this.solverEditParameter(this.__variable);return}
-      const value = this.data.hasResult ? this.data.answer : this.calculate()
-      if (!Number.isFinite(value) || !VARIABLES.includes(this.__variable)) { this.closeMenu(); return }
+      const value = this.data.hasResult ? this.data.resultValue : this.calculate()
+      if (!isScalar(value) || !VARIABLES.includes(this.__variable)) { this.closeMenu(); return }
       this.invalidateReplay()
       this.setData({ variables: { ...this.data.variables, [this.__variable]: value } }); this.persistState(); return this.openMenu('variables', { reset: true })
     }
@@ -91,7 +104,7 @@ const cwMethods = {
     if (action === 'on' || action === 'power-off') { this.closeMenu(); this.setData({ powerOff: action === 'power-off', shiftActive: false, error: '' }); return true }
     if (['home', 'settings', 'catalog', 'variables', 'tools', 'functions', 'format'].includes(action)) {
       if (action === 'format' && !this.data.hasResult) { this.setData({ error: '先按 EXE 得到结果，再选择显示格式。' }); return true }
-      this.openMenu(action, { reset: true }); return true
+      this.openMenu(action==='format'&&this.data.calculatorApp==='complex'?'complex-format':action, { reset: true }); return true
     }
     if (action === 'back') {
       if (this.data.workbench) this.closeWorkbench()
@@ -125,11 +138,11 @@ const cwMethods = {
       const step = action === 'up' || action === 'page-up' ? 1 : -1
       const previous=this.__historyIndex ?? -1
       if(previous<0&&step<0)return true
-      if(previous<0)this.__historyDraft={expression:this.data.expression,cursor:this.data.cursor,display:this.data.display,hasResult:this.data.hasResult,formatted:this.data.formatted,replayAnswer:this.__replayAnswer,replayContext:this.__replayContext,justEvaluated:this.__justEvaluated}
+      if(previous<0)this.__historyDraft={expression:this.data.expression,cursor:this.data.cursor,display:this.data.display,hasResult:this.data.hasResult,resultValue:this.data.resultValue,formatted:this.data.formatted,replayAnswer:this.__replayAnswer,replayContext:this.__replayContext,justEvaluated:this.__justEvaluated}
       if(previous===0&&step<0&&this.__historyDraft){
         const draft=this.__historyDraft;this.__historyIndex=-1;this.__historyDraft=null
         this.__replayAnswer=draft.replayAnswer;this.__replayContext=draft.replayContext;this.__justEvaluated=draft.justEvaluated
-        this.setData({expression:draft.expression,cursor:draft.cursor,display:draft.display,hasResult:draft.hasResult,formatted:draft.formatted,error:''});this.persistState();return true
+        this.setData({expression:draft.expression,cursor:draft.cursor,display:draft.display,hasResult:draft.hasResult,resultValue:draft.resultValue??this.data.resultValue,formatted:draft.formatted,error:''});this.persistState();return true
       }
       this.__historyIndex = Math.max(0, Math.min(this.data.history.length - 1, previous + step))
       this.restoreHistory({ currentTarget: { dataset: { index: this.__historyIndex } } }); return true

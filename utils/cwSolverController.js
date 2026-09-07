@@ -1,7 +1,7 @@
 const {parseEquation,createSolver,advanceSolver}=require('./cwSolver')
 const {evaluateExpression,formatNumber}=require('./calculator')
 const {insertKey,insertTemplate,keyTemplate,removeBackward,moveCursor,verticalCursor}=require('./cwEditor')
-const copyDraft=data=>({expression:data.expression,cursor:data.cursor,hasResult:data.hasResult,display:data.display,formatted:data.formatted})
+const copyDraft=data=>({expression:data.expression,cursor:data.cursor,hasResult:data.hasResult,resultValue:data.resultValue,display:data.display,formatted:data.formatted})
 const cleanText=value=>typeof value==='string'?value.slice(0,500):''
 
 const solverMethods={
@@ -13,7 +13,7 @@ const solverMethods={
  restoreSolver(saved){
   if(!saved||typeof saved!=='object')return
   const equation=cleanText(saved.equation),target=['A','B','C','D','E','F','x','y','z'].includes(saved.target)?saved.target:'x'
-  this.__solverCalculateDraft=saved.calculate&&typeof saved.calculate.expression==='string'?{...saved.calculate,expression:cleanText(saved.calculate.expression)}:null
+  this.__solverCalculateDraft=saved.calculate&&typeof saved.calculate.expression==='string'?{...saved.calculate,resultValue:saved.calculate.resultValue??this.data.resultValue,expression:cleanText(saved.calculate.expression)}:null
   this.setData({solverEquation:equation,solverTarget:target,solverInitialText:cleanText(saved.initialText)||'0'})
   if(saved.active){
    this.openSolver()
@@ -58,12 +58,13 @@ const solverMethods={
  chooseSolverTarget(event){
   const name=String(event.currentTarget.dataset.name||'')
   if(this.__disposed||this.data.solverPhase!=='target'||!this.data.solverTargets.includes(name))return
-  const initialText=name===this.data.solverTarget?this.data.solverInitialText:String(this.data.variables[name]||0)
+  const initialText=name===this.data.solverTarget?this.data.solverInitialText:typeof this.data.variables[name]==='number'?String(this.data.variables[name]):''
   this.setData({solverTarget:name,solverPhase:'initial',solverInitialText:initialText||'0',solverInitialCursor:(initialText||'0').length,solverInitialIndex:0,solverInputFresh:true,error:''});this.persistState()
  },
  solverEditParameter(name){
   this.closeMenu()
-  this.setData({solverEquation:this.data.expression,solverPhase:'parameter',solverParameter:name,solverInitialText:String(this.data.variables[name]||0),solverInitialCursor:String(this.data.variables[name]||0).length,solverInitialIndex:0,solverInputFresh:true,error:''})
+  const initial=typeof this.data.variables[name]==='number'?String(this.data.variables[name]):''
+  this.setData({solverEquation:this.data.expression,solverPhase:'parameter',solverParameter:name,solverInitialText:initial,solverInitialCursor:initial.length,solverInitialIndex:0,solverInputFresh:true,error:initial?'':'请输入实数，Solver 不使用复数系数。'})
  },
  solverAppend(value,template){
   if(this.__disposed||!['initial','parameter'].includes(this.data.solverPhase))return false

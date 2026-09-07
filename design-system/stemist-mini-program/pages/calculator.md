@@ -3,7 +3,7 @@
 Approved request: replace the rejected four-column generic calculator with a
 native Casio-style calculator for international high-school students.
 Reference model: international fx-991CW (not ES PLUS or the regional 2nd edition).
-Date: 2026-09-06, Asia/Shanghai.
+Date: 2026-09-07, Asia/Shanghai.
 
 ## Visual and interaction spec
 
@@ -20,6 +20,13 @@ Date: 2026-09-06, Asia/Shanghai.
   but the entire key cell is interactive. Do not scale the whole UI to fake fit.
 - All visible keys must do something supported; no invented official licensing,
   solar/battery state, QR service or claim of complete Casio firmware emulation.
+- QR networking has been removed by user request, including the SHIFT x legend
+  and unavailable-action placeholder. SHIFT 9 inserts i in the Complex app.
+- HOME -> Complex uses the same LCD and physical keys, not a popup form. CATALOG
+  contains i, polar angle, argument, conjugate, real part and imaginary part;
+  absolute value remains under Numeric Calculations. FORMAT changes the current
+  result between a+bi and r-angle-theta; SETTINGS selects the default and angle
+  unit. Complex arithmetic is local, not an AI or network operation.
 - Math input follows the CW's LCD templates, not web forms. Fraction, mixed
   fraction, square/nth root, exponent and base logarithm slots are edited with
   the instrument's own keys. UP/DOWN choose vertical slots; RIGHT exits a
@@ -41,7 +48,7 @@ Date: 2026-09-06, Asia/Shanghai.
    variables and bounded f/g functions. No eval, Function, ROM or remote script.
 2. Add CW keypad metadata, menu/navigation state, result formats and inline
    mathematical slots; preserve old Ans, memory, cursor and history behavior.
-3. Implement Calculate, Table, Equation, Statistics, Ratio and Base-N workspaces
+3. Implement Calculate, Complex, Table, Equation, Statistics, Ratio and Base-N workspaces
    with explicit supported ranges, not placeholder icons for missing apps.
 4. Render the native WXML/WXSS instrument; verify actual button geometry and
    mathematical operations in the WeChat runtime, then run the full suite and CI.
@@ -52,6 +59,7 @@ Date: 2026-09-06, Asia/Shanghai.
 - [CW user guide](https://support.casio.com/global/en/calc/manual/fx-570CW_991CW_en/)
 - [Key behavior](https://support.casio.com/global/en/calc/manual/fx-570CW_991CW_en/before_using_the_calculator/getting_started.html)
 - [FORMAT](https://support.casio.com/global/en/calc/manual/fx-570CW_991CW_en/changing_calculation_result_format/using_the_format_menu.html)
+- [Complex calculations](https://support.casio.com/global/en/calc/manual/fx-570CW_991CW_en/using_calculator_apps/complex_number_calculations.html)
 
 Existing MIT key metadata from Claxer remains attributed, but its ES PLUS layout
 is not treated as the CW layout. A fresh GitHub search found that the MIT repository

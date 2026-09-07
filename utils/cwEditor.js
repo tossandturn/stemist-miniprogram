@@ -1,6 +1,7 @@
-const { FUNCTIONS } = require('./calculator')
-const SYMBOL = /^(?:ans|pi|[ABCDEFexyz])$/
-const SYMBOL_AT_END = /(ans|pi|[ABCDEFexyz])$/
+const { FUNCTIONS: REAL_FUNCTIONS } = require('./calculator')
+const FUNCTIONS=new Set([...REAL_FUNCTIONS,'conjg','arg','rep','imp'])
+const SYMBOL = /^(?:ans|pi|[ABCDEFexyzi])$/
+const SYMBOL_AT_END = /(ans|pi|[ABCDEFexyzi])$/
 const clamp = (value, text) => Math.max(0, Math.min(text.length, Number.isInteger(value) ? value : text.length))
 
 function atomSpans(text) {
@@ -170,7 +171,7 @@ function argumentStart(text,at,floor=0){
   if(/[!%]$/.test(text.slice(0,at)))return argumentStart(text,at-1,floor)
   const number=text.slice(floor,at).match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/)
   if(number)return at-number[0].length
-  const symbol=text.slice(floor,at).match(/(?:ans|pi|[ABCDEFexyz])$/)
+  const symbol=text.slice(floor,at).match(/(?:ans|pi|[ABCDEFexyzi])$/)
   if(symbol)return at-symbol[0].length
   if(text[at-1]===')'){
     let level=1,i=at-2;for(;i>=floor&&level;i--){if(text[i]===')')level++;else if(text[i]==='(')level--}
@@ -187,7 +188,7 @@ function argumentEnd(text,at,ceiling=text.length){
   let end=at
   if(template)end=template.end
   else {
-    const value=text.slice(at,ceiling).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|^(?:ans|pi|[ABCDEFexyz])/)
+    const value=text.slice(at,ceiling).match(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|^(?:ans|pi|[ABCDEFexyzi])/)
     if(value)end=at+value[0].length
     else if(text[at]==='('){let level=1,j=at+1;for(;j<ceiling&&level;j++){if(text[j]==='(')level++;else if(text[j]===')')level--}if(!level)end=j}
   }
