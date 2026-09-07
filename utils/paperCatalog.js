@@ -16,9 +16,6 @@ const PAPER_SUBJECTS = [
   { code: 'esat', label: 'ESAT' },
   { code: 'tmua', label: 'TMUA' },
 ]
-const catalogCache = new Map()
-const MAX_CACHED_SUBJECTS = 3
-const CACHE_MS = 5 * 60 * 1000
 
 const IGCSE_SUBJECTS = new Set(['0580', '0606', '0610', '0625'])
 const A_LEVEL_SUBJECTS = new Set(['9231', '9700', '9701', '9702', '9708', '9709'])
@@ -78,43 +75,42 @@ function isQuestionPaper(item) {
   return item.kind === 'qp' && item.governanceState === 'active' && Boolean(item.file)
 }
 
-async function fetchPaperCatalog(subject) {
-  const code = String(subject || '').trim().toLowerCase()
-  if (!PAPER_SUBJECTS.some((item) => item.code === code)) throw new Error('暂不支持这条学科目录')
-  const cached = catalogCache.get(code)
-  if (cached && cached.items && Date.now()-cached.loadedAt<CACHE_MS) {
-    catalogCache.delete(code);catalogCache.set(code,cached)
-    return cached
-  }
-  if (cached && cached.promise) return cached.promise
-  const promise = getJson(`/data/papers/${encodeURIComponent(code)}.json`, { timeout: 30000 }).then((payload) => {
-    if (!payload || payload.schemaVersion !== 2 || !Array.isArray(payload.items)) throw new Error('真题目录响应无效')
-    const records = payload.items.map(normalizePaperItem).filter(item => item.subject === code && item.governanceState === 'active')
-    const byId = new Map(records.map(item => [item.id, item]))
-    const items = records.filter(item => Boolean(item.id) && isQuestionPaper(item)).map(item => {
-      const markScheme = byId.get(item.markSchemeId)
-      return { ...item, markScheme: markScheme && markScheme.kind === 'ms' && markScheme.pairKey === item.pairKey ? markScheme : null }
-    })
-    const normalized = {
-      subject: code,
-      totals: payload.totals || {},
-      paperGovernance: payload.paperGovernance || null,
-      items,
-      loadedAt:Date.now(),
-    }
-    catalogCache.set(code, normalized)
-    while([...catalogCache.values()].filter(value=>value.items).length>MAX_CACHED_SUBJECTS){
-      const oldest=[...catalogCache].find(([key,value])=>key!==code&&value.items)
-      if(!oldest)break
-      catalogCache.delete(oldest[0])
-    }
-    return normalized
-  }).finally(() => {
-    const current = catalogCache.get(code)
-    if (current && current.promise) catalogCache.delete(code)
-  })
-  catalogCache.set(code, { promise })
-  return promise
+const pageCache=new Map(),pagePending=new Map(),detailCache=new Map(),versions=new Map()
+function pageScope(options={}){
+ const subject=String(options.subject||'').toLowerCase(),stage=String(options.stage||'all').toLowerCase(),routeId=String(options.routeId||''),query=String(options.query||'').trim().toLowerCase().slice(0,120),page=Number(options.page||1)
+ if(!PAPER_SUBJECTS.some(s=>s.code===subject)||!['all','igcse','as','a2','competition','admissions'].includes(stage)||!Number.isInteger(page)||page<1)throw new Error('试卷范围无效。')
+ return {subject,stage,routeId,query,page,pageSize:30}
 }
-
-module.exports = { A_LEVEL_SUBJECTS, ADMISSIONS_SUBJECTS, COMPETITION_SUBJECTS, IGCSE_SUBJECTS, PAPER_SUBJECTS, canonicalStages, fetchPaperCatalog, isQuestionPaper, normalizePaperItem }
+function compactPaper(item,subject){
+ if(!item||item.subject!==subject||!item.id||item.kind!=='qp'||!Array.isArray(item.stages)||!Array.isArray(item.routeIds))throw new Error('试卷目录返回不完整。')
+ const ms=item.markScheme
+ if(ms&&(!ms.id||ms.kind!=='ms'))throw new Error('参考答案关联无效。')
+ return {id:String(item.id),subject,kind:'qp',file:String(item.file||''),year:item.year,season:String(item.season||''),title:String(item.title||''),paperNumber:String(item.paperNumber||''),stages:item.stages,routeIds:item.routeIds,localUrl:String(item.localUrl||''),durationMinutes:item.durationMinutes,maxMarks:item.maxMarks,questionCount:null,markScheme:ms?{id:String(ms.id),kind:'ms',file:String(ms.file||''),localUrl:String(ms.localUrl||'')}:null}
+}
+function rememberVersion(subject,version){
+ if(versions.has(subject)&&versions.get(subject)!==version){for(const [key,value] of pageCache)if(value.payload.subject===subject)pageCache.delete(key);for(const [key,value] of detailCache)if(value.paper.subject===subject)detailCache.delete(key)}
+ versions.set(subject,version)
+}
+function rememberDetail(paper){detailCache.delete(paper.id);detailCache.set(paper.id,{paper,at:Date.now()});while(detailCache.size>60)detailCache.delete(detailCache.keys().next().value)}
+async function fetchPaperPage(options={}){
+ const scope=pageScope(options),key=JSON.stringify(scope),cached=pageCache.get(key)
+ if(cached&&Date.now()-cached.at<60000){pageCache.delete(key);pageCache.set(key,cached);return cached.payload}
+ if(pagePending.has(key))return pagePending.get(key)
+ const query=Object.entries(scope).map(([key,value])=>encodeURIComponent(key)+'='+encodeURIComponent(value)).join('&')
+ const pending=getJson('/api/stem/paper-catalog?'+query,{timeout:12000,stemAuth:false}).then(payload=>{
+  if(payload?.schemaVersion!=='native-paper-catalog-v1'||payload.subject!==scope.subject||payload.stage!==scope.stage||payload.routeId!==scope.routeId||payload.query!==scope.query||!Array.isArray(payload.items)||payload.items.length>30||!Number.isInteger(payload.total)||payload.total<0||!Number.isInteger(payload.page)||payload.page<1||!Number.isInteger(payload.pageCount)||payload.pageCount<0||typeof payload.version!=='string')throw new Error('真题分页返回不完整，请重试。')
+  const items=payload.items.map(item=>compactPaper(item,scope.subject));if(new Set(items.map(item=>item.id)).size!==items.length)throw new Error('试卷目录有重复项，请重试。')
+  rememberVersion(scope.subject,payload.version);items.forEach(rememberDetail)
+  const result={...payload,items};pageCache.delete(key);pageCache.set(key,{payload:result,at:Date.now()});while(pageCache.size>6)pageCache.delete(pageCache.keys().next().value)
+  return result
+ }).finally(()=>pagePending.delete(key))
+ pagePending.set(key,pending);return pending
+}
+async function fetchPaperDetail(subject,id){
+ const scope=pageScope({subject}),key=String(id||'');if(!/^[A-Za-z0-9_-]{1,200}$/.test(key))throw new Error('试卷标识无效。')
+ const cached=detailCache.get(key);if(cached&&cached.paper.subject===scope.subject&&Date.now()-cached.at<60000)return cached.paper
+ const payload=await getJson('/api/stem/paper-catalog?subject='+encodeURIComponent(scope.subject)+'&id='+encodeURIComponent(key),{timeout:12000,stemAuth:false})
+ if(payload?.schemaVersion!=='native-paper-detail-v1'||payload.subject!==scope.subject||payload.paper?.id!==key)throw new Error('试卷资料返回不完整。')
+ const paper=compactPaper(payload.paper,scope.subject);rememberVersion(scope.subject,payload.version);rememberDetail(paper);return paper
+}
+module.exports = { A_LEVEL_SUBJECTS, ADMISSIONS_SUBJECTS, COMPETITION_SUBJECTS, IGCSE_SUBJECTS, PAPER_SUBJECTS, canonicalStages, fetchPaperPage,fetchPaperDetail,isQuestionPaper, normalizePaperItem }

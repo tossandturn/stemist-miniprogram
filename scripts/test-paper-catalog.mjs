@@ -33,22 +33,15 @@ vm.runInNewContext(source, {
     return { getJson: async () => { requests += 1; return fixture } }
   },
 })
-const { PAPER_SUBJECTS, canonicalStages, fetchPaperCatalog } = module.exports
+const { PAPER_SUBJECTS, canonicalStages, normalizePaperItem,isQuestionPaper } = module.exports
 assert.ok(PAPER_SUBJECTS.some((item) => item.code === '0606'))
 assert.ok(PAPER_SUBJECTS.some((item) => item.code === '9231'))
 assert.equal(JSON.stringify(canonicalStages('0625', ['core'])), JSON.stringify(['igcse']))
 assert.equal(JSON.stringify(canonicalStages('bpho', ['r1'])), JSON.stringify(['competition']))
 assert.equal(JSON.stringify(canonicalStages('esat', ['prep'])), JSON.stringify(['admissions']))
-const first = await fetchPaperCatalog('9702')
-const second = await fetchPaperCatalog('9702')
-assert.equal(requests, 1, 'paper catalog should be cached within a mini-program session')
-assert.equal(first.items.length, 1)
-assert.equal(first.items[0].pairKey, '9702-m25-12')
-assert.equal(first.items[0].paperNumber, '9702/1')
-assert.equal(second.items[0].id, 'qp-1')
-await fetchPaperCatalog('0625');await fetchPaperCatalog('bpho');await fetchPaperCatalog('9709')
-const requestsBeforeEviction= requests
-await fetchPaperCatalog('9702')
-assert.equal(requests,requestsBeforeEviction+1,'only three subject catalogs are retained in memory')
-await assert.rejects(() => fetchPaperCatalog('not-a-subject'), /暂不支持/)
-console.log('Paper catalog normalization and session cache passed.')
+const records=fixture.items.map(normalizePaperItem).filter(p=>p.subject==='9702'&&isQuestionPaper(p))
+assert.equal(records.length,1);assert.equal(records[0].pairKey,'9702-m25-12');assert.equal(records[0].paperNumber,'9702/1')
+assert.equal(module.exports.fetchPaperCatalog,undefined,'the full catalog download path has been removed')
+assert.doesNotMatch(source,/\/data\/papers\//)
+assert.equal(requests,0)
+console.log('Source catalog normalization passed; obsolete bulk catalog downloads are removed.')

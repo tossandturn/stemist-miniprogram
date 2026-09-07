@@ -61,6 +61,7 @@ function validatePracticeSet(payload, expected) {
     if (group.studentStudyEligible !== true || group.sourceContent?.complete !== true || group.sourceContent?.fileComplete !== true || !group.sourceRef?.paperId) throw new Error('题目原文或图表不完整，请重试。')
     if (!group.syllabusMapping?.topicIds?.some(t => expected.syllabusTopicIds.includes(t))) throw new Error('题目与所选章节不匹配。')
     const images = unique(group.sourceContent.assetUrls).map(questionAsset)
+    if(images.some(url=>!url.startsWith('/question-assets/'+group.sourceRef.paperId+'/')))throw new Error('题图与原卷不匹配，请重新组卷。')
     if (!images.length || images.some(path => !/\/qp-/.test(path)) || (Array.isArray(group.sourceContent.pages) && images.length !== group.sourceContent.pages.length)) throw new Error('题目原图尚未完整返回，请重试。')
     const parts = (group.parts || []).map(part => {
       const provenance = part.markingProvenance

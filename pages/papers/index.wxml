@@ -1,9 +1,10 @@
 <view class="page {{deviceClass}} {{orientation}} papers-page">
   <stemist-header title="{{categoryLabel}}" />
-  <app-nav active="practice" source="papers" route-id="{{routeId}}" subject-code="{{subject}}" category="{{category}}" family="{{family}}" is-tablet="{{isTablet}}" />
+  <app-nav active="practice" source="papers" route-id="{{routeId}}" stage="{{scopeStage}}" subject-code="{{subject}}" category="{{category}}" family="{{family}}" is-tablet="{{isTablet}}" />
   <view class="filter-panel">
     <picker mode="selector" range="{{subjects}}" range-key="label" value="{{subjectIndex}}" bindchange="chooseSubject"><view class="filter-select"><text>{{subjects[subjectIndex].label}}</text><text class="filter-chevron">更换</text></view></picker>
     <picker wx:if="{{showStageFilter}}" mode="selector" range="{{stageFilters}}" range-key="label" value="{{stageIndex}}" bindchange="chooseStage"><view class="filter-select"><text>{{stageFilters[stageIndex].label}}</text><text class="filter-chevron">选择</text></view></picker>
+    <picker wx:if="{{showStageFilter && showRouteFilter}}" mode="selector" range="{{routeOptions}}" range-key="label" value="{{routeIndex}}" bindchange="chooseRoute"><view class="filter-select"><text>{{routeOptions[routeIndex].label}}</text><text class="filter-chevron">选择</text></view></picker>
     <view class="search-box"><input value="{{query}}" placeholder="搜索年份或试卷" bindinput="onSearch" confirm-type="search" /><button wx:if="{{query}}" class="search-clear" bindtap="clearSearch">清空</button></view>
   </view>
   <view wx:if="{{loading}}" class="loading-state">正在加载真题…</view>
@@ -12,16 +13,16 @@
     <view wx:if="{{catalog}}" class="catalog-caption">{{matchCount}} 份试卷</view>
     <view class="paper-list">
       <view wx:for="{{items}}" wx:key="id" class="paper-row">
-        <view class="paper-copy"><text class="paper-year">{{item.year || '历年真题'}}</text><text class="paper-title">{{item.displayTitle}}</text><text wx:if="{{item.pairLabel}}" class="paper-detail">{{item.pairLabel}}</text></view>
+        <view class="paper-copy"><text class="paper-year">{{item.year || '历年真题'}} · {{item.stageLabel}}</text><text class="paper-title">{{item.displayTitle}}</text><text class="paper-topic">{{item.title}}</text><text wx:if="{{item.pairLabel}}" class="paper-detail">{{item.pairLabel}}</text></view>
         <view class="paper-actions">
-          <button class="paper-open" data-id="{{item.id}}" bindtap="openPaper">开始练习</button>
-          <button class="paper-pdf" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" loading="{{pdfBusy === item.id}}" disabled="{{!!pdfBusy}}">原卷</button>
-          <button wx:if="{{item.markScheme}}" class="paper-pdf" data-id="{{item.id}}" data-kind="ms" bindtap="openPdf" disabled="{{!!pdfBusy}}">参考答案</button>
+          <button wx:if="{{item.canPractice}}" class="paper-open" data-id="{{item.id}}" bindtap="openPaper">开始练习</button>
+          <button class="paper-pdf" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" loading="{{pdfBusy === item.id}}" disabled="{{!!pdfBusy || !item.hasPdf}}">原卷</button>
+          <button wx:if="{{item.hasMarkScheme}}" class="paper-pdf" data-id="{{item.id}}" data-kind="ms" bindtap="openPdf" disabled="{{!!pdfBusy}}">参考答案</button>
         </view>
       </view>
     </view>
     <view wx:if="{{catalog && !items.length}}" class="empty-state">没有匹配的试卷<button class="secondary" bindtap="clearSearch">清空搜索</button></view>
-    <view wx:if="{{pageCount > 1}}" class="paper-pagination"><button class="secondary" disabled="{{pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary" disabled="{{!hasMore}}" bindtap="loadMore">下一页</button></view>
+    <view wx:if="{{pageCount > 1}}" class="paper-pagination"><button class="secondary paper-previous" disabled="{{pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary paper-next" disabled="{{!hasMore}}" bindtap="loadMore">下一页</button></view>
     <view wx:if="{{error && catalog}}" class="error">{{error}}</view>
   </block>
 </view>

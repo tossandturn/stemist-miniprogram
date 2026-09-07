@@ -22,11 +22,11 @@ function legacyUrlToNative(input){
  const category=params.category==='competition'||params.family==='competition'||params.family==='admissions'?'competition':'alevel'
  if(category==='competition'&&pathname==='/practice')return '/pages/papers/index?'+query({category,subject:params.subject||params.subjectCode})
  if(pathname==='/papers'&&params.paperId&&params.routeId)return '/pages/stem/paper?'+query({paperId:params.paperId,subject:params.course||params.subject||params.subjectCode,routeId:params.routeId,mode:params.paperMode})
- if(pathname==='/papers')return '/pages/papers/index?'+query({category,subject:params.course||params.subject||params.subjectCode})
+ if(pathname==='/papers')return '/pages/papers/index?'+query({category,subject:params.course||params.subject||params.subjectCode,routeId:params.routeId,stage:params.stage})
  if(pathname==='/notebook')return '/pages/notebook/index?'+query({category,routeId:params.routeId})
  if(pathname==='/progress'||pathname==='/today')return '/pages/progress/index'
  if(pathname==='/practice'&&params.routeId&&params.tab!=='exams')return '/pages/stem/topics?'+query({routeId:params.routeId})
- if(pathname==='/practice'&&params.tab==='exams')return '/pages/papers/index?'+query({category,subject:params.subjectCode,mode:'exam-simulation'})
+ if(pathname==='/practice'&&params.tab==='exams')return '/pages/papers/index?'+query({category,subject:params.subjectCode,routeId:params.routeId,stage:params.stage,mode:'exam-simulation'})
  return '/pages/practice/index?'+query({category,routeId:params.routeId})
 }
 module.exports={legacyUrlToNative}

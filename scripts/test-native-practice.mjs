@@ -35,7 +35,7 @@ await check('unique availability and per-topic 12-group floor, not summed or low
 await check('reject incomplete, wrong route, duplicate and malformed sets', () => {
   const { validatePracticeSet } = miniRuntime().load('utils/nativePractice')
   assert.equal(validatePracticeSet(payload(), spec).questions.length, 6)
-  for (const corrupt of [p => p.routeId = 'wrong', p => p.questionGroups[0].sourceContent.complete = false, p => p.questionGroups[1] = p.questionGroups[0], p => p.questionGroups[0].sourceContent.assetUrls = ['https://evil.test/a.jpg'], p => p.questionGroups.pop(), p => p.practiceMode = 'unavailable']) {
+  for (const corrupt of [p => p.routeId = 'wrong', p => p.questionGroups[0].sourceContent.complete = false, p => p.questionGroups[1] = p.questionGroups[0], p => p.questionGroups[0].sourceContent.assetUrls = ['https://evil.test/a.jpg'], p => p.questionGroups[0].sourceContent.assetUrls = ['/question-assets/other-paper/qp-1.jpg'], p => p.questionGroups.pop(), p => p.practiceMode = 'unavailable']) {
     const p = payload(); corrupt(p); assert.throws(() => validatePracticeSet(p, spec))
   }
   assert.throws(() => validatePracticeSet({}, spec))

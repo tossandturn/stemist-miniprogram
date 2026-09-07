@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} native-paper-page">
-<stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/>
-<ai-fab wx:if="{{mode !== 'exam-simulation' || submitted}}" source="{{category}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subject}}" category="{{category}}" family="{{family}}"/>
+<view class="paper-sticky-head"><stemist-header compact="{{true}}" title="{{category === 'competition' ? '竞赛真题' : stage + ' 真题'}}" action-text="返回" bind:action="back"/>
+<ai-fab wx:if="{{mode !== 'exam-simulation' || submitted}}" source="{{category}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subject}}" category="{{category}}" family="{{family}}"/></view>
  <view wx:if="{{loading}}" class="loading-state">正在打开试卷…</view>
 <view wx:if="{{error}}" class="error">{{error}}</view>
  <button wx:if="{{!loading && !ready}}" class="secondary" bindtap="load">重新加载</button>
@@ -15,8 +15,10 @@
 <text class="paper-native-subtitle">{{stage}}{{maxMarks ? ' · ' + maxMarks + ' 分' : ''}}</text>
 <button class="primary" data-kind="qp" bindtap="openDocument" loading="{{documentBusy}}" disabled="{{documentBusy}}">查看原卷</button>
 <button wx:if="{{hasMarkScheme && (mode !== 'exam-simulation' || submitted)}}" class="secondary" data-kind="ms" bindtap="openDocument">查看参考答案</button>
-<image wx:for="{{sourceImages}}" wx:key="*this" class="paper-source-image" src="{{item}}" mode="widthFix" lazy-load data-index="{{index}}" bindtap="previewQuestion"/>
-<text class="paper-input-help">按试卷题号，逐题拍摄题目和作答。</text>
+<image wx:for="{{sourceImages}}" wx:key="*this" class="paper-source-image" src="{{item}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
+<text wx:if="{{sourceImages.length && sourceLoadedCount < sourceImages.length && !sourceImageError}}" class="paper-input-help">正在加载题图…</text>
+<view wx:if="{{sourceImageError}}" class="error">题图未加载，可重试或查看原卷。<button class="text-button" bindtap="retrySourceImage">重试题图</button></view>
+<text class="paper-input-help">按原卷题号，逐题拍摄你的作答。</text>
 </view>
  <view class="paper-native-answer">
 <view class="paper-number">

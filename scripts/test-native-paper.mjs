@@ -16,6 +16,6 @@ assert.equal(papers.readPaperDraft(draft.storageKey),null)
 await assert.rejects(()=>papers.attachPaperPhoto({storageKey:draft.storageKey,sessionId:draft.id,questionNumber:1},'/camera/x.jpg'))
 const nav=miniRuntime({modules:{'utils/api':{getJson:async()=>({schemaVersion:2,items:[]})}}})
 const p=nav.page('pages/papers/index');p.onLoad({category:'competition',subject:'amc12'});await settle()
-p.setData({items:[{id:'amc12-test',subject:'amc12',stages:['competition'],routeIds:[],file:'test.pdf'}]})
+p.__pageItems=[{id:'amc12-test',subject:'amc12',stages:['competition'],routeIds:['maa-amc12-admissions-mathematics'],file:'test.pdf'}]
 p.openPaper({currentTarget:{dataset:{id:'amc12-test'}}});assert.ok(nav.calls[0].url.startsWith('/pages/stem/paper?'));assert.doesNotMatch(nav.calls[0].url,/webview/)
 console.log('Native paper: photo ownership, durable copy/replacement, full-paper API mode, privacy epoch and competition-native navigation passed.')

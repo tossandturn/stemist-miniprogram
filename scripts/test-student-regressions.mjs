@@ -24,8 +24,8 @@ await check('paper deep link carries STEM course, route and stage', async () => 
   const runtime = miniRuntime()
   const page = runtime.page('pages/papers/index')
   page.data.category = 'competition'; page.data.subject = 'bpho'
-  page.data.items = [{ id: 'bpho-2024_Nov_R1_S1_QP', subject: 'bpho', stages: ['competition'], routeIds: [] }]
-  page.openPaper({ currentTarget: { dataset: { id: page.data.items[0].id } } })
+  page.__pageItems = [{ id: 'bpho-2024_Nov_R1_S1_QP', subject: 'bpho', stages: ['competition'], routeIds: ['bpho-admissions-physics'] }]
+  page.openPaper({ currentTarget: { dataset: { id: page.__pageItems[0].id } } })
   const nav = runtime.calls[0].url
   const target=new URL(nav,'https://mini.example')
   assert.equal(target.pathname,'/pages/stem/paper')

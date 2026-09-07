@@ -82,8 +82,8 @@ function requestIeltsJson(path, data, options = {}) {
   return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false })
 }
 
-function getJson(path, { timeout = 8000 } = {}) {
-  return requestJson(path, undefined, { timeout, method: 'GET' })
+function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
+  return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
 
 function askCoach({ message, context = {}, imageDataUrls = [], history = [] }) {

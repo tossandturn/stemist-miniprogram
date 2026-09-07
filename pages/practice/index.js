@@ -135,7 +135,7 @@ Page({
     this.setData({error:'暂时无法打开，请返回重试。'})
   },
   openCoach() { wx.navigateTo({ url: '/pages/coach/index?source=alevel&category=alevel&routeId='+encodeURIComponent(this.data.routeId)+'&stage='+encodeURIComponent(this.data.stage)+'&subjectCode='+encodeURIComponent(this.data.subjectCode) }) },
-  openPapers() { wx.navigateTo({ url: `/pages/papers/index?category=${encodeURIComponent(this.data.activeCategory)}&subject=${encodeURIComponent(this.data.subjectCode)}` }) },
+  openPapers() { wx.navigateTo({ url: `/pages/papers/index?category=${encodeURIComponent(this.data.activeCategory)}&subject=${encodeURIComponent(this.data.subjectCode)}&routeId=${encodeURIComponent(this.data.routeId)}&stage=${encodeURIComponent(this.data.stage)}` }) },
   openFullStudio() {
     if (this.data.activeCategory === 'ielts') {
       return wx.navigateTo({url:'/pages/ielts/home'})
@@ -149,7 +149,7 @@ Page({
     if (tool === 'topics') return wx.navigateTo({ url: `/pages/stem/topics?routeId=${encodeURIComponent(this.data.routeId)}`, fail: () => this.setData({ error: '章节练习未能打开，请重试。' }) })
     if (tool === 'progress') return wx.navigateTo({ url: '/pages/progress/index' })
     if (tool === 'notebook') return wx.navigateTo({ url: `/pages/notebook/index?category=${encodeURIComponent(this.data.activeCategory)}&routeId=${encodeURIComponent(this.data.routeId || '')}` })
-    if(tool==='exams')return wx.navigateTo({url:'/pages/papers/index?category='+encodeURIComponent(this.data.activeCategory)+'&subject='+encodeURIComponent(this.data.subjectCode)+'&mode=exam-simulation'})
+    if(tool==='exams')return wx.navigateTo({url:'/pages/papers/index?category='+encodeURIComponent(this.data.activeCategory)+'&subject='+encodeURIComponent(this.data.subjectCode)+'&routeId='+encodeURIComponent(this.data.routeId)+'&stage='+encodeURIComponent(this.data.stage)+'&mode=exam-simulation'})
     if(tool==='vocabulary')return wx.navigateTo({url:'/pages/ielts/vocabulary?bank=stem&routeId='+encodeURIComponent(this.data.routeId)})
   },
 })
