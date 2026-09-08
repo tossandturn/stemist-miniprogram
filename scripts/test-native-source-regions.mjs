@@ -23,4 +23,18 @@ assert.equal(view.question.partsLabel, '', 'internal main-part identifiers are n
 assert.match(view.question.images[0].url, /^https:\/\/stem\.ieltsist\.com\/api\/stem\/practice-source-image\?/)
 native.saveSession(session); assert.equal(native.questionView(native.readSession(session.id), 0).question.images[0].clipStyle, style.clipStyle)
 const missingPage = structuredClone(payload); missingPage.questionGroups[0].sourceContent.pages.push(16); assert.throws(() => native.validatePracticeSet(missingPage, spec))
+const v2 = { ...descriptor, schemaVersion: 'native-source-region-v2', url: url + '&view=region', renderedImageSize: [1229, 281] }
+const normalizedV2 = service.normalizeSourceRegion(v2, routeId, questionId)
+assert.deepEqual([...normalizedV2.renderedImageSize], [1229, 281])
+const v2Style = service.sourceRegionStyle(normalizedV2)
+assert.equal(v2Style.imageStyle, 'width:100%;height:100%;left:0;top:0;', 'server-cropped pixels must not be cropped a second time')
+assert.equal(v2Style.clipStyle, 'padding-top:22.864117%;', 'reserve the exact integer-pixel crop ratio before download')
+for (const edit of [d => d.renderedImageSize[0]++, d => d.url = url, d => d.url += '&region=2', d => d.schemaVersion = 'native-source-region-v1']) {
+  const bad = structuredClone(v2); edit(bad); assert.throws(() => service.normalizeSourceRegion(bad, routeId, questionId))
+}
+const v2Payload = structuredClone(payload)
+v2Payload.questionGroups.forEach(g => { g.nativeSourceImages = [{ ...v2, url: v2.url.replace(encodeURIComponent(questionId), encodeURIComponent(g.id)) }] })
+const v2Session = native.createSession(v2Payload, spec)
+native.saveSession(v2Session)
+assert.equal(native.questionView(native.readSession(v2Session.id), 0).question.images[0].imageStyle, v2Style.imageStyle)
 console.log('Native source regions: exact route/question URLs, bounded crop geometry, pixel aspect, multi-page completeness and saved-session recovery passed.')

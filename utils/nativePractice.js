@@ -52,7 +52,7 @@ function selectionState(inventory, topicIds, components, questionCount) {
 
 function questionAsset(value) {
   const raw = String(value || '').replace(/^https:\/\/stem\.ieltsist\.com/i, '')
-  if (/^\/api\/stem\/practice-source-image\?routeId=[a-z0-9-]+&sourceQuestionId=[-a-zA-Z0-9_%:]+&region=(?:[0-9]|1[0-9])&v=[a-f0-9]{64}$/.test(raw)) return raw
+  if (/^\/api\/stem\/practice-source-image\?routeId=[a-z0-9-]+&sourceQuestionId=[-a-zA-Z0-9_%:]+&region=(?:[0-9]|1[0-9])&v=[a-f0-9]{64}(?:&view=region)?$/.test(raw)) return raw
   if (!/^\/question-assets\/[a-zA-Z0-9_-]+\/(?:qp|ms)-\d+\.(?:jpg|jpeg|png|webp)$/.test(raw)) throw new Error('题目原图地址无效，请重新组卷。')
   return raw
 }
@@ -114,7 +114,7 @@ async function generatePractice(spec) {
     routeId: spec.routeId, syllabusTopicIds: spec.syllabusTopicIds,
     questionCount: spec.questionCount, components: spec.components,
     excludeAttempted: false, seed: Date.now() >>> 0,
-  }, { timeout: 20000, stemAuth: false })
+  }, { timeout: 20000, stemAuth: false, nativeSourceRegions: true })
   if (startedEpoch !== epoch() || startedOwner !== identity()) throw new Error('账号已变化，请重新开始练习。')
   return createSession(payload, spec)
 }

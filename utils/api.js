@@ -33,7 +33,7 @@ function isAuthError(error) {
   return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
 
-function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true } = {}) {
+function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false } = {}) {
   const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
   return new Promise((resolve, reject) => {
     const request = {
@@ -43,6 +43,7 @@ function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', s
       header: {
         ...(origin === ieltsBaseUrl() && path.startsWith('/api/native/ielts/') ? { 'X-STEMist-Catalog': 'native-topics-v1' } : {}),
         ...(String(method || 'POST').toUpperCase() === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+        ...(nativeSourceRegions && origin === baseUrl() && path === '/api/stem/practice-sets' ? { 'X-STEMist-Source-Images': 'region-v2' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(origin===baseUrl()&&path==='/api/auth/logout'&&wx.getStorageSync('stemistNativeSessionCookie')?{Cookie:'stem_session='+wx.getStorageSync('stemistNativeSessionCookie')}:{})
       },
