@@ -8,7 +8,7 @@ export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
   const calls = []
   const api = {
     getSystemInfoSync: () => ({ windowWidth: 390, windowHeight: 780, deviceType: 'phone', model: 'iPhone' }),
-    getStorageSync: (key) => storage.get(key),
+    getStorageSync: (key) => storage.has(key) ? storage.get(key) : '',
     setStorageSync: (key, value) => storage.set(key, value),
     removeStorageSync: (key) => storage.delete(key),
     getStorageInfoSync: () => ({ keys: [...storage.keys()] }),

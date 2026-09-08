@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import {miniRuntime,settle,deferred} from './helpers/mini-runtime.mjs'
 
 const result={ai:true,feedback:'Reviewed essay feedback',band:6.5,criteria:[{label:'Task Response',score:6}],warning:''}
+const revision='1'.repeat(64)
 let starts=0, polls=0
 const writing=miniRuntime({modules:{
- 'utils/ieltsContent':{getIeltsTask:async()=>({id:'cam15-w-test1-task2',title:'Writing 2',type:'Task 2',prompt:'Discuss both views.',images:[]})},
+ 'utils/ieltsContent':{getIeltsTask:async()=>({id:'cam15-w-test1-task2',title:'Writing 2',type:'Task 2',prompt:'Discuss both views.',images:[],sourceAvailability:'ready',sourceRevision:revision})},
  'utils/ieltsWriting':{startWritingFeedback:async()=>{starts++;return 'writing-job-fixture'},writingJob:async()=>{polls++;return{status:'done',result}}},
 }})
 let p=writing.page('pages/ielts/writing')

@@ -19,9 +19,10 @@
         <view class="paper-copy"><text class="paper-year">{{item.year || '历年真题'}}{{item.seasonLabel ? ' · ' + item.seasonLabel : ''}} · {{item.stageLabel}}</text><text class="paper-title">{{item.displayTitle}}</text><text class="paper-topic">{{item.title}}</text><text wx:if="{{item.pairLabel}}" class="paper-detail">{{item.pairLabel}}</text></view>
         <view class="paper-actions">
           <button wx:if="{{item.canPractice}}" class="paper-open" data-id="{{item.id}}" bindtap="openPaper">开始练习</button>
-          <button class="paper-pdf" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" loading="{{pdfBusy === item.id}}" disabled="{{!!pdfBusy || !item.hasPdf}}">原卷</button>
-          <button wx:if="{{item.hasMarkScheme}}" class="paper-pdf" data-id="{{item.id}}" data-kind="ms" bindtap="openPdf" disabled="{{!!pdfBusy}}">参考答案</button>
+          <button class="paper-pdf" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" disabled="{{pdfDownload.active || !item.hasPdf}}">原卷</button>
+          <button wx:if="{{item.hasMarkScheme && mode !== 'exam-simulation'}}" class="paper-pdf" data-id="{{item.id}}" data-kind="ms" bindtap="openPdf" disabled="{{pdfDownload.active}}">参考答案</button>
         </view>
+        <pdf-download-progress wx:if="{{pdfDownload.visible && pdfDownload.itemId === item.id}}" state="{{pdfDownload}}" bind:cancel="cancelPdfDownload" bind:retry="retryPdfDownload" bind:toggle="togglePdfDownloadProgress" />
       </view>
     </view>
     <view wx:if="{{catalog && !items.length}}" class="empty-state">没有匹配的试卷<button class="secondary" bindtap="clearFilters">重置筛选</button></view>

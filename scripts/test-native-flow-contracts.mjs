@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 const source={book:15,test:1,title:'Cambridge 15 Test 1'}
-const bank={listening:[{...source,id:'cam15-l-test1'}],reading:[{...source,id:'cam15-r-test1'}],writing:[{...source,id:'cam15-w-test1-task1'},{...source,id:'cam15-w-test1-task2'}],speaking:[{...source,id:'cam15-s-test1'}]}
+const revisions=['3'.repeat(64),'4'.repeat(64)]
+const bank={listening:[{...source,id:'cam15-l-test1'}],reading:[{...source,id:'cam15-r-test1'}],writing:[{...source,id:'cam15-w-test1-task1',sourceAvailability:'ready',sourceRevision:revisions[0]},{...source,id:'cam15-w-test1-task2',sourceAvailability:'ready',sourceRevision:revisions[1]}],speaking:[{...source,id:'cam15-s-test1'}]}
 const requests=[]
 const r=miniRuntime({modules:{
  'utils/ieltsContent':{loadIeltsContent:async()=>bank},
@@ -20,7 +21,7 @@ const exam=await api.newExam('same-test','cam15-test1')
 assert.equal(requests[0].payload.manifest.writingSourceIds.length,2)
 assert.equal(api.readExam(exam.key).sources.speaking,'cam15-s-test1')
 await assert.rejects(()=>api.submitExam(exam.key))
-for(const name of ['listening','reading','writing1','writing2','speaking'])api.completeExamModule(exam.key,name,{complete:true,submission:{answers:{}},prompt:'prompt',essay:'essay',title:name})
+for(const name of ['listening','reading','writing1','writing2','speaking']){const writingIndex=name==='writing1'?0:name==='writing2'?1:-1;api.completeExamModule(exam.key,name,{complete:true,submission:{answers:{}},prompt:'prompt',essay:'essay',title:name,...(writingIndex>=0?{sourceAvailability:'ready',sourceRevision:revisions[writingIndex]}:{})})}
 assert.equal((await api.submitExam(exam.key)).submitted,true)
 assert.equal(requests[1].payload.fullExamManifest.speakingSourceId,'cam15-s-test1')
 r.storage.set('stemistPrivacyEpoch',1);assert.equal(api.readExam(exam.key),null)

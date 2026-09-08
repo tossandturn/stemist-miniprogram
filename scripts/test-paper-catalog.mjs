@@ -45,3 +45,4 @@ assert.equal(module.exports.fetchPaperCatalog,undefined,'the full catalog downlo
 assert.doesNotMatch(source,/\/data\/papers\//)
 assert.equal(requests,0)
 console.log('Source catalog normalization passed; obsolete bulk catalog downloads are removed.')
+await import('./test-pdf-download-progress.mjs')

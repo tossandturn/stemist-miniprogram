@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {miniRuntime,settle} from './helpers/mini-runtime.mjs'
-const task1={id:'cam15-w-test1-task1',module:'writing',type:'Task 1',title:'Chart',source:'Cambridge',book:15,test:1}
-const task2={...task1,id:'cam15-w-test1-task2',type:'Task 2',title:'Essay'}
+const task1={id:'cam15-w-test1-task1',module:'writing',type:'Task 1',title:'Chart',source:'Cambridge',book:15,test:1,sourceAvailability:'ready',sourceRevision:'7'.repeat(64)}
+const task2={...task1,id:'cam15-w-test1-task2',type:'Task 2',title:'Essay',sourceRevision:'8'.repeat(64)}
 const speaking={id:'cam15-s-test1',module:'speaking',source:'Cambridge',book:15,test:1,title:'Speaking'}
 const base={schemaVersion:'native-ielts-catalog-v1',version:'base-v1',listeningTests:[{id:'cam15-l-test1',book:15,test:1}],readingTests:[{id:'cam15-r-test1',book:15,test:1}],writingTasks:[task1,task2],speakingSets:[speaking]}
 const publicWriting={id:'public-writing-environment-task2',module:'writing',type:'Task 2',source:'Public topics',sourceKind:'public-topic',title:'Environment',topicKey:'writing-environment-climate',topicLabel:'Environment',topicIcon:'environment',topicEmoji:'🌿',prompt:'An existing public writing prompt.'}

@@ -54,7 +54,11 @@ wx.env={USER_DATA_PATH:'/owned'}
 wx.getFileSystemManager=()=>({unlink:({filePath})=>removed.push(filePath)})
 values.stemistSpeakingExportPath='/owned/ielts-speaking-transcript.txt'
 values['stemistDraft:ielts-writing:x']={photoPath:'/owned/native-writing/writing-test-1.jpg'}
+values['stemistDraft:writing-source-archive:ielts:1:0:single:item:a']={photoPath:'/owned/native-writing/writing-archive-a.jpg'}
+values['stemistDraft:writing-source-archive:ielts:1:0:pair:item:b']={items:[{photo:''},{photo:'/owned/native-writing/writing-archive-b.jpg'}]}
 values['stemistDraft:unrelated']={photoPath:'/camera/original.jpg'}
 module.exports.clearLocalSession()
-assert.deepEqual(removed.sort(),['/owned/ielts-speaking-transcript.txt','/owned/native-writing/writing-test-1.jpg'].sort())
+assert.deepEqual(removed.sort(),['/owned/ielts-speaking-transcript.txt','/owned/native-writing/writing-test-1.jpg','/owned/native-writing/writing-archive-a.jpg','/owned/native-writing/writing-archive-b.jpg'].sort())
+assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:single:item:a'],undefined)
+assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:pair:item:b'],undefined)
 assert.equal(values.stemistSpeakingExportPath,undefined)

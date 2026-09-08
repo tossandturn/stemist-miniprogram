@@ -7,13 +7,21 @@ const {readAsJpegDataUrl}=require('../../utils/image')
 const {runCoach}=require('../../utils/coach')
 const {paperSources,paperContext,syncPaperAttempt,markPaperQuestion}=require('../../utils/nativePaperService')
 const {rememberRecord}=require('../../utils/nativeRecords')
+const {createPdfDownloadController,initialPdfDownloadState}=require('../../utils/pdfDownload')
 Page({
- data:deviceState({paperId:'',subject:'',routeId:'',stage:'',category:'alevel',family:'exam',mode:'past-paper-practice',title:'真题练习',loading:true,ready:false,error:'',questionNumber:1,photo:'',feedback:'',busy:false,submitted:false,synced:false,selfScore:'',maxMarks:null,questionCount:null,photoCount:0,elapsed:'00:00',syncStatus:'',documentBusy:false,sourceImages:[],canAskFeedback:false,sourceStatus:'',markResults:[],hasMarkScheme:false}),
- onLoad(options={}){this.__disposed=false;this.__loadedSourceUrls=new Set();this.setData({paperId:String(options.paperId||''),subject:String(options.subject||''),routeId:String(options.routeId||''),mode:options.mode==='exam-simulation'?'exam-simulation':'past-paper-practice'});this.load()},
- onShow(){syncDevice(this);if(this.__draft){this.refresh();if(!this.__context&&wx.getStorageSync('stemistSessionToken'))this.loadSourceContext()}},onResize(){syncDevice(this)},
- onUnload(){this.__disposed=true;clearInterval(this.__clock)},
+ data:deviceState({paperId:'',subject:'',routeId:'',stage:'',category:'alevel',family:'exam',mode:'past-paper-practice',title:'真题练习',loading:true,ready:false,error:'',questionNumber:1,photo:'',feedback:'',busy:false,submitted:false,synced:false,selfScore:'',maxMarks:null,questionCount:null,photoCount:0,elapsed:'00:00',syncStatus:'',documentBusy:false,pdfDownload:initialPdfDownloadState(),sourceImages:[],canAskFeedback:false,sourceStatus:'',markResults:[],hasMarkScheme:false}),
+ onLoad(options={}){this.__disposed=false;this.__paperLoadId=0;this.__loadedSourceUrls=new Set();this.setData({paperId:String(options.paperId||''),subject:String(options.subject||''),routeId:String(options.routeId||''),mode:options.mode==='exam-simulation'?'exam-simulation':'past-paper-practice'});this.setupPdfDownload();return this.load()},
+ onShow(){syncDevice(this);this.syncPdfDownloadScope();if(this.__draft){this.refresh();if(!this.__context&&wx.getStorageSync('stemistSessionToken'))this.loadSourceContext()}},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},
+ onUnload(){this.__disposed=true;this.__paperLoadId++;clearInterval(this.__clock);this.__pdfDownload?.dispose()},
+ pdfScope(){return[this.__paperLoadId||0,this.data.paperId,this.data.subject,this.data.routeId,this.data.mode].join('|')},
+ setupPdfDownload(){
+  if(this.__pdfDownload)return
+  this.__pdfDownload=createPdfDownloadController({wxApi:wx,isScopeCurrent:scope=>!this.__disposed&&scope===this.pdfScope(),onState:state=>{if(!this.__disposed)this.setData({pdfDownload:state,documentBusy:state.active})}})
+  this.__pdfDownload.setScope(this.pdfScope())
+ },
+ syncPdfDownloadScope(){if(!this.__disposed)this.__pdfDownload?.setScope(this.pdfScope())},
  async load(){
-  clearInterval(this.__clock);this.setData({loading:true,error:''})
+  clearInterval(this.__clock);this.__paperLoadId++;this.syncPdfDownloadScope();this.setData({loading:true,error:''})
   try{
    const paper=await fetchPaperDetail(this.data.subject,this.data.paperId),route=routeById(this.data.routeId)
    if(this.__disposed)return
@@ -55,17 +63,15 @@ Page({
  },
  previewPhoto(){if(this.data.photo)wx.previewImage({current:this.data.photo,urls:[this.data.photo]})},
  openDocument(event){
-  const document=event.currentTarget.dataset.kind==='ms'?this.__paper?.markScheme:this.__paper
-  if(!document||this.data.documentBusy)return
-  if(event.currentTarget.dataset.kind==='ms'&&this.data.mode==='exam-simulation'&&!this.data.submitted)return
-  const path=String(document.localUrl||'');if(!path.startsWith('/local-pdf/'+this.data.subject+'/')||path.includes('..'))return
-  this.setData({documentBusy:true,error:''})
-  wx.downloadFile({url:'https://stem.ieltsist.com'+path,timeout:30000,success:r=>{
-   if(this.__disposed)return
-   if(r.statusCode!==200){this.setData({documentBusy:false,error:'原卷未能下载，请重试。'});return}
-   wx.openDocument({filePath:r.tempFilePath,fileType:'pdf',showMenu:true,fail:()=>this.setData({error:'原卷暂时无法打开。'}),complete:()=>{if(!this.__disposed)this.setData({documentBusy:false})}})
-  },fail:()=>{if(!this.__disposed)this.setData({documentBusy:false,error:'下载超时，请检查网络后重试。'})}})
+  const kind=event.currentTarget.dataset.kind==='ms'?'ms':'qp',document=kind==='ms'?this.__paper?.markScheme:this.__paper
+  if(!document)return
+  this.setupPdfDownload();this.syncPdfDownloadScope();if(this.data.documentBusy)return
+  if(kind==='ms'&&this.data.mode==='exam-simulation'&&!this.data.submitted)return
+  const documentPath=String(document.localUrl||'');if(!documentPath.startsWith('/local-pdf/'+this.data.subject+'/')||/\.\.|[?#]|%2e|%2f|%5c/i.test(documentPath))return this.setData({error:'试卷文件暂不可用。'})
+  this.setData({error:''})
+  return this.__pdfDownload.open({url:'https://stem.ieltsist.com'+documentPath,cacheKey:'https://stem.ieltsist.com'+documentPath,ownerKey:this.data.paperId+':'+kind,itemId:this.data.paperId,label:kind==='ms'?'参考答案':'原卷',scope:this.pdfScope()})
  },
+ cancelPdfDownload(){this.__pdfDownload?.cancel()},retryPdfDownload(){return this.__pdfDownload?.retry()},togglePdfDownloadProgress(){this.__pdfDownload?.toggleCollapsed()},
  async askFeedback(){
   if(this.data.busy||!this.data.canAskFeedback||!this.data.photo||!current(this.__draft)||this.data.mode==='exam-simulation'&&!this.data.submitted)return
   const number=this.data.questionNumber,revision=this.__draft.answers[number].revision

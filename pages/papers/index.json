@@ -2,6 +2,7 @@
   "navigationBarTitleText": "Stemist · Past papers",
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index",
-    "app-nav": "/components/app-nav/index"
+    "app-nav": "/components/app-nav/index",
+    "pdf-download-progress": "/components/pdf-download-progress/index"
   }
 }

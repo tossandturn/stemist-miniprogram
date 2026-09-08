@@ -48,7 +48,7 @@ If CLI authorization is not enabled, use the Developer Tools Compile button; the
 
 For actual native-page clicks and recovery checks, use `scripts/test-devtools-native-ielts.cjs` and `scripts/test-devtools-native-modules.cjs` against the automation endpoint on port 9420. Install the official `miniprogram-automator` SDK outside the upload tree and set `WECHAT_AUTOMATOR_MODULE` to its absolute module directory. Production API/AI smoke scripts are explicitly opt-in and are not run by the unit suite.
 
-After committing reviewed runtime files, `node scripts/build-native-package.mjs --out D:\CodexWork\stemist-native-upload-<commit>` creates a clean upload directory and hash manifest, excluding QA scripts, documents, raw banks and OCR outputs. It does not overwrite the original IDE project configuration.
+Run `node scripts/build-native-package.mjs --check-only` to validate the exact runtime whitelist without creating an artifact. It requires at least 128 KiB of headroom below the 2 MiB main-package budget. After committing reviewed runtime files, `node scripts/build-native-package.mjs --out D:\CodexWork\stemist-native-upload-<commit>` creates a clean upload directory and hash manifest, excluding QA scripts, documents, raw banks and OCR outputs. It does not overwrite the original IDE project configuration.
 
 ## Photo pipeline
 

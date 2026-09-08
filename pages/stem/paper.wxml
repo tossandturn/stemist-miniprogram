@@ -13,8 +13,9 @@
 <view class="paper-native-source">
 <text class="paper-native-title">{{title}}</text>
 <text class="paper-native-subtitle">{{stage}}{{maxMarks ? ' · ' + maxMarks + ' 分' : ''}}</text>
-<button class="primary" data-kind="qp" bindtap="openDocument" loading="{{documentBusy}}" disabled="{{documentBusy}}">查看原卷</button>
-<button wx:if="{{hasMarkScheme && (mode !== 'exam-simulation' || submitted)}}" class="secondary" data-kind="ms" bindtap="openDocument">查看参考答案</button>
+<button class="primary" data-kind="qp" bindtap="openDocument" disabled="{{documentBusy}}">查看原卷</button>
+<button wx:if="{{hasMarkScheme && (mode !== 'exam-simulation' || submitted)}}" class="secondary" data-kind="ms" bindtap="openDocument" disabled="{{documentBusy}}">查看参考答案</button>
+<pdf-download-progress wx:if="{{pdfDownload.visible}}" state="{{pdfDownload}}" bind:cancel="cancelPdfDownload" bind:retry="retryPdfDownload" bind:toggle="togglePdfDownloadProgress" />
 <image wx:for="{{sourceImages}}" wx:key="*this" class="paper-source-image" src="{{item}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
 <text wx:if="{{sourceImages.length && sourceLoadedCount < sourceImages.length && !sourceImageError}}" class="paper-input-help">正在加载题图…</text>
 <view wx:if="{{sourceImageError}}" class="error">题图未加载，可重试或查看原卷。<button class="text-button" bindtap="retrySourceImage">重试题图</button></view>

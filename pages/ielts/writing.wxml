@@ -5,6 +5,19 @@
   <view class="workspace-grid">
     <view class="context-card skill-identity writing-identity">
       <view class="context-card-title">{{taskTitle || '选择任务'}}</view>
+      <view wx:if="{{sourceReviewRequired}}" class="source-guard source-guard-review">
+        <text class="source-guard-title">题目来源已更新</text>
+        <text>旧作文、照片和批改记录都已保留。确认前不会重新批改。</text>
+        <view class="source-guard-actions"><button class="secondary" bindtap="viewSourceUpdate">{{sourcePreview ? '收起新题' : '查看新题'}}</button><button wx:if="{{sourcePreview}}" class="primary" bindtap="confirmSourceUpdate">确认改用新题</button></view>
+      </view>
+      <view wx:elif="{{sourceGuarded && sourceResolved && sourceAvailability !== 'ready'}}" class="source-guard"><text class="source-guard-title">题目正在核验</text><text>你的作文和照片会继续保留，核验完成前暂不批改，也不计入完整模拟。</text></view>
+      <view wx:elif="{{sourceGuarded && !sourceResolved}}" class="source-guard"><text class="source-guard-title">题目来源尚未确认</text><text>请检查网络后重试。现有作文、照片和批改记录没有被修改。</text></view>
+      <view wx:if="{{sourceReviewRequired && sourcePreview}}" class="source-preview">
+        <text class="source-preview-title">当前核验后的题目</text>
+        <image wx:for="{{latestTaskImages}}" wx:key="id" class="writing-task-image" src="{{item.url}}" mode="widthFix" lazy-load data-index="{{index}}" bindtap="previewLatestSource"/>
+        <text wx:if="{{!latestTaskImages.length}}" class="answer-question">{{latestPrompt}}</text>
+      </view>
+      <text wx:if="{{sourceArchiveNotice}}" class="source-archive-note">{{sourceArchiveNotice}}</text>
       <image wx:for="{{taskImages}}" wx:key="id" class="writing-task-image" src="{{item.url}}" mode="widthFix" lazy-load data-index="{{index}}" bindtap="previewTask"/>
       <view wx:if="{{!taskId}}" class="task-switcher">
         <button class="task-chip {{taskType === 'Task 1' ? 'active' : ''}}" data-task="Task 1" bindtap="chooseTask">Task 1</button>
@@ -12,14 +25,15 @@
       </view>
     </view>
     <view class="writing-editor panel">
-      <view class="task-switcher"><button class="task-chip {{inputMode === 'typed' ? 'active' : ''}}" data-mode="typed" bindtap="chooseInputMode">打字</button><button class="task-chip {{inputMode === 'photo' ? 'active' : ''}}" data-mode="photo" bindtap="chooseInputMode">拍照</button></view>
-      <view wx:if="{{inputMode === 'photo'}}" class="writing-photo-input"><image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" bindtap="previewPhoto"/><button class="secondary photo-button" bindtap="takePhoto" disabled="{{loading || timeExpired}}">{{photoPath ? '重新拍照' : '拍摄作文'}}</button></view>
+      <view class="task-switcher"><button class="task-chip {{inputMode === 'typed' ? 'active' : ''}}" data-mode="typed" bindtap="chooseInputMode" disabled="{{loading || timeExpired || sourceGuarded && (!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired)}}">打字</button><button class="task-chip {{inputMode === 'photo' ? 'active' : ''}}" data-mode="photo" bindtap="chooseInputMode" disabled="{{loading || timeExpired || sourceGuarded && (!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired)}}">拍照</button></view>
+      <view wx:if="{{inputMode === 'photo'}}" class="writing-photo-input"><image wx:if="{{photoPath}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" bindtap="previewPhoto"/><button class="secondary photo-button" bindtap="takePhoto" disabled="{{loading || timeExpired || sourceGuarded && (!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired)}}">{{photoPath ? '重新拍照' : '拍摄作文'}}</button></view>
       <block wx:if="{{!taskId}}"><view class="field-label">写作题目</view>
       <textarea class="prompt-input" value="{{prompt}}" disabled="{{loading || timeExpired}}" maxlength="2000" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="粘贴作文题目…" bindinput="onPromptInput" /></block>
       <text wx:elif="{{!taskImages.length}}" class="answer-question">{{prompt}}</text>
+      <text wx:if="{{answer && sourceGuarded && (!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired)}}" class="source-archive-note">以下是已保存的旧题批改记录，不会用于当前题目。</text>
       <view wx:if="{{band !== null}}" class="writing-score"><text>AI 练习估分 · Band {{band}}</text><view wx:for="{{criteria}}" wx:key="label"><text>{{item.label}}</text><text>{{item.score}}</text></view></view>
       <button wx:if="{{reportUrl}}" class="secondary" loading="{{downloading}}" disabled="{{downloading}}" bindtap="downloadReport">下载批改报告</button>
-      <coach-panel message="{{text}}" hide-input="{{inputMode === 'photo'}}" read-only="{{timeExpired}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="{{examMode ? '保存本项' : inputMode === 'photo' ? '提交照片批改' : '提交作文'}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="" max-length="20000" bind:input="onInput" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+      <coach-panel message="{{text}}" hide-input="{{inputMode === 'photo'}}" read-only="{{timeExpired || sourceGuarded && (!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired)}}" disabled="{{sourceGuarded && (!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired)}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="{{examMode ? '保存本项' : inputMode === 'photo' ? '提交照片批改' : '提交作文'}}" placeholder="直接输入你的 Task 1 / Task 2 作文…" helper="" max-length="20000" bind:input="onInput" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
     </view>
   </view>
   <button class="text-button" bindtap="clear" disabled="{{loading}}">清空当前作文和照片</button>

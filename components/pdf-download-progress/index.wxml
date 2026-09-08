@@ -1,0 +1,18 @@
+<view wx:if="{{state && state.visible}}" class="pdf-progress {{state.collapsed ? 'is-collapsed' : ''}} {{state.phase === 'error' ? 'has-error' : ''}}" aria-label="{{state.label + '，' + (state.error || state.message)}}">
+ <view class="pdf-progress-head">
+  <view class="pdf-progress-copy">
+   <text class="pdf-progress-title">{{state.label}}</text>
+   <text class="pdf-progress-message">{{state.error || state.message}}</text>
+  </view>
+  <button class="pdf-progress-action pdf-progress-toggle" bindtap="toggle" aria-label="{{state.collapsed ? '展开下载状态' : '收起下载状态'}}">{{state.collapsed ? '展开' : '收起'}}</button>
+ </view>
+ <block wx:if="{{!state.collapsed}}">
+  <view wx:if="{{state.knownTotal}}" class="pdf-progress-track" aria-label="下载进度 {{state.percent === null ? 0 : state.percent}}%"><view class="pdf-progress-fill" style="width:{{state.percent === null ? 0 : state.percent}}%"></view></view>
+  <text wx:if="{{state.knownTotal}}" class="pdf-progress-bytes">{{state.downloadedLabel}} / {{state.totalLabel}} · {{state.percent === null ? 0 : state.percent}}%</text>
+  <text wx:elif="{{state.downloadedLabel}}" class="pdf-progress-bytes">已下载 {{state.downloadedLabel}}</text>
+  <view wx:if="{{state.canCancel || state.canRetry}}" class="pdf-progress-actions">
+   <button wx:if="{{state.canCancel}}" class="pdf-progress-action pdf-progress-cancel" bindtap="cancel" aria-label="取消下载">取消</button>
+   <button wx:if="{{state.canRetry}}" class="pdf-progress-action pdf-progress-retry" bindtap="retry" aria-label="重新下载或打开">重试</button>
+  </view>
+ </block>
+</view>

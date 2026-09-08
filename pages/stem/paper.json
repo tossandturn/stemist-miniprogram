@@ -1,1 +1,1 @@
-{"navigationBarTitleText":"真题练习","usingComponents":{"stemist-header":"/components/stemist-header/index","ai-fab":"/components/ai-fab/index"}}
+{"navigationBarTitleText":"真题练习","usingComponents":{"stemist-header":"/components/stemist-header/index","ai-fab":"/components/ai-fab/index","pdf-download-progress":"/components/pdf-download-progress/index"}}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {miniRuntime,settle} from './helpers/mini-runtime.mjs'
-const tasks=[1,2].map(number=>({id:'cam15-w-test1-task'+number,prompt:'Task '+number+' canonical prompt',images:[]}))
+const tasks=[1,2].map(number=>({id:'cam15-w-test1-task'+number,prompt:'Task '+number+' canonical prompt',images:[],sourceAvailability:'ready',sourceRevision:String(number).repeat(64)}))
 let sent, starts=0
 const real=miniRuntime().load('utils/ieltsWriting')
 const r=miniRuntime({modules:{
