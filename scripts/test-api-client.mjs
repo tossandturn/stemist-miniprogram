@@ -41,6 +41,10 @@ assert.equal(requestOptions.method, 'GET')
 assert.equal(requestOptions.data, undefined)
 assert.equal(requestOptions.header.Authorization, 'Bearer short-lived-test-token')
 assert.equal(requestOptions.header['Content-Type'], undefined)
+assert.equal(requestOptions.header['X-STEMist-Catalog'], undefined)
+await module.exports.requestIeltsJson('/api/native/ielts/catalog', undefined, {method:'GET'})
+assert.equal(requestOptions.header['X-STEMist-Catalog'], 'native-topics-v1')
+assert.equal(requestOptions.header.Authorization, undefined, 'native catalog negotiation must not leak the STEM session')
 
 response = { statusCode: 200, data: { ok: true } }
 await askCoach({ message: 'text', context: {}, imageDataUrls: [] })

@@ -41,6 +41,7 @@ function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', s
       method: String(method || 'POST').toUpperCase(),
       timeout,
       header: {
+        ...(origin === ieltsBaseUrl() && path.startsWith('/api/native/ielts/') ? { 'X-STEMist-Catalog': 'native-topics-v1' } : {}),
         ...(String(method || 'POST').toUpperCase() === 'GET' ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(origin===baseUrl()&&path==='/api/auth/logout'&&wx.getStorageSync('stemistNativeSessionCookie')?{Cookie:'stem_session='+wx.getStorageSync('stemistNativeSessionCookie')}:{})
