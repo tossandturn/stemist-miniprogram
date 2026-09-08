@@ -58,7 +58,8 @@ Page({
   previewQuestion(event) {
     const images = this.data.question?.images || []
     const current = images.find(i => i.id === event.currentTarget.dataset.id)
-    if (current?.url) wx.previewImage({ current: current.url, urls: images.map(i => i.url).filter(Boolean), fail: () => this.setData({ error: '原图暂未打开，请重试。' }) })
+    const originalPage = url => String(url || '').replace(/&view=region$/, '')
+    if (current?.url) wx.previewImage({ current: originalPage(current.url), urls: images.map(i => originalPage(i.url)).filter(Boolean), fail: () => this.setData({ error: '原图暂未打开，请重试。' }) })
   },
   previewPhoto() { if (this.data.photo) wx.previewImage({ current: this.data.photo, urls: [this.data.photo] }) },
   photoFailed() { this.setData({ photoMissing: true, error: '本机照片未能读取，请重新拍摄。其他题的答案不受影响。' }) },

@@ -37,4 +37,8 @@ v2Payload.questionGroups.forEach(g => { g.nativeSourceImages = [{ ...v2, url: v2
 const v2Session = native.createSession(v2Payload, spec)
 native.saveSession(v2Session)
 assert.equal(native.questionView(native.readSession(v2Session.id), 0).question.images[0].imageStyle, v2Style.imageStyle)
+const previews = [], pageRuntime = miniRuntime({ wx: { previewImage: options => previews.push(options) } }), page = pageRuntime.page('pages/stem/practice')
+page.setData({ question: { images: [{ id: 'current', url: 'https://stem.ieltsist.com' + v2.url }] } })
+page.previewQuestion({ currentTarget: { dataset: { id: 'current' } } })
+assert.equal(previews[0].current, 'https://stem.ieltsist.com' + url, 'expanding a region must retain access to the complete original page')
 console.log('Native source regions: exact route/question URLs, bounded crop geometry, pixel aspect, multi-page completeness and saved-session recovery passed.')
