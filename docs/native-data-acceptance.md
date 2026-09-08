@@ -1,6 +1,6 @@
 # Native data integration acceptance
 
-Checked locally on 2026-09-08 (Asia/Shanghai). This is not a production-release or physical-device certificate.
+Checked on 2026-09-08 (Asia/Shanghai). Production data and the native simulator journey are now verified below. Physical-device and full-network-performance acceptance remain separate.
 
 ## Source reuse
 
@@ -26,4 +26,33 @@ Checked locally on 2026-09-08 (Asia/Shanghai). This is not a production-release 
 
 ## Publication boundary
 
-Local code and tests are ready for final review. Production deployment, a new preview package, target-version 0580 batches and actual AI marking must be reported separately with their verified commit/artifact identities. Do not claim that all 2017–2025 OCR material is already classified or released.
+Do not claim that all 2017–2025 OCR material is already classified or released. The following is one bounded released batch, not full-corpus completion or a formal-score promotion.
+
+## Production data delivery
+
+- Mini Program runtime: `ad26b0fe2167a48b98c57539d9293b84aec0fdb1`; GitHub Actions run `34183297608` passed.
+- STEM backend overlay: `6e65cf4957c2c00a4348df484dc5c77022de17b3`, followed by the disk-seeding fix `3cc7e4d1df98285ab11d7eb27dd448e36184d8e7`. This is an allowlisted backend overlay, not a claim that the entire website frontend was replaced.
+- IELTS backend overlay: `8cac7771efbeabb2135a62f047995f7be89a2f3b`.
+- Data receipt: `7a0988b91212b863d970a2cb14ad6916917879d3fa0436d8cc6e703382b08e92`. Forty unique source questions (Space 12 + Mathematics 28) were atomically appended to the existing library. Forty unique questions contribute 41 topic memberships; these metrics are not interchangeable.
+- Original PDFs, existing catalog data, student records, credentials and the production package/lock files were preserved. Code rollback and whole-batch withdrawal remain available independently.
+
+| Topic | Before | Current practice questions | Verified assembly |
+|---|---:|---:|---:|
+| 0625 Space physics | 5 | 17 | 15 |
+| 0580 Algebra and graphs | 5 | 13 | 10 |
+| 0580 Coordinate geometry | 1 | 10 | 10 |
+| 0580 Geometry | 4 | 10 | 10 |
+| 0580 Mensuration | 5 | 11 | 10 |
+
+All five assembled sets remain study-only: `formalProgressEligible=false`. Existing review gates are unchanged. Other chapters still have shortages, including some 0580 topics; no whole-subject completion claim is made.
+
+### Live acceptance
+
+- Native simulator, without catalog/network mocks: Space selection -> 15-question set -> released source-region image -> saved-session restore; Mathematics topic counts; 2025 AS Physics spring filter (3 papers) and summer filter (15 papers); original public Speaking topic icons -> task detail. All four flows passed. Test storage was isolated in memory and restored afterwards.
+- IELTS opt-in `X-STEMist-Catalog: native-topics-v1` returns Listening 72, Reading 72, Writing 168 and Speaking 149. The 146 public Speaking tasks group into 142 themes, rendered at most 20 per page. Public-task details and original emojis were verified. Legacy clients still receive the original 3 Cambridge Speaking sets and do not mix public topics into mock exams. Cache variation is explicit.
+- Production-origin HTTP verification: all five inventories and assemblies passed; all 49 selected image URLs returned complete image bytes with correct source dimensions, maximum origin image time 22 ms. Warm inventory requests were 4–44 ms and set assembly 42–96 ms in this run.
+- Windows public-network check: inventory and assembly passed; 45/49 image bodies completed within a 15-second bound, while four timed out after HTTP 200. This is a recorded performance failure, not a full green certificate. The same source image that timed out in the bulk check subsequently displayed correctly in the native simulator. Origin success does not establish real-device network performance.
+- Tampered source-image binding returned 409; unauthenticated marking returned 401 without a score. This negative test does not establish production authenticated AI marking accuracy.
+- Post-change service/readiness checks passed: both services online with stable restart counts, both health endpoints 200, adequate memory/disk/swap and no sustained I/O pressure. No production build or dependency installation was used.
+
+A new preview package is needed for the native catalog opt-in. An already installed older preview cannot be assumed to use the new catalog contract. Preview generation and delivery must be reported from their actual tool results, separately from these data checks.
