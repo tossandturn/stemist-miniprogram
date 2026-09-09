@@ -21,7 +21,7 @@
 <view class="records-title">最近练习</view>
 <button wx:for="{{records}}" wx:key="id" class="native-record-row" data-index="{{index}}" bindtap="openRecord">
 <text>{{item.title}}</text>
-<text>{{item.band !== null ? 'Band ' + item.band : item.selfScore !== '' ? '自评 ' + item.selfScore : '已提交'}}</text>
+<text>{{item.scoreLabel || (item.band !== null ? 'Band ' + item.band : item.selfScore !== '' ? '自评 ' + item.selfScore : '已提交')}}</text>
 </button>
 <view wx:if="{{!records.length}}" class="empty-state">完成练习后，记录会显示在这里</view>
 <button wx:if="{{records.length < total}}" class="secondary" bindtap="more">查看更多</button>

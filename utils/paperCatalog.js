@@ -79,23 +79,29 @@ const pageCache=new Map(),pagePending=new Map(),detailCache=new Map(),versions=n
 function pageScope(options={}){
  const subject=String(options.subject||'').toLowerCase(),stage=String(options.stage||'all').toLowerCase(),routeId=String(options.routeId||''),query=String(options.query||'').trim().toLowerCase().slice(0,120),page=Number(options.page||1)
  const rawYear=String(options.year??'all'),year=['','all'].includes(rawYear)?null:Number(rawYear),season=String(options.season||'all').toLowerCase()
+ const component=String(options.component??'all').trim().toLowerCase()
+ if(component!=='all'&&!/^[1-9]$/.test(component))throw new Error('卷型筛选无效。')
  if(!PAPER_SUBJECTS.some(s=>s.code===subject)||!['all','igcse','as','a2','competition','admissions'].includes(stage)||!Number.isInteger(page)||page<1)throw new Error('试卷范围无效。')
  if(year!==null&&(!/^\d{4}$/.test(rawYear)||year<=1800)||!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(season))throw new Error('年份或考试季无效。')
- return {subject,stage,routeId,year,season,query,page,pageSize:30}
+ return {subject,stage,routeId,year,season,component,query,page,pageSize:30}
 }
 function compactPaper(item,subject){
  if(!item||item.subject!==subject||!item.id||item.kind!=='qp'||!Array.isArray(item.stages)||!Array.isArray(item.routeIds))throw new Error('试卷目录返回不完整。')
  const ms=item.markScheme
  if(ms&&(!ms.id||ms.kind!=='ms'))throw new Error('参考答案关联无效。')
- return {id:String(item.id),subject,kind:'qp',file:String(item.file||''),year:item.year,season:String(item.season||''),seasonKey:String(item.seasonKey||''),seasonLabel:String(item.seasonLabel||item.season||''),title:String(item.title||''),paperNumber:String(item.paperNumber||''),stages:item.stages,routeIds:item.routeIds,localUrl:String(item.localUrl||''),durationMinutes:item.durationMinutes,maxMarks:item.maxMarks,questionCount:null,markScheme:ms?{id:String(ms.id),kind:'ms',file:String(ms.file||''),localUrl:String(ms.localUrl||'')}:null}
+ return {id:String(item.id),subject,kind:'qp',file:String(item.file||''),year:item.year,season:String(item.season||''),seasonKey:String(item.seasonKey||''),seasonLabel:String(item.seasonLabel||item.season||''),title:String(item.title||''),paperNumber:String(item.paperNumber||''),paperComponent:Number.isInteger(item.paperComponent)&&item.paperComponent>=1&&item.paperComponent<=9?item.paperComponent:null,stages:item.stages,routeIds:item.routeIds,localUrl:String(item.localUrl||''),durationMinutes:item.durationMinutes,maxMarks:item.maxMarks,questionCount:null,markScheme:ms?{id:String(ms.id),kind:'ms',file:String(ms.file||''),localUrl:String(ms.localUrl||'')}:null}
 }
 function filterFacets(payload,scope){
+ const componentSupported=payload.componentFilterVersion==='native-paper-components-v1'
+ if((scope.component!=='all'||componentSupported)&&(!componentSupported||payload.component!==scope.component))throw new Error('题库服务未正确应用卷型筛选，请更新后重试。')
+ const components=componentSupported?payload.facets?.paperComponents:[]
+ if(componentSupported&&(!Array.isArray(components)||components.length>9||components.some(c=>!c||!/^[1-9]$/.test(c.value)||c.label!=='P'+c.value)||new Set(components.map(c=>c.value)).size!==components.length))throw new Error('卷型目录不完整，请重试。')
  const supported=payload.filterVersion==='native-paper-filters-v1',active=scope.year!==null||scope.season!=='all'
  if(active&&(!supported||payload.year!==scope.year||payload.season!==scope.season))throw new Error('题库服务未正确应用筛选，请更新后重试。')
  if(!supported)return null
  const facets=payload.facets
  if(!Array.isArray(facets?.years)||facets.years.length>200||!facets.years.every(y=>Number.isInteger(y)&&y>1800)||!Array.isArray(facets?.seasons)||facets.seasons.length>40||!facets.seasons.every(s=>/^[a-z0-9][a-z0-9_-]{0,39}$/.test(s.value)&&typeof s.label==='string'&&s.label.length<=100))throw new Error('题库筛选目录不完整，请重试。')
- return facets
+ return {...facets,paperComponents:components}
 }
 function rememberVersion(subject,version){
  if(versions.has(subject)&&versions.get(subject)!==version){for(const [key,value] of pageCache)if(value.payload.subject===subject)pageCache.delete(key);for(const [key,value] of detailCache)if(value.paper.subject===subject)detailCache.delete(key)}
@@ -111,7 +117,7 @@ async function fetchPaperPage(options={}){
   if(payload?.schemaVersion!=='native-paper-catalog-v1'||payload.subject!==scope.subject||payload.stage!==scope.stage||payload.routeId!==scope.routeId||payload.query!==scope.query||!Array.isArray(payload.items)||payload.items.length>30||!Number.isInteger(payload.total)||payload.total<0||!Number.isInteger(payload.page)||payload.page<1||!Number.isInteger(payload.pageCount)||payload.pageCount<0||typeof payload.version!=='string')throw new Error('真题分页返回不完整，请重试。')
   const items=payload.items.map(item=>compactPaper(item,scope.subject));if(new Set(items.map(item=>item.id)).size!==items.length)throw new Error('试卷目录有重复项，请重试。')
   const facets=filterFacets(payload,scope)
-  if(items.some(item=>scope.year!==null&&item.year!==scope.year||scope.season!=='all'&&item.seasonKey!==scope.season))throw new Error('返回试卷与当前筛选不匹配，请重试。')
+  if(items.some(item=>scope.year!==null&&item.year!==scope.year||scope.season!=='all'&&item.seasonKey!==scope.season||scope.component!=='all'&&String(item.paperComponent)!==scope.component))throw new Error('返回试卷与当前筛选不匹配，请重试。')
   rememberVersion(scope.subject,payload.version);items.forEach(rememberDetail)
   const result={...payload,items,facets};pageCache.delete(key);pageCache.set(key,{payload:result,at:Date.now()});while(pageCache.size>6)pageCache.delete(pageCache.keys().next().value)
   return result

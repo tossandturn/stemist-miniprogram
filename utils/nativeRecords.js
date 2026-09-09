@@ -7,7 +7,7 @@ function compact(record){
   taskId:String(record.taskId||''),paperId:String(record.paperId||''),routeId:String(record.routeId||''),
   subjectCode:String(record.subjectCode||''),stage:String(record.stage||''),mode:String(record.mode||''),
   title:String(record.title||record.taskTitle||record.skill||'练习'),submittedAt,
-  band:Number.isFinite(record.band)?record.band:null,selfScore:record.selfScore??'',coachMode:String(record.coachMode||'')
+  band:Number.isFinite(record.band)?record.band:null,selfScore:record.selfScore??'',coachMode:String(record.coachMode||''),scoreLabel:String(record.scoreLabel||'').slice(0,100),reportAvailable:record.reportAvailable===true
  }
 }
 function rememberRecord(record){const key='stemistRecordIndex:'+owner(),items=wx.getStorageSync(key)||[],next=compact(record);wx.setStorageSync(key,[next,...items.filter(item=>item.id!==next.id||item.skill!==next.skill)].slice(0,200))}

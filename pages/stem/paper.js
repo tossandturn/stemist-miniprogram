@@ -7,12 +7,13 @@ const {readAsJpegDataUrl}=require('../../utils/image')
 const {runCoach}=require('../../utils/coach')
 const {paperSources,paperContext,syncPaperAttempt,markPaperQuestion}=require('../../utils/nativePaperService')
 const {rememberRecord}=require('../../utils/nativeRecords')
+const {runPaperAssessment,paperReport,selfAssess}=require('../../utils/nativePaperGrading')
 const {createPdfDownloadController,initialPdfDownloadState}=require('../../utils/pdfDownload')
 Page({
  data:deviceState({paperId:'',subject:'',routeId:'',stage:'',category:'alevel',family:'exam',mode:'past-paper-practice',title:'真题练习',loading:true,ready:false,error:'',questionNumber:1,photo:'',feedback:'',busy:false,submitted:false,synced:false,selfScore:'',maxMarks:null,questionCount:null,photoCount:0,elapsed:'00:00',syncStatus:'',documentBusy:false,pdfDownload:initialPdfDownloadState(),sourceImages:[],canAskFeedback:false,sourceStatus:'',markResults:[],hasMarkScheme:false}),
  onLoad(options={}){this.__disposed=false;this.__paperLoadId=0;this.__loadedSourceUrls=new Set();this.setData({paperId:String(options.paperId||''),subject:String(options.subject||''),routeId:String(options.routeId||''),mode:options.mode==='exam-simulation'?'exam-simulation':'past-paper-practice'});this.setupPdfDownload();return this.load()},
- onShow(){syncDevice(this);this.syncPdfDownloadScope();if(this.__draft){this.refresh();if(!this.__context&&wx.getStorageSync('stemistSessionToken'))this.loadSourceContext()}},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},
- onUnload(){this.__disposed=true;this.__paperLoadId++;clearInterval(this.__clock);this.__pdfDownload?.dispose()},
+ onShow(){syncDevice(this);this.syncPdfDownloadScope();if(this.__draft){this.refresh();if(this.__draft.submitted)this.recordAssessment();if(!this.__context&&wx.getStorageSync('stemistSessionToken'))this.loadSourceContext()}},onResize(){syncDevice(this)},onHide(){this.__gradingActive=false;this.__pdfDownload?.suspend()},
+ onUnload(){this.__gradingActive=false;this.__disposed=true;this.__paperLoadId++;clearInterval(this.__clock);this.__pdfDownload?.dispose()},
  pdfScope(){return[this.__paperLoadId||0,this.data.paperId,this.data.subject,this.data.routeId,this.data.mode].join('|')},
  setupPdfDownload(){
   if(this.__pdfDownload)return
@@ -26,17 +27,22 @@ Page({
    const paper=await fetchPaperDetail(this.data.subject,this.data.paperId),route=routeById(this.data.routeId)
    if(this.__disposed)return
    if(!paper||!route||route.subjectCode!==paper.subject||!paper.stages.includes(route.stage.toLowerCase())||!paper.routeIds.includes(route.routeId))throw new Error('试卷与学科阶段不匹配，请重新选择。')
-   this.__paper=paper;this.__draft=createPaperDraft(paper,route,this.data.mode);savePaperDraft(this.__draft)
+   this.__paper=paper;this.__draft=createPaperDraft(paper,route,this.data.mode);this.__draft.questionCount=Number.isInteger(paper.questionCount)?paper.questionCount:null;savePaperDraft(this.__draft)
    const category=categoryForSubject(paper.subject)
    this.setData({ready:true,title:paper.file.replace(/\.pdf$/i,''),stage:route.stage,category,family:familyForCategoryStage(category,route.stage),maxMarks:paper.maxMarks,questionCount:paper.questionCount,hasMarkScheme:Boolean(paper.markScheme)})
    this.refresh();this.__clock=setInterval(()=>this.tick(),1000);this.loadSourceContext()
   }catch(e){if(!this.__disposed)this.setData({error:e.message})}finally{if(!this.__disposed)this.setData({loading:false})}
  },
  refresh(){
-  const draft=readPaperDraft(this.__draft.storageKey);if(!draft)return this.setData({error:'账号已变化，请返回学习页。'})
+  const draft=readPaperDraft(this.__draft.storageKey);if(!draft)return this.setData({error:'账号已变化，请返回学习页。',ready:false,photo:'',feedback:'',sourceImages:[],markResults:[],reportRows:[],reportSummary:null})
   this.__draft=draft;const answer=draft.answers[draft.index]||{}
   const question=this.__context?.questions.find(q=>q.number===draft.index)||this.__sourceContext?.questions.find(q=>q.number===draft.index)
   const sourceImages=(question?.images||[]).map(url=>'https://stem.ieltsist.com'+url)
+  const report=draft.submitted?paperReport(draft,this.data.maxMarks):null,assessment=answer.assessment||{}
+  const {rows:reportAllRows,...reportSummary}=report||{}
+  this.__report=report
+  const reportPage=Math.min(this.data.reportPage||0,Math.max(0,Math.ceil((report?.rows.length||0)/10)-1))
+  this.setData({gradingRunning:Boolean(this.__gradingActive),gradingFinishing:Boolean(this.__gradingTaskPending&&!this.__gradingActive),assessmentState:assessment.state||'pending',assessmentReason:assessment.reason||'',questionSelfScore:answer.selfDraft?.score??(assessment.state==='self'?String(assessment.score):''),questionSelfMax:answer.selfDraft?.max??(assessment.maxMarks!==null&&assessment.maxMarks!==undefined?String(assessment.maxMarks):''),questionMaxKnown:assessment.maxSource==='source',questionAssessmentScore:assessment.score??null,questionAssessmentMax:assessment.maxMarks??null,reportPage,reportPages:Math.ceil((report?.rows.length||0)/10),reportRows:report?.rows.slice(reportPage*10,reportPage*10+10)||[],reportSummary:report?reportSummary:null})
   this.setData({questionNumber:draft.index,photo:answer.photo||'',feedback:answer.feedback||'',photoCount:Object.keys(draft.answers).length,submitted:draft.submitted,synced:Boolean(draft.cloudSynced),selfScore:draft.selfScore||'',canAskFeedback:Boolean(question?.parts.length),sourceImageError:false,sourceImages,sourceLoadedCount:sourceImages.filter(url=>this.__loadedSourceUrls?.has(url)).length,markResults:Object.values(answer.results||{})});this.tick()
  },
  async loadSourceContext(){
@@ -89,25 +95,44 @@ Page({
   }catch(e){if(!this.__disposed)this.setData({error:e.message})}finally{if(!this.__disposed)this.setData({busy:false})}
  },
  async markCurrent(){
-  if(this.data.busy||!this.data.submitted||!this.data.photo||!this.data.canAskFeedback)return
-  const number=this.data.questionNumber,question=this.__context.questions.find(q=>q.number===number)
-  this.setData({busy:true,error:''})
-  try{
-   await syncPaperAttempt(this.__draft,this.__context,this.data.maxMarks)
-   await markPaperQuestion(this.__draft,question,this.data.photo,(part,result)=>{
-    const latest=readPaperDraft(this.__draft.storageKey);if(!latest||this.__disposed)return
-    latest.answers[number].results={...(latest.answers[number].results||{}),[part.partId]:{label:part.label,...result}};savePaperDraft(latest);this.__draft=latest;this.refresh()
-   })
-  }catch(e){if(!this.__disposed)this.setData({error:e.message||'批改未完成，照片已保留。'})}finally{if(!this.__disposed)this.setData({busy:false})}
+  return this.runAutomaticGrading()
  },
- inputSelfScore(event){if(!this.__draft||this.data.busy||!current(this.__draft))return;const text=String(event.detail.value||'');if(text!==''&&(!Number.isFinite(Number(text))||Number(text)<0||this.data.maxMarks&&Number(text)>this.data.maxMarks))return;this.__draft.selfScore=text;this.__draft.cloudSynced=false;savePaperDraft(this.__draft);this.setData({selfScore:text,synced:false})},
+ inputSelfScore(){this.setData({error:'请仅对AI未完成的题目进行自评；旧自评总分保留为历史。'})},
+ inputQuestionSelf(event){
+  if(this.__gradingActive||!this.__draft||!current(this.__draft))return
+  const field=event.currentTarget.dataset.field;if(!['score','max'].includes(field))return
+  const latest=readPaperDraft(this.__draft.storageKey),answer=latest?.answers[this.data.questionNumber]
+  if(!answer||!['self-required','self'].includes(answer.assessment?.state))return
+  const value=String(event.detail.value||'').slice(0,12)
+  answer.selfDraft={...(answer.selfDraft||{}),[field]:value};savePaperDraft(latest);this.__draft=latest;this.setData({[field==='score'?'questionSelfScore':'questionSelfMax']:value})
+ },
+ saveQuestionSelf(){try{this.__draft=selfAssess(this.__draft.storageKey,this.data.questionNumber,this.data.questionSelfScore,this.data.questionSelfMax,this.data.maxMarks);this.refresh();this.recordAssessment();this.setData({error:''})}catch(error){this.setData({error:error.message})}},
+ recordAssessment(){
+  if(!this.__draft?.submitted||!current(this.__draft))return
+  const report=paperReport(this.__draft,this.data.maxMarks),source=report.scoreSource
+  const scoreLabel=report.complete?(!report.wholePaper?'部分评分 · ':'')+(source==='ai'?'AI估分':source==='self'?'学生自评':'AI＋自评')+' '+report.score+'/'+report.maxScore:report.aiCount?'AI部分完成':'待评分'
+  const record={id:this.__draft.id,paperId:this.data.paperId,title:this.data.title,skill:'full-paper',category:this.data.category,routeId:this.data.routeId,subjectCode:this.data.subject,stage:this.data.stage,mode:this.data.mode,submittedAt:this.__draft.submittedAt,coachMode:source,scoreLabel,reportAvailable:true}
+  rememberRecord(record);wx.setStorageSync('stemistSubmission:paper-'+this.data.paperId,{...record,photoCount:this.data.photoCount})
+ },
+ async runAutomaticGrading(){
+  if(this.__gradingActive||this.__gradingTaskPending||this.data.busy||!this.__draft?.submitted||!current(this.__draft))return
+  this.__gradingActive=true;this.__gradingTaskPending=true;this.setData({gradingRunning:true,error:''})
+  try{await runPaperAssessment(this.__draft.storageKey,{paperMax:this.data.maxMarks,active:()=>this.__gradingActive&&!this.__disposed,
+   loadContext:async()=>{const context=await paperContext(this.__draft);this.__context=context;return context},
+   sync:async(draft,context)=>{await syncPaperAttempt(draft,context,this.data.maxMarks);const latest=readPaperDraft(draft.storageKey);if(latest){latest.cloudSynced=true;savePaperDraft(latest)}},
+   mark:markPaperQuestion,onUpdate:draft=>{if(!this.__disposed){this.__draft=draft;this.refresh();this.recordAssessment()}},
+  })}catch(error){if(!this.__disposed)this.setData({error:error.message||'批改暂停，照片已保留。'})}
+  finally{this.__gradingActive=false;this.__gradingTaskPending=false;if(!this.__disposed){this.refresh();this.recordAssessment()}}
+ },
+ pauseGrading(){this.__gradingActive=false;this.setData({gradingRunning:false,gradingFinishing:Boolean(this.__gradingTaskPending),syncStatus:'已停止后续批改，当前请求结束后可继续'})},
+ reportQuestion(event){this.chooseQuestion({detail:{value:Number(event.currentTarget.dataset.number)}});wx.pageScrollTo?.({selector:'.paper-native-answer',duration:200})},
+ changeReportPage(event){const next=(this.data.reportPage||0)+Number(event.currentTarget.dataset.delta);if(next>=0&&next<this.data.reportPages){this.setData({reportPage:next});this.refresh()}},
  async submitPaper(){
   if(this.data.busy||this.data.submitted||!current(this.__draft))return
-  if(!this.data.photoCount)return this.setData({error:'请先拍摄并保存答案。'})
+  if(!Object.values(this.__draft.answers||{}).some(answer=>typeof answer.photo==='string'&&answer.photo))return this.setData({error:'请先拍摄并保存答案。'})
   this.__draft.submitted=true;this.__draft.submittedAt=Date.now();savePaperDraft(this.__draft);this.refresh()
-  rememberRecord({id:this.__draft.id,paperId:this.data.paperId,title:this.data.title,skill:'full-paper',category:this.data.category,routeId:this.data.routeId,subjectCode:this.data.subject,stage:this.data.stage,mode:this.data.mode,selfScore:this.__draft.selfScore,submittedAt:this.__draft.submittedAt,coachMode:'self'})
-  wx.setStorageSync('stemistSubmission:paper-'+this.data.paperId,{category:this.data.category,family:this.data.family,skill:'full-paper',routeId:this.data.routeId,subjectCode:this.data.subject,stage:this.data.stage,submittedAt:Date.now(),coachMode:'self',selfScore:this.__draft.selfScore,photoCount:this.data.photoCount})
-  return this.syncSubmission()
+  this.recordAssessment()
+  return this.runAutomaticGrading()
  },
  async syncSubmission(){
   if(this.data.busy||!this.__draft?.submitted||!current(this.__draft))return

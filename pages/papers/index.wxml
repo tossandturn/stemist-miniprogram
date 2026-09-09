@@ -7,9 +7,10 @@
     <picker wx:if="{{showStageFilter && showRouteFilter}}" mode="selector" range="{{routeOptions}}" range-key="label" value="{{routeIndex}}" bindchange="chooseRoute"><view class="filter-select"><text>{{routeOptions[routeIndex].label}}</text><text class="filter-chevron">选择</text></view></picker>
     <picker wx:if="{{filterReady}}" class="paper-year-filter" mode="selector" range="{{yearOptions}}" range-key="label" value="{{yearIndex}}" bindchange="chooseYear"><view class="filter-select"><text>{{yearOptions[yearIndex].label}}</text><text class="filter-chevron">年份</text></view></picker>
     <picker wx:if="{{filterReady}}" class="paper-season-filter" mode="selector" range="{{seasonOptions}}" range-key="label" value="{{seasonIndex}}" bindchange="chooseSeason"><view class="filter-select"><text>{{seasonOptions[seasonIndex].label}}</text><text class="filter-chevron">{{category === 'competition' ? '场次' : '考试季'}}</text></view></picker>
+    <picker wx:if="{{componentOptions.length > 1}}" class="paper-component-filter" mode="selector" range="{{componentOptions}}" range-key="label" value="{{componentIndex}}" bindchange="chooseComponent"><view class="filter-select"><text>{{componentOptions[componentIndex].label}}</text><text class="filter-chevron">卷型</text></view></picker>
     <view class="search-box"><input value="{{query}}" placeholder="搜索年份或试卷" bindinput="onSearch" confirm-type="search" /><button wx:if="{{query}}" class="search-clear" bindtap="clearSearch">清空</button></view>
   </view>
-  <button wx:if="{{query || year !== 'all' || season !== 'all'}}" class="text-button paper-filter-reset" bindtap="clearFilters">重置筛选</button>
+  <button wx:if="{{query || year !== 'all' || season !== 'all' || component !== 'all'}}" class="text-button paper-filter-reset" bindtap="clearFilters">重置筛选</button>
   <view wx:if="{{loading}}" class="loading-state">正在加载真题…</view>
   <view wx:elif="{{error && !catalog}}" class="error">{{error}}<button class="secondary" bindtap="retry">重新加载</button></view>
   <block wx:else>

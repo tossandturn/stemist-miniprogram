@@ -10,7 +10,7 @@ const choices=(subject,stage='all')=>STEM_ROUTES.filter(route=>route.subjectCode
 Page({
  data:deviceState({category:'alevel',categoryLabel:'学科真题',showStageFilter:true,subjects:scopes('alevel'),subject:'9702',subjectIndex:0,stageFilters:[],stage:'all',stageIndex:0,routeOptions:[],routeIndex:0,routeId:'',family:'exam',query:'',year:'all',season:'all',filterReady:false,yearOptions:[],seasonOptions:[],yearIndex:0,seasonIndex:0,loading:false,error:'',catalog:false,items:[],totalQuestionPapers:0,pairedQuestionPapers:0,matchCount:0,hasMore:false,pageNumber:1,pageCount:0,pdfBusy:'',pdfDownload:initialPdfDownloadState(),mode:'past-paper-practice'}),
  onLoad(options={}){
-  this.__requestId=0;this.__disposed=false;this.__pageItems=[];this.setupPdfDownload()
+  this.__requestId=0;this.__disposed=false;this.__pageItems=[];this.setData({component:'all',componentOptions:[],componentIndex:0});this.setupPdfDownload()
   const incoming=routeById(String(options.routeId||'')),requested=String(options.subject||options.subjectCode||incoming?.subjectCode||''),category=normalizeStemCategory(options.category||(requested?categoryForSubject(requested):'alevel')),subjects=scopes(category),subject=subjects.find(item=>item.code===requested)||subjects[0]
   const stage=String(options.stage||incoming?.stage||'all').toLowerCase()
   this.setData({category,categoryLabel:category==='competition'?'竞赛与入学真题':'学科真题',showStageFilter:category!=='competition',subjects,year:String(options.year||'all'),season:String(options.season||'all').toLowerCase(),mode:options.mode==='exam-simulation'?'exam-simulation':'past-paper-practice'})
@@ -18,7 +18,7 @@ Page({
   this.setScope(subject.code,stage,incoming?.routeId||'');return this.loadCatalog()
  },
  onShow(){syncDevice(this);this.syncPdfDownloadScope()},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},onUnload(){this.__disposed=true;this.__requestId++;clearTimeout(this.__searchTimer);this.__pdfDownload?.dispose()},
- pdfScope(){return[this.__requestId||0,this.data.category,this.data.subject,this.data.stage,this.data.routeId,this.data.year,this.data.season,this.data.query,this.data.pageNumber].join('|')},
+ pdfScope(){return[this.__requestId||0,this.data.category,this.data.subject,this.data.stage,this.data.routeId,this.data.year,this.data.season,this.data.component||'all',this.data.query,this.data.pageNumber].join('|')},
  setupPdfDownload(){
   if(this.__pdfDownload)return
   this.__pdfDownload=createPdfDownloadController({wxApi:wx,isScopeCurrent:scope=>!this.__disposed&&scope===this.pdfScope(),onState:state=>{if(!this.__disposed)this.setData({pdfDownload:state,pdfBusy:state.active?state.itemId:''})}})
@@ -26,6 +26,7 @@ Page({
  },
  syncPdfDownloadScope(){if(!this.__disposed)this.__pdfDownload?.setScope(this.pdfScope())},
  setScope(subject,stage='all',routeId=''){
+  this.setData({component:'all',componentOptions:[],componentIndex:0})
   const available=choices(subject),stages=[...new Set(available.map(r=>r.stage.toLowerCase()))]
   const selected=stages.includes(stage)?stage:'all',stageFilters=[{id:'all',label:'全部阶段'},...stages.map(id=>({id,label:LABELS[id]}))]
   const routeOptions=[{routeId:'',label:'全部课程路线'},...choices(subject,selected).map(r=>({routeId:r.routeId,label:r.stage+' · '+r.components}))]
@@ -40,10 +41,11 @@ Page({
  clearSearch(){clearTimeout(this.__searchTimer);this.setData({query:''});return this.loadCatalog()},
  chooseYear(event){const option=this.data.yearOptions[Number(event.detail.value)];if(!option)return;this.setData({year:option.value});return this.loadCatalog()},
  chooseSeason(event){const option=this.data.seasonOptions[Number(event.detail.value)];if(!option)return;this.setData({season:option.value});return this.loadCatalog()},
- clearFilters(){clearTimeout(this.__searchTimer);this.setData({query:'',year:'all',season:'all'});return this.loadCatalog()},
+ chooseComponent(event){const option=this.data.componentOptions[Number(event.detail.value)];if(!option||this.data.loading)return;this.setData({component:option.value});return this.loadCatalog()},
+ clearFilters(){clearTimeout(this.__searchTimer);this.setData({query:'',year:'all',season:'all',component:'all'});return this.loadCatalog()},
  retry(){return this.loadCatalog()},
  async loadCatalog(page=1){
-  const request=++this.__requestId,scope={subject:this.data.subject,stage:this.data.stage,routeId:this.data.routeId,year:this.data.year,season:this.data.season,query:this.data.query,page:typeof page==='number'?page:1}
+  const request=++this.__requestId,scope={subject:this.data.subject,stage:this.data.stage,routeId:this.data.routeId,year:this.data.year,season:this.data.season,component:this.data.component||'all',query:this.data.query,page:typeof page==='number'?page:1}
   this.syncPdfDownloadScope()
   clearTimeout(this.__searchTimer);this.__pageItems=[];this.setData({loading:true,error:'',pdfBusy:'',catalog:false,items:[]})
   try{
@@ -51,6 +53,9 @@ Page({
    this.__pageItems=result.items
    const items=result.items.map(item=>({id:item.id,year:item.year,seasonLabel:item.seasonLabel,displayTitle:item.file.replace(/\.pdf$/i,'').replace(/[_-]+/g,' '),stageLabel:item.stages.map(s=>LABELS[s]).filter(Boolean).join(' · '),title:item.title,paperNumber:item.paperNumber,canPractice:item.routeIds.length>0,hasMarkScheme:Boolean(item.markScheme),hasPdf:Boolean(item.localUrl),pairLabel:item.markScheme?'含参考答案':''}))
    const yearOptions=[{value:'all',label:'全部年份'},...(result.facets?.years||[]).map(year=>({value:String(year),label:String(year)}))],seasonOptions=[{value:'all',label:this.data.category==='competition'?'全部场次':'全部考试季'},...(result.facets?.seasons||[])]
+   const componentOptions=[{value:'all',label:'全部卷型'},...(result.facets?.paperComponents||[])]
+   if(this.data.component!=='all'&&!componentOptions.some(c=>c.value===this.data.component))componentOptions.push({value:this.data.component,label:'P'+this.data.component})
+   this.setData({componentOptions,componentIndex:Math.max(0,componentOptions.findIndex(c=>c.value===this.data.component))})
    if(this.data.year!=='all'&&!yearOptions.some(o=>o.value===this.data.year))yearOptions.push({value:this.data.year,label:this.data.year})
    if(this.data.season!=='all'&&!seasonOptions.some(o=>o.value===this.data.season))seasonOptions.push({value:this.data.season,label:SEASONS[this.data.season]||this.data.season})
    this.setData({catalog:true,items,filterReady:Boolean(result.facets),yearOptions,seasonOptions,yearIndex:yearOptions.findIndex(o=>o.value===this.data.year),seasonIndex:seasonOptions.findIndex(o=>o.value===this.data.season),matchCount:result.total,totalQuestionPapers:result.subjectTotal,pairedQuestionPapers:result.pairedTotal,pageNumber:result.page,pageCount:result.pageCount,hasMore:result.page<result.pageCount})

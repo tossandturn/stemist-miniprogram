@@ -3,3 +3,4 @@
 .paper-sticky-head { position:sticky;top:0;z-index:20;min-height:78px;margin:-20px -16px 0;padding:20px 16px 0;background:#f5f6fb;border-bottom:1px solid #e4e7f0; }
 .device-tablet .paper-sticky-head { margin:-28px -40px 0;padding:28px 40px 0;min-height:86px; }
 .device-tablet.portrait .paper-sticky-head { margin-left:-24px;margin-right:-24px;padding-left:24px;padding-right:24px; }
+.paper-self-fallback{margin-top:16px;padding:16px;border:1px solid #ead7b2;border-radius:12px;background:#fffaf0}.paper-report-title{display:block;font-size:17px;font-weight:700;line-height:1.5}.paper-report-score{display:block;margin-top:16px;font-size:24px;font-weight:700;color:#5638c3}.paper-report-question{padding:16px 0;border-top:1px solid #e4e7f0;margin-top:16px}.paper-report-detail{display:flex;flex-direction:column;gap:8px;margin-top:12px;font-size:14px;line-height:1.6}.paper-self-fallback .paper-self-score{margin-top:12px;flex-wrap:wrap}.paper-self-fallback input{min-width:100px}

@@ -24,6 +24,7 @@ async function paperContext(draft){
    if(p.provenance?.sourceQuestionId!==q.sourceQuestionId||p.provenance?.questionPartId!==p.partId||p.provenance?.routeId!==draft.routeId||!p.provenance?.bindingSignature||!Number.isFinite(p.marks)||p.marks<0)throw new Error('题目来源尚未确认。')
    return {partId:p.partId,label:String(p.label||''),marks:p.marks,provenance:p.provenance}
   })
+  if(new Set(parts.map(p=>p.partId)).size!==parts.length)throw new Error('题目评分小问重复，暂不能自动批改。')
   return {number:q.number,sourceQuestionId:q.sourceQuestionId,parts,images:sourceImages(q.images||[],draft.paperId)}
  })
  return {questions}
@@ -34,17 +35,22 @@ async function syncPaperAttempt(draft,context,maxMarks){
  const response=await requestJson('/api/stem/attempts',{
   attemptId:draft.id,mode:'full-paper',routeId:draft.routeId,stage:draft.stage,paperId:draft.paperId,markingParts,
   ...(draft.submitted?{submittedAt:new Date(draft.submittedAt).toISOString()}:{}),
-  attempt:{id:draft.id,mode:'full-paper',routeId:draft.routeId,stage:draft.stage,paperId:draft.paperId,paperStudyMode:draft.mode,attemptStatus:draft.submitted?'submitted':'draft',answers:{},selfAssessment:{score:draft.selfScore,maxMarks},evidence:{kind:'photo',count:Object.keys(draft.answers).length}}
+  attempt:{id:draft.id,mode:'full-paper',routeId:draft.routeId,stage:draft.stage,paperId:draft.paperId,paperStudyMode:draft.mode,attemptStatus:draft.submitted?'submitted':'draft',answers:{},selfAssessment:{score:draft.grading?'':draft.selfScore,maxMarks},evidence:{kind:'photo',count:Object.keys(draft.answers).length}}
  })
  if(!current(draft)||response?.attempt?.attemptId!==draft.id)throw new Error('服务端尚未确认本次练习。')
  return response
 }
-async function markPaperQuestion(draft,question,photo,onPart){
+async function markPaperQuestion(draft,question,photo,onPart,{shouldContinue=()=>true,completedPartIds=[]}={}){
  if(!draft.submitted||!current(draft)||!question?.parts.length)throw new Error('请先提交试卷，再进行 AI 批改。')
+ if(!shouldContinue())throw new Error('批改已暂停。')
+ const parts=question.parts.filter(p=>!completedPartIds.includes(p.partId))
+ if(!parts.length)return
  const imageDataUrl=await readAsJpegDataUrl(photo)
- const response=await requestJson('/api/stem/marking/capabilities',{attemptId:draft.id,mode:'full-paper',submitted:true,paperId:draft.paperId,parts:question.parts.map(p=>({provenance:p.provenance}))})
+ if(!current(draft)||!shouldContinue())throw new Error('批改已暂停。')
+ const response=await requestJson('/api/stem/marking/capabilities',{attemptId:draft.id,mode:'full-paper',submitted:true,paperId:draft.paperId,parts:parts.map(p=>({provenance:p.provenance}))})
  if(!current(draft))throw new Error('账号已变化。')
- for(const part of question.parts){
+ for(const part of parts){
+  if(!current(draft)||!shouldContinue())throw new Error('批改已暂停。')
   const grant=response?.capabilities?.filter(c=>c.questionPartId===part.partId&&typeof c.markingGrant==='string')
   if(grant?.length!==1)throw new Error('批改授权未完整返回。')
   const result=await requestJson('/api/ai/mark-handwriting',{attemptId:draft.id,mode:'full-paper',submitted:true,paperId:draft.paperId,markingGrant:grant[0].markingGrant,imageDataUrl,typedResponse:'',provenance:part.provenance},{timeout:60000})
