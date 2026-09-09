@@ -42,6 +42,26 @@ function consent(wx={}){
  assert.equal(runtime.load('utils/recordPermission').recordingError({errMsg:'api scope is not declared in the privacy agreement'}).action,'configuration')
 }
 const camera=fs.readFileSync(new URL('../pages/stem/camera.wxml',import.meta.url),'utf8')
+assert.match(camera,/bindtap="openPermissions"/,'Camera must expose a visible permission-settings entry even after a configuration error')
+assert.match(camera,/permissionAction === 'configuration'[\s\S]*bindtap="beginCamera"/,'A corrected platform declaration must be retryable without leaving the page')
+const speaking=fs.readFileSync(new URL('../pages/ielts/speaking.wxml',import.meta.url),'utf8')
+assert.match(speaking,/bindtap="openPermissions"/,'Speaking must expose a visible microphone permission entry')
+{
+ const runtime=miniRuntime()
+ const page=runtime.page('pages/stem/camera');page.onLoad()
+ page.openPermissions()
+ assert.equal(runtime.calls.at(-1)?.url,'/pages/legal/privacy')
+ assert.equal(page.data.cameraMounted,false)
+ let starts=0;page.__pageReady=true;page.data.permissionAction='configuration';page.beginCamera=()=>{starts++}
+ page.onShow();assert.equal(starts,1,'Returning from permission settings must recheck a former configuration error')
+ page.onShow();assert.equal(starts,1,'The settings return marker is consumed only once')
+}
+{
+ const runtime=miniRuntime(),page=runtime.page('pages/ielts/speaking')
+ page.current=()=>true;page.openPermissions()
+ assert.equal(runtime.calls.at(-1)?.url,'/pages/legal/privacy')
+ const before=runtime.calls.length;page.data.active=true;page.openPermissions();assert.equal(runtime.calls.length,before)
+}
 assert.ok(camera.indexOf('<privacy-consent')<camera.indexOf('<camera '),'Consent must appear before the camera viewport')
 assert.match(camera,/wx:if="\{\{!permissionAction\}\}"/)
 const markup=fs.readFileSync(new URL('../components/privacy-consent/index.wxml',import.meta.url),'utf8')

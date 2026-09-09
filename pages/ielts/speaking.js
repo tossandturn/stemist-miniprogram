@@ -104,6 +104,7 @@ Page({
  showLater(){this.renderTurns(Math.min(Math.max(0,this.__turns.length-12),(this.__turnStart||0)+12))},
  async permissionSettings(){try{const result=await openRecordSettings(this.data.permissionAction);this.state(result.granted?{permissionAction:'',error:'',canRetry:false,status:'麦克风已开启，点击开始练习。'}:{permissionAction:result.action,error:'麦克风尚未开启，原记录保持不变。'})}catch{this.state({error:'设置未能打开，请在微信或系统设置中允许麦克风。'})}},
  openPrivacy(){wx.openPrivacyContract?.({fail:()=>this.state({error:'隐私指引暂时无法打开，请稍后重试。'})})},
+ openPermissions(){if(!this.current()||this.data.active||this.data.connecting||this.data.scoring)return;wx.navigateTo({url:'/pages/legal/privacy',fail:()=>this.state({error:'权限设置未能打开，请重试。'})})},
  agreePrivacy(){if(this.current()&&this.__visible)this.start()},
  showSaved(){try{this.__historyRows=speakingStore.sessionHistory(this.__owner,this.__epoch);this.state({showHistory:true});this.renderHistory(0)}catch{this.state({error:'历史暂时无法读取，原记录未修改。'})}},
  renderHistory(page){const rows=this.__historyRows||[];this.__historyPage=Math.max(0,Math.min(page,Math.ceil(rows.length/20)-1));const start=this.__historyPage*20;this.state({historyRows:rows.slice(start,start+20),historyHasMore:start+20<rows.length,historyHasPrevious:start>0})},

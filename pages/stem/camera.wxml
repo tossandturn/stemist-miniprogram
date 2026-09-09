@@ -1,8 +1,10 @@
 <view class="page {{deviceClass}} {{orientation}} camera-page">
   <stemist-header compact="{{true}}" title="拍照" action-text="取消" bind:action="cancel" />
+  <button class="text-button camera-permission-entry" bindtap="openPermissions" disabled="{{busy}}">相机权限设置</button>
   <privacy-consent wx:if="{{permissionAction === 'privacy'}}" contract-name="{{privacyContractName}}" purpose="相机用于拍摄题目或答案；只有点击提交后，照片才会上传分析。" button-text="同意并开启相机" bind:agreed="agreePrivacy" />
   <view wx:if="{{error && permissionAction !== 'privacy'}}" class="error camera-error" role="alert">{{error}}
     <button wx:if="{{permissionAction === 'mini' || permissionAction === 'system'}}" class="secondary camera-settings" bindtap="permissionSettings">{{permissionAction === 'system' ? '去系统设置' : '开启相机权限'}}</button>
+    <button wx:if="{{permissionAction === 'configuration'}}" class="secondary camera-permission-retry" bindtap="beginCamera" disabled="{{busy || initializing}}">重新检测授权</button>
   </view>
   <view wx:if="{{!permissionAction}}" class="camera-frame {{!cameraMounted && !initializing ? 'camera-inactive' : ''}}">
     <camera wx:if="{{cameraMounted}}" class="camera-view" data-camera-generation="{{cameraGeneration}}" device-position="back" flash="{{flash}}" bindinitdone="onCameraInitialized" binderror="onCameraError" bindstop="onCameraStopped"></camera>

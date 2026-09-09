@@ -15,7 +15,7 @@ Page({
     this.setData({ returnPage, context, coachSource: returnPage === 'writing' ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: returnPage === 'writing' ? 'ielts' : context.category || 'alevel', family: returnPage === 'writing' ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '', hint })
   },
   onReady() { this.__pageReady=true;return this.beginCamera() },
-  onShow() { this.__visible=true;syncDevice(this);if(!this.current())return this.showIdentityChange();if(!this.__usingSystemCamera&&!this.__capturePending){this.setData({busy:false});if(this.__pageReady&&!this.data.cameraMounted&&!this.data.initializing&&!this.data.permissionAction)return this.beginCamera()} },
+  onShow() { this.__visible=true;syncDevice(this);if(!this.current())return this.showIdentityChange();if(!this.__usingSystemCamera&&!this.__capturePending){this.setData({busy:false});if(this.__permissionVisit&&this.__pageReady){this.__permissionVisit=false;return this.beginCamera()}if(this.__pageReady&&!this.data.cameraMounted&&!this.data.initializing&&!this.data.permissionAction)return this.beginCamera()} },
   onHide() { if(this.__disposed)return;this.__visible=false;this.__startupId++;this.unmountCamera();if(!this.__usingSystemCamera){this.__captureId++;this.__capturePending=false;this.setData({busy:false})} },
   onResize() { syncDevice(this) },
   onUnload() { if(this.__disposed)return;this.onHide();this.__disposed=true;this.__captureId++ },
@@ -54,6 +54,7 @@ Page({
   },
   async permissionSettings(){try{const result=await openCameraSettings(this.data.permissionAction);if(!this.current())return;if(result.granted){this.setData({permissionAction:'',error:''});if(this.__visible)await this.beginCamera()}else this.setData({permissionAction:result.action,error:'相机权限尚未开启，已有照片和练习仍保留。'})}catch{if(this.current())this.setData({error:'设置未能打开，请在微信或系统设置中允许相机。'})}},
   openPrivacy(){wx.openPrivacyContract?.({fail:()=>{if(this.current())this.setData({error:'隐私指引暂时无法打开，请稍后重试。'})}})},
+  openPermissions(){if(!this.current()||this.data.busy)return;this.__permissionVisit=true;wx.navigateTo({url:'/pages/legal/privacy',fail:()=>{this.__permissionVisit=false;if(this.current())this.setData({error:'权限设置未能打开，请重试。'})}})},
   agreePrivacy(){return this.beginCamera()},
   toggleFlash() {
     if(!this.current()||!this.data.ready||this.data.busy)return
