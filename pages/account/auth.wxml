@@ -16,5 +16,5 @@
     <view wx:if="{{error}}" class="error">{{error}}</view>
   </view>
   <button class="text-button" bindtap="openIeltsAccount">IELTSist 账号与会员</button>
-  <button class="text-button" bindtap="openPrivacy">帮助与隐私</button>
+  <button class="text-button" bindtap="openPrivacy">隐私与权限</button>
 </view>

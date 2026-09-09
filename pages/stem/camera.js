@@ -47,7 +47,7 @@ Page({
     if(!this.current())return
     const classified=error?.action?error:cameraError(error)
     this.__capturePending=false;this.__usingSystemCamera=false;this.unmountCamera()
-    this.setData({busy:false,error:classified.action==='cancel'?'':classified.message,permissionAction:['mini','system','privacy'].includes(classified.action)?classified.action:'',privacyContractName:classified.contractName||'用户隐私保护指引',canUseSystemCamera:classified.action==='retry'})
+    this.setData({busy:false,error:classified.action==='cancel'?'':classified.message,permissionAction:['mini','system','privacy','configuration'].includes(classified.action)?classified.action:'',privacyContractName:classified.contractName||'用户隐私保护指引',canUseSystemCamera:classified.action==='retry'})
   },
   onCameraError(event) {
     if(this.cameraEventCurrent(event))this.cameraFailure(cameraError(event?.detail||{}))

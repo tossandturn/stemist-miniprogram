@@ -29,7 +29,7 @@
     "test:contrast": "node scripts/test-color-contrast.mjs",
     "test:api-origin": "node scripts/test-api-origin.mjs",
     "test:calculator": "node scripts/test-calculator.mjs",
-    "test:wechat-auth": "node scripts/test-wechat-auth.mjs",
+    "test:wechat-auth": "node scripts/test-wechat-auth.mjs && node scripts/test-privacy-consent.mjs",
     "test:wxml-bindings": "node scripts/test-wxml-bindings.mjs",
     "test:home-entry": "node scripts/test-home-entry-routes.mjs",
     "test:stem-catalog": "node scripts/test-stem-catalog.mjs",

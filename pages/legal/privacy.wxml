@@ -1,5 +1,14 @@
 <view class="page {{deviceClass}} {{orientation}} privacy-page">
-  <stemist-header eyebrow="STEMIST · PRIVACY" title="隐私说明" subtitle="What this Mini Program reads and sends" action-text="返回" bind:action="goBack" />
+  <stemist-header compact="{{true}}" title="隐私与权限" action-text="返回" bind:action="goBack" />
+  <view wx:if="{{loading}}" class="loading-state">正在读取授权状态…</view>
+  <privacy-consent wx:if="{{privacyKnown && privacyNeeded}}" contract-name="{{contractName}}" purpose="请先阅读隐私指引。相机和麦克风仍由你分别决定是否开启。" bind:agreed="agreed" />
+  <view wx:if="{{privacyKnown && !privacyNeeded}}" class="panel privacy-status"><text>已同意隐私保护指引</text><button class="text-button" bindtap="openContract">查看隐私保护指引</button></view>
+  <view class="panel privacy-permissions">
+    <view class="permission-row"><view><text class="permission-name">相机</text><text class="permission-status">{{cameraLabel}} · 用于拍摄题目和答案</text></view><button class="secondary" bindtap="enableCamera" disabled="{{busy || loading || !privacyKnown || privacyNeeded}}">{{cameraLabel === '已开启' ? '检查授权' : '开启相机'}}</button></view>
+    <view class="permission-row"><view><text class="permission-name">麦克风</text><text class="permission-status">{{microphoneLabel}} · 用于口语练习</text></view><button class="secondary" bindtap="enableMicrophone" disabled="{{busy || loading || !privacyKnown || privacyNeeded}}">{{microphoneLabel === '已开启' ? '检查授权' : '开启麦克风'}}</button></view>
+    <text class="privacy-item">开启权限不会立即拍照或录音；仍需你进入对应练习后主动开始。</text>
+  </view>
+  <view wx:if="{{error}}" class="error" role="alert">{{error}}<button class="text-button" bindtap="refreshPermissions" disabled="{{busy}}">重新检查</button></view>
   <view class="panel privacy-panel">
     <view class="section-title">相机与照片</view>
     <view class="privacy-item">点击拍照后才会使用摄像头。照片先在设备内裁剪，只有点击提交后才会上传分析。</view>
@@ -8,7 +17,7 @@
     <view class="section-title">账号与草稿</view>
     <view class="privacy-item">草稿和最近提交保存在当前设备。登录后，学科、阶段和反馈摘要可同步到学习记录；原始照片不会随摘要写入学习记录。退出账号会清理当前设备中的账号草稿与相关记录。</view>
     <view class="section-title">实时口语</view>
-    <view class="privacy-item">口语练习会打开 IELTSist。使用实时对话前需要允许麦克风访问。</view>
+    <view class="privacy-item">口语练习使用小程序原生录音。主动开始练习并允许麦克风后，音频会发送给 AI 考官；结束或离开练习会停止录音。</view>
   <ai-fab source="privacy" />
 </view>
 </view>

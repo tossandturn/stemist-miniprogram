@@ -1,6 +1,7 @@
 {
-  "navigationBarTitleText": "Stemist · Privacy",
+  "navigationBarTitleText": "隐私与权限",
   "usingComponents": {
+    "privacy-consent": "/components/privacy-consent/index",
     "stemist-header": "/components/stemist-header/index",
     "ai-fab": "/components/ai-fab/index"
   }

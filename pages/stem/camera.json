@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "Stemist · 相机",
   "usingComponents": {
+    "privacy-consent": "/components/privacy-consent/index",
     "stemist-header": "/components/stemist-header/index",
     "ai-fab": "/components/ai-fab/index"
   }

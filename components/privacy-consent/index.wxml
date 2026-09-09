@@ -1,0 +1,8 @@
+<view class="consent-panel">
+ <text class="consent-title">隐私保护</text>
+ <text wx:if="{{purpose}}" class="consent-purpose">{{purpose}}</text>
+ <checkbox-group bindchange="changeChecked"><label class="consent-check"><checkbox value="agree" checked="{{checked}}" disabled="{{busy}}" color="#5638c3"/><text>已阅读并同意隐私保护指引</text></label></checkbox-group>
+ <button class="consent-link" bindtap="openContract" aria-label="查看{{contractName}}">查看隐私保护指引</button>
+ <button id="privacy-consent-agree" class="consent-submit" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agree" disabled="{{!checked || busy}}" loading="{{busy}}">{{buttonText}}</button>
+ <text wx:if="{{error}}" class="consent-error" role="alert">{{error}}</text>
+</view>

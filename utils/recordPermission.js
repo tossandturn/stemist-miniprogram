@@ -3,6 +3,7 @@ function appMicrophone(){try{return wx.getAppAuthorizeSetting?.().microphoneAuth
 function invoke(name,options={}){return new Promise((resolve,reject)=>{if(typeof wx[name]!=='function')return reject(permissionError('permission_api_unavailable','请升级微信后重试。'));wx[name]({...options,success:resolve,fail:reject})})}
 function recordingError(error={}){
  const raw=String(error.errMsg||error.message||error||'')
+ if(/not declared.*privacy|privacy.*not (?:declared|configured)|隐私.*(?:未声明|未配置)/i.test(raw))return permissionError('record_privacy_not_declared','此版本尚未完成麦克风隐私声明，需要开发者完善配置；重复同意无法解决。','configuration')
  if(/privacy|隐私/i.test(raw))return permissionError('record_privacy_required','请先同意隐私保护指引，再使用麦克风。','privacy')
  if(appMicrophone()==='denied')return permissionError('record_system_denied','系统尚未允许微信使用麦克风。','system')
  if(/auth|permission|authorize|权限|拒绝/i.test(raw))return permissionError('record_permission_denied','麦克风尚未开启，已有练习记录会保留。','mini')
