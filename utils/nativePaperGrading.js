@@ -7,15 +7,17 @@ const completed=answer=>['ai','self'].includes(answer?.assessment?.state)&&Numbe
 const questionMax=q=>q?.parts?.length&&new Set(q.parts.map(p=>p.partId)).size===q.parts.length&&q.parts.every(p=>p.partId&&Number.isFinite(p.marks)&&p.marks>=0)?q.parts.reduce((sum,p)=>sum+p.marks,0):null
 function paperReport(draft,paperMax=null){
  const rows=numbers(draft).map(number=>{
-  const answer=draft.answers[number],assessment=answer.assessment||{},state=['ai','self'].includes(assessment.state)&&!completed(answer)?'pending':assessment.state||'pending'
+  const answer=draft.answers[number],base=answer.assessment||{},student=answer.studentAssessment||(base.state==='self'?base:null)
+  const studentValid=completed({assessment:student}),aiPending=!['ai','self','self-required'].includes(base.state)
+  const assessment=base.state!=='ai'&&studentValid?student:base,state=['ai','self'].includes(assessment.state)&&!completed({assessment})?'pending':assessment.state||'pending'
   const details=Object.entries(answer.results||{}).filter(([,r])=>r.source==='ai').map(([id,r])=>({id,label:r.label||id,score:r.score,maxScore:r.maxScore,summary:String(r.summary||'').slice(0,1500),reviewRequired:r.reviewRequired===true}))
   const scored=['ai','self'].includes(state)
-  return {number,state,source:state==='ai'?'AI估分':state==='self'?'学生自评':state==='self-required'?'待自评':'待AI评分',score:scored?assessment.score:null,maxScore:assessment.maxMarks??null,maxSource:assessment.maxSource||'',reason:assessment.reason||'',details,reviewRequired:state==='ai'&&details.some(r=>r.reviewRequired)}
+  return {number,state,aiPending,studentScore:studentValid?student.score:null,studentMax:studentValid?student.maxMarks:null,source:state==='ai'?'AI估分':state==='self'?'学生自评':state==='self-required'?'待自评':'待AI评分',score:scored?assessment.score:null,maxScore:assessment.maxMarks??null,maxSource:assessment.maxSource||'',reason:assessment.reason||'',details,reviewRequired:state==='ai'&&details.some(r=>r.reviewRequired)}
  })
- const ai=rows.filter(r=>r.state==='ai'),self=rows.filter(r=>r.state==='self'),scored=[...ai,...self],complete=rows.length>0&&scored.length===rows.length
+ const ai=rows.filter(r=>r.state==='ai'),self=rows.filter(r=>r.state==='self'),scored=[...ai,...self],complete=rows.length>0&&scored.length===rows.length&&!rows.some(r=>r.aiPending)
  const aiScore=ai.reduce((sum,r)=>sum+r.score,0),selfScore=self.reduce((sum,r)=>sum+r.score,0),maxScore=scored.reduce((sum,r)=>sum+(r.maxScore||0),0)
  const nextSteps=ai.filter(r=>r.score<r.maxScore).sort((a,b)=>(b.maxScore-b.score)-(a.maxScore-a.score)).slice(0,3).map(r=>'优先复盘第 '+r.number+' 题：AI估计失分 '+(r.maxScore-r.score)+' 分，结合下方小问说明检查步骤。')
- return {schemaVersion:'native-paper-report-v1',generatedAt:Date.now(),attemptId:draft.id,paperId:draft.paperId,routeId:draft.routeId,stage:draft.stage,submittedAt:draft.submittedAt,rows,nextSteps,submittedQuestions:rows.length,aiCount:ai.length,selfCount:self.length,needsSelf:rows.filter(r=>r.state==='self-required').length,pending:rows.filter(r=>['pending','processing'].includes(r.state)).length,aiScore,selfScore,score:aiScore+selfScore,maxScore,paperMax,complete,wholePaper:complete&&Number.isInteger(draft.questionCount)&&draft.questionCount===rows.length&&rows.every((r,i)=>r.number===i+1)&&Number.isFinite(paperMax)&&paperMax>0&&maxScore===paperMax&&rows.every(r=>r.maxSource==='source'),scoreSource:complete?(ai.length&&self.length?'mixed':ai.length?'ai':'self'):ai.length?'partial-ai':'pending',notice:'AI成绩为辅助估分；自评由学生填写。未评分题不按零分处理。'}
+ return {schemaVersion:'native-paper-report-v1',generatedAt:Date.now(),attemptId:draft.id,paperId:draft.paperId,routeId:draft.routeId,stage:draft.stage,submittedAt:draft.submittedAt,rows,nextSteps,submittedQuestions:rows.length,aiCount:ai.length,selfCount:self.length,needsSelf:rows.filter(r=>r.state==='self-required').length,pending:rows.filter(r=>r.aiPending||r.state==='pending').length,aiScore,selfScore,score:aiScore+selfScore,maxScore,paperMax,complete,wholePaper:complete&&Number.isInteger(draft.questionCount)&&draft.questionCount===rows.length&&rows.every((r,i)=>r.number===i+1)&&Number.isFinite(paperMax)&&paperMax>0&&maxScore===paperMax&&rows.every(r=>r.maxSource==='source'),scoreSource:complete?(ai.length&&self.length?'mixed':ai.length?'ai':'self'):ai.length?'partial-ai':self.length?'partial-self':'pending',notice:'AI成绩为辅助估分；自评由学生填写。未评分题不按零分处理。'}
 }
 function persist(draft,onUpdate,paperMax){draft.report=paperReport(draft,paperMax);savePaperDraft(draft);onUpdate?.(draft)}
 function reason(error){return error?.statusCode===401?'账号未连接，AI未完成；可登录后重试。':error?.code==='source_missing'?'本题缺少可核验的AI批改资料。':'AI未完成本题，已有结果和照片已保留。'}
@@ -85,10 +87,11 @@ async function runPaperAssessment(key,{loadContext,sync,mark,active=()=>true,onU
 }
 function selfAssess(key,number,value,declaredMax,paperMax=null){
  const draft=read(key),answer=draft?.answers[number],assessment=answer?.assessment
- if(!draft?.submitted||!['self-required','self'].includes(assessment?.state))throw new Error('只有AI未完成的题目可以自评。')
- const score=String(value??'').trim()===''?NaN:Number(value),maxMarks=assessment.maxMarks??(String(declaredMax??'').trim()===''?NaN:Number(declaredMax))
+ if(!draft?.submitted||!answer?.photo||assessment?.state==='ai'&&!answer.studentAssessment&&!answer.selfDraft?.started)throw new Error('请在提交后的等待期间选择自评。')
+ const score=String(value??'').trim()===''?NaN:Number(value),maxMarks=assessment?.maxMarks??(String(declaredMax??'').trim()===''?NaN:Number(declaredMax))
  if(!Number.isFinite(score)||!Number.isFinite(maxMarks)||maxMarks<=0||score<0||score>maxMarks||Number.isFinite(paperMax)&&maxMarks>paperMax)throw new Error('请按原卷填写有效的得分和满分。')
- answer.assessment={...assessment,state:'self',score,maxMarks,maxSource:assessment.maxSource||'self-declared'}
+ answer.studentAssessment={state:'self',score,maxMarks,maxSource:assessment?.maxSource||'self-declared'}
+ if(['self-required','self'].includes(assessment?.state))answer.assessment={...assessment,...answer.studentAssessment}
  persist(draft,null,paperMax);return draft
 }
 module.exports={runPaperAssessment,paperReport,selfAssess}

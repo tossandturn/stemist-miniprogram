@@ -4,7 +4,7 @@ const runtime=miniRuntime(),papers=runtime.load('utils/nativePaper'),grading=run
 function draft(){const d=papers.createPaperDraft({id:'paper-'+Math.random().toString(36).slice(2),subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'});d.submitted=true;d.submittedAt=Date.now();d.answers={1:{photo:'local-one',revision:1},2:{photo:'local-two',revision:1}};papers.savePaperDraft(d);return d}
 const context={questions:[1,2].map(number=>({number,parts:[{partId:'q'+number+'a',label:'a',marks:4}]}))}
 const result={score:3,maxScore:4,confidence:0.9,provisional:true,reviewRequired:true,summary:'Show the substitution.'}
-const first=draft();assert.throws(()=>grading.selfAssess(first.storageKey,1,'2','4'))
+const first=draft();first.submitted=false;papers.savePaperDraft(first);assert.throws(()=>grading.selfAssess(first.storageKey,1,'2','4'));first.submitted=true;papers.savePaperDraft(first)
 let calls=0
 await grading.runPaperAssessment(first.storageKey,{loadContext:async()=>context,sync:async()=>{},mark:async(d,q,p,onPart)=>{calls++;if(q.number===2)throw Error('unavailable');await onPart(q.parts[0],result)}})
 let saved=papers.readPaperDraft(first.storageKey),report=grading.paperReport(saved,8)
@@ -56,3 +56,35 @@ partial.answers[1].assessment.score=NaN;assert.equal(grading.paperReport(partial
  assert.equal(model.readPaperDraft(d.storageKey).report.score,6)
 }
 console.log('Automatic paper assessment: AI first, per-question fallback, mixed report, partial coverage, safe pause, preserved legacy scores and no duplicate completion passed.')
+
+{
+ const concurrent=draft(),gate=deferred();let count=0
+ const running=grading.runPaperAssessment(concurrent.storageKey,{loadContext:async()=>context,sync:async()=>{},mark:async(d,q,p,cb)=>{count++;if(q.number===1)await gate.promise;await cb(q.parts[0],result)}})
+ await settle()
+ grading.selfAssess(concurrent.storageKey,1,'2','4')
+ grading.selfAssess(concurrent.storageKey,2,'1','4')
+ let view=grading.paperReport(papers.readPaperDraft(concurrent.storageKey),8)
+ assert.equal(view.selfScore,3);assert.equal(view.pending,2);assert.equal(view.complete,false)
+ gate.resolve();await running
+ const restored=papers.readPaperDraft(concurrent.storageKey);view=grading.paperReport(restored,8)
+ assert.equal(count,2,'Self scoring while waiting does not cancel queued AI questions')
+ assert.equal(view.aiScore,6);assert.equal(view.selfScore,0);assert.equal(view.score,6,'Never add self score to AI score for the same question')
+ assert.equal(view.rows[0].studentScore,2);assert.equal(view.rows[1].studentScore,1)
+ assert.equal(restored.answers[1].studentAssessment.score,2,'Late AI result preserves the self assessment')
+}
+{
+ const gate=deferred(),r=miniRuntime({modules:{'utils/nativePaperService':{paperContext:async()=>context,paperSources:async()=>context,syncPaperAttempt:async()=>{},markPaperQuestion:async(d,q,p,cb)=>{await gate.promise;await cb(q.parts[0],result)}}}})
+ const model=r.load('utils/nativePaper'),d=model.createPaperDraft({id:'self-wait-page',subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'})
+ d.answers={1:{photo:'one',revision:1}};model.savePaperDraft(d)
+ const page=r.page('pages/stem/paper');page.__draft=d;page.__disposed=false;page.__loadedSourceUrls=new Set();page.setData({paperId:d.paperId,routeId:d.routeId,stage:'AS',subject:'9702',photoCount:1,maxMarks:4})
+ const running=page.submitPaper();await settle()
+ page.chooseSelfAssessment();assert.equal(page.data.selfEditing,true)
+ page.inputQuestionSelf({currentTarget:{dataset:{field:'score'}},detail:{value:'2'}})
+ assert.equal(page.data.questionSelfScore,'2')
+ gate.resolve();await running
+ assert.equal(page.data.selfEditing,true,'AI completion must not close an active self editor')
+ page.saveQuestionSelf()
+ assert.equal(page.data.error,'');assert.equal(page.data.studentScore,2)
+ assert.equal(model.readPaperDraft(d.storageKey).answers[1].assessment.score,3)
+}
+console.log('Waiting self-assessment: concurrent queued/active AI, comparison-only totals and editing across AI completion passed.')

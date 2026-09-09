@@ -3,7 +3,8 @@
 ## Delivered behavior
 
 - Submitting saved paper photos starts sequential AI marking through the existing authenticated source-context, attempt, capability and handwriting APIs.
-- Only questions whose AI marking could not complete expose self-assessment. Successful AI marks cannot be overwritten by self-assessment.
+- Submitted questions expose an optional "先自评" editor while AI is pending or processing, as well as on AI failure. Self-assessment is saved separately and does not cancel queued AI work. An editor already open remains usable when AI completes.
+- Reports prefer completed AI marks for that question, retain the student's mark as a labelled comparison, and never add both marks. Pending AI remains pending even when the student has saved a self-assessment.
 - Native report includes separate AI/self totals, per-question and per-part feedback, pending counts, and feedback-derived revision priorities. It is saved in the owned local draft and reopened with the paper; this is not a new server/PDF report endpoint.
 - Whole-paper coverage requires authoritative total marks AND an exact question count/number coverage. Unknown coverage remains explicitly partial; omitted/ungraded answers are not zero.
 - Pause stops new requests but retains the current returned result after owner/epoch/attempt/revision validation. Completed parts and strictly valid legacy results are not automatically regraded. Original legacy values are preserved.
@@ -13,6 +14,7 @@
 
 - `npm run test:all`: exit 0, including WXML/WXSS compilation.
 - New tests: `test-paper-auto-assessment.mjs`, `test-paper-component-client.mjs`.
+- Waiting-self-assessment regression covers active and queued questions, late AI responses, independent saved scores, no double counting, and user input saved after AI completion. Full `npm run test:all` passed again for this change.
 - Independent read-only review found three P1 issues (paused-result loss, partial-report label, legacy regrading). Focused regressions reproduced failures before fixes; reviewer verified all three fixed.
 - Report rendering sends at most 10 question rows per page; no full catalog/binary paper payload enters the bundle.
 - User-owned `project.config.json` was not edited; its diff hash remains `a60dd99f74b2f04725d99e9ff5758757f0269d2a`.
