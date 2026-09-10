@@ -1,5 +1,8 @@
 const DEFAULT_THROTTLE_MS=100
 const DEFAULT_CACHE_LIMIT=4
+const DEFAULT_CACHE_TTL_MS=5*60*1000
+const sharedPublicCaches=new WeakMap()
+const PUBLIC_PDF_URL=/^https:\/\/stem\.ieltsist\.com\/local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf$/i
 
 function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false}}
 
@@ -29,7 +32,10 @@ function createPdfDownloadController(options={}){
  const clearTimer=typeof options.clearTimer==='function'?options.clearTimer:clearTimeout
  const throttleMs=Math.max(80,Number(options.throttleMs)||DEFAULT_THROTTLE_MS)
  const cacheLimit=Math.max(1,Math.min(8,Number(options.cacheLimit)||DEFAULT_CACHE_LIMIT))
+ const cacheTtlMs=Math.max(1000,Math.min(30*60*1000,Number(options.cacheTtlMs)||DEFAULT_CACHE_TTL_MS))
  const cache=new Map()
+ let publicCache=sharedPublicCaches.get(wxApi)
+ if(!publicCache){publicCache=new Map();sharedPublicCaches.set(wxApi,publicCache)}
  let state=initialPdfDownloadState(),scope='',scopeIdentity=identitySnapshot(wxApi),disposed=false,generation=0,downloadTask=null,progressListener=null,progressTimer=null,pendingProgress=null,lastProgressAt=null,lastRequest=null
 
  const snapshot=()=>({...state})
@@ -52,10 +58,21 @@ function createPdfDownloadController(options={}){
   publish({visible:true,phase:'error',active:false,message:'',error,canCancel:false,canRetry:Boolean(lastRequest),collapsed:false})
   return false
  }
- const remember=(key,filePath)=>{
-  if(cache.has(key))cache.delete(key)
-  cache.set(key,filePath)
-  while(cache.size>cacheLimit)cache.delete(cache.keys().next().value)
+ const cacheTarget=(request,identity)=>{
+  const authority=request.url.slice('https://'.length).split('/')[0]
+  if(/[?#]/.test(request.url)||authority.includes('@')||request.cacheScope==='none')return null
+  const identityKey=identity.owner+'\n'+identity.epoch
+  if(request.cacheScope==='public'){
+   if(!request.cacheVersion||request.cacheKey!==request.url||!PUBLIC_PDF_URL.test(request.url)||request.url.includes('..')||/%2e|%2f|%5c/i.test(request.url))return null
+   return{store:publicCache,key:identityKey+'\n'+request.cacheVersion+'\n'+request.url,limit:DEFAULT_CACHE_LIMIT,shared:true}
+  }
+  return{store:cache,key:identityKey+'\n'+request.cacheKey+'\n'+request.url,limit:cacheLimit,shared:false}
+ }
+ const remember=(target,filePath)=>{
+  if(!target)return
+  if(target.store.has(target.key))target.store.delete(target.key)
+  target.store.set(target.key,{filePath,at:now()})
+  while(target.store.size>target.limit)target.store.delete(target.store.keys().next().value)
  }
  const cachedFileExists=filePath=>new Promise(resolve=>{
   const manager=wxApi.getFileSystemManager?.()
@@ -69,14 +86,17 @@ function createPdfDownloadController(options={}){
   }
   resolve(false)
  })
+ const evict=(target,filePath)=>{const entry=target?.store.get(target.key);if(entry?.filePath===filePath)target.store.delete(target.key)}
  const openLocal=(context,filePath)=>{
- if(!current(context))return false
- if(typeof wxApi.openDocument!=='function')return fail(context,'当前微信环境不支持打开 PDF，请在真机微信中重试。')
- const unsupported=error=>/not support|not implemented|simulator|devtools|开发者工具|模拟器/i.test(String(error?.errMsg||error?.message||''))
+  if(!current(context))return false
+  if(typeof wxApi.openDocument!=='function')return fail(context,'当前微信环境不支持打开 PDF，请在真机微信中重试。')
+  const unsupported=error=>/not support|not implemented|simulator|devtools|开发者工具|模拟器/i.test(String(error?.errMsg||error?.message||''))
+  const rememberOpened=()=>{if(context.cacheAfterOpen&&sameIdentity(wxApi,context.identity))remember(context.cacheAfterOpen,filePath)}
+  const evictShared=()=>{if(context.cacheTarget?.shared&&sameIdentity(wxApi,context.identity))evict(context.cacheTarget,filePath)}
   let settled=false
   try{
-   wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;if(current(context))publish({visible:true,phase:'opened',active:false,message:'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;if(current(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，文件仍保留，可重试。')}})
-  }catch(error){return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，文件仍保留，可重试。')}
+   wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(current(context))publish({visible:true,phase:'opened',active:false,message:'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(current(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
+  }catch(error){evictShared();return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}
   return true
  }
  const progressState=event=>{
@@ -110,7 +130,9 @@ function createPdfDownloadController(options={}){
    if(Number(result?.statusCode)!==200)return fail(context,'文件下载失败（HTTP '+String(result?.statusCode||'未知')+'），请重试。')
    const filePath=String(result?.tempFilePath||result?.filePath||'')
    if(!filePath)return fail(context,'文件下载完成但临时路径不可用，请重试。')
-   remember(context.request.cacheKey,filePath)
+    context.cacheTarget=cacheTarget(context.request,context.identity)
+    if(context.cacheTarget?.shared)context.cacheAfterOpen=context.cacheTarget
+    else remember(context.cacheTarget,filePath)
    const completedProgress=latestProgress.knownTotal&&latestProgress.totalBytes>0
     ?{...latestProgress,downloadedBytes:latestProgress.totalBytes,downloadedLabel:formatBytes(latestProgress.totalBytes),percent:100}
     :{...latestProgress,totalBytes:0,totalLabel:'',knownTotal:false,percent:null}
@@ -130,23 +152,26 @@ function createPdfDownloadController(options={}){
  }
 
  async function open(request={}){
-  const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),scope:String(request.scope===undefined?scope:request.scope)}
+  const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),cacheScope:['public','none'].includes(request.cacheScope)?request.cacheScope:'identity',cacheVersion:/^[^\s?#&]{1,160}$/.test(String(request.cacheVersion||''))?String(request.cacheVersion):'',ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),scope:String(request.scope===undefined?scope:request.scope)}
   if(!/^https:\/\/[^\s]+$/i.test(normalized.url)){
    lastRequest=null;publish({...initialPdfDownloadState(),visible:true,phase:'error',error:'PDF 地址不可用。'});return false
   }
   if(normalized.scope!==scope)setScope(normalized.scope)
   if(state.active&&lastRequest?.ownerKey===normalized.ownerKey)return false
   invalidate(true);const context={generation,scope,identity:identitySnapshot(wxApi),request:normalized,networkSettled:false};lastRequest=normalized
-  const cached=cache.get(normalized.cacheKey)
+  const target=cacheTarget(normalized,context.identity),entry=target?.store.get(target.key)
+  const cached=entry&&now()>=entry.at&&now()-entry.at<=cacheTtlMs?entry.filePath:''
+  if(entry&&!cached)target.store.delete(target.key)
   if(cached){
    publish({visible:true,phase:'preparing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false})
    if(await cachedFileExists(cached)){
     if(!current(context))return false
-    cache.delete(normalized.cacheKey);cache.set(normalized.cacheKey,cached)
+     context.cacheTarget=target
+     target.store.delete(target.key);target.store.set(target.key,entry)
     publish({phase:'opening',active:true,message:'已找到临时文件，正在打开…',canCancel:false,canRetry:false})
     return openLocal(context,cached)
    }
-   cache.delete(normalized.cacheKey)
+    target.store.delete(target.key)
   }
   return startDownload(context)
  }

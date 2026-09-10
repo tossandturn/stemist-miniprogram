@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 
-const paper={id:'paper-1',subject:'9702',year:2025,seasonLabel:'夏季',file:'9702_s25_qp_22.pdf',title:'Physics Paper 2',paperNumber:'9702/22',stages:['as'],routeIds:['cie-9702-as-physics'],localUrl:'/local-pdf/9702/9702_s25_qp_22.pdf',markScheme:{localUrl:'/local-pdf/9702/9702_s25_ms_22.pdf'}}
+const paper={id:'paper-1',subject:'9702',year:2025,seasonLabel:'夏季',file:'9702_s25_qp_22.pdf',title:'Physics Paper 2',paperNumber:'9702/22',stages:['as'],routeIds:['cie-9702-as-physics'],localUrl:'/local-pdf/9702/9702_s25_qp_22.pdf',sourceVersion:'catalog-version-1',markScheme:{localUrl:'/local-pdf/9702/9702_s25_ms_22.pdf'}}
 let progressListener=null
 let catalogDownloadOptions=null,catalogDownloads=0,catalogAborts=0,catalogOpenCalls=0
 const downloadTask={onProgressUpdate(listener){progressListener=listener},offProgressUpdate(){},abort(){catalogAborts++}}
@@ -131,6 +131,21 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
 }
 
 {
+ const h=controllerHarness();h.setScope('scope-key-url')
+ const first={...request('private-a'),scope:'scope-key-url',cacheKey:'stable-private-id'};await h.controller.open(first);h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://private-a.pdf'});h.opens[0].success({})
+ await h.controller.open({...first,url:'https://stem.ieltsist.com/private/private-b.pdf'});assert.equal(h.downloads.length,2,'a stable private cache key cannot reuse a temp file after the actual URL changes')
+ h.downloads[1].options.success({statusCode:200,tempFilePath:'wxfile://private-b.pdf'});h.opens[1].success({});h.storage.set('stemistPrivacyEpoch',4);h.setScope('scope-key-url')
+ await h.controller.open({...first,url:'https://stem.ieltsist.com/private/private-b.pdf'});assert.equal(h.downloads.length,3,'private temp files must not cross an owner privacy epoch')
+}
+
+{
+ const h=controllerHarness();h.setScope('scope-signed')
+ const signed={...request('signed'),scope:'scope-signed',url:'https://stem.ieltsist.com/local-pdf/9702/signed.pdf?signature=private-credential',cacheKey:'https://stem.ieltsist.com/local-pdf/9702/signed.pdf?signature=private-credential',cacheScope:'public',cacheVersion:'catalog-version-1'}
+ await h.controller.open(signed);h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://signed.pdf'});h.opens[0].success({});await h.controller.open(signed)
+ assert.equal(h.downloads.length,2,'a URL carrying query credentials must never enter a temp-file cache');assert.doesNotMatch(JSON.stringify(h.states),/private-credential|signature=/,'credentialed URLs must stay out of UI state')
+}
+
+{
  const h=controllerHarness();h.setScope('scope-o');await h.controller.open(request('o'));h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://open-fail.pdf'})
  h.opens[0].fail({errMsg:'openDocument:fail cannot open'});assert.equal(h.state.phase,'error');assert.equal(h.state.canRetry,true);assert.match(h.state.error,/未能打开/);assert.notEqual(h.state.phase,'opened')
  h.setCachedPathExists(true);await h.controller.retry();assert.equal(h.downloads.length,1,'opening failure keeps the valid temp file for a direct retry');assert.equal(h.opens.length,2)
@@ -179,8 +194,44 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
  const config=JSON.parse(read(`${pagePath}.json`));assert.equal(config.usingComponents['pdf-download-progress'],'/components/pdf-download-progress/index')
  assert.match(read(`${pagePath}.wxml`),/<pdf-download-progress/)
 }
+
+{
+ const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']])
+ const downloads=[],opens=[],states=[];let now=1000,pathExists=true
+ const wxApi={
+  getStorageSync:key=>storage.get(key),
+  getFileSystemManager:()=>({access({success,fail}){pathExists?success({}):fail({errMsg:'missing'})}}),
+  downloadFile(options){const task={options,onProgressUpdate(){},offProgressUpdate(){},abort(){}};downloads.push(task);return task},
+  openDocument(options){opens.push(options)},
+ }
+ const makeController=()=>{const controller=createPdfDownloadController({wxApi,isScopeCurrent:scope=>scope==='shared-scope',onState:state=>states.push(state),now:()=>now,cacheTtlMs:1000});controller.setScope('shared-scope');return controller}
+ const sharedRequest={...request('shared-public'),scope:'shared-scope',cacheScope:'public',cacheVersion:'catalog-version-1'}
+ const first=makeController();await first.open(sharedRequest);downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://shared-public.pdf'});opens[0].success({});first.dispose()
+ const second=makeController();await second.open(sharedRequest)
+ assert.equal(downloads.length,1,'a recent public PDF temp file must be reused after moving between pages')
+ assert.equal(opens.length,2);opens[1].success({});second.dispose()
+ const versionChanged=makeController();await versionChanged.open({...sharedRequest,cacheVersion:'catalog-version-2'});assert.equal(downloads.length,2,'a source-version change must bypass the shared temp file');downloads[1].options.success({statusCode:200,tempFilePath:'wxfile://shared-v2.pdf'});opens[2].success({});versionChanged.dispose()
+ pathExists=false;const missing=makeController();await missing.open({...sharedRequest,cacheVersion:'catalog-version-2'});assert.equal(downloads.length,3,'a missing shared temp file must be evicted');pathExists=true;downloads[2].options.success({statusCode:200,tempFilePath:'wxfile://shared-restored.pdf'});opens[3].success({});missing.dispose()
+ now+=1001;const expired=makeController();await expired.open({...sharedRequest,cacheVersion:'catalog-version-2'});assert.equal(downloads.length,4,'a shared temp-file reference must expire after its TTL');downloads[3].options.success({statusCode:200,tempFilePath:'wxfile://shared-fresh.pdf'});opens[4].success({});expired.dispose()
+ storage.set('stemistUser',{id:'student-2'});const changedOwner=makeController();await changedOwner.open({...sharedRequest,cacheVersion:'catalog-version-2'});assert.equal(downloads.length,5,'public reuse must remain inside the captured owner and privacy epoch');downloads[4].options.success({statusCode:200,tempFilePath:'wxfile://owner-2.pdf'});opens[5].success({});changedOwner.dispose()
+ storage.set('stemistPrivacyEpoch',4);const changedEpoch=makeController();await changedEpoch.open({...sharedRequest,cacheVersion:'catalog-version-2'});assert.equal(downloads.length,6,'a changed privacy epoch must invalidate shared reuse');downloads[5].options.success({statusCode:200,tempFilePath:'wxfile://epoch-4.pdf'});opens[6].success({});changedEpoch.dispose()
+ const damagedRequest={...request('damaged-public'),scope:'shared-scope',cacheScope:'public',cacheVersion:'catalog-version-2'},damaged=makeController();await damaged.open(damagedRequest);downloads[6].options.success({statusCode:200,tempFilePath:'wxfile://damaged.pdf'});opens[7].fail({errMsg:'cannot open'});damaged.dispose()
+ const damagedRetry=makeController();await damagedRetry.open(damagedRequest);assert.equal(downloads.length,8,'a public file that openDocument rejected must not poison the shared cache');damagedRetry.dispose()
+ const foreignRequest={...request('foreign'),scope:'shared-scope',url:'https://files.example.com/local-pdf/9702/foreign.pdf',cacheKey:'https://files.example.com/local-pdf/9702/foreign.pdf',cacheScope:'public',cacheVersion:'catalog-version-2'},foreign=makeController();await foreign.open(foreignRequest);downloads.at(-1).options.success({statusCode:200,tempFilePath:'wxfile://foreign.pdf'});opens.at(-1).success({});await foreign.open(foreignRequest);assert.equal(downloads.length,10,'a public label cannot bypass the fixed source allowlist');foreign.dispose()
+ assert.doesNotMatch(JSON.stringify(states),/https:\/\/|session-1/,'shared-cache keys and credentials must stay out of UI state')
+}
+
+{
+ const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']]),downloads=[],opens=[],states=[]
+ const wxApi={getStorageSync:key=>storage.get(key),getFileSystemManager:()=>({access({success}){success({})}}),downloadFile(options){const task={options,onProgressUpdate(){},offProgressUpdate(){},abort(){}};downloads.push(task);return task},openDocument(options){opens.push(options)}}
+ const makeController=()=>{const controller=createPdfDownloadController({wxApi,isScopeCurrent:scope=>scope==='document-transition',onState:state=>states.push(state)});controller.setScope('document-transition');return controller}
+ const req={...request('document-transition'),scope:'document-transition',cacheScope:'public',cacheVersion:'catalog-version-1'}
+ const source=makeController();await source.open(req);downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://document-transition.pdf'});source.suspend();const stateCount=states.length;opens[0].success({})
+ assert.equal(states.length,stateCount,'a late native-document callback must not revive the hidden page UI');assert.equal(source.getState().phase,'idle')
+ const destination=makeController();await destination.open(req);assert.equal(downloads.length,1,'a public PDF opened during the native-document transition remains reusable on return');assert.equal(opens.length,2);destination.dispose();source.dispose()
+}
 const componentWxml=read('components/pdf-download-progress/index.wxml'),componentWxss=read('components/pdf-download-progress/index.wxss')
 assert.match(componentWxml,/bindtap="cancel"/);assert.match(componentWxml,/bindtap="retry"/);assert.match(componentWxml,/收起/);assert.match(componentWxml,/aria-label/)
 assert.match(componentWxss,/min-height:\s*44px/);assert.doesNotMatch(componentWxss,/@keyframes|animation\s*:/,'progress must reflect network events, not a fabricated animation')
 
-console.log('PDF download progress: real bytes/percent, throttle, open phase, cancel/retry/cache, lifecycle scope, exam MS gate and inline accessible UI passed.')
+console.log('PDF download progress: real bytes/percent, throttle, open phase, cancel/retry, identity/private/public cache boundaries, lifecycle scope, exam MS gate and inline accessible UI passed.')
