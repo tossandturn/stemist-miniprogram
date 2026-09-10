@@ -79,7 +79,7 @@ Page({
   if(kind==='ms'&&this.data.mode==='exam-simulation'&&!this.data.submitted)return
   const documentPath=String(document.localUrl||'');if(!documentPath.startsWith('/local-pdf/'+this.data.subject+'/')||/\.\.|[?#]|%2e|%2f|%5c/i.test(documentPath))return this.setData({error:'试卷文件暂不可用。'})
   this.setData({error:''})
-  return this.__pdfDownload.open({url:'https://stem.ieltsist.com'+documentPath,cacheKey:'https://stem.ieltsist.com'+documentPath,ownerKey:this.data.paperId+':'+kind,itemId:this.data.paperId,label:kind==='ms'?'参考答案':'原卷',scope:this.pdfScope()})
+  return this.__pdfDownload.open({url:'https://stem.ieltsist.com'+documentPath,cacheKey:'https://stem.ieltsist.com'+documentPath,cacheScope:'public',cacheVersion:this.__paper.sourceVersion,ownerKey:this.data.paperId+':'+kind,itemId:this.data.paperId,label:kind==='ms'?'参考答案':'原卷',scope:this.pdfScope()})
  },
  cancelPdfDownload(){this.__pdfDownload?.cancel()},retryPdfDownload(){return this.__pdfDownload?.retry()},togglePdfDownloadProgress(){this.__pdfDownload?.toggleCollapsed()},
  async askFeedback(){

@@ -14,7 +14,7 @@ function makeObjectivePage(module){return{
  onLoad(options={}){this.__disposed=false;this.__epoch=epoch();this.__owner=owner();this.__generation=0;this.__section=Number(options.section)||0;this.__examKey=String(options.examKey||'');this.setData({taskId:String(options.taskId||''),examMode:Boolean(this.__examKey)});if(this.__examKey){this.__exam=readExam(this.__examKey);if(this.__section||!this.__exam||this.__exam.sources[module]!==this.data.taskId){this.setData({loading:false,error:'试题不属于当前模拟。'});return}}if(!this.data.taskId){wx.redirectTo({url:`/pages/ielts/library?module=${module}`});return}this.load()},
  onShow(){syncDevice(this);if(this.__task)this.startClock()},onResize(){syncDevice(this)},
  onHide(){this.pauseAudio();this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
- onUnload(){this.flush();this.__disposed=true;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);this.__audio?.destroy();this.__audio=null},
+ onUnload(){this.flush();this.__disposed=true;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy()},
  currentOwner(){return !this.__disposed&&this.__epoch===epoch()&&this.__owner===owner()},
  async load(){const generation=++this.__generation;this.setData({loading:true,error:''});try{
   const task=sectionTask(await getIeltsTask(module,this.data.taskId),this.__section);if(!this.currentOwner()||generation!==this.__generation)return
@@ -24,7 +24,7 @@ function makeObjectivePage(module){return{
   this.__draft=saved&&saved.epoch===this.__epoch&&saved.taskId===task.id?saved:{taskId:task.id,module,owner:this.__owner,epoch:this.__epoch,answers:{},index:0,startedAt:Date.now(),elapsed:0,submitted:false,clientAttemptKey:'mini_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)}
   if(this.__examKey)this.__examClock=startExamModuleClock(this.__examKey,module,task.minutes)
   this.setData({taskTitle:task.title,current:Math.min(this.__draft.index||0,task.questions.length-1),total:task.questions.length,submitted:Boolean(this.__draft.submitted),result:this.__draft.result||null,review:(this.__draft.review||[]).slice(0,10),audioTracks:task.audioUrls.map((url,index)=>({index,label:'音频 '+(index+1)})),audioAvailable:task.audioUrls.length>0,saveStatus:saved?'已恢复练习':'自动保存'})
-  this.renderQuestion();this.initAudio();this.startClock()
+  this.renderQuestion();this.startClock()
  }catch(error){if(this.currentOwner())this.setData({error:error.message})}finally{if(this.currentOwner()&&generation===this.__generation)this.setData({loading:false})}},
  renderQuestion(){
   const q=this.__task.questions[this.data.current],draft=this.__draft
@@ -50,19 +50,26 @@ function makeObjectivePage(module){return{
  previewImage(){const current=this.data.sourceImages[0]?.url;if(current)wx.previewImage({current,urls:this.__images.map(image=>image.url)})},
  imageFailed(){this.setData({error:'题图未加载，请检查网络或点开原图重试。'})},
  async togglePassage(){const showPassage=!this.data.showPassage;this.setData({showPassage});if(!showPassage||this.data.passageText)return;try{const data=await requestIeltsJson('/api/reading/context?id='+encodeURIComponent(this.data.taskId),undefined,{method:'GET',timeout:12000});if(this.currentOwner())this.setData({passageText:String(data.paperText||'')})}catch(e){if(this.currentOwner())this.setData({error:e.message})}},
- initAudio(){
+ initAudio(startAt=0){
   if(!this.data.audioAvailable||!wx.createInnerAudioContext)return
-  this.__audio?.destroy();this.__audio=wx.createInnerAudioContext();this.__audio.src=this.__task.audioUrls[this.data.audioIndex];this.__audio.obeyMuteSwitch=false
-  this.__audio.onPlay(()=>{if(this.currentOwner())this.setData({audioPlaying:true})})
-  this.__audio.onPause(()=>{if(this.currentOwner())this.setData({audioPlaying:false})})
-  this.__audio.onEnded(()=>{if(this.currentOwner())this.setData({audioPlaying:false})})
+  const index=this.data.audioIndex,url=this.__task.audioUrls[index]
+  if(!url)return
+  if(this.__audio&&this.__audioTrackIndex===index)return this.__audio
+  const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.destroy()
+  const audio=wx.createInnerAudioContext();this.__audio=audio;this.__audioTrackIndex=index;audio.obeyMuteSwitch=false;audio.startTime=Math.max(0,Number(startAt)||0)
+  const active=()=>this.__audio===audio&&this.__audioTrackIndex===index&&this.currentOwner()
+  audio.onPlay(()=>{if(active())this.setData({audioPlaying:true})})
+  audio.onPause(()=>{if(active())this.setData({audioPlaying:false})})
+  audio.onEnded(()=>{if(active())this.setData({audioPlaying:false})})
   let updated=0
-  this.__audio.onTimeUpdate(()=>{
-   if(!this.currentOwner())return
-   if(Date.now()-updated>750){updated=Date.now();this.setData({audioPosition:Math.floor(this.__audio.currentTime||0),audioDuration:Math.floor(this.__audio.duration||0)})}
-   this.updateCaptionFrame(this.__audio.currentTime||0)
+  audio.onTimeUpdate(()=>{
+   if(!active())return
+   if(Date.now()-updated>750){updated=Date.now();this.setData({audioPosition:Math.floor(audio.currentTime||0),audioDuration:Math.floor(audio.duration||0)})}
+   this.updateCaptionFrame(audio.currentTime||0)
   })
-  this.__audio.onError(()=>{if(this.currentOwner())this.setData({audioPlaying:false,error:'音频暂时无法播放，请重试。'})})
+  audio.onError(()=>{if(active())this.setData({audioPlaying:false,error:'音频暂时无法播放，请重试。'})})
+  audio.src=url
+  return audio
  },
  toggleCaptions(){if(this.data.examMode)return;this.__captionRequest=(this.__captionRequest||0)+1;this.setData({captionsEnabled:!this.data.captionsEnabled,captionBubbles:[],captionStatus:''});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
  async loadCurrentCaptions(){
@@ -71,9 +78,9 @@ function makeObjectivePage(module){return{
   try{const section=this.__task.audioSections?.[this.data.audioIndex]?.section||this.data.audioIndex+1;const model=await loadCaptions(this.data.taskId,section);if(!this.currentOwner()||request!==this.__captionRequest||!this.data.captionsEnabled)return;this.__captionModel=model;this.setData({captionStatus:''});this.updateCaptionFrame(this.__audio?.currentTime||0)}catch(e){if(this.currentOwner()&&request===this.__captionRequest)this.setData({captionStatus:e.message})}
  },
  updateCaptionFrame(time){if(!this.currentOwner()||!this.data.captionsEnabled||!this.__captionModel)return;const frame=captionFrame(this.__captionModel,time);if(frame.index!==this.__captionIndex){this.__captionIndex=frame.index;this.setData({captionBubbles:frame.bubbles,captionStatus:frame.index<0?'字幕将随语音出现':''})}},
- toggleAudio(){if(!this.__audio)return;this.data.audioPlaying?this.__audio.pause():this.__audio.play()},pauseAudio(){this.__audio?.pause()},
- selectAudio(event){const index=Number(event.detail.value);if(!this.__audio||!this.__task.audioUrls[index])return;this.__audio.stop();this.__audio.src=this.__task.audioUrls[index];this.setData({audioIndex:index,audioPosition:0,audioPlaying:false});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
- seekAudio(event){const time=Number(event.detail.value)||0;this.__audio?.seek(time);this.updateCaptionFrame(time)},
+ toggleAudio(){const audio=this.__audio||this.initAudio(this.data.audioPosition);if(!audio)return;this.data.audioPlaying?audio.pause():audio.play()},pauseAudio(){this.__audio?.pause()},
+ selectAudio(event){const index=Number(event.detail.value);if(!this.__task.audioUrls[index]||index===this.data.audioIndex)return;const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.stop();previous?.destroy();this.setData({audioIndex:index,audioPosition:0,audioDuration:0,audioPlaying:false});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
+ seekAudio(event){const time=Math.max(0,Number(event.detail.value)||0),existing=this.__audio,audio=existing||this.initAudio(time);if(existing)audio.seek(time);this.setData({audioPosition:Math.floor(time)});this.updateCaptionFrame(time)},
  async submit(){
   if(this.data.busy||this.data.submitted||!this.__draft||!this.currentOwner())return
   this.flush();this.pauseAudio();this.setData({busy:true,error:''})
