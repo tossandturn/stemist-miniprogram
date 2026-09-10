@@ -13,18 +13,20 @@ function savePaperDraft(draft){if(!current(draft))throw new Error('账号已变�
 function readPaperDraft(storageKey){const draft=wx.getStorageSync(storageKey);return current(draft)?draft:null}
 function directory(){return wx.env.USER_DATA_PATH+'/native-paper'}
 function removeOwnedPhoto(filePath){const prefix=directory()+'/';if(String(filePath).startsWith(prefix)&&/^mini-paper-[a-z0-9-]+\.jpg$/.test(String(filePath).slice(prefix.length)))wx.getFileSystemManager().unlink({filePath,fail(){}})}
-async function attachPaperPhoto(context,sourcePath){
+async function attachPaperPhoto(context,sourcePath,{cancelled=()=>false}={}){
+ if(cancelled())throw new Error('裁剪已取消。')
  const draft=readPaperDraft(context?.storageKey),number=Number(context?.questionNumber)
  if(!draft||draft.id!==context.sessionId||draft.submitted||!Number.isInteger(number)||number<1||number>99)throw new Error('这张照片不属于当前练习，请返回重新拍摄。')
  const old=draft.answers[number]||{},revision=(old.revision||0)+1
  const dest=directory()+'/'+draft.id+'-q'+number+'-r'+revision+'-'+Date.now().toString(36)+'.jpg'
  const path=await compressImage(sourcePath)
+ if(cancelled())throw new Error('裁剪已取消。')
  if(!current(draft))throw new Error('账号已变化，请重新拍摄。')
  const fs=wx.getFileSystemManager();try{fs.mkdirSync(directory(),true)}catch{fs.accessSync(directory())}
  await new Promise((resolve,reject)=>fs.copyFile({srcPath:path,destPath:dest,success:resolve,fail:()=>reject(new Error('照片未保存，请检查本机空间。'))}))
  try{
   const latest=readPaperDraft(context.storageKey)
-  if(!latest||latest.id!==draft.id||latest.submitted)throw new Error('练习已结束，照片未加入其他练习。')
+  if(cancelled()||!latest||latest.id!==draft.id||latest.submitted)throw new Error('裁剪或练习已结束，照片未写入。')
   latest.answers[number]={photo:dest,revision,feedback:'',at:Date.now()};savePaperDraft(latest)
  }catch(error){removeOwnedPhoto(dest);throw error}
  if(old.photo)removeOwnedPhoto(old.photo)

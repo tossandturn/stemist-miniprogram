@@ -178,7 +178,8 @@ function removeEvidence(path) {
   try { wx.getFileSystemManager().unlink({ filePath: path, fail() {} }) } catch { /* Missing evidence is already removed. */ }
 }
 
-async function attachPhoto(context, sourcePath) {
+async function attachPhoto(context, sourcePath, { cancelled = () => false } = {}) {
+  if (cancelled()) throw new Error('裁剪已取消。')
   const session = readSession(context?.sessionId)
   if (!session || context.privacyEpoch !== epoch()) throw new Error('练习已结束，请返回题目重新拍摄。')
   const questionIndex = session.questions.findIndex(q => q.id === context.questionId)
@@ -187,6 +188,7 @@ async function attachPhoto(context, sourcePath) {
   const revision = (old.revision || 0) + 1
   const dest = `${evidenceDirectory()}/${session.id}-${questionIndex}-${revision}-${Date.now().toString(36)}.jpg`
   const compressed = await compressImage(sourcePath)
+  if (cancelled()) throw new Error('裁剪已取消。')
   assertSession(session)
   const fs = wx.getFileSystemManager()
   try { fs.mkdirSync(evidenceDirectory(), true) } catch { fs.accessSync(evidenceDirectory()) }
@@ -194,7 +196,7 @@ async function attachPhoto(context, sourcePath) {
   try {
     assertSession(session)
     const latest = readSession(session.id)
-    if (!latest) throw new Error('练习已结束。')
+    if (cancelled() || !latest) throw new Error('裁剪或练习已结束，照片未写入。')
     latest.answers[context.questionId] = { photo: dest, revision, results: {}, attemptId: `${session.id}-q${questionIndex}-r${revision}` }
     saveSession(latest)
   } catch (error) { removeEvidence(dest); throw error }

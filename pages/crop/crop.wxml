@@ -2,7 +2,7 @@
   <stemist-header eyebrow="STEMIST · EVIDENCE" title="裁剪照片"  action-text="取消" bind:action="cancel" />
   <view class="crop-intro">拖动、缩放，让题目与答案留在框内。</view>
   <movable-area class="crop-stage" scale-area="true">
-    <movable-view class="crop-content" direction="all" x="{{x}}" y="{{y}}" scale="{{true}}" scale-value="{{scale}}" scale-min="0.3" scale-max="3" out-of-bounds="{{true}}" inertia="{{false}}" animation="{{false}}" bindchange="onMove" bindscale="onScale">
+    <movable-view wx:for="{{frameInstances}}" wx:key="id" class="crop-content" direction="all" x="{{x}}" y="{{y}}" scale="{{true}}" scale-value="{{scale}}" scale-min="0.3" scale-max="3" out-of-bounds="{{false}}" inertia="{{false}}" animation="{{false}}" disabled="{{busy}}" bindchange="onMove" bindscale="onScale" bindtouchstart="onGestureStart" catch:htouchmove="holdGesture" catch:vtouchmove="holdGesture">
       <image class="crop-image" src="{{src}}" mode="aspectFit" />
     </movable-view>
     <view class="crop-box" aria-label="裁剪区域"></view>

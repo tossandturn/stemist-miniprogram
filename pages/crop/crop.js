@@ -5,7 +5,7 @@ const {attachPaperPhoto}=require('../../utils/nativePaper')
 const {persistWritingPhoto,removeWritingPhoto}=require('../../utils/nativeWritingPhoto')
 
 Page({
-  data: deviceState({ src: '', x: 0, y: 0, scale: 0.68, busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
+  data: deviceState({ src: '', x: 0, y: 0, scale: 0.68, frameInstances:[{id:0}], busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
   onLoad(options) {
     this.__disposed=false
     this.__owner=String((wx.getStorageSync('stemistUser')||{}).id||'guest')
@@ -21,33 +21,37 @@ Page({
   },
   onShow() { syncDevice(this) },
   onReady(){this.resetFrame()},
-  onResize() { syncDevice(this);this.resetFrame() },
+  onResize() { syncDevice(this) },
   onUnload(){this.__disposed=true},
   cropActive(){return !this.__disposed},
   clearOwnReturn(){const current=wx.getStorageSync('stemistCropReturn');if(!this.__returnInfo||(this.__returnInfo.captureId?current?.captureId===this.__returnInfo.captureId:JSON.stringify(current)===JSON.stringify(this.__returnInfo)))wx.removeStorageSync('stemistCropReturn')},
   onMove(e) {
-    const detail = e && e.detail ? e.detail : {}
-    const update = {}
-    if (Number.isFinite(Number(detail.x))) update.x = Number(detail.x)
-    if (Number.isFinite(Number(detail.y))) update.y = Number(detail.y)
-    if (Object.keys(update).length) this.setData(update)
+    this.rememberTransform(e)
   },
   onScale(e) {
-    const detail = e && e.detail ? e.detail : {}
-    const update = { scale: Math.min(3, Math.max(0.3, Number(detail.scale) || 0.68)) }
-    if (Number.isFinite(Number(detail.x))) update.x = Number(detail.x)
-    if (Number.isFinite(Number(detail.y))) update.y = Number(detail.y)
-    this.setData(update)
+    this.rememberTransform(e)
   },
+  rememberTransform(e){
+    if(!this.cropActive()||this.data.busy)return
+    // Native movable-view owns gestures. Echoing its events back via setData
+    // races native pan/pinch updates and causes visible jumps on devices.
+    const detail=e?.detail||{},next={...(this.__transform||{})}
+    for(const key of ['x','y','scale'])if(typeof detail[key]==='number'&&Number.isFinite(detail[key]))next[key]=detail[key]
+    this.__transform=next
+  },
+  onGestureStart(){this.__gestureRevision=(this.__gestureRevision||0)+1},
+  holdGesture(){},
   resetFrame(){
     if(this.data.busy||!this.cropActive())return
+    const revision=this.__gestureRevision||0,request=this.__resetRequest=(this.__resetRequest||0)+1
     const query=wx.createSelectorQuery().in(this)
     query.select('.crop-stage').boundingClientRect()
     query.exec(rects=>{
       const stage=rects?.[0]
-      if(!this.cropActive()||!stage?.width||!stage?.height)return
+      if(!this.cropActive()||this.data.busy||request!==this.__resetRequest||revision!==(this.__gestureRevision||0)||!stage?.width||!stage?.height)return
       // movable-view uses its scaled top-left, not the CSS transform centre.
-      this.setData({x:stage.width*0.16,y:stage.height*0.16,scale:0.68,error:''})
+      this.__transform={x:stage.width*0.16,y:stage.height*0.16,scale:0.68}
+      this.setData({...this.__transform,frameInstances:[{id:request}],error:''})
     })
   },
   confirm() {
@@ -109,7 +113,7 @@ Page({
     if(expected.owner!==String((wx.getStorageSync('stemistUser')||{}).id||'guest')||expected.epoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))return this.setData({busy:false,error:'账号已变化，请返回重新拍摄。'})
     const returnInfo = this.__returnInfo||wx.getStorageSync('stemistCropReturn') || { route: 'stem' }
     if(returnInfo.route==='native-paper'){
-      return attachPaperPhoto(returnInfo.context,path).then(result=>{
+      return attachPaperPhoto(returnInfo.context,path,{cancelled:()=>!this.cropActive()}).then(result=>{
         if(!this.cropActive())return
         this.clearOwnReturn()
         const pages=typeof getCurrentPages==='function'?getCurrentPages():[]
@@ -117,10 +121,10 @@ Page({
         const fallback=()=>wx.redirectTo({url:'/pages/stem/paper?paperId='+encodeURIComponent(result.paperId)+'&subject='+encodeURIComponent(result.subject)+'&routeId='+encodeURIComponent(result.routeId)+'&mode='+encodeURIComponent(result.mode)})
         if(index<0)return fallback()
         wx.navigateBack({delta:pages.length-1-index,fail:fallback})
-      }).catch(error=>this.setData({busy:false,error:error.message||'照片尚未保存，请重试。'}))
+      }).catch(error=>{if(this.cropActive())this.setData({busy:false,error:error.message||'照片尚未保存，请重试。'})})
     }
     if (returnInfo.route === 'native-practice') {
-      return attachPhoto(returnInfo.context, path).then(sessionId => {
+      return attachPhoto(returnInfo.context, path, {cancelled:()=>!this.cropActive()}).then(sessionId => {
         if(!this.cropActive())return
         this.clearOwnReturn()
         const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
@@ -128,7 +132,7 @@ Page({
         const fallback = () => wx.redirectTo({ url: `/pages/stem/practice?sessionId=${encodeURIComponent(sessionId)}` })
         if (index < 0) return fallback()
         wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
-      }).catch(error => this.setData({ busy: false, error: error.message || '照片未保存，请重试。' }))
+      }).catch(error => {if(this.cropActive())this.setData({ busy: false, error: error.message || '照片未保存，请重试。' })})
     }
     if (returnInfo.route === 'writing') {
       try{path=await persistWritingPhoto(path,expected)}catch(error){this.setData({busy:false,error:error.message});return}
