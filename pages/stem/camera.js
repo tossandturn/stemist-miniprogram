@@ -9,10 +9,12 @@ Page({
     this.__disposed=false;this.__visible=true;this.__pageReady=false;this.__startupId=0;this.__mountId=0;this.__captureId=0;this.__owner=owner();this.__epoch=epoch()
     const info = wx.getStorageSync('stemistCameraReturn') || {}
     wx.removeStorageSync('stemistCameraReturn')
-    const returnPage = ['writing', 'native-practice', 'native-paper'].includes(info.route) ? info.route : 'stem'
-    const hint = returnPage === 'writing' ? '拍清整页手写作文，保留段落与修改痕迹。' : returnPage === 'native-practice' ? '拍清本题的全部解题过程和答案。' : '把题目、图表和答案完整放进取景框。'
+    const returnPage = ['writing', 'native-practice', 'native-paper', 'coach-home'].includes(info.route) ? info.route : 'stem'
+    const hint = returnPage === 'writing' ? '拍清整页手写作文，保留段落与修改痕迹。' : returnPage === 'native-practice' ? '拍清本题的全部解题过程和答案。' : returnPage === 'coach-home' ? '把要提问的题目、作文或学习资料完整放进取景框。' : '把题目、图表和答案完整放进取景框。'
     const context = info.context || {}
-    this.setData({ returnPage, context, coachSource: returnPage === 'writing' ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: returnPage === 'writing' ? 'ielts' : context.category || 'alevel', family: returnPage === 'writing' ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '', hint })
+    const routeContext=context.routeContext||context
+    const isCoach=returnPage==='coach-home'
+    this.setData({ returnPage, context, coachSource: returnPage === 'writing' ? 'writing' : isCoach ? context.contextId || 'stem-photo' : routeContext.category === 'competition' ? 'competition' : 'alevel', category: returnPage === 'writing' ? 'ielts' : isCoach && context.contextId !== 'stem-photo' ? 'ielts' : routeContext.category || 'alevel', family: returnPage === 'writing' || (isCoach && context.contextId !== 'stem-photo') ? '' : routeContext.family || 'exam', routeId: routeContext.routeId || '', stage: routeContext.stage || '', subjectCode: routeContext.subjectCode || '', hint })
   },
   onReady() { this.__pageReady=true;return this.beginCamera() },
   onShow() { this.__visible=true;syncDevice(this);if(!this.current())return this.showIdentityChange();if(!this.__usingSystemCamera&&!this.__capturePending){this.setData({busy:false});if(this.__permissionVisit&&this.__pageReady){this.__permissionVisit=false;return this.beginCamera()}if(this.__pageReady&&!this.data.cameraMounted&&!this.data.initializing&&!this.data.permissionAction)return this.beginCamera()} },

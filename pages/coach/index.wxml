@@ -3,6 +3,28 @@
   <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{routeContext.category}}" family="{{routeContext.family}}" />
   <picker mode="selector" range="{{contexts}}" range-key="label" value="{{contextIndex}}" bindchange="chooseContextPicker"><view class="coach-scope-select">{{contexts[contextIndex].label}}<text>更换</text></view></picker>
   <view wx:if="{{routeContextLabel}}" class="route-pill">{{routeContextLabel}}</view>
-  <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" submit-label="发送" placeholder="想问什么？" helper="" bind:input="onMessage" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
-  <view class="coach-actions"><button class="secondary" data-context="{{contextId}}" bindtap="openContext">{{contextId === 'stem-photo' ? '拍照提问' : '去练习'}}</button><button class="text-button" bindtap="clear" disabled="{{loading}}">清空</button></view>
+  <view class="coach-workspace">
+    <view class="coach-media-card panel">
+      <view class="coach-media-head">
+        <view><view class="coach-media-title">图片提问</view><view class="coach-media-detail">拍题、作文或学习资料</view></view>
+        <button wx:if="{{imagePath}}" class="text-button coach-media-remove" bindtap="removeImage" disabled="{{loading || mediaBusy}}">移除</button>
+      </view>
+      <view wx:if="{{imagePath}}" class="coach-photo-shell">
+        <image class="coach-photo-preview" src="{{imagePath}}" mode="aspectFit" show-menu-by-longpress="{{false}}" aria-label="待提交图片预览" />
+        <view class="coach-photo-status">已裁剪</view>
+      </view>
+      <view class="coach-media-actions">
+        <button class="coach-media-button coach-media-primary" bindtap="takePhoto" disabled="{{loading || mediaBusy}}">
+          <view class="coach-media-icon camera-icon-small" aria-hidden="true"><view class="camera-lens-small"></view></view>
+          <text>{{imagePath ? '重新拍照' : '拍照提问'}}</text>
+        </button>
+        <button class="coach-media-button" bindtap="uploadImage" disabled="{{loading || mediaBusy}}">
+          <view class="coach-media-icon album-icon-small" aria-hidden="true"><view class="album-sun"></view><view class="album-mountain"></view></view>
+          <text>{{imagePath ? '更换图片' : '上传图片'}}</text>
+        </button>
+      </view>
+    </view>
+    <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{mediaBusy || (!message && !imagePath && !entryHasImage)}}" submit-label="{{imagePath || entryHasImage ? '发送图片给 AI Coach' : '发送文字给 AI Coach'}}" placeholder="补充你想检查的地方（可选）" helper="" bind:input="onMessage" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+  </view>
+  <view class="coach-actions"><button class="text-button" bindtap="clear" disabled="{{loading || mediaBusy}}">清空本次对话</button></view>
 </view>

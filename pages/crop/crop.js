@@ -3,6 +3,7 @@ const { computeCropRect, resizedCropSize } = require('../../utils/crop')
 const { attachPhoto } = require('../../utils/nativePractice')
 const {attachPaperPhoto}=require('../../utils/nativePaper')
 const {persistWritingPhoto,removeWritingPhoto}=require('../../utils/nativeWritingPhoto')
+const {persistCoachPhoto,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 
 Page({
   data: deviceState({ src: '', x: 0, y: 0, scale: 0.68, frameInstances:[{id:0}], busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
@@ -17,7 +18,9 @@ Page({
     this.__returnInfo=JSON.parse(JSON.stringify(returnInfo))
     const context = returnInfo.context || {}
     const isWriting = returnInfo.route === 'writing'
-    this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍摄。', coachSource: isWriting ? 'writing' : context.category === 'competition' ? 'competition' : 'alevel', category: isWriting ? 'ielts' : context.category || 'alevel', family: isWriting ? '' : context.family || 'exam', routeId: context.routeId || '', stage: context.stage || '', subjectCode: context.subjectCode || '' })
+    const isCoach = returnInfo.route === 'coach-home'
+    const routeContext=context.routeContext||context
+    this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍摄。', coachSource: isWriting ? 'writing' : isCoach ? context.contextId || 'stem-photo' : routeContext.category === 'competition' ? 'competition' : 'alevel', category: isWriting ? 'ielts' : isCoach && context.contextId !== 'stem-photo' ? 'ielts' : routeContext.category || 'alevel', family: isWriting || (isCoach && context.contextId !== 'stem-photo') ? '' : routeContext.family || 'exam', routeId: routeContext.routeId || '', stage: routeContext.stage || '', subjectCode: routeContext.subjectCode || '' })
   },
   onShow() { syncDevice(this) },
   onReady(){this.resetFrame()},
@@ -133,6 +136,21 @@ Page({
         if (index < 0) return fallback()
         wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
       }).catch(error => {if(this.cropActive())this.setData({ busy: false, error: error.message || '照片未保存，请重试。' })})
+    }
+    if (returnInfo.route === 'coach-home') {
+      try { path = await persistCoachPhoto(path, expected, { contextId: returnInfo.context?.contextId || 'stem-photo' }, { cancelled: () => !this.cropActive() }) } catch (error) { if(this.cropActive())this.setData({ busy: false, error: error.message || '图片尚未保存，请重试。' }); return }
+      if (!this.cropActive()) { clearCoachPhoto(expected); return }
+      this.clearOwnReturn()
+      const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+      const index = pages.map((page) => page.route).lastIndexOf('pages/coach/index')
+      const contextId=String(returnInfo.context?.contextId||'stem-photo')
+      const routeContext=returnInfo.context?.routeContext||{}
+      const source=contextId==='stem-photo'?'alevel':contextId
+      const query=['source='+encodeURIComponent(source),routeContext.category?'category='+encodeURIComponent(routeContext.category):'',routeContext.routeId?'routeId='+encodeURIComponent(routeContext.routeId):'',routeContext.stage?'stage='+encodeURIComponent(routeContext.stage):'',routeContext.subjectCode?'subjectCode='+encodeURIComponent(routeContext.subjectCode):''].filter(Boolean).join('&')
+      const fallback = () => wx.redirectTo({ url: `/pages/coach/index?${query}` })
+      if (index < 0) { fallback(); return }
+      wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
+      return
     }
     if (returnInfo.route === 'writing') {
       try{path=await persistWritingPhoto(path,expected)}catch(error){this.setData({busy:false,error:error.message});return}

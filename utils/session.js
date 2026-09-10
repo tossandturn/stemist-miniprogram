@@ -5,6 +5,7 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
   const speakingExport=wx.getStorageSync('stemistSpeakingExportPath')
   const pendingWritingPhoto=wx.getStorageSync('stemistWritingPhoto')
   const pendingStemPhoto=wx.getStorageSync('stemistCroppedImage')
+  const pendingCoachPhoto=wx.getStorageSync('stemistCoachPhoto')
   wx.removeStorageSync('stemistSessionToken')
   wx.removeStorageSync('stemistUser')
   // A 401 clears only the expired identity. Preserve the in-progress photo,
@@ -26,6 +27,8 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
     wx.removeStorageSync('stemistCoachContext')
     wx.removeStorageSync('stemistWritingPhoto')
     wx.removeStorageSync('stemistWritingPhotoMeta')
+    wx.removeStorageSync('stemistCoachPhoto')
+    wx.removeStorageSync('stemistCoachPhotoMeta')
     wx.removeStorageSync('stemistPendingAttemptSync')
   }
   PRIVATE_SCOPES.forEach((scope) => {
@@ -52,6 +55,8 @@ function clearLocalSession({ preserveDrafts = false } = {}) {
         if(speakingExport===`${wx.env.USER_DATA_PATH}/ielts-speaking-transcript.txt`)fs.unlink({filePath:speakingExport,fail(){}})
         const writingDirectory=`${wx.env.USER_DATA_PATH}/native-writing/`
         writingPhotos.filter(path=>String(path).startsWith(writingDirectory)&&/^writing-[a-z0-9-]+\.jpg$/.test(String(path).slice(writingDirectory.length))).forEach(filePath=>fs.unlink({filePath,fail(){}}))
+        const coachDirectory=`${wx.env.USER_DATA_PATH}/native-coach/`
+        if(String(pendingCoachPhoto||'').startsWith(coachDirectory)&&/^coach-[a-z0-9-]+\.jpg$/.test(String(pendingCoachPhoto).slice(coachDirectory.length)))fs.unlink({filePath:pendingCoachPhoto,fail(){}})
       } catch { /* A device without stored photos has nothing to remove. */ }
     }
     wx.removeStorageSync('stemistSpeakingExportPath')

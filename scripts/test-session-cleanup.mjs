@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const source = fs.readFileSync(path.join(root, 'utils', 'session.js'), 'utf8')
 const values = {
   stemistSessionToken: 'token', stemistUser: { id: 'ielts:1' }, stemistDraft: true,
-  'stemistDraft:listening': { text: 'private' }, 'stemistSubmission:writing': { text: 'private' }, stemistCroppedImage: '/tmp/private.jpg', stemistCoachContext: { routeId: 'private' }, stemistWritingPhoto: '/tmp/private.jpg', stemistCropReturn: { route: 'stem' },
+  'stemistDraft:listening': { text: 'private' }, 'stemistSubmission:writing': { text: 'private' }, stemistCroppedImage: '/tmp/private.jpg', stemistCoachContext: { routeId: 'private' }, stemistWritingPhoto: '/tmp/private.jpg', stemistCoachPhoto: '/tmp/coach-private.jpg', stemistCoachPhotoMeta: { owner: 'ielts:1', epoch: 0 }, stemistCropReturn: { route: 'stem' },
   'stemistNotebook:cie-9702-as-physics': { body: 'private notebook' }, stemistPendingAttemptSync: { routeId: 'private' },
 }
 const wx = { getStorageSync: key => values[key], setStorageSync: (key, value) => { values[key] = value }, removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
@@ -45,6 +45,8 @@ assert.equal(values.stemistUser, undefined)
 assert.equal(values['stemistDraft:listening'], undefined)
 assert.equal(values['stemistSubmission:writing'], undefined)
 assert.equal(values.stemistCroppedImage, undefined)
+assert.equal(values.stemistCoachPhoto, undefined)
+assert.equal(values.stemistCoachPhotoMeta, undefined)
 assert.equal(values['stemistNotebook:cie-9702-as-physics'], undefined)
 assert.equal(values.stemistPendingAttemptSync, undefined)
 console.log('Session-local privacy cleanup passed.')
@@ -57,8 +59,10 @@ values['stemistDraft:ielts-writing:x']={photoPath:'/owned/native-writing/writing
 values['stemistDraft:writing-source-archive:ielts:1:0:single:item:a']={photoPath:'/owned/native-writing/writing-archive-a.jpg'}
 values['stemistDraft:writing-source-archive:ielts:1:0:pair:item:b']={items:[{photo:''},{photo:'/owned/native-writing/writing-archive-b.jpg'}]}
 values['stemistDraft:unrelated']={photoPath:'/camera/original.jpg'}
+values.stemistCoachPhoto='/owned/native-coach/coach-private-1.jpg'
+values.stemistCoachPhotoMeta={owner:'ielts:1',epoch:2,path:values.stemistCoachPhoto,contextId:'ielts'}
 module.exports.clearLocalSession()
-assert.deepEqual(removed.sort(),['/owned/ielts-speaking-transcript.txt','/owned/native-writing/writing-test-1.jpg','/owned/native-writing/writing-archive-a.jpg','/owned/native-writing/writing-archive-b.jpg'].sort())
+assert.deepEqual(removed.sort(),['/owned/ielts-speaking-transcript.txt','/owned/native-writing/writing-test-1.jpg','/owned/native-writing/writing-archive-a.jpg','/owned/native-writing/writing-archive-b.jpg','/owned/native-coach/coach-private-1.jpg'].sort())
 assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:single:item:a'],undefined)
 assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:pair:item:b'],undefined)
 assert.equal(values.stemistSpeakingExportPath,undefined)

@@ -5,6 +5,7 @@ const {requestIeltsLearning}=require('../../utils/ieltsLearning')
 const {takeCoachEntry,focusPassage}=require('../../utils/coachEntry')
 const {loadCaptions}=require('../../utils/nativeCaptions')
 const {readAsJpegDataUrl}=require('../../utils/image')
+const {readCoachPhoto,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 
 const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
 const STEM_FAMILIES = new Set(['exam', 'competition', 'admissions'])
@@ -33,9 +34,13 @@ Page({
     draftStatus: '自动保存已开启',
     routeContext: {},
     routeContextLabel: '',
+    imagePath: '',
+    imageSource: '',
+    entryHasImage: false,
+    mediaBusy: false,
   }),
   onLoad(options) {
-    this.__disposed = false
+    this.__disposed = false;this.__mediaRequest=0
     this.__owner=String(wx.getStorageSync('stemistUser')?.id||'guest');this.__epoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
     this.__entry=takeCoachEntry(String(options?.entry||''));this.__entryKey=String(options?.entry||'');this.__history=[]
     const draft = readDraft('coach')
@@ -51,10 +56,11 @@ Page({
     const family = STEM_FAMILIES.has(familyCandidate) ? familyCandidate : ''
     if (routeId || stage || subjectCode || category || family) {
       next.routeContext = { routeId, stage, subjectCode, category, family }
-      next.routeContextLabel = [category === 'competition' ? '竞赛 / 入学考试' : category === 'alevel' ? 'A-Level 学科' : category === 'ielts' ? 'IELTSist' : '', subjectCode, stage].filter(Boolean).join(' · ')
+      next.routeContextLabel = [category === 'competition' ? '竞赛 / 入学考试' : category === 'alevel' ? 'A-Level 学科' : '', subjectCode, stage].filter(Boolean).join(' · ')
     }
     if (sourceContext) next.contextId = sourceContext
-    if(this.__entry){next.contextId=this.__entry.skill;next.routeContextLabel=[this.__entry.title,this.__entry.focusedQuestion?'Q'+this.__entry.focusedQuestion.number:''].filter(Boolean).join(' · ')}
+    else if(category==='ielts')next.contextId='ielts'
+    if(this.__entry){next.contextId=this.__entry.skill;next.routeContextLabel=[this.__entry.title,this.__entry.focusedQuestion?'Q'+this.__entry.focusedQuestion.number:''].filter(Boolean).join(' · ');next.entryHasImage=Array.isArray(this.__entry.imagePaths)&&this.__entry.imagePaths.length>0}
     next.contextIndex = Math.max(0, CONTEXTS.findIndex(item => item.id === (next.contextId || sourceContext || this.data.contextId)))
     if (draft && (draft.entryKey||'')===this.__entryKey && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
     if (Object.keys(next).length) this.setData(next)
@@ -62,6 +68,7 @@ Page({
     const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]
   },
   current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
+  identity(){return {owner:this.__owner,epoch:this.__epoch}},
   async prepareEntry(){
     const entry=this.__entry;if(!entry)return {}
     if(entry.skill==='reading'&&!entry.reading?.paperText){const data=await requestIeltsLearning('/api/reading/context?id='+encodeURIComponent(entry.taskId),undefined,{method:'GET',timeout:12000});if(!this.current())throw new Error('账号已变化。');const text=focusPassage(data.paperText,entry.section);if(!text)throw new Error('当前原文暂未连接，请重试。');entry.reading.paperText=text}
@@ -70,16 +77,63 @@ Page({
   },
   onShow() {
     syncDevice(this)
+    if(this.current())this.restorePhoto()
+    if(this.data.mediaBusy)this.setData({mediaBusy:false})
     if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.setData({ authRequired: false, error: '' })
   },
   onResize() { syncDevice(this) },
-  onUnload() { this.__disposed = true; cancelDraft(this) },
+  onUnload() { this.__disposed = true;this.__mediaRequest++; cancelDraft(this) },
+  restorePhoto(){
+    const imagePath=readCoachPhoto(this.identity(),this.data.contextId)
+    if(imagePath!==this.data.imagePath)this.setData({imagePath,imageSource:imagePath?'已裁剪':''})
+  },
+  discardAttachedPhoto(){
+    clearCoachPhoto(this.identity())
+    if(this.data.imagePath||this.data.imageSource)this.setData({imagePath:'',imageSource:''})
+  },
+  photoContext(){
+    const selected=CONTEXTS.find(item=>item.id===this.data.contextId)||CONTEXTS[0]
+    const routeContext={...this.data.routeContext}
+    if(selected.product==='IELTSist')routeContext.category='ielts'
+    return {contextId:selected.id,product:selected.product,routeContext}
+  },
+  openCrop(path){
+    if(!this.current()||!path)return
+    const captureId=Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)
+    const returnInfo={route:'coach-home',context:this.photoContext(),captureId,createdAt:Date.now()}
+    try{wx.setStorageSync('stemistCropReturn',returnInfo)}catch{this.setData({mediaBusy:false,error:'图片路线暂未保存，请检查本机空间后重试。'});return}
+    wx.navigateTo({url:'/pages/crop/crop?src='+encodeURIComponent(path),fail:()=>{const current=wx.getStorageSync('stemistCropReturn');if(current?.captureId===captureId)wx.removeStorageSync('stemistCropReturn');if(this.current())this.setData({mediaBusy:false,error:'无法打开裁剪页，请重试。'})}})
+  },
+  takePhoto(){
+    if(!this.current()||this.data.loading||this.data.mediaBusy)return
+    try{wx.setStorageSync('stemistCameraReturn',{route:'coach-home',context:this.photoContext(),createdAt:Date.now()})}catch{this.setData({error:'拍照路线暂未保存，请检查本机空间后重试。'});return}
+    this.setData({mediaBusy:true,error:''})
+    wx.navigateTo({url:'/pages/stem/camera',fail:()=>{wx.removeStorageSync('stemistCameraReturn');if(this.current())this.setData({mediaBusy:false,error:'无法打开相机，请重试。'})}})
+  },
+  uploadImage(){
+    if(!this.current()||this.data.loading||this.data.mediaBusy)return
+    const request=++this.__mediaRequest
+    this.setData({mediaBusy:true,error:''})
+    const success=({tempFiles,tempFilePaths}={})=>{
+      if(!this.current()||request!==this.__mediaRequest)return
+      const files=Array.isArray(tempFiles)?tempFiles:Array.isArray(tempFilePaths)?tempFilePaths.map(tempFilePath=>({tempFilePath})):[]
+      const path=files[0]&&(files[0].tempFilePath||files[0].path)
+      if(!path){this.setData({mediaBusy:false,error:'没有读取到图片，请重新选择。'});return}
+      this.openCrop(path)
+    }
+    const fail=(error={})=>{if(!this.current()||request!==this.__mediaRequest)return;const cancelled=/cancel|取消/i.test(String(error.errMsg||''));this.setData({mediaBusy:false,error:cancelled?'':'图片未能打开，请重试。'})}
+    if(typeof wx.chooseMedia==='function')wx.chooseMedia({count:1,mediaType:['image'],sourceType:['album'],sizeType:['compressed'],success,fail})
+    else if(typeof wx.chooseImage==='function')wx.chooseImage({count:1,sourceType:['album'],sizeType:['compressed'],success,fail})
+    else fail({errMsg:'image picker unavailable'})
+  },
+  removeImage(){if(!this.current()||this.data.loading||this.data.mediaBusy)return;this.discardAttachedPhoto();this.setData({error:''})},
   chooseContext(event) {
     if (!this.current() || this.data.loading) return
     const contextId = String(event.currentTarget.dataset.context || '')
     if (!CONTEXTS.some((item) => item.id === contextId)) return
+    if(contextId!==this.data.contextId)this.discardAttachedPhoto()
     if(this.__entry?.skill!==contextId){this.__entry=null;this.__entryKey='';this.__historyKey='stemistCoachTurns:'+this.__owner+':'+contextId;const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]}
-    this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false })
+    this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false,entryHasImage:false })
   },
   chooseContextPicker(event) {
     const selected = CONTEXTS[Number(event.detail.value)]
@@ -92,15 +146,18 @@ Page({
     scheduleDraft(this, 'coach', { message, contextId: this.data.contextId,entryKey:this.__entryKey })
   },
   async submit() {
-    const message = this.data.message.trim()
+    const typedMessage = this.data.message.trim()
     if (this.data.loading||!this.current()) return
-    if (!message) return this.setData({ error: '请先写下你想检查的步骤或问题。' })
     const selected = CONTEXTS.find((item) => item.id === this.data.contextId) || CONTEXTS[0]
+    const entryImages=Array.isArray(this.__entry?.imagePaths)?this.__entry.imagePaths:[]
+    if (!typedMessage&&!this.data.imagePath&&!entryImages.length) return this.setData({ error: '请先拍照、上传图片，或写下你的问题。' })
+    const message=typedMessage||(selected.product==='IELTSist'?'请分析这张 IELTS 学习图片，指出关键问题并给出下一步建议。':'请分析这张学科题目或作答图片，指出关键问题并给出下一步提示。')
     this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
     try {
       const entry=await this.prepareEntry()
       const {imagePaths,...entryContext}=entry
-      const imageDataUrls=await Promise.all((Array.isArray(imagePaths)?imagePaths:[]).slice(0,2).map(readAsJpegDataUrl))
+      const paths=[this.data.imagePath,...(Array.isArray(imagePaths)?imagePaths:[])].filter((path,index,array)=>path&&array.indexOf(path)===index).slice(0,2)
+      const imageDataUrls=await Promise.all(paths.map(readAsJpegDataUrl))
       if(!this.current())return
       const result = await runCoach({
         message,
@@ -115,7 +172,7 @@ Page({
         this.__history=[...this.__history,{role:'user',content:message},{role:'assistant',content:result.answer}].slice(-12)
         try{wx.setStorageSync(this.__historyKey,this.__history)}catch{this.setData({draftStatus:'对话暂未保存，请检查本机空间'})}
       }
-      wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { category: selected.product === 'IELTSist' ? 'ielts' : 'stem', skill: selected.id, message, answer: result.answer || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
+      wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { category: selected.product === 'IELTSist' ? 'ielts' : 'stem', skill: selected.id, message, inputMode:imageDataUrls.length?'photo':'text', answer: result.answer || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
       clearDraft('coach')
     } catch (error) {
       if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })
@@ -130,8 +187,9 @@ Page({
   clear() {
     if (this.data.loading || !this.current()) return
     clearDraft('coach')
+    this.discardAttachedPhoto()
     this.__history=[]
     wx.removeStorageSync(this.__historyKey)
-    this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空' })
+    this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空',imagePath:'',imageSource:'' })
   },
 })

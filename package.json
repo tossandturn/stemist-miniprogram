@@ -8,7 +8,7 @@
     "test:crop": "node scripts/test-crop-math.mjs && node scripts/test-crop-gesture-stability.mjs",
     "test:coach": "node scripts/test-coach-service.mjs && node scripts/test-native-transcription-route.mjs && node scripts/test-writing-prompt-boundary.mjs",
     "test:coach-context": "node scripts/test-coach-context.mjs",
-    "test:stem-photo": "node scripts/test-stem-photo-flow.mjs && node scripts/test-native-photo-writing.mjs && node scripts/test-native-photo-coach-ownership.mjs && node scripts/test-native-photo-cancel.mjs && node scripts/test-native-photo-exam.mjs",
+    "test:stem-photo": "node scripts/test-stem-photo-flow.mjs && node scripts/test-native-photo-writing.mjs && node scripts/test-native-photo-coach-ownership.mjs && node scripts/test-native-photo-cancel.mjs && node scripts/test-native-photo-exam.mjs && node scripts/test-native-coach-photo.mjs",
     "test:camera-page": "node scripts/test-camera-page.mjs && node scripts/test-camera-lifecycle.mjs",
     "test:ai-fab": "node scripts/test-ai-fab.mjs",
     "test:inventory": "node scripts/test-inventory.mjs && node scripts/test-public-inventory.mjs",

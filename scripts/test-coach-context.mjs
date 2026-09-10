@@ -14,6 +14,7 @@ const fakeRequire = (name) => {
   if (name === '../../utils/coachEntry') return { takeCoachEntry: () => null, focusPassage: value => value }
   if (name === '../../utils/nativeCaptions') return { loadCaptions: async () => ({words:[]}) }
   if (name === '../../utils/image') return { readAsJpegDataUrl: async () => {throw Error('No photo belongs to this text-only context')} }
+  if (name === '../../utils/nativeCoachPhoto') return { readCoachPhoto: () => '', clearCoachPhoto: () => true }
   throw new Error(`unexpected module ${name}`)
 }
 vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require: fakeRequire, wx: { getStorageSync: () => '', setStorageSync: () => {}, navigateTo: () => {} }, String, Number, Boolean, Object, Array, Set, Date, Promise, Error })
@@ -27,7 +28,7 @@ const ielts = makePage()
 pageConfig.onLoad.call(ielts, { source: 'ielts', category: 'ielts' })
 assert.equal(ielts.data.contextId, 'ielts')
 assert.equal(ielts.data.routeContext.category, 'ielts')
-assert.equal(ielts.data.routeContextLabel, 'IELTSist')
+assert.equal(ielts.data.routeContextLabel, '')
 
 const competition = makePage()
 pageConfig.onLoad.call(competition, { source: 'competition', category: 'competition', family: 'admissions', routeId: 'uatuk-esat-admissions', stage: 'Admissions', subjectCode: 'esat' })
