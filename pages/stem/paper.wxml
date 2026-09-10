@@ -47,10 +47,10 @@
 </view>
 <view wx:for="{{markResults}}" wx:key="label" class="paper-mark-result">
 <text>AI 估分 {{item.label}} · {{item.score}} / {{item.maxScore}}</text>
-<text selectable>{{item.summary}}</text>
+<answer-content text="{{item.summary}}"/>
 <text>{{item.reviewRequired ? 'AI结果需复核' : 'AI辅助估分，非官方成绩'}}</text>
 </view>
-<text wx:if="{{feedback}}" class="paper-feedback" selectable>{{feedback}}</text>
+<view wx:if="{{feedback}}" class="paper-feedback"><answer-content text="{{feedback}}"/></view>
 </view>
 </view>
  <view class="paper-submit-panel">
@@ -77,7 +77,7 @@
   <text wx:if="{{item.aiPending}}" class="paper-input-help">AI 仍在等待／批改中</text>
   <text wx:if="{{item.state === 'ai' && item.studentScore !== null}}" class="paper-input-help">学生自评：{{item.studentScore}} / {{item.studentMax}}（仅对照，不计入 AI 得分）</text>
   <text wx:if="{{item.state === 'self' && item.details.length}}" class="paper-input-help">以下AI小问结果仅供参考，不与本题自评分重复相加。</text>
-  <view wx:for="{{item.details}}" wx:for-item="detail" wx:key="id" class="paper-report-detail"><text>{{detail.label}}：AI {{detail.score}} / {{detail.maxScore}}</text><text selectable>{{detail.summary}}</text></view>
+  <view wx:for="{{item.details}}" wx:for-item="detail" wx:key="id" class="paper-report-detail"><text>{{detail.label}}：AI {{detail.score}} / {{detail.maxScore}}</text><answer-content text="{{detail.summary}}"/></view>
   <button class="text-button" data-number="{{item.number}}" bindtap="reportQuestion">查看本题作答{{item.state === 'self-required' ? '并自评' : ''}}</button>
  </view>
  <view wx:if="{{reportPages > 1}}" class="paper-number"><button data-delta="-1" bindtap="changeReportPage" disabled="{{reportPage <= 0}}">‹</button><text>{{reportPage + 1}} / {{reportPages}}</text><button data-delta="1" bindtap="changeReportPage" disabled="{{reportPage + 1 >= reportPages}}">›</button></view>

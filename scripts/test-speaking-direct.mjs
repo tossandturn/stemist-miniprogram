@@ -10,3 +10,7 @@ assert.ok(Buffer.byteLength(JSON.stringify(calls[1][1]),'utf8')<24*1024,'Recover
 for(const mutate of [x=>x.endpoint=x.endpoint.replace('cn-beijing','ap-southeast-1'),x=>x.endpoint='wss://evil.test/realtime',x=>x.endpoint+='&token=leak',x=>x.token='sk-long-lived-key',x=>x.expiresAt=new Date(Date.now()-1).toISOString(),x=>x.expiresAt=new Date(Date.now()+3600000).toISOString(),x=>x.inputSampleRate=24000,x=>x.sessionUpdate.session.turn_detection={},x=>delete x.responses.next]){const invalid=directFixture();mutate(invalid);assert.throws(()=>service.validateDirectSession(invalid))}
 console.log('Direct speech credential: Beijing-only WSS, ephemeral token, expiry, PCM, template and no-persistence guards passed.')
 for(const name of ['opening','next'])for(const modalities of [['text'],['audio'],['text','text'],['text','audio','audio']]){const invalid=directFixture();invalid.responses[name].response.modalities=modalities;assert.throws(()=>service.validateDirectSession(invalid))}
+for(const [code,expected] of [['direct_task_not_found',/话题已更新/],['direct_session_rate_limited',/请求较多/],['direct_token_unavailable',/凭证暂时获取失败/]]){
+ const failed=miniRuntime({modules:{'utils/ieltsLearning':{requestIeltsLearning:async()=>{throw Object.assign(Error('generic transport message'),{code,statusCode:code==='direct_task_not_found'?404:503})}}}}).load('utils/speakingDirect')
+ await assert.rejects(()=>failed.issueDirectSession(),expected)
+}

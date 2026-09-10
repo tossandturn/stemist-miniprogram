@@ -15,7 +15,7 @@ async function issueDirectSession(context={}){
  const body={taskId:String(context.taskId||'').slice(0,120),recovery:context.recovery===true,elapsedSeconds:Math.max(0,Math.min(1200,Math.floor(Number(context.elapsedSeconds)||0))),completedDialogue:(context.completedDialogue||[]).slice(-16).filter(t=>['user','assistant'].includes(t.role)).map(t=>({role:t.role,text:String(t.text||'').slice(0,400)}))}
  try{return validateDirectSession(await requestIeltsLearning('/api/speaking/direct-session',body,{method:'POST',timeout:12000}))}
  catch(error){
-  const messages={direct_not_configured:'国内语音直连尚未配置，请联系管理员。',direct_token_unavailable:'语音连接凭证暂时获取失败，请重试。',direct_rate_limited:'连接请求较多，请稍后再试。'}
+  const messages={direct_not_configured:'国内语音直连尚未配置，请联系管理员。',direct_token_unavailable:'语音连接凭证暂时获取失败，请重试。',direct_rate_limited:'连接请求较多，请稍后再试。',direct_session_rate_limited:'连接请求较多，请稍后再试。',direct_task_not_found:'这个口语话题已更新，请更换话题后重试。'}
   if(messages[error?.code])throw Object.assign(Error(messages[error.code]),{code:error.code,statusCode:error.statusCode})
   throw error
  }
