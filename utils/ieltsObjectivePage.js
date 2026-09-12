@@ -2,6 +2,7 @@ const {deviceState,syncDevice}=require('./page')
 const {getIeltsTask}=require('./ieltsContent')
 const {sectionTask}=require('./ieltsUnits')
 const {loadCaptions,captionFrame}=require('./nativeCaptions')
+const {acquireListeningAudio}=require('./listeningAudioCache')
 const {requestIeltsJson}=require('./api')
 const {requestIeltsLearning}=require('./ieltsLearning')
 const {rememberRecord}=require('./nativeRecords')
@@ -12,9 +13,9 @@ const clock=seconds=>`${Math.floor(seconds/60).toString().padStart(2,'0')}:${Mat
 function makeObjectivePage(module){return{
  data:deviceState({module,title:module==='listening'?'Listening':'Reading',taskId:'',taskTitle:'',loading:true,busy:false,error:'',questions:[],questionNav:[],current:0,total:0,answer:'',answered:0,sourceImages:[],imageIndex:0,imageCount:0,passageText:'',showPassage:false,audioAvailable:false,audioPlaying:false,audioPosition:0,audioDuration:0,audioTracks:[],audioIndex:0,elapsed:'00:00',saveStatus:'',submitted:false,result:null,review:[],captionsEnabled:false,captionBubbles:[],captionStatus:''}),
  onLoad(options={}){this.__disposed=false;this.__epoch=epoch();this.__owner=owner();this.__generation=0;this.__section=Number(options.section)||0;this.__examKey=String(options.examKey||'');this.setData({taskId:String(options.taskId||''),examMode:Boolean(this.__examKey)});if(this.__examKey){this.__exam=readExam(this.__examKey);if(this.__section||!this.__exam||this.__exam.sources[module]!==this.data.taskId){this.setData({loading:false,error:'试题不属于当前模拟。'});return}}if(!this.data.taskId){wx.redirectTo({url:`/pages/ielts/library?module=${module}`});return}this.load()},
- onShow(){syncDevice(this);if(this.__task)this.startClock()},onResize(){syncDevice(this)},
- onHide(){this.pauseAudio();this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
- onUnload(){this.flush();this.__disposed=true;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy()},
+ onShow(){this.__visible=true;syncDevice(this);if(this.__task){this.startClock();if(this.data.audioAvailable&&!this.__preparedAudio&&!this.data.audioPreparing)this.prepareAudio()}},onResize(){syncDevice(this)},
+ onHide(){this.__visible=false;this.pauseAudio();if(this.data.audioPreparing)this.cancelAudioPreparation();this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
+ onUnload(){this.flush();this.__disposed=true;this.__visible=false;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy();this.cancelAudioPreparation()},
  currentOwner(){return !this.__disposed&&this.__epoch===epoch()&&this.__owner===owner()},
  async load(){const generation=++this.__generation;this.setData({loading:true,error:''});try{
   const task=sectionTask(await getIeltsTask(module,this.data.taskId),this.__section);if(!this.currentOwner()||generation!==this.__generation)return
@@ -24,7 +25,7 @@ function makeObjectivePage(module){return{
   this.__draft=saved&&saved.epoch===this.__epoch&&saved.taskId===task.id?saved:{taskId:task.id,module,owner:this.__owner,epoch:this.__epoch,answers:{},index:0,startedAt:Date.now(),elapsed:0,submitted:false,clientAttemptKey:'mini_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)}
   if(this.__examKey)this.__examClock=startExamModuleClock(this.__examKey,module,task.minutes)
   this.setData({taskTitle:task.title,current:Math.min(this.__draft.index||0,task.questions.length-1),total:task.questions.length,submitted:Boolean(this.__draft.submitted),result:this.__draft.result||null,review:(this.__draft.review||[]).slice(0,10),audioTracks:task.audioUrls.map((url,index)=>({index,label:'音频 '+(index+1)})),audioAvailable:task.audioUrls.length>0,saveStatus:saved?'已恢复练习':'自动保存'})
-  this.renderQuestion();this.startClock()
+  this.renderQuestion();this.startClock();if(this.data.audioAvailable&&this.__visible!==false)this.prepareAudio()
  }catch(error){if(this.currentOwner())this.setData({error:error.message})}finally{if(this.currentOwner()&&generation===this.__generation)this.setData({loading:false})}},
  renderQuestion(){
   const q=this.__task.questions[this.data.current],draft=this.__draft
@@ -52,24 +53,47 @@ function makeObjectivePage(module){return{
  async togglePassage(){const showPassage=!this.data.showPassage;this.setData({showPassage});if(!showPassage||this.data.passageText)return;try{const data=await requestIeltsJson('/api/reading/context?id='+encodeURIComponent(this.data.taskId),undefined,{method:'GET',timeout:12000});if(this.currentOwner())this.setData({passageText:String(data.paperText||'')})}catch(e){if(this.currentOwner())this.setData({error:e.message})}},
  initAudio(startAt=0){
   if(!this.data.audioAvailable||!wx.createInnerAudioContext)return
-  const index=this.data.audioIndex,url=this.__task.audioUrls[index]
+  const index=this.data.audioIndex,url=this.__preparedAudio?.index===index?this.__preparedAudio.path:''
   if(!url)return
   if(this.__audio&&this.__audioTrackIndex===index)return this.__audio
   const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.destroy()
   const audio=wx.createInnerAudioContext();this.__audio=audio;this.__audioTrackIndex=index;audio.obeyMuteSwitch=false;audio.startTime=Math.max(0,Number(startAt)||0)
-  const active=()=>this.__audio===audio&&this.__audioTrackIndex===index&&this.currentOwner()
-  audio.onPlay(()=>{if(active())this.setData({audioPlaying:true})})
-  audio.onPause(()=>{if(active())this.setData({audioPlaying:false})})
-  audio.onEnded(()=>{if(active())this.setData({audioPlaying:false})})
+  const active=()=>this.__audio===audio&&this.__audioTrackIndex===index&&this.currentOwner()&&this.__visible!==false
+  audio.onPlay(()=>{if(active()){this.__audioWanted=true;this.setData({audioPlaying:true,audioBuffering:false})}else if(this.__audio===audio)audio.pause()})
+  audio.onPause(()=>{if(active()){this.__audioWanted=false;this.setData({audioPlaying:false,audioBuffering:false})}})
+  audio.onEnded(()=>{if(active()){this.__audioWanted=false;this.setData({audioPlaying:false,audioBuffering:false})}})
+  audio.onWaiting?.(()=>{if(active()&&this.__audioWanted)this.setData({audioBuffering:true})})
+  audio.onCanplay?.(()=>{if(active())this.setData({audioDuration:Math.floor(audio.duration||0),audioBuffering:false})})
   let updated=0
   audio.onTimeUpdate(()=>{
    if(!active())return
-   if(Date.now()-updated>750){updated=Date.now();this.setData({audioPosition:Math.floor(audio.currentTime||0),audioDuration:Math.floor(audio.duration||0)})}
+   if(Date.now()-updated>750){updated=Date.now();this.setData({audioPosition:Math.floor(audio.currentTime||0),audioDuration:Math.floor(audio.duration||0),audioBuffering:false})}
    this.updateCaptionFrame(audio.currentTime||0)
   })
-  audio.onError(()=>{if(active())this.setData({audioPlaying:false,error:'音频暂时无法播放，请重试。'})})
+  audio.onError(()=>{if(active()){this.__audioWanted=false;this.__audio=null;this.__audioTrackIndex=-1;audio.destroy();this.__audioCacheLease?.invalidate();this.cancelAudioPreparation();this.setData({audioPlaying:false,audioBuffering:false,audioError:'音频暂时无法播放，点击播放重试。'})}})
   audio.src=url
   return audio
+ },
+ cancelAudioPreparation(){this.__audioPrepareRevision=(this.__audioPrepareRevision||0)+1;this.__audioCacheLease?.release();this.__audioCacheLease=null;this.__preparedAudio=null;if(!this.__disposed)this.setData({audioPreparing:false,audioReady:false})},
+ prepareAudio(){
+  if(!this.currentOwner()||this.__visible===false||!this.data.audioAvailable)return
+  if(this.data.audioPreparing)return this.__audioPreparation
+  const index=this.data.audioIndex,url=this.__task.audioUrls[index]
+  if(this.__preparedAudio?.index===index)return Promise.resolve(this.__preparedAudio.path)
+  this.cancelAudioPreparation()
+  const revision=this.__audioPrepareRevision,active=()=>this.currentOwner()&&this.__visible!==false&&revision===this.__audioPrepareRevision&&index===this.data.audioIndex
+  this.setData({audioPreparing:true,audioError:'',audioDownloadPercent:null,audioDownloadedLabel:'0 KB',audioReady:false})
+  try{
+   const lease=acquireListeningAudio(url,{version:this.__task.contentVersion||'',onProgress:p=>{if(active())this.setData({audioDownloadPercent:p.percent,audioDownloadedLabel:p.bytes>=1048576?(p.bytes/1048576).toFixed(1)+' MB':Math.floor(p.bytes/1024)+' KB'})}})
+   this.__audioCacheLease=lease
+   this.__audioPreparation=lease.promise.then(path=>{
+    if(!active()){lease.release();return}
+    this.__preparedAudio={index,path};this.setData({audioPreparing:false,audioReady:true,audioDownloadPercent:100})
+    if(this.__audioWanted){const audio=this.initAudio(this.data.audioPosition);audio?.play()}
+    return path
+   }).catch(()=>{if(active()){this.__audioWanted=false;this.setData({audioPreparing:false,audioPlaying:false,audioError:'音频准备失败，点击播放重试。'})}})
+   return this.__audioPreparation
+  }catch{this.__audioWanted=false;this.setData({audioPreparing:false,audioError:'音频准备失败，点击播放重试。'})}
  },
  toggleCaptions(){if(this.data.examMode)return;this.__captionRequest=(this.__captionRequest||0)+1;this.setData({captionsEnabled:!this.data.captionsEnabled,captionBubbles:[],captionStatus:''});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
  async loadCurrentCaptions(){
@@ -78,9 +102,10 @@ function makeObjectivePage(module){return{
   try{const section=this.__task.audioSections?.[this.data.audioIndex]?.section||this.data.audioIndex+1;const model=await loadCaptions(this.data.taskId,section);if(!this.currentOwner()||request!==this.__captionRequest||!this.data.captionsEnabled)return;this.__captionModel=model;this.setData({captionStatus:''});this.updateCaptionFrame(this.__audio?.currentTime||0)}catch(e){if(this.currentOwner()&&request===this.__captionRequest)this.setData({captionStatus:e.message})}
  },
  updateCaptionFrame(time){if(!this.currentOwner()||!this.data.captionsEnabled||!this.__captionModel)return;const frame=captionFrame(this.__captionModel,time);if(frame.index!==this.__captionIndex){this.__captionIndex=frame.index;this.setData({captionBubbles:frame.bubbles,captionStatus:frame.index<0?'字幕将随语音出现':''})}},
- toggleAudio(){const audio=this.__audio||this.initAudio(this.data.audioPosition);if(!audio)return;this.data.audioPlaying?audio.pause():audio.play()},pauseAudio(){this.__audio?.pause()},
- selectAudio(event){const index=Number(event.detail.value);if(!this.__task.audioUrls[index]||index===this.data.audioIndex)return;const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.stop();previous?.destroy();this.setData({audioIndex:index,audioPosition:0,audioDuration:0,audioPlaying:false});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
- seekAudio(event){const time=Math.max(0,Number(event.detail.value)||0),existing=this.__audio,audio=existing||this.initAudio(time);if(existing)audio.seek(time);this.setData({audioPosition:Math.floor(time)});this.updateCaptionFrame(time)},
+ toggleAudio(){if(!this.currentOwner()||this.__visible===false)return;if(this.__audioWanted||this.data.audioPlaying){this.pauseAudio();return}this.__audioWanted=true;this.setData({audioError:'',audioWaitingToPlay:true});const audio=this.__audio||this.initAudio(this.data.audioPosition);if(audio)audio.play();else this.prepareAudio()},
+ pauseAudio(){this.__audioWanted=false;this.__audio?.pause();if(!this.__disposed)this.setData({audioPlaying:false,audioWaitingToPlay:false,audioBuffering:false})},
+ selectAudio(event){const index=Number(event.detail.value);if(!this.__task.audioUrls[index]||index===this.data.audioIndex)return;this.__audioWanted=false;const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.stop();previous?.destroy();this.cancelAudioPreparation();this.setData({audioIndex:index,audioPosition:0,audioDuration:0,audioPlaying:false,audioBuffering:false,audioWaitingToPlay:false,audioError:''});this.prepareAudio();if(this.data.captionsEnabled)this.loadCurrentCaptions()},
+ seekAudio(event){const time=Math.max(0,Number(event.detail.value)||0),existing=this.__audio;existing?.seek(time);if(!existing&&this.__preparedAudio)this.initAudio(time);this.setData({audioPosition:Math.floor(time)});this.updateCaptionFrame(time)},
  async submit(){
   if(this.data.busy||this.data.submitted||!this.__draft||!this.currentOwner())return
   this.flush();this.pauseAudio();this.setData({busy:true,error:''})

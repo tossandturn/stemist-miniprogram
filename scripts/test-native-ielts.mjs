@@ -52,8 +52,9 @@ const guest=miniRuntime();const navigation=guest.page('pages/ielts/listening');n
  listening.toggleAudio();assert.equal(players[0].playCalls,1);assert.equal(listening.data.audioPlaying,true);assert.equal(players[0].srcValue,listeningTask.audioUrls[0])
  listening.selectAudio({detail:{value:'1'}});assert.equal(players[0].stopCalls,1);assert.equal(players[0].destroyCalls,1);assert.equal(players.length,1);assert.equal(listening.data.audioIndex,1);assert.equal(listening.data.audioPlaying,false)
  players[0].callbacks.play();players[0].currentTime=99;players[0].duration=100;players[0].callbacks.time();assert.equal(listening.data.audioPlaying,false);assert.equal(listening.data.audioPosition,0,'callbacks from a retired track must not update the selected track')
- listening.toggleAudio();assert.equal(players.length,2);assert.equal(players[1].srcValue,listeningTask.audioUrls[1]);assert.equal(players[1].startTimeAtSrc,0);assert.equal(players[1].playCalls,1)
+ listening.toggleAudio();await settle();assert.equal(players.length,2);assert.equal(players[1].srcValue,listeningTask.audioUrls[1]);assert.equal(players[1].startTimeAtSrc,0);assert.equal(players[1].playCalls,1)
  listening.onHide();assert.equal(players[1].pauseCalls,1);assert.equal(listening.data.audioPlaying,false)
  listening.onUnload();assert.equal(players[1].destroyCalls,1);players[1].callbacks.play();assert.equal(listening.data.audioPlaying,false,'callbacks after unload must stay inert')
 }
 console.log('Native IELTS content, bounded question rendering, lazy streaming audio lifecycle, answers, submission, restore and catalog navigation passed.')
+await import('./test-listening-buffering.mjs')
