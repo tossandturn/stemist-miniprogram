@@ -21,7 +21,7 @@ async function main(){
   const app=getApp();if(app.__liveSpeechQa&&!app.__liveSpeechQa.finished)throw Error('Speech QA already running')
   const qa={finished:false,results:[],index:0,phase:'connecting',micUsed:false,studentRecordsWritten:false};app.__liveSpeechQa=qa
   const Engine=require('utils/nativeSpeaking.js').NativeSpeaking
-  let engine,interval,timeout,sending=false
+  let engine,interval,timeout,micInterval,sending=false
   const done=phase=>{qa.phase=phase;qa.finished=true;clearInterval(interval);clearTimeout(timeout);engine.close();delete app.__speechQaClips}
   engine=new Engine({turns:[{role:'assistant',text:'Would you like to have a job working with animals in the future?',at:Date.now()}],onError:()=>done('connection-failed'),onTurn:turn=>qa.results.push({role:turn.role,text:turn.text}),onState:state=>{
    if(qa.finished||state.status!=='请自然回答'||sending)return
@@ -35,7 +35,7 @@ async function main(){
     if(Date.now()-started>30000)done('input-timeout')
    },64)
   }})
-  engine.recorder={start(){},stop(){}}
+  engine.recorder={start(){clearInterval(micInterval);micInterval=setInterval(()=>{if(!sending)engine.frame(new ArrayBuffer(2048))},64)},stop(){clearInterval(micInterval)}}
   engine.audio={get currentTime(){return Date.now()/1000},close(){}}
   engine.play=()=>{qa.audioReceived=true}
   timeout=setTimeout(()=>done('timeout'),140000)

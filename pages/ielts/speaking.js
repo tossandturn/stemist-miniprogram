@@ -52,7 +52,7 @@ Page({
     try{
      if(newSession)speakingStore.archiveSession(this.__owner,this.snapshot())
      const next=newSession?{sessionId:'speech-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),epoch:this.__epoch,taskId:this.data.taskId,taskTitle:this.data.taskTitle,turns:engine.turns,elapsed:0,note:'',feedback:'',band:null,warning:'',updatedAt:Date.now()}:this.snapshot()
-     // Persist before replacing the visible record or beginning capture.
+     // Persist before replacing the visible record or sending candidate audio.
      const stored=speakingStore.saveSession(this.__scope,this.__owner,next,{replaceFrom:{sessionId:this.__sessionId,revision:this.__baseSnapshot.revision||0}})
      this.__sessionId=stored.sessionId;this.__baseSnapshot=stored;this.__turns=engine.turns;this.__elapsed=stored.elapsed||0;this.__lastNote=stored.note||'';this.__startedAt=Date.now();this.__dirty=false
      committed=true

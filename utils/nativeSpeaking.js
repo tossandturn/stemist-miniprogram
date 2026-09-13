@@ -37,13 +37,17 @@ class NativeSpeaking {
   if(!this.current()){this.close();return}
   const ticket=await issueDirectSession(this.sessionContext())
   if(!this.current()){this.close();return}
-  this.audio=wx.createWebAudioContext();await this.audio.resume?.()
+  this.audio=wx.createWebAudioContext()
+  try{await Promise.race([this.audio.resume?.(),new Promise((_,reject)=>{this.cancelAudioStart=()=>reject(Error('已取消语音启动。'));this.audioStartTimer=setTimeout(()=>reject(Error('语音播放未能启动，请返回后重新开始。')),5000)})])}finally{clearTimeout(this.audioStartTimer);this.cancelAudioStart=null}
   if(this.closed){this.audio?.close?.();return}
   this.recorder=wx.getRecorderManager()
   this.frameHandler=event=>this.frame(event.frameBuffer)
+  this.startHandler=()=>this.activate()
+  this.interruptHandler=()=>{if(this.current())this.fail('录音被系统中断，请关闭其他通话或录音后重试。')}
   this.stopHandler=event=>{if(event.tempFilePath)this.lastRecording=event.tempFilePath;if(!this.closed&&this.ready)this.record()}
   this.errorHandler=error=>this.fail(recordingError(error))
   this.recorder.onFrameRecorded(this.frameHandler);this.recorder.onStop(this.stopHandler);this.recorder.onError(this.errorHandler)
+  this.recorder.onStart?.(this.startHandler);this.recorder.onInterruptionBegin?.(this.interruptHandler)
   wx.setKeepScreenOn?.({keepScreenOn:true})
   await this.connect(ticket)
  }
@@ -87,7 +91,14 @@ class NativeSpeaking {
   this.socket.send({data:JSON.stringify({...message,event_id:'mini_'+Date.now().toString(36)+'_'+(++this.eventSequence)}),fail:()=>{if(!this.closed)this.recover()}})
  }
  sendAudio(buffer){this.send({type:'input_audio_buffer.append',audio:wx.arrayBufferToBase64(buffer)})}
- record(){if(!this.closed&&this.ready)this.recorder.start({duration:570000,sampleRate:16000,numberOfChannels:1,format:'PCM',frameSize:2,audioSource:this.audioSource||'auto'})}
+ record(){if(!this.current()||!this.ready)return;this.captureSeen=false;clearTimeout(this.captureTimer);this.captureTimer=setTimeout(()=>{if(this.current()&&this.ready&&!this.captureSeen)this.fail('麦克风未返回录音数据，请检查权限或关闭其他录音后重试。')},8000);this.recorder.start({duration:570000,sampleRate:16000,numberOfChannels:1,format:'PCM',frameSize:2,audioSource:this.audioSource||'auto'});if(!this.recorder.onStart)this.activate()}
+ activate(){
+  if(!this.current()||!this.ready||this.activatedGeneration===this.generation)return
+  this.activatedGeneration=this.generation;this.onReady();if(!this.current())return
+  this.onState({active:true,connecting:false,status:'麦克风已启动，等待考官…'});this.waiting=true
+  clearTimeout(this.turnTimer);this.turnTimer=setTimeout(()=>{if(this.current()&&this.waiting)this.fail('考官尚未回应，对话已保留，请重试连接。')},30000)
+  this.send({type:'response.create',intent:this.retries||this.turns.length?'next-question':'opening'})
+ }
  resetInput(){this.preRoll=[];this.preRollBytes=0;this.voicedBytes=0;this.lastVoice=0;this.pendingTranscript=false;clearTimeout(this.transcriptTimer)}
  respondToAnswer(inputQuality){
   if(!this.current()||!this.pendingTranscript)return
@@ -97,6 +108,9 @@ class NativeSpeaking {
  }
  frame(buffer){
   if(!this.current()||!this.ready||!buffer?.byteLength)return
+  this.captureSeen=true;clearTimeout(this.captureTimer)
+  if(this.startHandler&&this.activatedGeneration!==this.generation)this.activate()
+  if(!this.current())return
   if(this.waiting||this.audio.currentTime<Math.max(this.playUntil,this.listenAfter)){
    this.preRoll=[];this.preRollBytes=0;return
   }
@@ -151,9 +165,7 @@ class NativeSpeaking {
   const payload=message.payload||message,type=message.eventType||payload.type
   if(type==='response.created'){this.assistant='';this.assistantSource='';this.waiting=true}
   if(type==='session.updated'&&!this.ready){
-   this.ready=true;clearTimeout(this.connectionTimer);this.onReady();if(this.closed)return;this.record();this.onState({active:true,connecting:false,status:'考官已连接'})
-   this.waiting=true
-   this.send({type:'response.create',intent:this.retries||this.turns.length?'next-question':'opening'});return
+   this.ready=true;this.waiting=true;clearTimeout(this.connectionTimer);this.onState({status:'正在启动麦克风…'});this.record();return
   }
   if(type==='error')return this.fail('语音服务返回错误，对话已保留。')
   if(type==='response.audio.delta'&&payload.delta){if(!this.finishing){this.play(payload.delta);this.onState({status:'考官正在说话…'})}return}
@@ -173,6 +185,7 @@ class NativeSpeaking {
    this.addTurn('assistant',payload.transcript||payload.text||this.assistant);this.assistant=''
   }
   if(type==='response.done'){
+   if(['failed','cancelled','incomplete'].includes(payload.response?.status))return this.fail('考官本轮回应未完成，对话已保留，请重试连接。')
    if(this.assistant){this.addTurn('assistant',this.assistant);this.assistant=''}
    clearTimeout(this.turnTimer);this.waiting=false;this.resetInput()
    this.listenAfter=Math.max(this.playUntil,this.audio.currentTime)+.35
@@ -214,11 +227,26 @@ class NativeSpeaking {
   const source=this.audio.createBufferSource();source.buffer=audioBuffer;source.connect(this.audio.destination)
   const when=Math.max(this.audio.currentTime+.08,this.playUntil);source.start(when);this.playUntil=when+samples.length/24000
   this.sources.add(source);source.onended=()=>{this.sources.delete(source);source.disconnect?.()}
+  this.watchPlayback()
+ }
+ watchPlayback(){
+  if(this.playbackTimer||!this.current()||!this.sources.size)return
+  const before=this.audio.currentTime
+  this.playbackTimer=setTimeout(()=>{
+   this.playbackTimer=null;if(!this.current()||!this.sources.size)return
+   if(this.audio.currentTime<=before){
+    if(this.playbackRetried)return this.fail('语音播放被暂停，请返回后重新开始，并检查媒体音量。')
+    this.playbackRetried=true
+    try{Promise.resolve(this.audio.resume?.()).catch(()=>{if(this.current())this.fail('语音播放未能恢复，请重新开始。')})}catch{this.fail('语音播放未能恢复，请重新开始。')}
+   }else this.playbackRetried=false
+   this.watchPlayback()
+  },3000)
  }
  recover(){
   if(this.closed||this.recovering)return
   this.recovering=true;this.ready=false;this.waiting=false;this.resetInput();this.recorder?.stop();this.generation++;this.socket?.close()
-  clearTimeout(this.connectionTimer);clearTimeout(this.turnTimer);clearTimeout(this.responseTimer)
+  clearTimeout(this.connectionTimer);clearTimeout(this.turnTimer);clearTimeout(this.responseTimer);clearTimeout(this.captureTimer)
+  clearTimeout(this.playbackTimer);this.playbackTimer=null;this.playbackRetried=false
   for(const source of this.sources){try{source.stop()}catch{}source.disconnect?.()}this.sources.clear();this.playUntil=this.audio?.currentTime||0;this.assistant=''
   if(++this.retries>2){this.recovering=false;this.fail('连接多次中断，已保留对话。请检查网络后重试。');return}
   this.onState({status:'连接中断，正在恢复…'})
@@ -228,10 +256,12 @@ class NativeSpeaking {
  close(){
   if(this.closed)return
   this.closed=true;this.ready=false;this.generation++
+  this.cancelAudioStart?.()
   this.resetInput()
-  for(const timer of [this.connectionTimer,this.turnTimer,this.responseTimer,this.recoveryTimer,this.sessionTimer])clearTimeout(timer)
+  for(const timer of [this.connectionTimer,this.turnTimer,this.responseTimer,this.recoveryTimer,this.sessionTimer,this.captureTimer,this.audioStartTimer,this.playbackTimer])clearTimeout(timer)
   this.finishNote('')
   this.recorder?.offFrameRecorded?.(this.frameHandler);this.recorder?.offStop?.(this.stopHandler);this.recorder?.offError?.(this.errorHandler);this.recorder?.stop()
+  this.recorder?.offStart?.(this.startHandler);this.recorder?.offInterruptionBegin?.(this.interruptHandler)
   this.socket?.close({code:1000,reason:'practice stopped'})
   this.direct=null
   for(const source of this.sources){try{source.stop()}catch{}source.disconnect?.()}this.sources.clear();this.audio?.close?.()
