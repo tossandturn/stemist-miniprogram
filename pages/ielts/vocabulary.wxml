@@ -1,51 +1,53 @@
 <view class="page {{deviceClass}} {{orientation}} vocabulary-page">
-<stemist-header compact="{{true}}" title="Vocabulary" action-text="返回" bind:action="back"/>
-<ai-fab source="vocabulary" category="ielts"/>
- <view class="vocab-switch">
-<button class="{{bank === 'ielts' ? 'selected' : ''}}" data-bank="ielts" bindtap="switchBank">IELTS</button>
-<button class="{{bank === 'stem' ? 'selected' : ''}}" data-bank="stem" bindtap="switchBank">学科词汇</button>
-</view>
-<view class="vocab-filters">
-<input placeholder="搜索词汇" value="{{query}}" bindinput="search"/>
-<picker range="{{stages}}" range-key="label" value="{{stageIndex}}" bindchange="chooseStage">
-<view>{{stages[stageIndex].label}}</view>
-</picker>
-<button class="{{reviewOnly ? 'selected' : ''}}" bindtap="toggleReview">待复习</button>
-</view>
- <view class="vocab-count">{{total}} 个词条 · 已掌握 {{mastered}}</view>
-<view wx:if="{{loading || detailBusy}}" class="loading-state">正在加载…</view>
-<view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="load">重试</button>
-</view>
- <view wx:if="{{word}}" class="vocab-detail">
-<button class="vocab-close" bindtap="closeWord" aria-label="关闭词条">×</button>
-<text class="vocab-word">{{word.word}}</text>
-<text class="vocab-phonetic">{{word.phonetic}}</text>
-<button class="secondary" bindtap="reveal">{{revealed ? '隐藏释义' : '查看释义'}}</button>
-<block wx:if="{{revealed}}">
-<text class="vocab-meaning">{{word.meaning}}</text>
-<text class="vocab-body">{{word.definition}}</text>
-<text class="vocab-body">{{word.explanation}}</text>
-<text wx:if="{{word.formula}}" class="vocab-body">{{word.formula}}</text>
-<text class="vocab-example">{{word.example}}</text>
-<text class="vocab-body">{{word.translation}}</text>
-<text wx:if="{{word.mistake}}" class="vocab-body">易错点：{{word.mistake}}</text>
-</block>
-<view class="vocab-review">
-<button class="secondary" data-known="no" bindtap="remember">再练一次</button>
-<button class="primary" data-known="yes" bindtap="remember">记住了</button>
-</view>
-<button class="text-button" bindtap="saveWord">收藏词条</button>
-<text class="vocab-status">{{status}}</text>
-</view>
- <view wx:else class="vocab-grid">
-<button wx:for="{{items}}" wx:key="id" class="vocab-row" data-id="{{item.id}}" bindtap="openWord">
-<text>{{item.word}}</text>
-<text>{{item.meaning}}</text>
-</button>
-</view>
- <view wx:if="{{!word && pageCount > 1}}" class="vocab-pager">
-<button bindtap="previous" disabled="{{page <= 0}}">上一页</button>
-<text>{{page+1}} / {{pageCount}}</text>
-<button bindtap="next" disabled="{{page+1 >= pageCount}}">下一页</button>
-</view>
+ <stemist-header compact="{{true}}" title="词汇学习" action-text="返回" bind:action="back"/>
+ <ai-fab source="vocabulary" category="ielts"/>
+ <view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="load">重试</button></view>
+ <view wx:if="{{view === 'packs'}}" class="vocab-library">
+  <text class="vocab-heading">选择你的词包</text><text class="vocab-muted">雅思英语与专业学科分开学习</text>
+  <view class="vocab-packs"><button wx:for="{{packs}}" wx:key="id" class="vocab-pack {{pack === item.id ? 'selected' : ''}}" data-pack="{{item.id}}" bindtap="choosePack"><text>{{item.label}}</text><text>{{item.pending ? '词库待接入' : item.count + ' 个词条'}}</text></button></view>
+  <view wx:if="{{pack === 'competition' || pack === 'admissions'}}" class="vocab-empty">这个词包尚未接入，不显示虚构词条。</view>
+  <block wx:elif="{{pack !== 'ielts'}}"><text class="vocab-heading">{{pack === 'igcse' ? 'IGCSE' : 'A-Level'}} · 选择学科</text><view class="vocab-subjects"><button wx:for="{{subjects}}" wx:key="id" data-subject="{{item.id}}" bindtap="chooseSubject"><text>{{item.label}}</text><text>{{item.count}} 词</text></button></view></block>
+ </view>
+ <block wx:else>
+  <view class="vocab-toolbar"><button class="vocab-current-pack" bindtap="openPacks" aria-label="更换词包"><text>{{scopeLabel}}</text><text>换词包 ›</text></button><button class="vocab-small" bindtap="toggleFilters">{{filtersOpen ? '收起' : '筛选'}}</button></view>
+  <view class="vocab-modes"><button class="{{mode === 'study' ? 'selected' : ''}}" data-mode="study" bindtap="setMode">学习</button><button class="{{mode === 'recall' ? 'selected' : ''}}" data-mode="recall" bindtap="setMode">自测</button><button class="{{mode === 'due' ? 'selected' : ''}}" data-mode="due" bindtap="setMode">待复习 {{due}}</button><button class="{{mode === 'saved' ? 'selected' : ''}}" data-mode="saved" bindtap="setMode">收藏 {{savedCount}}</button></view>
+  <view wx:if="{{filtersOpen}}" class="vocab-filters">
+   <input placeholder="搜索 IELTS 和专业词汇" value="{{query}}" bindinput="search" aria-label="搜索词汇"/>
+   <picker wx:if="{{bank === 'stem'}}" range="{{stages}}" range-key="label" value="{{stageIndex}}" bindchange="chooseStage"><view>{{stages[stageIndex].label}} ▾</view></picker>
+   <picker range="{{topics}}" range-key="label" value="{{topicIndex}}" bindchange="chooseTopic"><view>{{topics[topicIndex].label}} ▾</view></picker>
+   <button class="vocab-small" bindtap="showList">浏览词表</button>
+  </view>
+  <view wx:if="{{view === 'study'}}" class="vocab-workspace">
+   <view class="vocab-main">
+    <view class="vocab-progress"><text>{{completed ? total : total ? wordIndex + 1 : 0}} / {{total}} 词</text><text>本机已掌握 {{mastered}}</text></view>
+    <progress percent="{{progressPercent}}" stroke-width="4" activeColor="#6546d7" backgroundColor="#e6e3f5"/>
+    <view wx:if="{{loading || detailBusy}}" class="vocab-empty" role="status">正在准备词卡…</view>
+    <view wx:elif="{{completed}}" class="vocab-empty"><text class="vocab-heading">本轮学习完成</text><text>复习记录已保存，下次到期再巩固。</text><button class="primary" bindtap="restart">继续学习</button></view>
+    <view wx:elif="{{word}}" class="vocab-card">
+     <view class="vocab-card-context"><text>{{word.subjectLabel}}{{word.stage ? ' · ' + word.stage : ''}}</text><text>{{word.topicLabel}}</text></view>
+     <text class="vocab-word">{{word.word}}</text><text class="vocab-muted">{{word.phonetic || word.typeLabel}}</text>
+     <button wx:if="{{mode === 'recall' && !revealed}}" class="vocab-reveal primary" bindtap="reveal">想好了吗？查看释义</button>
+     <block wx:if="{{revealed}}">
+      <text class="vocab-meaning">{{word.meaning}}</text>
+      <text wx:if="{{word.definition}}" class="vocab-definition">{{word.definition}}</text>
+      <view wx:if="{{word.example}}" class="vocab-example"><text>{{word.example}}</text><text>{{word.translation}}</text></view>
+     </block>
+     <view class="vocab-review"><button class="secondary" data-known="no" data-id="{{word.id}}" bindtap="remember" disabled="{{rating || (mode === 'recall' && !revealed)}}">再练一次</button><button class="primary" data-known="yes" data-id="{{word.id}}" bindtap="remember" disabled="{{rating || (mode === 'recall' && !revealed)}}">记住了</button></view>
+     <view class="vocab-utility"><button class="text-button" bindtap="saveWord" loading="{{saving}}" disabled="{{saving || (saved && !syncPending)}}">{{syncPending ? '重试同步收藏' : saved ? '已收藏' : '收藏词条'}}</button><button wx:if="{{revealed}}" class="text-button" bindtap="expand">{{expanded ? '收起完整讲解' : '完整讲解'}}</button></view>
+     <view wx:if="{{expanded && revealed}}" class="vocab-knowledge">
+      <view wx:if="{{word.explanation}}" class="vocab-section"><text class="vocab-section-title">核心理解</text><answer-content text="{{word.explanation}}"/></view>
+      <view wx:if="{{word.formula}}" class="vocab-section"><text class="vocab-section-title">公式与条件</text><answer-content text="{{word.formula}}"/><answer-content text="{{word.formulaExplanation}}"/></view>
+      <view wx:if="{{word.methodSteps.length}}" class="vocab-section"><text class="vocab-section-title">如何运用 / 解题步骤</text><view wx:for="{{word.methodSteps}}" wx:key="*this" class="vocab-step"><text>{{index + 1}}.</text><answer-content text="{{item}}"/></view></view>
+      <view wx:if="{{word.examFocus}}" class="vocab-section"><text class="vocab-section-title">考试用法</text><answer-content text="{{word.examFocus}}"/></view>
+      <view wx:if="{{word.mistake}}" class="vocab-section"><text class="vocab-section-title">易错点</text><answer-content text="{{word.mistake}}"/></view>
+      <view wx:if="{{word.workedExample}}" class="vocab-section"><text class="vocab-section-title">完整例题</text><answer-content text="{{word.workedExample.question}}"/><view wx:for="{{word.workedExample.steps}}" wx:key="*this" class="vocab-step"><text>{{index + 1}}.</text><answer-content text="{{item}}"/></view><answer-content text="{{word.workedExample.answer}}"/></view>
+      <view wx:if="{{word.collocations.length}}" class="vocab-section"><text class="vocab-section-title">常用搭配</text><text wx:for="{{word.collocations}}" wx:key="*this" class="vocab-collocation">{{item}}</text></view>
+     </view>
+    </view>
+    <view wx:elif="{{!error}}" class="vocab-empty">{{mode === 'due' ? '暂无到期词汇。新词不计为待复习。' : mode === 'saved' ? '这个词包还没有收藏。' : '没有匹配的词条，请调整筛选或更换词包。'}}</view>
+   </view>
+   <view class="vocab-side"><text class="vocab-status" role="status">{{status}}</text><view class="vocab-nav"><button class="secondary" bindtap="previous" disabled="{{detailBusy || wordIndex <= 0}}">上一词</button><button class="secondary" bindtap="next" disabled="{{detailBusy || wordIndex + 1 >= total}}">下一词</button></view><text class="vocab-muted">学习：查看含义和例句；自测：先回想再揭晓。复习进度保存在本机，收藏可同步账号。</text></view>
+  </view>
+  <block wx:elif="{{view === 'list'}}"><text class="vocab-muted">{{total}} 个词条 · 点击开始逐词学习</text><view class="vocab-grid"><button wx:for="{{items}}" wx:key="id" class="vocab-row" data-id="{{item.id}}" bindtap="openWord"><text>{{item.word}}</text><text>{{item.meaning}}</text></button></view><view class="vocab-nav"><button bindtap="previous" disabled="{{page <= 0}}">上一页</button><text>{{pageCount ? page + 1 : 0}} / {{pageCount}}</text><button bindtap="next" disabled="{{page + 1 >= pageCount}}">下一页</button></view></block>
+ </block>
 </view>
