@@ -1,4 +1,5 @@
 const {compressImage}=require('./image')
+const {nextChoiceAnswer}=require('./nativeChoice')
 const PREFIX='stemistNativePaper:'
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
@@ -11,6 +12,11 @@ function createPaperDraft(paper,route,mode='past-paper-practice'){
 function current(draft){return Boolean(draft&&draft.schema===1&&draft.owner===owner()&&draft.epoch===epoch()&&/^mini-paper-[a-z0-9-]+$/.test(draft.id))}
 function savePaperDraft(draft){if(!current(draft))throw new Error('账号已变化，草稿未写入新账号。');wx.setStorageSync(draft.storageKey,{...draft,updatedAt:Date.now()})}
 function readPaperDraft(storageKey){const draft=wx.getStorageSync(storageKey);return current(draft)?draft:null}
+function savePaperChoice(storageKey,number,choice){
+ const draft=readPaperDraft(storageKey)
+ if(!draft||draft.submitted||!Number.isInteger(number)||number<1||number>(draft.questionCount||99))throw Error('当前试卷不可修改作答。')
+ draft.answers[number]=nextChoiceAnswer(draft.answers[number],choice);savePaperDraft(draft);return draft
+}
 function directory(){return wx.env.USER_DATA_PATH+'/native-paper'}
 function removeOwnedPhoto(filePath){const prefix=directory()+'/';if(String(filePath).startsWith(prefix)&&/^mini-paper-[a-z0-9-]+\.jpg$/.test(String(filePath).slice(prefix.length)))wx.getFileSystemManager().unlink({filePath,fail(){}})}
 async function attachPaperPhoto(context,sourcePath,{cancelled=()=>false}={}){
@@ -32,4 +38,4 @@ async function attachPaperPhoto(context,sourcePath,{cancelled=()=>false}={}){
  if(old.photo)removeOwnedPhoto(old.photo)
  return {paperId:draft.paperId,subject:draft.subject,routeId:draft.routeId,mode:draft.mode}
 }
-module.exports={PREFIX,current,createPaperDraft,savePaperDraft,readPaperDraft,attachPaperPhoto}
+module.exports={PREFIX,current,createPaperDraft,savePaperDraft,readPaperDraft,attachPaperPhoto,savePaperChoice}

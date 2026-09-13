@@ -18,6 +18,7 @@
 .option-chip.selected { background: #eee9fc; color: #5638b8; border-color: #7357e8; }
 .availability { margin-top: 20px; color: #18213d; font-size: 14px; }
 .selection-hint { margin-top: 16px; }
+.component-multi-label { margin:12px 0 8px; }
 .device-tablet.landscape .builder-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 24px; align-items: start; }
 .device-tablet.landscape .set-options { position: sticky; top: 16px; margin-top: 0; }
 .device-phone .builder-layout, .device-tablet.portrait .builder-layout { display: flex; flex-direction: column; }

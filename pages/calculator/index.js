@@ -1,8 +1,9 @@
 const { deviceState, syncDevice } = require('../../utils/page')
 const { evaluateExpression, formatNumber } = require('../../utils/calculator')
-const { CONTROL_KEYS, NUMBER_ROWS, SCIENTIFIC_ROWS, UPSTREAM } = require('../../utils/cwKeypad')
+const { CALCULATOR_MODELS, getCalculatorModel } = require('../../utils/calculatorModels')
 const { cwMethods, VARIABLES } = require('../../utils/cwController')
 const {solverMethods}=require('../../utils/cwSolverController')
+const {calcMethods}=require('../../utils/calculatorCalcController')
 const {touchCursorMethods}=require('../../utils/cwTouchCursor')
 const { resultFormat } = require('../../utils/cwMath')
 const {evaluateComplex,formatComplex,isScalar,storedScalar,scalar,add:complexAdd,subtract:complexSubtract,scalarExpression}=require('../../utils/cwComplex')
@@ -11,6 +12,7 @@ const HISTORY_KEY = 'stemistCalculatorHistory'
 const STATE_KEY = 'stemistCalculatorState'
 const MAX_HISTORY = 20
 const MAX_INPUT = 500
+const DEFAULT_MODEL = getCalculatorModel('cw')
 const MEMORY_KEYS = [
   { label: 'M+', action: 'memoryAdd' }, { label: 'M−', action: 'memorySub' },
   { label: 'MR', action: 'memoryRecall' }, { label: 'MC', action: 'memoryClear' },
@@ -32,17 +34,20 @@ const validHistoryDraft=draft=>draft&&typeof draft.expression==='string'&&draft.
 Page({
   ...cwMethods,
   ...solverMethods,
+  ...calcMethods,
   ...touchCursorMethods,
   data: deviceState({
     expression: '', cursor: 0, display: '0', answer: 0, angleMode: 'DEG',
     calculatorApp:'calculate',complexResult:'rectangular',resultValue:0,
-    shiftActive: false, memory: 0, memoryDisplay: '0', error: '', hasResult: false,
+    calculatorModel:'cw',modelTitle:DEFAULT_MODEL.title,modelLabel:DEFAULT_MODEL.instrumentLabel,modelSeries:DEFAULT_MODEL.seriesLabel,aboutTitle:DEFAULT_MODEL.aboutTitle,calculatorModels:CALCULATOR_MODELS,homeApps:DEFAULT_MODEL.homeApps,
+    shiftActive: false, alphaActive:false, memory: 0, memoryDisplay: '0', error: '', hasResult: false,
     history: [], showHistory: false, showScientific: false, showMemory: false,
-    memoryKeys: MEMORY_KEYS, controlKeys: CONTROL_KEYS, scientificRows: SCIENTIFIC_ROWS, numberRows: NUMBER_ROWS, calculatorSource: UPSTREAM.repository,
+    memoryKeys: MEMORY_KEYS, controlKeys: DEFAULT_MODEL.controlKeys, scientificRows: DEFAULT_MODEL.scientificRows, numberRows: DEFAULT_MODEL.numberRows, calculatorSource: DEFAULT_MODEL.source,
     menu: '', menuTitle: '', menuItems: [], menuIndex: 0, workbench: '', workTitle: '', workFields: [], workResults: [], workError: '', workSubmitLabel:'计算', keyboardHeight:0,
     workScrollHeight:120, workSheetHeight:286, workCompact:false, workFieldTarget:'', workGeneration:0, safeBottom:0, workDrafts:{},
     powerOff: false, overwrite: false, argumentMode:false, typing: false, editorGeneration:0, calculationFormat:'standard',formatMode: 'standard', formatted: {kind:'number',text:'0'}, expressionParts: [{kind:'text',text:'0'}], expressionLayout:{width:24,height:42,items:[]},
     variables: Object.fromEntries(VARIABLES.map(name=>[name,0])), functions: {},
+    calcPhase:'',calcExpression:'',calcVariables:[],calcVariableIndex:0,calcVariable:'',calcInputText:'0',calcInputDisplay:'0',calcInputCursor:1,calcInputFresh:true,
     solverPhase:'',solverEquation:'',solverTarget:'x',solverTargets:[],solverTargetIndex:0,solverInitialText:'0',solverInitialDisplay:'0',solverInitialCursor:1,solverInitialIndex:0,solverContinueIndex:0,solverInputFresh:true,solverParameter:'',solverResult:null,solverValueText:'',solverResidualText:'',solverIterations:0,
   }),
   onLoad() {
@@ -52,6 +57,7 @@ Page({
     this.__savePending = false
     const saved = wx.getStorageSync(STATE_KEY)
     const state = saved && typeof saved === 'object' ? saved : {}
+    const model=getCalculatorModel(state.calculatorModel)
     const expression = typeof state.expression === 'string' ? state.expression.slice(0, MAX_INPUT) : ''
     const calculatorApp=state.calculatorApp==='complex'?'complex':'calculate'
     this.__calculatorDrafts=Object.fromEntries(['calculate','complex'].filter(app=>state.calculatorDrafts?.[app]&&typeof state.calculatorDrafts[app]==='object'&&!Array.isArray(state.calculatorDrafts[app])).map(app=>[app,state.calculatorDrafts[app]]))
@@ -60,7 +66,7 @@ Page({
     this.__replayContext = state.replayContext
     this.__historyDraft = validHistoryDraft(state.historyDraft)
     this.__historyIndex = this.__historyDraft && Number.isInteger(state.historyIndex) ? Math.max(-1,Math.min(MAX_HISTORY-1,state.historyIndex)) : -1
-    this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: storedScalar(state.answer),resultValue:storedScalar(state.resultValue,storedScalar(state.answer)),calculatorApp,complexResult:state.complexResult==='polar'?'polar':'rectangular', memory: storedScalar(state.memory), memoryDisplay: valueText(storedScalar(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 120) : '0', history: appHistory(readHistory(),calculatorApp),
+    this.setData({ expression, cursor: cursorIn(state.cursor, expression), answer: storedScalar(state.answer),resultValue:storedScalar(state.resultValue,storedScalar(state.answer)),calculatorApp,complexResult:state.complexResult==='polar'?'polar':'rectangular', calculatorModel:model.id,modelTitle:model.title,modelLabel:model.instrumentLabel,modelSeries:model.seriesLabel,aboutTitle:model.aboutTitle,homeApps:model.homeApps,controlKeys:model.controlKeys,scientificRows:model.scientificRows,numberRows:model.numberRows,calculatorSource:model.source,memory: storedScalar(state.memory), memoryDisplay: valueText(storedScalar(state.memory)), angleMode: ['DEG','RAD','GRAD'].includes(state.angleMode) ? state.angleMode : 'DEG', hasResult: Boolean(state.hasResult), display: typeof state.display === 'string' ? state.display.slice(0, 120) : '0', history: appHistory(readHistory(),calculatorApp),
       variables: Object.fromEntries(VARIABLES.map(name=>[name,storedScalar(state.variables?.[name])])),
       functions: Object.fromEntries(['f','g'].filter(name=>typeof state.functions?.[name]==='string').map(name=>[name,state.functions[name].slice(0,500)])),
       formatMode: ['standard','decimal','fraction','mixed','engineering','fixed','scientific','sexagesimal','polar','rectangular'].includes(state.formatMode) ? state.formatMode : 'standard',
@@ -70,16 +76,18 @@ Page({
     this.restoreDisplayResult()
     this.renderExpression()
     if(calculatorApp!=='complex')this.restoreSolver(state.solver)
+    this.setCalculatorNavigationTitle(model.title)
   },
-  onShow() { this.__expressionVisible=true;this.__expressionGesture=null;syncDevice(this);this.updateWorkbenchLayout() },
+  onShow() { this.__expressionVisible=true;this.__expressionGesture=null;syncDevice(this);this.updateWorkbenchLayout();this.setCalculatorNavigationTitle() },
   onResize(event={}) { this.onExpressionScroll();if((!this.data.keyboardHeight&&!this.data.typing)||event.size?.windowWidth&&event.size.windowWidth!==this.data.windowWidth)syncDevice(this);this.updateWorkbenchLayout() },
-  onHide() { this.__expressionVisible=false;this.cancelExpressionTouch();this.setData({shiftActive:false});this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
+  onHide() { this.__expressionVisible=false;this.cancelExpressionTouch();this.setData({shiftActive:false,alphaActive:false});this.cancelSolver();this.saveWorkbenchDraft();this.flushState() },
   onUnload() { this.__expressionVisible=false;this.cancelExpressionTouch();this.cancelSolver();this.saveWorkbenchDraft();this.__disposed=true;this.flushState() },
   goBack() { if(!this.__disposed)wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/index/index' }) }) },
   persistState() {
     if(this.__disposed)return
     this.renderExpression()
     this.renderSolverInput()
+    this.renderCalcInput()
     this.__savePending = true
     if(this.__saveTimer)clearTimeout(this.__saveTimer)
     this.__saveTimer=setTimeout(()=>this.flushState(),180)
@@ -89,8 +97,8 @@ Page({
     this.__saveTimer=null
     if(!this.__savePending)return
     try {
-      const { expression, cursor, display, answer, resultValue,calculatorApp,complexResult,memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts } = this.data
-      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer,resultValue,calculatorApp,complexResult,calculatorDrafts:this.__calculatorDrafts, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, solver:this.solverSnapshot(),justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
+      const { expression, cursor, display, answer, resultValue,calculatorApp,calculatorModel,complexResult,memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts } = this.data
+      wx.setStorageSync(STATE_KEY, { expression, cursor, display, answer,resultValue,calculatorApp,calculatorModel,complexResult,calculatorDrafts:this.__calculatorDrafts, memory, angleMode, hasResult, variables, functions, formatMode, calculationFormat, workDrafts, solver:this.solverSnapshot(),justEvaluated: Boolean(this.__justEvaluated), replayAnswer: this.__replayAnswer, replayContext:this.__replayContext, historyDraft:this.__historyDraft, historyIndex:this.__historyIndex })
       this.__savePending=false
     } catch { if(!this.__disposed)this.setData({ error: '无法保存到本机，请检查存储空间。' }) }
   },
@@ -107,8 +115,25 @@ Page({
     try{const formatted=this.formatResultValue(this.data.resultValue,this.data.formatMode);this.setData({formatted,display:formatted.text})}
     catch{this.setData({hasResult:false,display:'',error:'保存的结果无法在当前模式显示，请重新计算。'})}
   },
+  setCalculatorNavigationTitle(title=this.data.modelTitle){
+    if(typeof wx.setNavigationBarTitle!=='function')return
+    try{wx.setNavigationBarTitle({title:`${title} · 学习计算器`})}catch{/* Older test/runtime shims may not expose the native navigation API. */}
+  },
+  selectCalculatorModel(event){
+    if(this.__disposed)return
+    const model=getCalculatorModel(String(event.currentTarget?.dataset?.model||''))
+    if(model.id===this.data.calculatorModel)return
+    if(this.data.calcPhase)this.leaveCalc()
+    if(this.data.solverPhase)this.leaveSolver()
+    if(this.data.workbench)this.closeWorkbench()
+    this.finishNativeEditor();this.closeMenu()
+    this.setData({calculatorModel:model.id,modelTitle:model.title,modelLabel:model.instrumentLabel,modelSeries:model.seriesLabel,aboutTitle:model.aboutTitle,homeApps:model.homeApps,controlKeys:model.controlKeys,scientificRows:model.scientificRows,numberRows:model.numberRows,calculatorSource:model.source,shiftActive:false,alphaActive:false,error:''})
+    this.setCalculatorNavigationTitle(model.title)
+    this.persistState()
+  },
   switchCalculatorApp(app){
     if(this.__disposed||!['calculate','complex'].includes(app)||app===this.data.calculatorApp)return
+    if(this.data.calcPhase)this.leaveCalc()
     this.leaveSolver();this.finishNativeEditor();this.closeMenu()
     this.__calculatorDrafts[this.data.calculatorApp]=editorDraft(this)
     const saved=this.__calculatorDrafts[app]||{},expression=typeof saved.expression==='string'?saved.expression.slice(0,MAX_INPUT):''
@@ -116,7 +141,7 @@ Page({
     this.__replayAnswer=isScalar(saved.replayAnswer)?storedScalar(saved.replayAnswer):undefined;this.__replayContext=saved.replayContext;this.__lastAnswerBasis=isScalar(saved.lastAnswerBasis)?storedScalar(saved.lastAnswerBasis):undefined
     this.__historyDraft=validHistoryDraft(saved.historyDraft);this.__historyIndex=this.__historyDraft&&Number.isInteger(saved.historyIndex)?Math.max(-1,Math.min(MAX_HISTORY-1,saved.historyIndex)):-1
     const formatMode=app==='complex'?(saved.formatMode==='polar'?'polar':'rectangular'):(['standard','decimal','fraction','mixed','engineering','fixed','scientific','sexagesimal'].includes(saved.formatMode)?saved.formatMode:'standard')
-    this.setData({calculatorApp:app,expression,cursor:cursorIn(saved.cursor,expression),display:typeof saved.display==='string'?saved.display.slice(0,120):'0',hasResult:Boolean(saved.hasResult),resultValue:storedScalar(saved.resultValue),formatMode,history:appHistory(readHistory(),app),shiftActive:false,error:'',showHistory:false,workbench:''})
+    this.setData({calculatorApp:app,expression,cursor:cursorIn(saved.cursor,expression),display:typeof saved.display==='string'?saved.display.slice(0,120):'0',hasResult:Boolean(saved.hasResult),resultValue:storedScalar(saved.resultValue),formatMode,history:appHistory(readHistory(),app),shiftActive:false,alphaActive:false,error:'',showHistory:false,workbench:''})
     this.restoreDisplayResult()
     this.persistState()
   },
@@ -146,6 +171,7 @@ Page({
   onConfirm() { this.finishNativeEditor();this.runAction('equals') },
   append(value) {
     if(this.__disposed||this.data.powerOff)return
+    if(!this.data.menu&&this.calcAppend(value))return
     if(!this.data.menu&&this.solverAppend(value))return
     if(this.data.solverPhase&&!['equation','initial','parameter'].includes(this.data.solverPhase))return
     this.finishNativeEditor()
@@ -182,11 +208,12 @@ Page({
   press(event) {
     if(this.__disposed)return
     const item = event.currentTarget.dataset || {}
-    const useShift = Boolean(this.data.shiftActive && (item.shiftAction || item.shiftValue))
-    const action = String(useShift ? item.shiftAction || '' : item.action || '')
-    const value = String(useShift ? item.shiftValue || '' : item.value || '')
-    if (action === 'shift') return this.runAction(action)
-    if (this.data.shiftActive) this.setData({ shiftActive: false })
+    const useAlpha = Boolean(this.data.alphaActive && (item.alphaAction || item.alphaValue))
+    const useShift = Boolean(!useAlpha && this.data.shiftActive && (item.shiftAction || item.shiftValue))
+    const action = String(useAlpha ? item.alphaAction || '' : useShift ? item.shiftAction || '' : item.action || '')
+    const value = String(useAlpha ? item.alphaValue || '' : useShift ? item.shiftValue || '' : item.value || '')
+    if (action === 'shift' || action === 'alpha') return this.runAction(action)
+    if (this.data.shiftActive || this.data.alphaActive) this.setData({ shiftActive: false,alphaActive:false })
     if (action) return this.runAction(action)
     this.append(value)
   },
@@ -194,16 +221,34 @@ Page({
     if(this.__disposed)return
     // SHIFT belongs to the instrument, including every Solver screen. A mode
     // handler must never swallow the prefix before OFF or another second key.
-    if(action==='shift'){if(!this.data.powerOff)this.setData({shiftActive:!this.data.shiftActive,error:''});return}
+    if(action==='shift'){if(!this.data.powerOff)this.setData({shiftActive:!this.data.shiftActive,alphaActive:false,error:''});return}
+    if(action==='alpha'){if(!this.data.powerOff&&this.data.calculatorModel==='cnx')this.setData({alphaActive:!this.data.alphaActive,shiftActive:false,error:''});return}
     if(this.data.powerOff&&action!=='on')return
     if(this.data.menu&&action==='template-start')action='left'
     if(this.data.menu&&action==='template-end')action='right'
-    if(action==='complex-i'){if(this.data.calculatorApp==='complex')return this.append('i');this.setData({error:'请先在 HOME 中选择 Complex 复数模式。'});return}
+    if(action.startsWith('unsupported:')){this.setData({error:action.slice(12)});return}
+    if(action==='complex-i'){if(this.data.calculatorApp==='complex')return this.append('i');this.setData({error:`请先在${this.data.calculatorModel==='cnx'?'菜单':' HOME '}中选择复数模式。`});return}
     if(action==='equation-equals'){
-      if(this.data.solverPhase==='equation'&&!this.data.menu)return this.append('=')
+      if((this.data.solverPhase==='equation'||this.data.calculatorModel==='cnx'&&this.data.calculatorApp==='calculate')&&!this.data.menu)return this.append('=')
       this.setData({error:'等号用于 Equation → Solver。'});return
     }
+    if(action==='cnx-equation-equals'){if(this.data.calculatorModel==='cnx'&&this.data.calculatorApp==='calculate'&&!this.data.menu)return this.append('=');this.setData({error:'等号用于 CN X 计算模式中的 SOLVE 方程。'});return}
+    if(action==='cnx-calc'){this.startCalcInput();return}
+    if(action==='cnx-solve'){this.startCnxSolver();return}
+    if(action==='cnx-constants'){this.openMenu('catalog-numeric',{reset:true});return}
+    if(action==='engineering-format'){
+      if(!this.data.hasResult||this.data.calculatorApp==='complex'){this.setData({error:'先得到实数结果，再使用 ENG。'});return}
+      try{const formatted=this.formatResultValue(this.data.resultValue,'engineering');this.setData({formatMode:'engineering',formatted,display:formatted.text,error:''});this.persistState()}catch(error){this.setData({error:error.message})}
+      return
+    }
+    if(action==='standard-decimal'||action==='fraction-cycle'){
+      if(!this.data.hasResult||this.data.calculatorApp==='complex'){this.setData({error:'先得到实数结果，再切换显示格式。'});return}
+      const formatMode=action==='fraction-cycle'?(this.data.formatMode==='mixed'?'fraction':'mixed'):(this.data.formatMode==='decimal'?'standard':'decimal')
+      try{const formatted=this.formatResultValue(this.data.resultValue,formatMode);this.setData({formatMode,formatted,display:formatted.text,error:''});this.persistState()}catch(error){this.setData({error:error.message})}
+      return
+    }
     this.finishNativeEditor()
+    if(this.handleCalcAction(action))return
     if(this.handleSolverAction(action))return
     if(this.handleCwAction(action)) return
     if (action === 'clear') {

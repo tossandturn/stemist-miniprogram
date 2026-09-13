@@ -11,7 +11,7 @@ function normalizePracticePolicy(value) {
     throw new Error('题库练习规则不兼容，请更新后重试。')
   }
   return { schemaVersion: value.schemaVersion, minSourceGroups: value.minSourceGroups,
-    minReviewedGroups: value.minReviewedGroups, setSizes: [...new Set(value.setSizes)].sort((a, b) => a - b) }
+    minReviewedGroups: value.minReviewedGroups, setSizes: [...new Set(value.setSizes)].sort((a, b) => a - b),allowReviewedSubsetStudy:value.allowReviewedSubsetStudy===true }
 }
 
 function countOrNull(value) {

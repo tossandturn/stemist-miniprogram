@@ -18,6 +18,8 @@
     <view class="set-options">
       <view class="builder-heading">设置练习</view>
       <view class="option-label">卷型</view>
+      <view class="option-row component-shortcuts"><button class="option-chip {{allComponentsSelected ? 'selected' : ''}}" data-value="0" bindtap="onlyComponent" disabled="{{busy}}">全部卷型</button><button wx:for="{{componentOptions}}" wx:key="value" class="option-chip {{item.onlySelected ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="onlyComponent" disabled="{{busy}}">仅 {{item.label}}</button></view>
+      <view class="subtle component-multi-label">也可组合卷型</view>
       <view class="option-row"><button wx:for="{{componentOptions}}" wx:key="value" class="option-chip {{item.selected ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="toggleComponent" disabled="{{busy}}">{{item.label}}</button></view>
       <view class="option-label">题量</view>
       <view class="option-row"><button wx:for="{{counts}}" wx:key="value" class="option-chip {{item.selected ? 'selected' : ''}}" disabled="{{item.disabled || busy}}" data-count="{{item.value}}" bindtap="chooseCount">{{item.value}} 题</button></view>

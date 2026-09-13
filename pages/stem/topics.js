@@ -20,7 +20,7 @@ Page({
   onShow() {
     syncDevice(this)
     const recent = recentSession(this.data.routeId)
-    this.setData({ recentId: recent?.id || '', recentLabel: recent ? `继续上次练习 · ${Object.keys(recent.answers).length}/${recent.questions.length} 题已拍照` : '' })
+    this.setData({ recentId: recent?.id || '', recentLabel: recent ? `继续上次练习 · ${Object.keys(recent.answers).length}/${recent.questions.length} 题已作答` : '' })
   },
   onResize() { syncDevice(this) },
   onUnload() { this.__disposed = true; this.__loadId++ },
@@ -46,7 +46,8 @@ Page({
     state = selectionState(this.__inventory, selected, components, count)
     this.setData({ questionCount: count, availableCount: state.availableCount, canStart: state.canStart, hint: state.hint,
       topics: (this.__inventory?.topics || []).map(t => ({ id: t.id, code: t.code || '', name: t.name, count: state.topicCounts[t.id] || 0, selected: selected.includes(t.id) })),
-      componentOptions: (this.__inventory?.paperComponents || []).map(c => ({ value: c, label: `P${c}`, selected: components.includes(c) })),
+      componentOptions: (this.__inventory?.paperComponents || []).map(c => ({ value: c, label: `P${c}`, selected: components.includes(c),onlySelected:components.length===1&&components[0]===c })),
+      allComponentsSelected:components.length===this.__inventory?.paperComponents.length,
       counts: [6, 10, 15].map(n => ({ value: n, selected: n === count, disabled: !state.sizes.includes(n) })),
     })
   },
@@ -64,6 +65,12 @@ Page({
     const components = this.data.components.includes(c) ? this.data.components.filter(v => v !== c) : [...this.data.components, c]
     this.setData({ components, error: '' }); this.recompute()
   },
+  onlyComponent(event){
+    if(this.data.busy||this.data.loading)return
+    const value=Number(event.currentTarget.dataset.value),allowed=this.__inventory?.paperComponents||[]
+    if(value!==0&&!allowed.includes(value))return
+    this.setData({components:value===0?allowed.slice():[value],error:''});this.recompute()
+  },
   chooseCount(event) {
     if (this.data.busy) return
     const questionCount = Number(event.currentTarget.dataset.count)
@@ -79,7 +86,7 @@ Page({
       const session = await generatePractice(spec)
       if (this.__disposed) return
       saveSession(session)
-      this.setData({ recentId: session.id, recentLabel: `继续上次练习 · 0/${session.questions.length} 题已拍照` })
+      this.setData({ recentId: session.id, recentLabel: `继续上次练习 · 0/${session.questions.length} 题已作答` })
       this.openSession(session.id)
     } catch (error) { if (!this.__disposed) this.setData({ error: error.statusCode === 409 ? '所选章节的可用题目已变化，请刷新后重新选择。' : error.message || '组卷失败，选择已保留，请重试。' }) }
     finally { if (!this.__disposed) this.setData({ busy: false }) }

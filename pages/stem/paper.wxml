@@ -19,7 +19,7 @@
 <image wx:for="{{sourceImages}}" wx:key="*this" class="paper-source-image" src="{{item}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
 <text wx:if="{{sourceImages.length && sourceLoadedCount < sourceImages.length && !sourceImageError}}" class="paper-input-help">正在加载题图…</text>
 <view wx:if="{{sourceImageError}}" class="error">题图未加载，可重试或查看原卷。<button class="text-button" bindtap="retrySourceImage">重试题图</button></view>
-<text class="paper-input-help">按原卷题号，逐题拍摄你的作答。</text>
+<text class="paper-input-help">{{choiceMode ? '按原卷题号，选择 A、B、C 或 D。' : '按原卷题号，逐题拍摄你的作答。'}}</text>
 </view>
  <view class="paper-native-answer">
 <view class="paper-number">
@@ -29,13 +29,17 @@
 <text>题</text>
 <button bindtap="next" disabled="{{questionCount && questionNumber >= questionCount}}">+</button>
 </view>
-<button wx:if="{{!submitted}}" class="primary" bindtap="capture">{{photo ? '重拍本题' : '拍摄本题'}}</button>
-<image wx:if="{{photo}}" class="paper-answer-photo" src="{{photo}}" mode="widthFix" bindtap="previewPhoto"/>
-<button wx:if="{{photo && (mode !== 'exam-simulation' || submitted)}}" class="secondary" bindtap="askFeedback" loading="{{busy}}" disabled="{{busy || gradingRunning || gradingFinishing || !canAskFeedback}}">AI 讲解本题</button>
-<text wx:if="{{photo && !canAskFeedback}}" class="paper-input-help">{{sourceStatus || '这道题的批改资料尚未就绪'}}</text>
-<button wx:if="{{photo && !canAskFeedback}}" class="text-button" bindtap="loadSourceContext">重新连接题目资料</button>
+<view wx:if="{{choiceMode}}" class="mcq-options"><button wx:for="{{choices}}" wx:key="*this" class="mcq-option {{choice === item ? 'selected' : ''}}" data-value="{{item}}" bindtap="chooseAnswer" disabled="{{submitted || busy}}" aria-label="选项 {{item}}" aria-pressed="{{choice === item}}">{{item}}</button></view>
+<text wx:if="{{choiceMode && choice}}" class="paper-input-help">已选 {{choice}} · 已保存</text>
+<button wx:if="{{choiceMode && photo}}" class="text-button" bindtap="previewPhoto">查看原答案照片</button>
+<view wx:if="{{submitted && objectiveResult}}" class="choice-result">{{objectiveResult.available ? '标准答案核对：' + objectiveResult.score + ' / 1 · 正确选项 ' + objectiveResult.correctOption : '标准答案尚待核验，所选答案已保留。'}}</view>
+<button wx:if="{{!submitted && !choiceMode}}" class="primary" bindtap="capture">{{photo ? '重拍本题' : '拍摄本题'}}</button>
+<image wx:if="{{photo && !choiceMode}}" class="paper-answer-photo" src="{{photo}}" mode="widthFix" bindtap="previewPhoto"/>
+<button wx:if="{{photo && !choiceMode && (mode !== 'exam-simulation' || submitted)}}" class="secondary" bindtap="askFeedback" loading="{{busy}}" disabled="{{busy || gradingRunning || gradingFinishing || !canAskFeedback}}">AI 讲解本题</button>
+<text wx:if="{{photo && !choiceMode && !canAskFeedback}}" class="paper-input-help">{{sourceStatus || '这道题的批改资料尚未就绪'}}</text>
+<button wx:if="{{photo && !choiceMode && !canAskFeedback}}" class="text-button" bindtap="loadSourceContext">重新连接题目资料</button>
 <text wx:if="{{submitted && assessmentState === 'ai'}}" class="paper-submitted">本题 AI 估分：{{questionAssessmentScore}} / {{questionAssessmentMax}}</text>
-<button wx:if="{{submitted && photo && assessmentState !== 'ai' && !selfEditing}}" class="secondary" bindtap="chooseSelfAssessment">不想等？先自评本题</button>
+<button wx:if="{{submitted && (photo || choice) && assessmentState !== 'ai' && assessmentState !== 'objective' && !selfEditing}}" class="secondary" bindtap="chooseSelfAssessment">先自评本题</button>
 <view wx:if="{{submitted && selfEditing}}" class="paper-self-fallback">
  <text class="paper-report-title">本题学生自评</text>
  <text class="paper-input-help">自评单独保留，不中断 AI 批改，也不与 AI 得分相加。</text>
@@ -45,27 +49,27 @@
  <button class="secondary" bindtap="saveQuestionSelf">保存学生自评</button>
  <text wx:if="{{studentScore !== null}}" class="paper-input-help">已保存自评：{{studentScore}} / {{studentMax}}</text>
 </view>
-<view wx:for="{{markResults}}" wx:key="label" class="paper-mark-result">
+<view wx:if="{{!choiceMode}}" wx:for="{{markResults}}" wx:key="label" class="paper-mark-result">
 <text>AI 估分 {{item.label}} · {{item.score}} / {{item.maxScore}}</text>
 <answer-content text="{{item.summary}}"/>
 <text>{{item.reviewRequired ? 'AI结果需复核' : 'AI辅助估分，非官方成绩'}}</text>
 </view>
-<view wx:if="{{feedback}}" class="paper-feedback"><answer-content text="{{feedback}}"/></view>
+<view wx:if="{{feedback && !choiceMode}}" class="paper-feedback"><answer-content text="{{feedback}}"/></view>
 </view>
 </view>
  <view class="paper-submit-panel">
 <text wx:if="{{selfScore !== ''}}" class="paper-input-help">旧版自评总分 {{selfScore}} 已保留，不作为本次 AI 评分。</text>
-<button wx:if="{{!submitted}}" class="primary" bindtap="submitPaper" disabled="{{busy}}">提交并自动 AI 评分</button>
+<button wx:if="{{!submitted}}" class="primary" bindtap="submitPaper" disabled="{{busy}}">{{choiceMode ? '提交并核对答案' : '提交并自动评分'}}</button>
 <text wx:else class="paper-submitted">{{syncStatus || '提交记录已保存'}}</text>
-<text wx:if="{{gradingRunning}}" class="paper-input-help">AI 正在逐题批改，已评 {{reportSummary.aiCount}} / {{reportSummary.submittedQuestions}} 题</text>
+<text wx:if="{{gradingRunning}}" class="paper-input-help">{{choiceMode ? '正在核对标准答案' : '正在逐题批改'}}，已完成 {{reportSummary.aiCount + (reportSummary.objectiveCount || 0)}} / {{reportSummary.submittedQuestions}} 题</text>
 <button wx:if="{{gradingRunning}}" class="text-button" bindtap="pauseGrading">暂停后续批改</button>
 <text wx:if="{{gradingFinishing}}" class="paper-input-help">正在结束当前请求，已完成结果会保留。</text>
-<button wx:if="{{submitted && !gradingRunning && reportSummary && !reportSummary.complete}}" class="secondary" bindtap="runAutomaticGrading" disabled="{{busy || gradingFinishing}}">继续／重试 AI 评分</button>
+<button wx:if="{{submitted && !gradingRunning && reportSummary && !reportSummary.complete}}" class="secondary" bindtap="runAutomaticGrading" disabled="{{busy || gradingFinishing}}">继续／重试评分</button>
 <button wx:if="{{submitted && !synced}}" class="secondary" bindtap="syncSubmission" disabled="{{busy || gradingRunning || gradingFinishing}}" loading="{{busy}}">同步提交记录</button>
 </view>
 <view wx:if="{{submitted && reportSummary}}" class="paper-submit-panel paper-report">
- <text class="paper-report-title">{{!reportSummary.wholePaper ? '部分作答批改报告' : reportSummary.scoreSource === 'ai' ? 'AI 批改报告' : reportSummary.scoreSource === 'mixed' ? 'AI＋自评报告' : '学生自评报告'}}</text>
- <text class="paper-input-help">AI 已评 {{reportSummary.aiCount}} 题 · 学生自评 {{reportSummary.selfCount}} 题 · 待自评 {{reportSummary.needsSelf}} 题 · 待 AI {{reportSummary.pending}} 题</text>
+ <text class="paper-report-title">{{!reportSummary.wholePaper ? '部分作答批改报告' : reportSummary.scoreSource === 'objective' ? '选择题核对报告' : reportSummary.scoreSource === 'ai' ? 'AI 批改报告' : reportSummary.scoreSource === 'mixed' ? '综合批改报告' : '学生自评报告'}}</text>
+ <text class="paper-input-help">选择题已核对 {{reportSummary.objectiveCount || 0}} 题 · AI 已评 {{reportSummary.aiCount}} 题 · 自评 {{reportSummary.selfCount}} 题 · 待评分 {{reportSummary.pending + reportSummary.needsSelf}} 题</text>
  <text wx:if="{{reportSummary.maxScore > 0}}" class="paper-report-score">已评作答：{{reportSummary.score}} / {{reportSummary.maxScore}}</text>
  <text wx:else class="paper-input-help">尚无已完成的评分结果</text>
  <text class="paper-input-help">{{reportSummary.wholePaper ? '已评范围覆盖原卷总分。' : '这不是整卷总分；未评分和未提交的题不按零分计算。'}}</text>
@@ -73,6 +77,7 @@
  <text wx:for="{{reportSummary.nextSteps}}" wx:key="*this" class="paper-input-help">{{item}}</text>
  <view wx:for="{{reportRows}}" wx:key="number" class="paper-report-question">
   <text class="paper-report-title">第 {{item.number}} 题 · {{item.source}}{{item.score !== null ? ' · ' + item.score + ' / ' + item.maxScore : ''}}</text>
+  <text wx:if="{{item.selectedOption}}" class="paper-input-help">你的选项 {{item.selectedOption}}{{item.correctOption ? ' · 标准选项 ' + item.correctOption : ''}}</text>
   <text wx:if="{{item.reason}}" class="paper-input-help">{{item.reason}}</text>
   <text wx:if="{{item.aiPending}}" class="paper-input-help">AI 仍在等待／批改中</text>
   <text wx:if="{{item.state === 'ai' && item.studentScore !== null}}" class="paper-input-help">学生自评：{{item.studentScore}} / {{item.studentMax}}（仅对照，不计入 AI 得分）</text>

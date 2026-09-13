@@ -44,18 +44,22 @@ const cwMethods = {
     this.onExpressionScroll?.()
     if (reset) this.__menuStack = []
     else if (this.data.menu && this.data.menu !== menu) (this.__menuStack ||= []).push(this.data.menu)
-    let entries = menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name,typeof this.data.variables[name]==='number'?formatNumber(this.data.variables[name]):formatComplex(this.data.variables[name]).text)) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []
+    let entries = menu === 'home' ? this.data.homeApps || HOME_APPS : menu === 'variables' ? VARIABLES.map(name => item(`variable-${name}`, name,typeof this.data.variables[name]==='number'?formatNumber(this.data.variables[name]):formatComplex(this.data.variables[name]).text)) : menu === 'history' ? this.data.history.map((h,i)=>item(`history-${i}`,h.expression,'= '+h.result)) : MENUS[menu] || []
+    if(this.data.calculatorModel==='cnx'&&menu==='catalog')entries=[...entries,item('functions','函数 f(x) / g(x)'),item('history','计算历史'),item('about','学习实现说明')]
     if(this.data.calculatorApp==='complex'&&menu==='catalog')entries=[item('catalog-complex','Complex'),...entries]
     if(this.data.calculatorApp==='complex'&&menu==='settings')entries=[item('angle-menu','Angle Unit'),item('complex-result-menu','Complex Result'),item('output-menu','Number Format')]
     if(menu==='catalog'&&this.data.solverPhase==='equation')entries=[...entries,item('catalog-equation','Equation')]
     if(menu==='variable-actions'&&this.data.solverPhase==='equation')entries=[item('recall-variable','Recall'),item('store-variable','Edit value')]
-    this.setData({ menu, menuTitle: TITLES[menu] || menu.replace('catalog-', ''), menuItems: entries, menuIndex: 0, typing: false, error: '' })
+    const modelTitle=this.data.calculatorModel==='cnx'&&menu==='home'?'菜单':this.data.calculatorModel==='cnx'&&menu==='catalog'?'OPTN':TITLES[menu]
+    this.setData({ menu, menuTitle: modelTitle || menu.replace('catalog-', ''), menuItems: entries, menuIndex: 0, typing: false, error: '' })
   },
   closeMenu() { this.__menuStack = []; this.setData({ menu: '', menuItems: [], menuIndex: 0 }) },
-  chooseMenu(event) { if(this.__disposed)return;this.setData({shiftActive:false});this.executeMenu(String(event.currentTarget.dataset.id || '')) },
+  chooseMenu(event) { if(this.__disposed)return;this.setData({shiftActive:false,alphaActive:false});this.executeMenu(String(event.currentTarget.dataset.id || '')) },
   executeMenu(id) {
     if(this.__disposed)return
-    if (!this.data.menuItems.some(entry => entry.id === id)) return
+    const selected=this.data.menuItems.find(entry => entry.id === id)
+    if (!selected) return
+    if(selected.available===false)return
     if (['angle-menu', 'output-menu', 'memory-menu','complex-result-menu'].includes(id)) return this.openMenu(id.replace('-menu', ''))
     if (id.startsWith('catalog-')) return this.openMenu(id)
     if (id.startsWith('angle-')) { this.setData({ angleMode: id.slice(6) });if(this.data.calculatorApp==='complex'&&this.data.hasResult){const formatted=this.formatResultValue(this.data.resultValue,this.data.formatMode);this.setData({formatted,display:formatted.text})}this.closeMenu(); return this.persistState() }
@@ -101,12 +105,12 @@ const cwMethods = {
     this.closeMenu()
     if (id === 'history') { this.openMenu('history'); return }
     if (id === 'keyboard') { this.enableTyping(); return }
-    if (id === 'about') { this.setData({ workbench: 'about', workGeneration:this.data.workGeneration+1,workTitle: 'fx-991CW 学习计算器', workFields: [], workResults: [], workError: '' });this.updateWorkbenchLayout(); return }
+    if (id === 'about') { this.setData({ workbench: 'about', workGeneration:this.data.workGeneration+1,workTitle: this.data.aboutTitle || '科学学习计算器', workFields: [], workResults: [], workError: '' });this.updateWorkbenchLayout(); return }
     this.runAction(id)
   },
   handleCwAction(action) {
     if (this.data.powerOff && action !== 'on') return true
-    if (action === 'on' || action === 'power-off') { this.closeMenu(); this.setData({ powerOff: action === 'power-off', shiftActive: false, error: '' }); return true }
+    if (action === 'on' || action === 'power-off') { this.closeMenu(); this.setData({ powerOff: action === 'power-off', shiftActive: false,alphaActive:false, error: '' }); return true }
     if (['home', 'settings', 'catalog', 'variables', 'tools', 'functions', 'format'].includes(action)) {
       if (action === 'format' && !this.data.hasResult) { this.setData({ error: '先按 EXE 得到结果，再选择显示格式。' }); return true }
       this.openMenu(action==='format'&&this.data.calculatorApp==='complex'?'complex-format':action, { reset: true }); return true
@@ -127,9 +131,10 @@ const cwMethods = {
     }
     if (this.data.menu && ['up', 'down', 'left', 'right', 'page-up', 'page-down'].includes(action)) {
       const count = this.data.menuItems.length
-      const pageSize=this.data.menu==='home'?6:2
+      const homeColumns=this.data.calculatorModel==='cnx'?4:3
+      const pageSize=this.data.menu==='home'?homeColumns*2:2
       const delta = action === 'page-up' ? -pageSize : action === 'page-down' ? pageSize : ['up', 'left'].includes(action) ? -1 : 1
-      const step = this.data.menu === 'home' && ['up', 'down'].includes(action) ? delta * 3 : delta
+      const step = this.data.menu === 'home' && ['up', 'down'].includes(action) ? delta * homeColumns : delta
       this.setData({ menuIndex: Math.max(0, Math.min(count - 1, this.data.menuIndex + step)) }); return true
     }
     if (this.data.menu && ['equals', 'ok', 'equals-decimal'].includes(action)) { this.executeMenu(this.data.menuItems[this.data.menuIndex]?.id); return true }

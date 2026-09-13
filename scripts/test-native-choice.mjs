@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict'
+import {miniRuntime,deferred,settle} from './helpers/mini-runtime.mjs'
+const calls=[]
+const r=miniRuntime({modules:{'utils/api':{requestJson:async(path,body)=>{
+ calls.push({path,body})
+ if(path==='/api/stem/attempts')return {attempt:{attemptId:body.attemptId}}
+ if(path==='/api/stem/objective-answers')return {...body,schemaVersion:'stem-objective-result-v1',available:true,source:'mark-scheme',sourceStatus:'reviewed-official-key',score:body.selectedOption==='B'?1:0,maxScore:1,correctOption:'B'}
+ throw Error('Unexpected endpoint '+path)
+}}}})
+r.storage.set('stemistUser',{id:'student'});r.storage.set('stemistSessionToken','fixture')
+const native=r.load('utils/nativePractice'),choice=r.load('utils/nativeChoice')
+assert.equal(choice.isSingleChoice({subjectCode:'9702',component:1}),true)
+assert.equal(choice.isSingleChoice({subjectCode:'9709',component:1}),false,'mathematics P1 is not multiple choice')
+assert.equal(choice.isSingleChoice({subjectCode:'0625',component:2}),true)
+assert.equal(choice.isSingleChoice({subjectCode:'0620',component:2}),true)
+assert.equal(choice.isSingleChoice({subjectCode:'9702',component:1,answerFormat:'written'}),false)
+const inv={practicePolicy:{schemaVersion:'stem-topic-practice-policy-v1',minSourceGroups:6,minReviewedGroups:12,setSizes:[6,10,15],allowReviewedSubsetStudy:true},paperComponents:[1,2],topics:[{id:'t1',apiStartable:true,questionIdsByComponent:{1:{verifiedQuestionIds:Array.from({length:7},(_,i)=>'p1-'+i),apiReadyQuestionIds:Array.from({length:7},(_,i)=>'p1-'+i)},2:{verifiedQuestionIds:[],apiReadyQuestionIds:[]}}}]}
+const subset=native.selectionState(inv,['t1'],[1],6)
+assert.equal(subset.canStart,true);assert.equal(subset.studyReady,true);assert.equal(subset.ready,false)
+assert.equal(native.selectionState(inv,['t1'],[1],10).canStart,false)
+inv.practicePolicy.allowReviewedSubsetStudy=false;assert.equal(native.selectionState(inv,['t1'],[1],6).canStart,false,'old servers must not silently opt into the new study contract')
+inv.practicePolicy.allowReviewedSubsetStudy=true
+const builder=r.page('pages/stem/topics');builder.__inventory=inv;builder.setData({loading:false,components:[1,2],selected:['t1']});builder.onlyComponent({currentTarget:{dataset:{value:1}}})
+assert.deepEqual([...builder.data.components],[1]);assert.equal(builder.data.availableCount,7);assert.equal(builder.data.canStart,true)
+const session={schema:1,id:'mini-set-choice-fixture',owner:'student',privacyEpoch:0,routeId:'cie-9702-as-physics',subjectCode:'9702',stage:'AS',index:0,answers:{},questions:[{id:'paper:q1',paperId:'paper',component:1,number:'1',marks:1,images:['/question-assets/paper/qp-1.jpg'],parts:[{id:'paper:q1:answer',label:'answer',marks:1,provenance:{sourceQuestionId:'paper:q1',questionPartId:'paper:q1:answer',routeId:'cie-9702-as-physics',bindingSignature:'test'}}]}]}
+native.saveSession(session);native.saveChoice(session.id,'paper:q1','B')
+let view=native.questionView(native.readSession(session.id),0)
+assert.equal(view.choice,'B');assert.equal(view.question.choiceMode,true);assert.equal(view.answeredCount,1)
+assert.equal(view.photo,'');assert.equal(calls.length,0,'choosing an option saves locally and does not expose the key')
+await native.markChoice(session.id,'paper:q1')
+view=native.questionView(native.readSession(session.id),0);assert.equal(view.objectiveResult.score,1)
+assert.equal(calls[0].path,'/api/stem/attempts');assert.ok(calls[0].body.submittedAt)
+assert.equal(calls[1].path,'/api/stem/objective-answers')
+assert.doesNotMatch(JSON.stringify(calls),/imageDataUrl|mark-handwriting/)
+native.saveChoice(session.id,'paper:q1','A');assert.equal(native.readSession(session.id).answers['paper:q1'].objectiveResult,null)
+assert.equal(native.readSession(session.id).answers['paper:q1'].objectiveHistory[1].score,1,'prior graded revision remains preserved')
+r.storage.set('stemistPrivacyEpoch',1);assert.throws(()=>native.saveChoice(session.id,'paper:q1','D'))
+
+const p=miniRuntime(),papers=p.load('utils/nativePaper'),grading=p.load('utils/nativePaperGrading')
+let draft=papers.createPaperDraft({id:'paper-choice',subject:'9702'}, {routeId:'cie-9702-as-physics',stage:'AS'})
+papers.savePaperDraft(draft);papers.savePaperChoice(draft.storageKey,1,'A');papers.savePaperChoice(draft.storageKey,2,'B')
+draft=papers.readPaperDraft(draft.storageKey);draft.submitted=true;draft.submittedAt=Date.now();draft.questionCount=2;papers.savePaperDraft(draft)
+await grading.runPaperAssessment(draft.storageKey,{loadContext:async()=>({questions:[]}),sync:async()=>{},mark:()=>assert.fail('MCQ never uses photo AI'),markObjective:async(d,q,selectedOption)=>({source:'mark-scheme',sourceQuestionId:q.sourceQuestionId,available:true,score:selectedOption==='B'?1:0,maxScore:1,selectedOption,correctOption:'B'}),paperMax:2})
+const report=grading.paperReport(papers.readPaperDraft(draft.storageKey),2)
+assert.equal(report.objectiveCount,2);assert.equal(report.aiCount,0);assert.equal(report.score,1);assert.equal(report.scoreSource,'objective');assert.equal(report.wholePaper,true)
+assert.throws(()=>papers.savePaperChoice(draft.storageKey,1,'B'),'submitted paper cannot silently change')
+
+const v=r.load('utils/nativeObjectiveAnswer').validateObjectiveResult,expected={attemptId:'a',mode:'topic',routeId:'r',stage:'AS',paperId:'p',sourceQuestionId:'p:q1',selectedOption:'A'}
+assert.throws(()=>v({...expected,schemaVersion:'stem-objective-result-v1',available:true,score:1,maxScore:1,correctOption:'B',source:'mark-scheme',sourceStatus:'reviewed-official-key'},expected))
+assert.equal(v({...expected,schemaVersion:'stem-objective-result-v1',available:false,score:null,maxScore:1,correctOption:null,source:'unavailable'},expected).available,false)
+const deferredGrade=deferred()
+const race=miniRuntime({modules:{'utils/api':{requestJson:async(path,body)=>path.endsWith('/attempts')?{attempt:{attemptId:body.attemptId}}:deferredGrade.promise}}})
+race.storage.set('stemistUser',{id:'student'});race.storage.set('stemistSessionToken','fixture')
+const raceNative=race.load('utils/nativePractice');raceNative.saveSession(session);raceNative.saveChoice(session.id,'paper:q1','A')
+const gradingPromise=raceNative.markChoice(session.id,'paper:q1')
+await settle();raceNative.saveChoice(session.id,'paper:q1','C')
+deferredGrade.resolve({schemaVersion:'stem-objective-result-v1',attemptId:session.id+'-q0-r1',mode:'topic',routeId:session.routeId,stage:'AS',paperId:'paper',sourceQuestionId:'paper:q1',selectedOption:'A',available:true,source:'mark-scheme',sourceStatus:'reviewed-official-key',score:0,maxScore:1,correctOption:'B'})
+await assert.rejects(gradingPromise,/作答或账号已变化/)
+assert.equal(raceNative.readSession(session.id).answers['paper:q1'].choice,'C')
+assert.equal(raceNative.readSession(session.id).answers['paper:q1'].objectiveResult,null,'late grade cannot overwrite a newer selected answer')
+console.log('Native MCQ: classification, ABCD persistence, submitted owned grading, no photo/AI, revision retention and separate objective paper reports passed.')

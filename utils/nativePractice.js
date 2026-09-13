@@ -2,6 +2,8 @@ const { requestJson } = require('./api')
 const { readAsJpegDataUrl, compressImage } = require('./image')
 const { DEFAULT_API_BASE, safeApiBase } = require('./apiOrigin')
 const { normalizeSourceRegion, sourceRegionStyle } = require('./sourceRegion')
+const {isSingleChoice,hasChoice,nextChoiceAnswer}=require('./nativeChoice')
+const {gradeObjectiveAnswer}=require('./nativeObjectiveAnswer')
 
 const SESSION_PREFIX = 'stemistNativePractice:'
 const RECENT_PREFIX = 'stemistNativeRecent:'
@@ -38,7 +40,7 @@ function selectionState(inventory, topicIds, components, questionCount) {
     // Only an explicit API-ready list can admit released study sources. Raw
     // OCR/study IDs and topic membership sums never authorize a practice set.
     topicStartable[topic.id] = explicit
-      ? topic.apiStartable === true && (topicFormal[topic.id] || (ids.size >= MIN_SET && ids.size > reviewedCount))
+      ? topic.apiStartable === true && (topicFormal[topic.id] || (ids.size >= MIN_SET && (ids.size > reviewedCount || policy.allowReviewedSubsetStudy===true)))
       : topicFormal[topic.id]
     if (selected.includes(topic.id)) ids.forEach(q => all.add(q))
   }
@@ -89,7 +91,7 @@ function validatePracticeSet(payload, expected) {
       if (new Set(images).size !== images.length) throw new Error('题目原图重复，请重新组卷。')
     }
     const parts = (group.parts || []).map(part => {
-      const provenance = part.markingProvenance
+      const provenance = part.provenance || part.sourceBindingProvenance || part.markingProvenance
       const bound = provenance?.sourceQuestionId === group.id && provenance?.questionPartId === part.partId && Boolean(provenance.bindingSignature)
       return { id: String(part.partId || ''), label: String(part.label || ''), marks: Number(part.marks),
         canMark: part.aiAssistedMarkingAvailable === true && bound,
@@ -98,6 +100,7 @@ function validatePracticeSet(payload, expected) {
     if (!parts.length || new Set(parts.map(p => p.id)).size !== parts.length || parts.some(p => !p.id || !Number.isFinite(p.marks) || p.marks < 0)) throw new Error('题目分问信息不完整，请重试。')
     if (!Number.isFinite(Number(group.totalMarks)) || Number(group.totalMarks) !== parts.reduce((sum, p) => sum + p.marks, 0)) throw new Error('题目总分不完整，请重新组卷。')
     return { id: group.id, number: String(group.questionNumber || ''), marks: Number(group.totalMarks),
+      answerFormat:isSingleChoice({subjectCode:group.subjectCode,component:group.paperComponent,answerFormat:group.answerFormat,choiceLabels:group.choiceLabels})?'single-choice':'written',
       component: Number(group.paperComponent), paperId: group.sourceRef.paperId,
       sourceLabel: [group.sourceRef.paper, group.questionNumber].filter(Boolean).join(' · '),
       images, sourceRegions, parts, studyOnly: payload.practiceMode === 'study-only' }
@@ -154,22 +157,48 @@ function needsSignIn(sessionId) {
 
 function recentSession(routeId) { return readSession(wx.getStorageSync(`${RECENT_PREFIX}${routeId}`)) }
 
+function saveChoice(sessionId,questionId,choice){
+ const session=readSession(sessionId),question=session?.questions.find(q=>q.id===questionId)
+ if(!session||!question||!isSingleChoice({...question,subjectCode:session.subjectCode}))throw Error('这道题不支持选项作答。')
+ session.answers[questionId]=nextChoiceAnswer(session.answers[questionId],choice)
+ saveSession(session);return session
+}
+
+async function markChoice(sessionId,questionId){
+ const session=readSession(sessionId),q=session?.questions.find(q=>q.id===questionId),answer=session?.answers[questionId]
+ if(!session||!q||!isSingleChoice({...q,subjectCode:session.subjectCode})||!hasChoice(answer))throw Error('请先选择本题答案。')
+ if(!wx.getStorageSync('stemistSessionToken'))throw Object.assign(Error('请登录后核对答案，已选答案会保留。'),{statusCode:401})
+ const expectedOwner=identity(),revision=answer.revision,selectedOption=answer.choice
+ const check=()=>{const latest=readSession(sessionId);if(!latest||identity()!==expectedOwner||latest.answers[questionId]?.revision!==revision||latest.answers[questionId]?.choice!==selectedOption)throw Error('作答或账号已变化，请重新提交。');return latest}
+ session.owner=expectedOwner;saveSession(session)
+ const expected={attemptId:sessionId+'-q'+session.questions.indexOf(q)+'-r'+revision,mode:'topic',routeId:session.routeId,stage:session.stage,paperId:q.paperId,sourceQuestionId:q.id,selectedOption}
+ const markingParts=q.parts.filter(p=>p.provenance).map(p=>({unitPartId:p.id,provenance:{...p.provenance,routeId:session.routeId}}))
+ const synced=await requestJson('/api/stem/attempts',{attemptId:expected.attemptId,mode:'topic',routeId:session.routeId,stage:session.stage,paperId:q.paperId,unitId:session.id,submittedAt:new Date().toISOString(),markingParts,attempt:{id:expected.attemptId,routeId:session.routeId,unitId:session.id,attemptStatus:'submitted',answers:{[q.id]:selectedOption},evidence:{kind:'single-choice',count:1}}})
+ check();if(synced?.attempt?.attemptId!==expected.attemptId)throw Error('服务器尚未确认作答，答案已保留。')
+ const result=await gradeObjectiveAnswer(expected),latest=check()
+ latest.answers[q.id].objectiveResult=result
+ latest.answers[q.id].objectiveHistory={...(latest.answers[q.id].objectiveHistory||{}),[revision]:result}
+ saveSession(latest);return result
+}
+
 function questionView(session, index) {
   const current = Math.max(0, Math.min(session.questions.length - 1, Number(index) || 0))
   const q = session.questions[current]
   const answer = session.answers[q.id] || {}
+  const choiceMode=isSingleChoice({...q,subjectCode:session.subjectCode})
   const results = q.parts.map(p => answer.results?.[p.id] ? { label: p.label === 'main' ? '本题' : p.label, ...answer.results[p.id] } : null).filter(Boolean)
   return { index: current, total: session.questions.length,
-    answeredCount: session.questions.filter(item => Boolean(session.answers[item.id]?.photo)).length,
+    answeredCount: session.questions.filter(item => hasChoice(session.answers[item.id])||Boolean(session.answers[item.id]?.photo)).length,
     question: { id: q.id, number: q.number, sourceLabel: q.sourceLabel, marks: q.marks,
+      choiceMode,
       images: q.images.map((path, i) => ({ id: `${q.id}-${i}`, url: imageUrl(path), loaded: false, failed: false,
         ...(q.sourceRegions?.[i] ? sourceRegionStyle(q.sourceRegions[i]) : {}) })),
       partsLabel: q.parts.map(p => p.label).filter(label => label && label !== 'main').join(' · '),
       canMark: q.parts.some(p => p.canMark), studyOnly: q.studyOnly },
-    photo: answer.photo || '', results, reviewedCount: results.length,
+    photo: answer.photo || '', choice:hasChoice(answer)?answer.choice:'', objectiveResult:answer.objectiveResult||null, results:choiceMode?[]:results, reviewedCount: results.length,
     reviewComplete: q.parts.some(p => p.canMark) && q.parts.filter(p => p.canMark).every(p => Boolean(answer.results?.[p.id])),
     unavailableParts: q.parts.filter(p => !p.canMark).length,
-    navItems: session.questions.map((item, i) => ({ index: i, label: i + 1, current: i === current, answered: Boolean(session.answers[item.id]?.photo) })) }
+    navItems: session.questions.map((item, i) => ({ index: i, label: i + 1, current: i === current, answered: hasChoice(session.answers[item.id])||Boolean(session.answers[item.id]?.photo) })) }
 }
 
 function evidenceDirectory() { return `${wx.env.USER_DATA_PATH}/native-practice` }
@@ -266,4 +295,4 @@ async function markQuestion(sessionId, questionId, onProgress = () => {}) {
 }
 
 module.exports = { MIN_SET, TOPIC_FLOOR, SESSION_PREFIX, RECENT_PREFIX, EPOCH_KEY, epoch, selectionState, validatePracticeSet,
-  generatePractice, createSession, saveSession, readSession, needsSignIn, recentSession, questionView, attachPhoto, markQuestion, verifiedResult }
+  generatePractice, createSession, saveSession, readSession, needsSignIn, recentSession, questionView, attachPhoto, markQuestion, verifiedResult,saveChoice,markChoice }
