@@ -14,6 +14,7 @@ const SOURCE_REVISION=/^[a-f0-9]{64}$/
 const hasWork=(draft,jobId='')=>Boolean(String(draft.text||'').trim()||draft.photoPath||draft.answer||draft.warning||draft.reportUrl||Array.isArray(draft.criteria)&&draft.criteria.length||jobId||draft.band!==undefined&&draft.band!==null)
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({text:'',inputMode:'typed',prompt:'',taskId:'',taskTitle:'',taskImages:[],photoPath:'',taskType:'Task 2',loading:false,error:'',canRetry:false,authRequired:false,answer:'',warning:'',coachStatus:'',draftStatus:'自动保存',band:null,criteria:[],reportUrl:'',remaining:'60:00',timeExpired:false,sourceGuarded:false,sourceResolved:true,sourceAvailability:'ready',sourceRevision:'',sourceReviewRequired:false,sourcePreview:false,latestPrompt:'',latestTaskImages:[],latestSourceRevision:'',latestSourceAvailability:'',sourceArchiveNotice:''}),
  onLoad(options={}){
   this.__disposed=false;this.__valid=false;this.__generation=0;this.__owner=owner();this.__epoch=epoch()

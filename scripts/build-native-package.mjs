@@ -13,7 +13,7 @@ if(!checkOnly){
  if(!relative||relative.startsWith('..')||path.isAbsolute(relative)||out===root||out.startsWith(root+path.sep)||fs.existsSync(out))throw new Error('Output must be a new sibling workspace directory; existing paths are never overwritten.')
 }
 const files=['app.js','app.json','app.wxss','sitemap.json']
-function walk(directory){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),stat=fs.lstatSync(path.join(root,relative));if(stat.isSymbolicLink())throw new Error('Symlinks are not part of the native upload package');if(stat.isDirectory())walk(relative);else if(stat.isFile())files.push(relative)}}
+function walk(directory){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),stat=fs.lstatSync(path.join(root,relative));if(stat.isSymbolicLink())throw new Error('Symlinks are not part of the native upload package');if(relative.startsWith('design-system'+path.sep)&&name.endsWith('.md'))continue;if(stat.isDirectory())walk(relative);else if(stat.isFile())files.push(relative)}}
 for(const dir of ['pages','components','utils','design-system','third_party'])walk(dir)
 if(!checkOnly){
  const changed=execFileSync('git',['diff','HEAD','--name-only','--',...files],{cwd:root,encoding:'utf8'}).trim()

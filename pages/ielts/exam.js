@@ -2,6 +2,7 @@ const {deviceState,syncDevice}=require('../../utils/page')
 const {examChoices,newExam,readExam,submitExam}=require('../../utils/nativeExam')
 const {rememberRecord}=require('../../utils/nativeRecords')
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({context:'same-test',title:'剑桥套题',choices:[],choiceIndex:0,examKey:'',loading:false,busy:false,error:'',cards:[],submitted:false,feedback:'',canSubmit:false}),
  onLoad(options={}){this.__disposed=false;const context=options.mode==='random-exam'?'random-exam':'same-test';this.setData({context,title:context==='same-test'?'剑桥套题':'随机模考',examKey:String(options.examKey||'')});if(this.data.examKey)this.refresh();else this.load()},
  onShow(){syncDevice(this);if(this.data.examKey)this.refresh()},onResize(){syncDevice(this)},onUnload(){this.__disposed=true},

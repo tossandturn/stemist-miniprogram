@@ -35,6 +35,7 @@ function categoryPageCopy(category) {
 }
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({
     activeCategory: 'alevel',
     categoryProfile: stemCategoryProfile('alevel'),

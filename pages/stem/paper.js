@@ -11,6 +11,7 @@ const {rememberRecord}=require('../../utils/nativeRecords')
 const {runPaperAssessment,paperReport,selfAssess}=require('../../utils/nativePaperGrading')
 const {createPdfDownloadController,initialPdfDownloadState}=require('../../utils/pdfDownload')
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({paperId:'',subject:'',routeId:'',stage:'',category:'alevel',family:'exam',mode:'past-paper-practice',title:'真题练习',loading:true,ready:false,error:'',questionNumber:1,photo:'',feedback:'',busy:false,submitted:false,synced:false,selfScore:'',maxMarks:null,questionCount:null,photoCount:0,elapsed:'00:00',syncStatus:'',documentBusy:false,pdfDownload:initialPdfDownloadState(),sourceImages:[],canAskFeedback:false,sourceStatus:'',markResults:[],hasMarkScheme:false}),
  onLoad(options={}){this.__disposed=false;this.__paperLoadId=0;this.__loadedSourceUrls=new Set();this.setData({choices:CHOICES,choice:'',choiceMode:false,paperId:String(options.paperId||''),subject:String(options.subject||''),routeId:String(options.routeId||''),mode:options.mode==='exam-simulation'?'exam-simulation':'past-paper-practice'});this.setupPdfDownload();return this.load()},
  onShow(){syncDevice(this);this.syncPdfDownloadScope();if(this.__draft){this.refresh();if(this.__draft.submitted)this.recordAssessment();if(!this.__context&&wx.getStorageSync('stemistSessionToken'))this.loadSourceContext()}},onResize(){syncDevice(this)},onHide(){this.__gradingActive=false;this.__pdfDownload?.suspend()},

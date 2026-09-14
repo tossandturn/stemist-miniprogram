@@ -19,6 +19,7 @@ const CONTEXTS = [
 ]
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({
     contexts: CONTEXTS,
     contextId: 'stem-photo',

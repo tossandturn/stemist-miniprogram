@@ -5,6 +5,7 @@ const {subjectLabel,identifier,inPack,packCards,subjectCards,isDue,wordView,note
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({loading:true,error:'',view:'study',mode:'study',pack:'ielts',bank:'ielts',subject:'ielts',scopeLabel:'IELTS Core',query:'',items:[],total:0,page:0,pageCount:0,stages:[],stage:'',stageIndex:0,topics:[],topic:'',topicIndex:0,reviewOnly:false,word:null,revealed:true,expanded:false,detailBusy:false,status:'',mastered:0,due:0,savedCount:0,wordIndex:0,progressPercent:0,packs:[],subjects:[],filtersOpen:false,completed:false,saving:false,rating:false,saved:false,scopeLocked:false}),
  onLoad(options={}){
   this.__disposed=false;this.__owner=owner();this.__epoch=epoch();this.__key='stemistVocabProgress:'+this.__owner

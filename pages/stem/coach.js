@@ -7,6 +7,7 @@ const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({ imagePath: '', message: '', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', syncStatus: '', syncFailed: false, syncing: false, context: {}, contextLabel: '等待题目范围' }),
   onLoad(options) {
     this.__disposed = false

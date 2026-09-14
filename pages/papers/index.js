@@ -8,6 +8,7 @@ const SEASONS={spring:'春季（2–3月）',summer:'夏季（5–6月）',winte
 const scopes=category=>PAPER_SUBJECTS.filter(item=>subjectsForCategory(category).some(s=>s.code===item.code))
 const choices=(subject,stage='all')=>STEM_ROUTES.filter(route=>route.subjectCode===subject&&(stage==='all'||route.stage.toLowerCase()===stage))
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({category:'alevel',categoryLabel:'学科真题',showStageFilter:true,subjects:scopes('alevel'),subject:'9702',subjectIndex:0,stageFilters:[],stage:'all',stageIndex:0,routeOptions:[],routeIndex:0,routeId:'',family:'exam',query:'',year:'all',season:'all',filterReady:false,yearOptions:[],seasonOptions:[],yearIndex:0,seasonIndex:0,loading:false,error:'',catalog:false,items:[],totalQuestionPapers:0,pairedQuestionPapers:0,matchCount:0,hasMore:false,pageNumber:1,pageCount:0,pdfBusy:'',pdfDownload:initialPdfDownloadState(),mode:'past-paper-practice'}),
  onLoad(options={}){
   this.__requestId=0;this.__disposed=false;this.__pageItems=[];this.setData({component:'all',componentOptions:[],componentIndex:0});this.setupPdfDownload()

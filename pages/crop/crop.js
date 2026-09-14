@@ -6,6 +6,7 @@ const {persistWritingPhoto,removeWritingPhoto}=require('../../utils/nativeWritin
 const {persistCoachPhoto,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({ src: '', x: 0, y: 0, scale: 0.68, frameInstances:[{id:0}], busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
   onLoad(options) {
     this.__disposed=false

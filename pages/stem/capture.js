@@ -8,6 +8,7 @@ function subjectsForCategoryStage(category, stage) {
 }
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({
     busy: false,
     scopeExpanded: false,

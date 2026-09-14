@@ -5,6 +5,7 @@ const { isAuthError } = require('../../utils/api')
 const { routeById } = require('../../utils/stemRoutes')
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({ sessionId: '', routeId: '', stage: '', subjectCode: '', title: '', unavailableParts: 0, question: null, index: 0, total: 0,
     navItems: [], answeredCount: 0, photo: '', photoMissing: false, results: [], reviewComplete: false, reviewedCount: 0,
     busy: false, cameraBusy: false, status: '', error: '', authRequired: false,choices:CHOICES,choice:'',objectiveResult:null }),

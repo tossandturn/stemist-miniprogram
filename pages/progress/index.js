@@ -14,6 +14,7 @@ function decorateRecords(records = []) {
 }
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({
     localCount: 0,
     weekCount: 0,

@@ -11,6 +11,7 @@ function routesForCategory(category) {
 }
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({ category: 'alevel', categoryLabel: 'A-Level 学科', family: 'exam', routeId: 'cie-9702-as-physics', routeIndex: 0, stage: 'AS', subjectCode: '9702', note: '', saving: false, status: '本机自动保存已开启', error: '', routes: routesForCategory('alevel') }),
   onLoad(options) {
     this.__disposed = false

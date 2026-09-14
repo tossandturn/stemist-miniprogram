@@ -32,6 +32,7 @@ function editorDraft(page){
 const validHistoryDraft=draft=>draft&&typeof draft.expression==='string'&&draft.expression.length<=MAX_INPUT?draft:null
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   ...cwMethods,
   ...solverMethods,
   ...calcMethods,

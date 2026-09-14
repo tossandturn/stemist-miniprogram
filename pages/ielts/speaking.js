@@ -10,6 +10,7 @@ const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const clock=seconds=>String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({taskId:'',taskTitle:'Speaking',taskLoading:false,active:false,connecting:false,scoring:false,status:'',error:'',turns:[],turnCount:0,elapsed:'00:00',feedback:'',band:null,warning:'',canRetry:false,retryAction:'start',permissionAction:'',privacyContractName:'用户隐私保护指引',viewingArchive:false,hasEarlier:false,hasLater:false,showHistory:false,historyRows:[],historyHasMore:false}),
  onLoad(options={}){
   this.__disposed=false;this.__visible=true;this.__valid=false;this.__dirty=false;this.__startGeneration=0;this.__owner=owner();this.__epoch=epoch();this.__turns=[];this.__baseSnapshot={}

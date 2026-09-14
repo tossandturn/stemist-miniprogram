@@ -4,6 +4,7 @@ const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({ busy: false, ready: false, cameraMounted:false, cameraGeneration:0, initializing:false, identityChanged:false, permissionAction:'', privacyContractName:'用户隐私保护指引', canUseSystemCamera:false, error: '', flash: 'auto', returnPage: 'stem', context: {}, coachSource: 'capture', category: 'alevel', family: 'exam', routeId: '', stage: '', subjectCode: '', hint: '把题目、图表和答案完整放进取景框。' }),
   onLoad() {
     this.__disposed=false;this.__visible=true;this.__pageReady=false;this.__startupId=0;this.__mountId=0;this.__captureId=0;this.__owner=owner();this.__epoch=epoch()

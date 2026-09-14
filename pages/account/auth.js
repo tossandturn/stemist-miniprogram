@@ -3,6 +3,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { ensureWeChatSession } = require('../../utils/wechatAuth')
 
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
   data: deviceState({ mode: 'login', username: '', password: '', loading: false, wechatLoading: false, showCredentials: false, error: '', user: null }),
   onShow() {
     syncDevice(this)

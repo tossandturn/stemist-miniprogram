@@ -5,6 +5,7 @@ const {writingPairs}=require('../../utils/ieltsWriting')
 const {topicDirectory,topicIcon}=require('../../utils/ieltsTopics')
 const TITLES={listening:'Listening',reading:'Reading',writing:'Writing',speaking:'Speaking'}
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({module:'listening',title:'Listening',loading:true,catalogLoaded:false,error:'',items:[],total:0,page:0,pageCount:0,query:'',books:[],book:0,bookIndex:0,scope:'paper',scopes:[{id:'paper',label:'整套'},{id:'section',label:'分段'},{id:'topic',label:'主题'}],topics:[],topicItems:[],topic:'',topicIndex:0}),
  onLoad(options={}){this.__disposed=false;this.__generation=0;const module=TITLES[options.module]?options.module:'listening';this.setData({module,title:TITLES[module],...(module==='writing'?{scopes:[{id:'paper',label:'单题'},{id:'pair',label:'完整写作'},{id:'topic',label:'主题'}]}:module==='speaking'?{scope:'topic',scopes:[{id:'topic',label:'主题'},{id:'paper',label:'整套'}]}:{})});this.__unsubscribe=subscribeIeltsContent?.(data=>{if(!this.__disposed){this.__generation++;this.applyCatalog(data);this.setData({loading:false,error:''})}});this.load()},
  onShow(){syncDevice(this)},onResize(){syncDevice(this)},onUnload(){this.__disposed=true;this.__generation++;this.__unsubscribe?.();clearTimeout(this.__searchTimer)},

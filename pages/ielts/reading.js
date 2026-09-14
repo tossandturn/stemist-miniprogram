@@ -1,2 +1,2 @@
 const {makeObjectivePage}=require('../../utils/ieltsObjectivePage')
-Page(makeObjectivePage('reading'))
+Page({onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},...makeObjectivePage('reading' )})

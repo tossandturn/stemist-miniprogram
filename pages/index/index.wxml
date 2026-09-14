@@ -11,4 +11,5 @@
   </view>
   <view wx:if="{{entryError}}" class="error">{{entryError}}</view>
   <navigator class="home-account" url="/pages/account/auth">我的学习记录与账号</navigator>
+  <button class="home-share secondary" open-type="share">分享给好友</button>
 </view>

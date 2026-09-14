@@ -14,6 +14,7 @@ const sourceReady=task=>task?.sourceAvailability==='ready'&&SOURCE_REVISION.test
 const hasDraftWork=draft=>Boolean(draft.jobId||draft.feedback||draft.warning||draft.reportUrl||draft.band!==undefined&&draft.band!==null||(draft.taskScores||[]).length||(draft.items||[]).some(item=>String(item?.text||'').trim()||item?.photo))
 const emptyResult=()=>({feedback:'',band:null,taskScores:[],warning:'',reportUrl:'',canRetry:false})
 Page({
+  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({loading:true,busy:false,error:'',authRequired:false,pairId:'',title:'完整写作',items:[],remaining:'60:00',timeExpired:false,phase:'draft',...emptyResult(),status:'自动保存',downloading:false,sourceResolved:false,sourceAvailability:'pending-review',sourceReviewRequired:false,sourcePreview:false,sourceArchiveNotice:''}),
  onLoad(options={}){this.__disposed=false;this.__owner=owner();this.__epoch=epoch();this.__resumeQueryStarted=false;this.setData({pairId:String(options.pairId||'')});this.__scope='writing-pair:'+this.__owner+':'+this.data.pairId;this.load()},
  current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
