@@ -11,7 +11,7 @@ const ENTRY_POINTS = [
 ]
 
 Page({
-  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
+  ...require('../../utils/share').public,
   data: deviceState({
     user: null,
     aiStatus: '正在检查 AI…',
@@ -24,7 +24,6 @@ Page({
   }),
 
   onShow() {
-    wx.showShareMenu?.({menus:['shareAppMessage']})
     this.__disposed = false
     syncDevice(this)
     const token = wx.getStorageSync('stemistSessionToken')

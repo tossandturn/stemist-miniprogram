@@ -7,6 +7,7 @@ function deviceState(extra = {}) {
 }
 
 function syncDevice(page) {
+  wx.showShareMenu?.({menus:page.onShareTimeline?['shareAppMessage','shareTimeline']:['shareAppMessage']})
   const profile = readDeviceProfile()
   page.setData({ deviceClass: deviceClass(profile), isTablet: profile.isTablet, windowWidth: profile.windowWidth, windowHeight: profile.windowHeight, orientation: profile.orientation })
   return profile

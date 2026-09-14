@@ -4,7 +4,7 @@ const {requestIeltsLearning}=require('../../utils/ieltsLearning')
 const {ensureWeChatSession}=require('../../utils/wechatAuth')
 const {learningState,learningReport}=require('../../utils/nativeLearning')
 Page({
-  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
+  ...require('../../utils/share').public,
  data:deviceState({view:'dashboard',title:'今日计划',records:[],total:0,weeklyCount:0,target:6.5,targets:[5,5.5,6,6.5,7,7.5,8,8.5,9],targetIndex:3,user:null,membership:null,code:'',busy:false,error:'',status:'',recordDetail:null,reportRows:[],reportHasMore:false}),
  onLoad(options={}){this.__disposed=false;const view=['records','subscription'].includes(options.view)?options.view:'dashboard';this.setData({view,title:view==='records'?'学习记录':view==='subscription'?'会员':'今日计划'})},
  onShow(){syncDevice(this);this.refresh()},onResize(){syncDevice(this)},onUnload(){this.__disposed=true},

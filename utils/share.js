@@ -13,7 +13,8 @@ module.exports={onShareAppMessage(){
   if(course&&['IGCSE','AS','A2'].includes(course.stage)){path='/pages/stem/topics?routeId='+encodeURIComponent(course.routeId);title=course.subjectLabel+' · 章节练习'}
  }else if(['pages/papers/index','pages/stem/paper'].includes(route)){
   path='/pages/papers/index?category='+(data.category==='competition'?'competition':'alevel');title='STEMist · 历年真题'
- }else if(route==='pages/practice/index')path='/pages/practice/index?category='+(['ielts','competition'].includes(data.category)?data.category:'alevel')
+ }else if(route==='pages/practice/index'){const category=data.activeCategory||data.category;path='/pages/practice/index?category='+(['ielts','competition'].includes(category)?category:'alevel')}
  // Never forward page options, private record IDs, user text, or default screenshots.
  return {title,path,imageUrl:IMAGE}
 }}
+module.exports.public={...module.exports,onShareTimeline(){const {title,path}=this.onShareAppMessage();return {title,query:path.split('?')[1]||''}}}
