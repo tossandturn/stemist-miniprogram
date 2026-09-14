@@ -40,5 +40,13 @@ The native manual WebSocket path follows [Alibaba Cloud Realtime](https://help.a
 
 ## Pending release gates
 
-- Frozen development-package upload/preview receipt.
 - Physical phone/iPad camera, microphone, echo/quiet voice, network transitions and long-session audio remain NOT VERIFIED by synthetic or simulator tests. Do not describe a development upload as review submission or online publication.
+
+## Development delivery receipt
+
+- GitHub `master` push succeeded: `459a4c3c041dd27a8d4c681f2d173b239952252e`.
+- Frozen package: `D:/CodexWork/stemist-miniprogram-review-1.0.12-459a4c3`; per-file SHA-256 manifest is the sibling `-manifest.json`.
+- Official WeChat `upload`, version `1.0.12`: `ok:true`, `success:true`, uploaded size 1,885,483 bytes.
+- Official `auto_preview`, Home page: `ok:true`, `success:true`, preview size 1,881,503 bytes.
+- The user's original `project.config.json` remains uncommitted and unchanged by this task. Its existing diff hash remains `a60dd99f74b2f04725d99e9ff5758757f0269d2a`.
+- Neither review submission nor online publication was performed. Intermittent external connectivity remains a release blocker; this is a development test delivery.
