@@ -25,3 +25,11 @@ The API contract was verified against [Tencent's official Page typings](https://
 ## Release boundary
 
 This is the 1.0.13 development update, not review submission or online publication. Earlier intermittent backend connectivity remains outside this sharing-only patch and has not been declared resolved.
+
+## Delivery receipt
+
+- Runtime commit `f4f3582aac28b3ab35a6559c2fb8e48b0227a0e4` pushed to GitHub master.
+- Frozen package `D:/CodexWork/stemist-miniprogram-review-1.0.13-f4f3582`, with sibling SHA-256 manifest.
+- Official `upload --upload-version 1.0.13`: success; 1,885,895 bytes.
+- Official Home `auto_preview`: success; 1,881,915 bytes.
+- No Moments post, review submission or online publication performed.
