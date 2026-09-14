@@ -7,11 +7,10 @@ const timers=new Map();let id=0
 const r=miniRuntime({globals:{Date:{now:()=>now},setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id},clearTimeout:id=>timers.delete(id)},wx:{arrayBufferToBase64:b=>Buffer.from(b).toString('base64')}})
 const Engine=r.load('utils/nativeSpeaking').NativeSpeaking
 const source=r.load('utils/nativeSpeaking').recorderSource
-assert.equal(await source({getAvailableAudioSources:o=>o.success({audioSources:['auto','voice_communication']})}),'voice_communication')
+assert.equal(await source({getAvailableAudioSources:o=>o.success({audioSources:['auto','voice_communication']})}),'auto','advertising communication mode must not override platform microphone routing')
 assert.equal(await source({getAvailableAudioSources:o=>o.success({audioSources:['auto','buildInMic','headsetMic']})}),'auto','iPad keeps platform headset routing')
 assert.equal(await source({getAvailableAudioSources:o=>o.fail()}),'auto')
-const missing=source({getAvailableAudioSources(){}})
-const sourceTimeout=[...timers.values()].find(t=>t.ms===500);sourceTimeout.fn();assert.equal(await missing,'auto')
+assert.equal(await source({getAvailableAudioSources(){}}),'auto')
 const sent=[]
 const engine=new Engine({startedAt:now})
 engine.ready=true;engine.audio={currentTime:10};engine.socket={send:({data})=>sent.push(JSON.parse(data)),close(){}};engine.direct=directFixture()

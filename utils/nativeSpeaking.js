@@ -3,15 +3,9 @@ const {issueDirectSession}=require('./speakingDirect')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const privacyEpoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
-function recorderSource(api=wx){
- if(typeof api.getAvailableAudioSources!=='function')return Promise.resolve('auto')
- return new Promise(resolve=>{
-  let settled=false
-  const finish=value=>{if(settled)return;settled=true;clearTimeout(timer);resolve(value)}
-  const timer=setTimeout(()=>finish('auto'),500)
-  try{api.getAvailableAudioSources({success:result=>finish(Array.isArray(result.audioSources)&&result.audioSources.includes('voice_communication')?'voice_communication':'auto'),fail:()=>finish('auto')})}catch{finish('auto')}
- })
-}
+// Keep the platform's microphone/headset routing used before the Sept 11 change.
+function recorderSource(){return Promise.resolve('auto')}
+const SPEECH_THRESHOLD=.008
 
 function pcmRms(buffer) {
  const samples=new Int16Array(buffer,0,Math.floor(buffer.byteLength/2))
@@ -118,16 +112,17 @@ class NativeSpeaking {
   // Gate the START of a turn only. Cutting every quiet frame destroys soft
   // syllables and the pauses the speech model needs to hear a natural answer.
   if(!this.lastVoice){
-   if(rms<=.004){
+   if(rms<=SPEECH_THRESHOLD){
     this.preRoll.push(buffer.slice(0));this.preRollBytes+=buffer.byteLength
     while(this.preRollBytes>8192&&this.preRoll.length)this.preRollBytes-=this.preRoll.shift().byteLength
     return
    }
+   this.onState({status:'正在听你说话…'})
    for(const frame of this.preRoll)this.sendAudio(frame)
    this.preRoll=[];this.preRollBytes=0
   }
   this.sendAudio(buffer)
-  if(rms>.004){this.lastVoice=now;this.voicedBytes+=buffer.byteLength}
+  if(rms>SPEECH_THRESHOLD){this.lastVoice=now;this.voicedBytes+=buffer.byteLength}
   const silenceWindow=this.voicedBytes<16000?4000:2800
   if(this.lastVoice&&now-this.lastVoice>=silenceWindow&&this.voicedBytes>=8000){
    this.waiting=true;this.voicedBytes=0;this.lastVoice=0

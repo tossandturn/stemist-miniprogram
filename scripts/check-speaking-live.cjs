@@ -11,7 +11,7 @@ async function main(){
    setTimeout(finish,1000)
   })})
   console.log(JSON.stringify({audioProbe:audio,microphoneUsed:false}))
-  await new Promise((resolve,reject)=>execFile(process.execPath,['scripts/test-speaking-live-audio.cjs','--run-production','--audio','D:/CodexWork/stemist-speaking-qa-20260911-0354'],{cwd:process.cwd(),windowsHide:true,timeout:240000,maxBuffer:100000,encoding:'utf8'},(error,stdout,stderr)=>{process.stdout.write(stdout);if(error)reject(Error(stderr.trim()||'Live speech test failed'));else resolve()}))
+  await new Promise((resolve,reject)=>execFile(process.execPath,['scripts/test-speaking-live-audio.cjs','--run-production','--audio','D:/CodexWork/stemist-speaking-qa-20260911-0354',...(process.argv.includes('--room-noise')?['--room-noise']:[])],{cwd:process.cwd(),windowsHide:true,timeout:240000,maxBuffer:100000,encoding:'utf8'},(error,stdout,stderr)=>{process.stdout.write(stdout);if(error)reject(Error(stderr.trim()||'Live speech test failed'));else resolve()}))
  }finally{await account.end()}
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1})
