@@ -9,6 +9,7 @@ function validateDirectSession(value){
   const modes=response?.modalities,expected=name==='assessment'?['text']:['text','audio']
   if(event?.type!=='response.create'||typeof response?.instructions!=='string'||!response.instructions.trim()||response.instructions.length>16000||!Array.isArray(modes)||modes.length!==expected.length||expected.some(mode=>!modes.includes(mode)))throw Error('考官配置不完整，请重试。')
  }
+ if(value.examinerPolicy){const p=value.examinerPolicy,r=value.responses.part2Cue?.response;if(p.schemaVersion!=='ielts-native-examiner-v2'||p.part1Seconds!==300||p.part2PreparationSeconds!==60||p.part2AnswerSeconds!==120||value.responses.part2Cue?.type!=='response.create'||typeof r?.instructions!=='string'||!r.instructions||r.instructions.length>16000||!Array.isArray(r.modalities)||r.modalities.join(',')!=='text,audio')throw Error('口语阶段配置不完整，请更新后重试。')}
  return value
 }
 async function issueDirectSession(context={}){

@@ -5,6 +5,7 @@
  <button wx:if="{{viewingArchive}}" class="secondary" bindtap="returnToPractice">返回练习</button>
  <button wx:elif="{{!active}}" class="primary speaking-start" loading="{{connecting || taskLoading}}" disabled="{{connecting || scoring || taskLoading}}" bindtap="start">{{feedback ? '开始新练习' : turnCount ? '继续口语练习' : '开始口语练习'}}</button><button wx:else class="secondary" bindtap="finish" disabled="{{scoring}}">结束并查看反馈</button>
  <button wx:if="{{connecting}}" class="text-button" bindtap="stopSession">取消连接</button><button wx:if="{{!viewingArchive}}" class="text-button" bindtap="selectTask" disabled="{{active || connecting || scoring}}">更换话题</button><button class="text-button" bindtap="showSaved" disabled="{{active || connecting || scoring}}">历史练习</button>
+ <button wx:if="{{active && examinerPhase === 'part2-long-turn'}}" class="secondary" bindtap="finishPart2">本段说完了</button>
  <view wx:if="{{error}}" class="error" role="alert">{{error}}
   <button wx:if="{{permissionAction === 'mini' || permissionAction === 'system'}}" class="secondary microphone-settings" bindtap="permissionSettings">{{permissionAction === 'system' ? '去系统设置' : '开启麦克风权限'}}</button>
   <button wx:if="{{permissionAction === 'configuration' && !viewingArchive}}" class="secondary microphone-permission-retry" bindtap="start" disabled="{{connecting || scoring || taskLoading}}">重新检测授权并开始</button>

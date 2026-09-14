@@ -4,6 +4,7 @@ const { DEFAULT_API_BASE, safeApiBase } = require('./apiOrigin')
 const { normalizeSourceRegion, sourceRegionStyle } = require('./sourceRegion')
 const {isSingleChoice,hasChoice,nextChoiceAnswer}=require('./nativeChoice')
 const {gradeObjectiveAnswer}=require('./nativeObjectiveAnswer')
+const {normalizeQuestionFocus,choiceOptions,questionDisplay}=require('./questionFocus')
 
 const SESSION_PREFIX = 'stemistNativePractice:'
 const RECENT_PREFIX = 'stemistNativeRecent:'
@@ -30,6 +31,7 @@ function selectionState(inventory, topicIds, components, questionCount) {
   const topicFormal = {}, topicStartable = {}
   const policy = inventory?.practicePolicy
   const versioned = policy?.schemaVersion === 'stem-topic-practice-policy-v1' && policy.minSourceGroups === MIN_SET && policy.minReviewedGroups === TOPIC_FLOOR
+  const crossStudy=versioned&&policy.allowCrossTopicStudy===true&&selected.length>1
   for (const topic of inventory?.topics || []) {
     const reviewed = new Set(scope.flatMap(c => unique(topic.questionIdsByComponent?.[c]?.verifiedQuestionIds)))
     const explicit = versioned && scope.every(c => Array.isArray(topic.questionIdsByComponent?.[c]?.apiReadyQuestionIds))
@@ -39,14 +41,14 @@ function selectionState(inventory, topicIds, components, questionCount) {
     topicFormal[topic.id] = reviewedCount >= TOPIC_FLOOR
     // Only an explicit API-ready list can admit released study sources. Raw
     // OCR/study IDs and topic membership sums never authorize a practice set.
-    topicStartable[topic.id] = explicit
+    topicStartable[topic.id] = crossStudy&&explicit?ids.size>0:explicit
       ? topic.apiStartable === true && (topicFormal[topic.id] || (ids.size >= MIN_SET && (ids.size > reviewedCount || policy.allowReviewedSubsetStudy===true)))
       : topicFormal[topic.id]
     if (selected.includes(topic.id)) ids.forEach(q => all.add(q))
   }
-  const startable = componentValid && selected.length > 0 && selected.every(t => topicStartable[t])
+  const startable = componentValid && selected.length > 0 && all.size>=MIN_SET && selected.every(t => topicStartable[t])
   const ready = startable && selected.every(t => topicFormal[t])
-  const sizes = (versioned ? policy.setSizes : [6, 10, 15]).filter(n => n <= all.size)
+  const sizes = (versioned ? policy.setSizes : [6, 10, 15]).filter(n => n <= all.size&&(!crossStudy||n>=selected.length))
   return { availableCount: all.size, topicCounts, sizes, ready, studyReady: startable && !ready,
     canStart: startable && sizes.includes(Number(questionCount)),
     hint: !selected.length ? '选择要练习的章节' : !startable ? '所选章节或卷型的题目尚未备齐，请调整选择。' : '' }
@@ -90,6 +92,8 @@ function validatePracticeSet(payload, expected) {
       images = sourceRegions.map(image => image.url)
       if (new Set(images).size !== images.length) throw new Error('题目原图重复，请重新组卷。')
     }
+    if(group.questionFocus)sourceRegions=normalizeQuestionFocus(group.questionFocus,group.sourceRef.paperId,group.id,images)
+    const options=choiceOptions(group.choiceOptions)
     const parts = (group.parts || []).map(part => {
       const provenance = part.provenance || part.sourceBindingProvenance || part.markingProvenance
       const bound = provenance?.sourceQuestionId === group.id && provenance?.questionPartId === part.partId && Boolean(provenance.bindingSignature)
@@ -103,7 +107,7 @@ function validatePracticeSet(payload, expected) {
       answerFormat:isSingleChoice({subjectCode:group.subjectCode,component:group.paperComponent,answerFormat:group.answerFormat,choiceLabels:group.choiceLabels})?'single-choice':'written',
       component: Number(group.paperComponent), paperId: group.sourceRef.paperId,
       sourceLabel: [group.sourceRef.paper, group.questionNumber].filter(Boolean).join(' · '),
-      images, sourceRegions, parts, studyOnly: payload.practiceMode === 'study-only' }
+      images, sourceRegions, parts,choiceOptions:options, studyOnly: payload.practiceMode === 'study-only' }
   })
   return { routeId: expected.routeId, stage: expected.stage, subjectCode: String(expected.subjectCode),
     components: expected.components.slice(), topicIds: expected.syllabusTopicIds.slice(),
@@ -156,6 +160,16 @@ function needsSignIn(sessionId) {
 }
 
 function recentSession(routeId) { return readSession(wx.getStorageSync(`${RECENT_PREFIX}${routeId}`)) }
+async function refreshQuestionDisplay(sessionId,questionId,active=()=>true){
+ const session=readSession(sessionId),q=session?.questions.find(q=>q.id===questionId),startedOwner=identity(),startedEpoch=epoch()
+ if(!q||q.sourceRegions?.length)return false
+ const display=await questionDisplay(session,q)
+ if(!display||!active()||identity()!==startedOwner||epoch()!==startedEpoch)return false
+ const latest=readSession(sessionId),question=latest?.questions.find(q=>q.id===questionId)
+ if(!question)return false
+ question.sourceRegions=display.regions;if(display.options)question.choiceOptions=display.options
+ saveSession(latest);return true
+}
 
 function saveChoice(sessionId,questionId,choice){
  const session=readSession(sessionId),question=session?.questions.find(q=>q.id===questionId)
@@ -191,6 +205,7 @@ function questionView(session, index) {
     answeredCount: session.questions.filter(item => hasChoice(session.answers[item.id])||Boolean(session.answers[item.id]?.photo)).length,
     question: { id: q.id, number: q.number, sourceLabel: q.sourceLabel, marks: q.marks,
       choiceMode,
+      options:q.choiceOptions||choiceOptions(null),hasOptionText:Boolean(q.choiceOptions?.some(o=>o.text)),fullPage:!q.sourceRegions?.length,
       images: q.images.map((path, i) => ({ id: `${q.id}-${i}`, url: imageUrl(path), loaded: false, failed: false,
         ...(q.sourceRegions?.[i] ? sourceRegionStyle(q.sourceRegions[i]) : {}) })),
       partsLabel: q.parts.map(p => p.label).filter(label => label && label !== 'main').join(' · '),
@@ -295,4 +310,4 @@ async function markQuestion(sessionId, questionId, onProgress = () => {}) {
 }
 
 module.exports = { MIN_SET, TOPIC_FLOOR, SESSION_PREFIX, RECENT_PREFIX, EPOCH_KEY, epoch, selectionState, validatePracticeSet,
-  generatePractice, createSession, saveSession, readSession, needsSignIn, recentSession, questionView, attachPhoto, markQuestion, verifiedResult,saveChoice,markChoice }
+  generatePractice, createSession, saveSession, readSession, needsSignIn, recentSession, questionView, attachPhoto, markQuestion, verifiedResult,saveChoice,markChoice,refreshQuestionDisplay }

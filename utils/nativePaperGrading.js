@@ -23,7 +23,7 @@ function paperReport(draft,paperMax=null){
   const result={schemaVersion:'native-paper-report-v1',generatedAt:Date.now(),attemptId:draft.id,paperId:draft.paperId,routeId:draft.routeId,stage:draft.stage,submittedAt:draft.submittedAt,rows,nextSteps:[...nextSteps,...objective.filter(r=>r.score===0).slice(0,3).map(r=>'复盘第 '+r.number+' 题：你选了 '+r.selectedOption+'，标准选项为 '+r.correctOption+'。')].slice(0,3),submittedQuestions:rows.length,aiCount:ai.length,selfCount:self.length,objectiveCount:objective.length,objectiveScore,needsSelf:rows.filter(r=>r.state==='self-required').length,pending:rows.filter(r=>r.aiPending||r.state==='pending').length,aiScore,selfScore,score:aiScore+selfScore+objectiveScore,maxScore,paperMax,complete,wholePaper:complete&&Number.isInteger(draft.questionCount)&&draft.questionCount===rows.length&&rows.every((r,i)=>r.number===i+1)&&Number.isFinite(paperMax)&&paperMax>0&&maxScore===paperMax&&rows.every(r=>r.maxSource==='source'),scoreSource:complete?(sources>1?'mixed':'objective'):'partial-objective',notice:'选择题按已核验标准答案核对；AI估分与学生自评各自标注。未评分题不按零分处理。'}
   return result
  }
- return {schemaVersion:'native-paper-report-v1',generatedAt:Date.now(),attemptId:draft.id,paperId:draft.paperId,routeId:draft.routeId,stage:draft.stage,submittedAt:draft.submittedAt,rows,nextSteps,submittedQuestions:rows.length,aiCount:ai.length,selfCount:self.length,needsSelf:rows.filter(r=>r.state==='self-required').length,pending:rows.filter(r=>r.aiPending||r.state==='pending').length,aiScore,selfScore,score:aiScore+selfScore,maxScore,paperMax,complete,wholePaper:complete&&Number.isInteger(draft.questionCount)&&draft.questionCount===rows.length&&rows.every((r,i)=>r.number===i+1)&&Number.isFinite(paperMax)&&paperMax>0&&maxScore===paperMax&&rows.every(r=>r.maxSource==='source'),scoreSource:complete?(ai.length&&self.length?'mixed':ai.length?'ai':'self'):ai.length?'partial-ai':self.length?'partial-self':'pending',notice:'AI成绩为辅助估分；自评由学生填写。未评分题不按零分处理。'}
+ return {schemaVersion:'native-paper-report-v1',generatedAt:Date.now(),attemptId:draft.id,paperId:draft.paperId,routeId:draft.routeId,stage:draft.stage,submittedAt:draft.submittedAt,rows,nextSteps,submittedQuestions:rows.length,aiCount:ai.length,selfCount:self.length,objectiveCount:0,objectiveScore:0,needsSelf:rows.filter(r=>r.state==='self-required').length,pending:rows.filter(r=>r.aiPending||r.state==='pending').length,aiScore,selfScore,score:aiScore+selfScore,maxScore,paperMax,complete,wholePaper:complete&&Number.isInteger(draft.questionCount)&&draft.questionCount===rows.length&&rows.every((r,i)=>r.number===i+1)&&Number.isFinite(paperMax)&&paperMax>0&&maxScore===paperMax&&rows.every(r=>r.maxSource==='source'),scoreSource:complete?(ai.length&&self.length?'mixed':ai.length?'ai':'self'):ai.length?'partial-ai':self.length?'partial-self':'pending',notice:'AI成绩为辅助估分；自评由学生填写。未评分题不按零分处理。'}
 }
 function persist(draft,onUpdate,paperMax){draft.report=paperReport(draft,paperMax);savePaperDraft(draft);onUpdate?.(draft)}
 function reason(error){return error?.statusCode===401?'账号未连接，AI未完成；可登录后重试。':error?.code==='source_missing'?'本题缺少可核验的AI批改资料。':'AI未完成本题，已有结果和照片已保留。'}
@@ -62,10 +62,9 @@ async function runPaperAssessment(key,{loadContext,sync,mark,markObjective,activ
      latest.answers[number].objectiveResult=result
      latest.answers[number].assessment=result.available?{state:'objective',score:result.score,maxMarks:1,maxSource:'source',reason:''}:{state:'self-required',maxMarks:1,maxSource:'source',reason:'答案已保存，标准答案尚待核验；可查看原卷参考答案后自评。'}
      draft=latest
-    }catch(error){
+    }catch{
      if(!alive())return
-     if([401,403,429].includes(error?.statusCode)||error?.statusCode>=500)setupError=error
-     draft=read(key);draft.answers[number].assessment={state:'self-required',maxMarks,maxSource:maxMarks===null?'':'source',reason:'标准答案未能完成核对，所选答案已保留。'}
+     throw Error('标准答案核对暂时未完成，请重试。')
     }
     persist(draft,onUpdate,paperMax);continue
    }

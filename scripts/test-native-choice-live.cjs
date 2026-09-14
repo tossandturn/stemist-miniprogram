@@ -15,23 +15,21 @@ async function main(){
  fs.mkdirSync(output,{recursive:true})
  try{
   await account.begin()
-  await evaluate(function(){
-   const qa=getApp().__nativeQa;qa.choiceTest={phase:'assembling'}
-   ;(async()=>{try{
-    const inventory=require('utils/inventory.js');inventory.clearInventoryCache()
-    const routeId='cie-9702-as-physics',data=await inventory.fetchRouteInventory(routeId),native=require('utils/nativePractice.js')
-    if(!data.practicePolicy?.allowReviewedSubsetStudy)throw Error('Missing P1 study capability')
-    const topic=data.topics.find(t=>native.selectionState(data,[t.id],[1],6).canStart)
-    if(!topic)throw Error('No P1 chapter')
-    const s=await native.generatePractice({routeId,stage:'AS',subjectCode:'9702',components:[1],syllabusTopicIds:[topic.id],questionCount:6})
-    if(s.questions.some(q=>q.component!==1||q.answerFormat!=='single-choice'))throw Error('Not exclusively P1 MCQ')
-    native.saveSession(s);qa.choiceTest={phase:'ready',sessionId:s.id,paperId:s.questions[0].paperId}
-   }catch(error){qa.choiceTest={phase:'failed',message:error.message}}})()
-   return true
-  })
-  const setup=await until(function(){const q=getApp().__nativeQa?.choiceTest;return q&&q.phase!=='assembling'?q:null},'P1 assembly',30000)
-  assert.equal(setup.phase,'ready',setup.message)
-  await call('automation_navigate',{action:'navigateTo',url:'/pages/stem/practice?sessionId='+encodeURIComponent(setup.sessionId)})
+  await evaluate(function(){require('utils/inventory.js').clearInventoryCache();return true})
+  await call('automation_navigate',{action:'navigateTo',url:'/pages/stem/topics?routeId=cie-9702-as-physics'})
+  await until(function(){const p=getCurrentPages().slice(-1)[0];return !p.data.loading&&p.data.topics?.length},'chapter builder inventory',20000)
+  await scrollTo('.component-shortcuts');await tap('.component-shortcuts button[data-value="1"]')
+  for(const id of ['physics-9702-topic-01','physics-9702-topic-02']){const selector='.topic-choice[data-id="'+id+'"]';await scrollTo(selector);await tap(selector)}
+  await scrollTo('.set-options');await tap('button[data-count="6"]')
+  report.builder=await evaluate(function(){const p=getCurrentPages().slice(-1)[0];return {available:p.data.availableCount,count:p.data.questionCount,canStart:p.data.canStart,components:p.data.components,selected:p.data.selected.length}})
+  assert.deepEqual(report.builder,{available:12,count:6,canStart:true,components:[1],selected:2})
+  await call('simulator_screenshot',{path:path.join(output,'builder-7-plus-5-ready.png'),optimize:false})
+  await scrollTo('.start-native-practice');await tap('.start-native-practice')
+  await until(function(){const p=getCurrentPages().slice(-1)[0];return p.route==='pages/stem/practice'&&p.data.total===6},'actual start button assembly',30000)
+  const mapping=await evaluate(function(){const p=getCurrentPages().slice(-1)[0],s=require('utils/nativePractice.js').readSession(p.data.sessionId);return s.questions.every(q=>q.component===1&&q.answerFormat==='single-choice'&&q.sourceRegions.length===q.images.length&&q.choiceOptions.length===4)})
+  assert.equal(mapping,true,'every generated source must have its own verified focus and A-D options')
+  await until(function(){const p=getCurrentPages().slice(-1)[0];return p.data.question?.images.length&&p.data.question.images.every(i=>i.loaded&&i.cropped)},'cropped source question',20000)
+  await call('simulator_screenshot',{path:path.join(output,'topic-exact-focus.png'),optimize:false})
   await scrollTo('.mcq-options')
   await tap('.mcq-option[data-value="B"]')
   const chosen=await evaluate(function(){const p=getCurrentPages().slice(-1)[0];return {choice:p.data.choice,photo:p.data.photo,choiceMode:p.data.question.choiceMode,total:p.data.total}})
@@ -43,13 +41,21 @@ async function main(){
   await call('simulator_screenshot',{path:path.join(output,'topic-p1-abcd.png'),optimize:false})
   // Pin the official paper for reproducible correct/incorrect option checks.
   await call('automation_navigate',{action:'navigateTo',url:'/pages/stem/paper?subject=9702&routeId=cie-9702-as-physics&paperId=cie-9702-9702_m25_qp_12'})
-  await until(function(){const p=getCurrentPages().slice(-1)[0];return p.route==='pages/stem/paper'&&p.data.ready&&!p.data.loading},'native P1 paper',20000)
+  await until(function(){const p=getCurrentPages().slice(-1)[0];return p.route==='pages/stem/paper'&&p.data.ready&&!p.data.loading&&p.data.sourceFocused&&p.data.sourceViews.length&&p.data.sourceLoadedCount===p.data.sourceImages.length},'native P1 paper focus',20000)
+  const firstFocus=await evaluate(function(){const p=getCurrentPages().slice(-1)[0];return {number:p.data.questionNumber,style:p.data.sourceViews[0].imageStyle}})
+  await call('simulator_screenshot',{path:path.join(output,'paper-q1-exact-focus.png'),optimize:false})
   await scrollTo('.mcq-options')
   await tap('.mcq-option[data-value="A"]')
   await call('automation_page_action',{action:'callMethod',method:'next'})
+  const secondFocus=await evaluate(function(){const p=getCurrentPages().slice(-1)[0];return {number:p.data.questionNumber,style:p.data.sourceViews[0].imageStyle}})
+  assert.equal(secondFocus.number,2);assert.notEqual(firstFocus.style,secondFocus.style,'same original page must use a different crop for Q2')
   await tap('.mcq-option[data-value="D"]')
   await call('automation_page_action',{action:'callMethod',method:'submitPaper'})
   report.paper=await until(function(){const p=getCurrentPages().slice(-1)[0];return !p.data.gradingRunning&&!p.data.gradingFinishing?{summary:p.data.reportSummary,error:p.data.error,choiceMode:p.data.choiceMode}:null},'paper objective report',45000)
+  if(report.paper.summary?.objectiveCount!==2){
+   const diagnostic=await evaluate(async function(){const p=getCurrentPages().slice(-1)[0],service=require('utils/nativePaperService.js');let stage='context';try{const c=await service.paperContext(p.__draft);stage='sync';await service.syncPaperAttempt(p.__draft,c,p.data.maxMarks);stage='objective';const result=await service.markPaperChoice(p.__draft,c.questions.find(q=>q.number===1),p.__draft.answers[1].choice);return {stage,available:result.available,rows:p.data.reportRows}}catch(e){return {stage,code:e.code||'',status:e.statusCode||0,message:e.message,rows:p.data.reportRows}}})
+   console.log(JSON.stringify({failedPaper:report.paper,diagnostic}))
+  }
   assert.equal(report.paper.error,'');assert.equal(report.paper.choiceMode,true);assert.equal(report.paper.summary.objectiveCount,2);assert.equal(report.paper.summary.aiCount,0)
   assert.equal(report.paper.summary.objectiveScore,1,'real reviewed keys must distinguish correct and incorrect selections')
   await scrollTo('.paper-report')

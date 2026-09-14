@@ -33,7 +33,7 @@ Page({
  onHide(){this.__visible=false;this.stopSession();this.persist()},
  onUnload(){this.stopSession();this.persist();this.__disposed=true},
  state(patch){if(!this.current())return;const changes=Object.fromEntries(Object.entries(patch).filter(([key,value])=>this.data[key]!==value));if(Object.keys(changes).length)this.setData(changes)},
- snapshot(){return {...this.__baseSnapshot,sessionId:this.__sessionId,note:this.__lastNote||'',turns:this.__turns,elapsed:this.elapsedSeconds(),epoch:this.__epoch,taskId:this.data.taskId,taskTitle:this.data.taskTitle,feedback:this.data.feedback,band:this.data.band,warning:this.data.warning,updatedAt:Date.now()}},
+ snapshot(){return {...this.__baseSnapshot,examinerState:this.__engine?.stageState||this.__baseSnapshot.examinerState,sessionId:this.__sessionId,note:this.__lastNote||'',turns:this.__turns,elapsed:this.elapsedSeconds(),epoch:this.__epoch,taskId:this.data.taskId,taskTitle:this.data.taskTitle,feedback:this.data.feedback,band:this.data.band,warning:this.data.warning,updatedAt:Date.now()}},
  persist(){if(!this.current()||this.data.viewingArchive||!this.__dirty)return true;try{this.__baseSnapshot=speakingStore.saveSession(this.__scope,this.__owner,this.snapshot());this.__dirty=false;return true}catch{this.state({error:'记录尚未保存，请检查本机空间。已有记录未删除。'});return false}},
  elapsedSeconds(){return (this.__elapsed||0)+(this.__startedAt?Math.floor((Date.now()-this.__startedAt)/1000):0)},
  async start(){
@@ -45,8 +45,8 @@ Page({
   this.setData({connecting:true,error:'',canRetry:false,permissionAction:'',status:'正在检查麦克风…'})
   const valid=()=>this.current()&&this.__visible&&generation===this.__startGeneration
   const fail=error=>{if(!valid())return;this.stopSession();this.persist();this.state({error:typeof error==='string'?error:error.message||'口语未能启动，请重试。',permissionAction:error?.action&&error.action!=='retry'?error.action:'',privacyContractName:error?.contractName||'用户隐私保护指引',canRetry:true,retryAction:'start',status:'练习已暂停'})}
-  const engine=new NativeSpeaking({task:this.__task,turns:newSession?[]:this.__turns,startedAt:Date.now()-(newSession?0:this.__elapsed||0)*1000,
-   onState:patch=>{if(valid())this.state(patch)},
+  const engine=new NativeSpeaking({task:this.__task,turns:newSession?[]:this.__turns,examinerState:newSession?null:this.__baseSnapshot.examinerState,startedAt:Date.now()-(newSession?0:this.__elapsed||0)*1000,
+   onState:patch=>{if(valid()){this.state(patch);if(committed&&patch.examinerPhase){this.__dirty=true;this.persist()}}},
    onReady:()=>{
     if(!valid()){engine.close();return}
     if(committed)return
@@ -100,6 +100,7 @@ Page({
   finally{this.state({scoring:false})}
  },
  retry(){if(this.data.retryAction==='score')this.finish();else this.start()},
+ finishPart2(){this.__engine?.finishLongTurn()},
  renderTurns(start=Math.max(0,this.__turns.length-12)){this.__turnStart=start;this.setData({turns:this.__turns.slice(start,start+12),turnCount:this.__turns.length,hasEarlier:start>0,hasLater:start+12<this.__turns.length})},
  showEarlier(){this.renderTurns(Math.max(0,(this.__turnStart||0)-12))},
  showLater(){this.renderTurns(Math.min(Math.max(0,this.__turns.length-12),(this.__turnStart||0)+12))},

@@ -16,7 +16,12 @@
 <button class="primary" data-kind="qp" bindtap="openDocument" disabled="{{documentBusy}}">查看原卷</button>
 <button wx:if="{{hasMarkScheme && (mode !== 'exam-simulation' || submitted)}}" class="secondary" data-kind="ms" bindtap="openDocument" disabled="{{documentBusy}}">查看参考答案</button>
 <pdf-download-progress wx:if="{{pdfDownload.visible}}" state="{{pdfDownload}}" bind:cancel="cancelPdfDownload" bind:retry="retryPdfDownload" bind:toggle="togglePdfDownloadProgress" />
-<image wx:for="{{sourceImages}}" wx:key="*this" class="paper-source-image" src="{{item}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
+<text class="paper-question-heading">原卷第 {{questionNumber}} 题</text>
+<text wx:if="{{sourceImages.length && !sourceFocused}}" class="paper-input-help">以下为原卷整页，请对应第 {{questionNumber}} 题作答。</text>
+<view wx:for="{{sourceViews}}" wx:key="id">
+ <view wx:if="{{item.cropped}}" class="paper-question-region" style="{{item.clipStyle}}"><image class="paper-region-image" style="{{item.imageStyle}}" src="{{item.url}}" mode="scaleToFill" lazy-load data-index="{{index}}" data-source="{{item.url}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/></view>
+ <image wx:else class="paper-source-image" src="{{item.url}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item.url}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
+</view>
 <text wx:if="{{sourceImages.length && sourceLoadedCount < sourceImages.length && !sourceImageError}}" class="paper-input-help">正在加载题图…</text>
 <view wx:if="{{sourceImageError}}" class="error">题图未加载，可重试或查看原卷。<button class="text-button" bindtap="retrySourceImage">重试题图</button></view>
 <text class="paper-input-help">{{choiceMode ? '按原卷题号，选择 A、B、C 或 D。' : '按原卷题号，逐题拍摄你的作答。'}}</text>
@@ -29,7 +34,7 @@
 <text>题</text>
 <button bindtap="next" disabled="{{questionCount && questionNumber >= questionCount}}">+</button>
 </view>
-<view wx:if="{{choiceMode}}" class="mcq-options"><button wx:for="{{choices}}" wx:key="*this" class="mcq-option {{choice === item ? 'selected' : ''}}" data-value="{{item}}" bindtap="chooseAnswer" disabled="{{submitted || busy}}" aria-label="选项 {{item}}" aria-pressed="{{choice === item}}">{{item}}</button></view>
+<view wx:if="{{choiceMode}}" class="mcq-options {{hasOptionText ? 'mcq-text-options' : ''}}"><button wx:for="{{choiceOptions}}" wx:key="label" class="mcq-option {{choice === item.label ? 'selected' : ''}}" data-value="{{item.label}}" bindtap="chooseAnswer" disabled="{{submitted || busy}}" aria-label="选项 {{item.label}} {{item.text}}" aria-pressed="{{choice === item.label}}"><text>{{item.label}}</text><text wx:if="{{item.text}}" class="mcq-option-text">{{item.text}}</text></button></view>
 <text wx:if="{{choiceMode && choice}}" class="paper-input-help">已选 {{choice}} · 已保存</text>
 <button wx:if="{{choiceMode && photo}}" class="text-button" bindtap="previewPhoto">查看原答案照片</button>
 <view wx:if="{{submitted && objectiveResult}}" class="choice-result">{{objectiveResult.available ? '标准答案核对：' + objectiveResult.score + ' / 1 · 正确选项 ' + objectiveResult.correctOption : '标准答案尚待核验，所选答案已保留。'}}</view>

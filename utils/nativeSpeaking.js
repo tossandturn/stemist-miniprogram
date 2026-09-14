@@ -16,11 +16,12 @@ function pcmRms(buffer) {
 }
 
 class NativeSpeaking {
- constructor({task,turns=[],startedAt=Date.now(),onState=()=>{},onTurn=()=>{},onError=()=>{},onFinish=()=>{},onReady=()=>{}}={}) {
+ constructor({task,turns=[],startedAt=Date.now(),examinerState,onState=()=>{},onTurn=()=>{},onError=()=>{},onFinish=()=>{},onReady=()=>{}}={}) {
   Object.assign(this,{task,turns:turns.slice(),startedAt,onState,onTurn,onError,onFinish,onReady})
   this.closed=false;this.generation=0;this.retries=0;this.sources=new Set();this.playUntil=0;this.lastVoice=0;this.voicedBytes=0;this.waiting=false;this.assistant=''
   this.owner=owner();this.epoch=privacyEpoch();this.eventSequence=0
   this.preRoll=[];this.preRollBytes=0;this.listenAfter=0;this.pendingTranscript=false;this.transcribedIds=new Set()
+  this.stageState=examinerState&&['part1','part2-cue','part2-prep','part2-long-turn','part2-rounding','part3'].includes(examinerState.phase)?{phase:examinerState.phase,deadline:Number(examinerState.deadline)||0,rounded:examinerState.rounded===true}:{phase:'part1'}
  }
  current(){return !this.closed&&this.owner===owner()&&this.epoch===privacyEpoch()}
  async start(){
@@ -54,7 +55,7 @@ class NativeSpeaking {
   if(!this.current()){this.close();return}
   if(Date.parse(access.expiresAt)<=Date.now()+1000)throw Error('语音连接凭证已过期，请重试。')
   const generation=++this.generation
-  this.direct={sessionUpdate:access.sessionUpdate,responses:access.responses,maxSessionSeconds:access.maxSessionSeconds}
+  this.direct={sessionUpdate:access.sessionUpdate,responses:access.responses,maxSessionSeconds:access.maxSessionSeconds,examinerPolicy:access.examinerPolicy}
   this.onState({connecting:true,status:this.retries?'正在恢复连接…':'正在连接考官…'})
   const socket=wx.connectSocket({url:access.endpoint,header:{Authorization:'Bearer '+access.token}})
   // Only the WSS handshake owns the short-lived token; never retain it in
@@ -73,25 +74,48 @@ class NativeSpeaking {
   let message=event
   if(event.type==='audio.commit')message={type:'input_audio_buffer.commit'}
   if(event.type==='response.create'){
-   const name=event.intent==='assessment'?'assessment':event.intent==='opening'?'opening':'next',template=this.direct?.responses[name]
+   let name=['assessment','opening','part2Cue','closing'].includes(event.intent)?event.intent:'next'
+   if(this.direct?.examinerPolicy&&name==='next'&&event.intent==='next-question'){
+    if(this.stageState.phase==='part1'&&this.elapsed()>=300){this.stageState.phase='part2-cue';name='part2Cue'}
+    else if(this.stageState.phase==='part2-rounding'){if(this.stageState.rounded)this.stageState.phase='part3';else this.stageState.rounded=true}
+   }
+   if(this.direct?.examinerPolicy&&name==='next'&&this.stageState.phase==='part2-cue')name='part2Cue'
+   const template=this.direct?.responses[name]
    if(!template)return this.fail('考官配置不完整，请重新连接。')
    message={type:'response.create',response:{...template.response}}
-   if(name==='next'){
-    message.response.instructions+='\nCurrent elapsed practice time (supersedes the initial session time): '+Math.max(0,Math.min(1200,Math.floor((Date.now()-this.startedAt)/1000)))+' seconds.'
-    if(event.inputQuality==='brief')message.response.instructions+='\nThe latest ASR is very brief and may be a fragment or speaker echo. Listen to the actual audio and current question. A meaningful yes/no or short factual answer is valid; an isolated word without a clear meaning needs one neutral clarification on the SAME question. Do not quote or guess the meaning of an unreliable ASR word. Say briefly that you did not catch the answer, then paraphrase the current question with exactly ONE interrogative sentence. Do not add Thank you, praise, invent a position, or advance to another part because of a fragment.'
-    if(event.inputQuality==='unavailable')message.response.instructions+='\nTranscription is unavailable or empty. Use the actual audio. If unclear, briefly say you did not catch the answer, then paraphrase the SAME question with exactly ONE interrogative sentence. Do not quote an unreliable transcript, thank or praise the candidate, invent an answer, or advance the part.'
-   }
+   if(name==='next'||name==='part2Cue')message.response.instructions+='\nSESSION_FACTS '+JSON.stringify({phase:this.direct?.examinerPolicy?this.stageState.phase:undefined,elapsedSeconds:this.elapsed(),inputQuality:event.inputQuality==='brief'?'brief-uncertain':event.inputQuality==='unavailable'?'unavailable':'clear'})
   }
   this.socket.send({data:JSON.stringify({...message,event_id:'mini_'+Date.now().toString(36)+'_'+(++this.eventSequence)}),fail:()=>{if(!this.closed)this.recover()}})
  }
  sendAudio(buffer){this.send({type:'input_audio_buffer.append',audio:wx.arrayBufferToBase64(buffer)})}
+ elapsed(){return Math.max(0,Math.floor((Date.now()-this.startedAt)/1000))}
+ stageTick(){
+  if(!this.direct?.examinerPolicy)return false
+  const s=this.stageState,now=this.elapsed()
+  if(s.phase==='part2-prep'&&now>=s.deadline){s.phase='part2-long-turn';s.deadline=now+120;this.resetInput()}
+  if(s.phase==='part2-long-turn'&&now>=s.deadline){this.finishLongTurn();return true}
+  if(['part2-prep','part2-long-turn'].includes(s.phase)&&this.stageSecond!==now){this.stageSecond=now;this.onState({...(this.stageShown!==s.phase?{examinerPhase:s.phase}:{}),status:(s.phase==='part2-prep'?'Part 2 准备 · ':'Part 2 连续陈述 · ')+Math.max(0,s.deadline-now)+' 秒'});this.stageShown=s.phase}
+  return s.phase==='part2-prep'
+ }
+ finishLongTurn(){
+  if(!this.current()||this.stageState.phase!=='part2-long-turn')return
+  if(this.voicedBytes<8000){this.stageState={phase:'part2-cue'};return this.fail('本段尚未收到有效回答，请重新开始本段。')}
+  this.stageState={phase:'part2-rounding'};this.commitAnswer()
+ }
+ commitAnswer(){
+  this.waiting=true;this.voicedBytes=0;this.lastVoice=0;this.pendingTranscript=true;this.pendingItemId=''
+  this.send({type:'audio.commit'});clearTimeout(this.transcriptTimer);this.transcriptTimer=setTimeout(()=>this.respondToAnswer('unavailable'),3000)
+  this.onState({status:'考官正在回应…',examinerPhase:this.stageState.phase})
+  clearTimeout(this.turnTimer);this.turnTimer=setTimeout(()=>{if(!this.closed&&this.waiting)this.fail('本轮回应超时，已保留对话。请重试连接。')},30000)
+ }
  record(){if(!this.current()||!this.ready)return;this.captureSeen=false;clearTimeout(this.captureTimer);this.captureTimer=setTimeout(()=>{if(this.current()&&this.ready&&!this.captureSeen)this.fail('麦克风未返回录音数据，请检查权限或关闭其他录音后重试。')},8000);this.recorder.start({duration:570000,sampleRate:16000,numberOfChannels:1,format:'PCM',frameSize:2,audioSource:this.audioSource||'auto'});if(!this.recorder.onStart)this.activate()}
  activate(){
   if(!this.current()||!this.ready||this.activatedGeneration===this.generation)return
   this.activatedGeneration=this.generation;this.onReady();if(!this.current())return
   this.onState({active:true,connecting:false,status:'麦克风已启动，等待考官…'});this.waiting=true
+  if(this.direct?.examinerPolicy&&['part2-prep','part2-long-turn'].includes(this.stageState.phase)){this.waiting=false;this.stageTick();return}
   clearTimeout(this.turnTimer);this.turnTimer=setTimeout(()=>{if(this.current()&&this.waiting)this.fail('考官尚未回应，对话已保留，请重试连接。')},30000)
-  this.send({type:'response.create',intent:this.retries||this.turns.length?'next-question':'opening'})
+  this.send({type:'response.create',intent:this.retries||this.turns.length?'resume':'opening'})
  }
  resetInput(){this.preRoll=[];this.preRollBytes=0;this.voicedBytes=0;this.lastVoice=0;this.pendingTranscript=false;clearTimeout(this.transcriptTimer)}
  respondToAnswer(inputQuality){
@@ -105,6 +129,7 @@ class NativeSpeaking {
   this.captureSeen=true;clearTimeout(this.captureTimer)
   if(this.startHandler&&this.activatedGeneration!==this.generation)this.activate()
   if(!this.current())return
+  if(this.stageTick())return
   if(this.waiting||this.audio.currentTime<Math.max(this.playUntil,this.listenAfter)){
    this.preRoll=[];this.preRollBytes=0;return
   }
@@ -123,16 +148,10 @@ class NativeSpeaking {
   }
   this.sendAudio(buffer)
   if(rms>SPEECH_THRESHOLD){this.lastVoice=now;this.voicedBytes+=buffer.byteLength}
+  if(this.direct?.examinerPolicy&&this.stageState.phase==='part2-long-turn')return
   const silenceWindow=this.voicedBytes<16000?4000:2800
   if(this.lastVoice&&now-this.lastVoice>=silenceWindow&&this.voicedBytes>=8000){
-   this.waiting=true;this.voicedBytes=0;this.lastVoice=0
-   this.pendingTranscript=true;this.pendingItemId=''
-   this.send({type:'audio.commit'})
-   // ASR completes asynchronously. Give it a bounded window so fragment
-   // handling reaches response.create; the model can still use audio if ASR fails.
-   clearTimeout(this.transcriptTimer);this.transcriptTimer=setTimeout(()=>this.respondToAnswer('unavailable'),3000)
-   this.onState({status:'考官正在回应…'})
-   clearTimeout(this.turnTimer);this.turnTimer=setTimeout(()=>{if(!this.closed&&this.waiting)this.fail('本轮回应超时，已保留对话。请重试连接。')},30000)
+   this.commitAnswer()
   }else if(this.lastVoice&&now-this.lastVoice>=4000&&this.voicedBytes<8000){
    this.send({type:'input_audio_buffer.clear'});this.resetInput()
   }
@@ -188,6 +207,7 @@ class NativeSpeaking {
    const delay=Math.max(0,(this.listenAfter-this.audio.currentTime)*1000)
    clearTimeout(this.responseTimer);this.responseTimer=setTimeout(()=>{
     if(this.closed)return
+    if(this.direct?.examinerPolicy&&this.stageState.phase==='part2-cue'){this.stageState={phase:'part2-prep',deadline:this.elapsed()+60};this.stageTick();return}
     if(Date.now()-this.startedAt>=900000){this.ready=false;this.recorder?.stop();this.onFinish(this.turns)}
     else this.onState({status:'请自然回答'})
    },delay+40)

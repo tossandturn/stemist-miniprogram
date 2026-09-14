@@ -8,8 +8,9 @@
     </scroll-view>
     <view class="native-question-layout">
       <view class="question-column">
-        <view class="question-meta"><text>{{question.number}}</text><text>{{question.marks}} 分</text></view>
+        <view class="question-meta"><text>原卷 {{question.number}}</text><text>{{question.marks}} 分</text></view>
         <view class="source-caption">{{question.sourceLabel}}</view>
+        <view wx:if="{{question.fullPage}}" class="source-caption">以下为原卷整页，请对应 {{question.number}} 作答；轻点可放大。</view>
         <view wx:for="{{question.images}}" wx:key="id" class="source-page">
           <view wx:if="{{item.cropped && item.url && !item.failed}}" class="source-region" style="{{item.clipStyle}}">
             <image class="question-region-image" style="{{item.imageStyle}}" src="{{item.url}}" mode="scaleToFill" lazy-load="{{true}}" data-id="{{item.id}}" bindload="imageLoaded" binderror="imageFailed" bindtap="previewQuestion" aria-label="题目原图，轻点查看原页" />
@@ -21,10 +22,10 @@
       </view>
       <view class="answer-column">
         <view class="answer-panel">
-          <view class="answer-heading">本题答案</view>
+          <view class="answer-heading">本题答案 · 原卷 {{question.number}}</view>
           <block wx:if="{{question.choiceMode}}">
             <button wx:if="{{photo}}" class="text-button" bindtap="previewPhoto">查看原答案照片</button>
-            <view class="mcq-options"><button wx:for="{{choices}}" wx:key="*this" class="mcq-option {{choice === item ? 'selected' : ''}}" data-value="{{item}}" bindtap="chooseAnswer" disabled="{{busy}}" aria-label="选项 {{item}}" aria-pressed="{{choice === item}}">{{item}}</button></view>
+            <view class="mcq-options {{question.hasOptionText ? 'mcq-text-options' : ''}}"><button wx:for="{{question.options}}" wx:key="label" class="mcq-option {{choice === item.label ? 'selected' : ''}}" data-value="{{item.label}}" bindtap="chooseAnswer" disabled="{{busy}}" aria-label="选项 {{item.label}} {{item.text}}" aria-pressed="{{choice === item.label}}"><text>{{item.label}}</text><text wx:if="{{item.text}}" class="mcq-option-text">{{item.text}}</text></button></view>
             <button class="primary" bindtap="submit" disabled="{{busy || !choice}}" loading="{{busy}}">提交答案</button>
             <view wx:if="{{objectiveResult}}" class="choice-result">{{objectiveResult.available ? '标准答案核对：' + objectiveResult.score + ' / ' + objectiveResult.maxScore : '答案已保存，标准答案尚待核验。'}}<text wx:if="{{objectiveResult.available}}"> · 正确选项 {{objectiveResult.correctOption}}</text></view>
           </block>

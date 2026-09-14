@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {miniRuntime} from './helpers/mini-runtime.mjs'
+import {miniRuntime,deferred,settle} from './helpers/mini-runtime.mjs'
 const clone=value=>JSON.parse(JSON.stringify(value))
 const key='stemistIeltsSpeaking:guest:general'
 const saved={sessionId:'speech-previous',epoch:0,taskId:'',turns:Array.from({length:150},(_,i)=>({role:i%2?'assistant':'user',text:'saved turn '+i,at:i})),elapsed:90,note:'saved examiner note',feedback:'saved detailed feedback',band:7,warning:'saved warning',audioFiles:['/owned/previous-recording.wav'],extraMetadata:{keep:true}}
@@ -42,4 +42,64 @@ for(const reverse of [false,true]){
 }
 const paged=miniRuntime();for(let i=0;i<45;i++)paged.storage.set('stemistIeltsSpeaking:guest:session:older-'+i,{...clone(saved),owner:'guest',sessionId:'older-'+i,updatedAt:i})
 const history=paged.page('pages/ielts/speaking');history.onLoad();history.showSaved();assert.equal(history.data.historyRows.length,20);history.moreHistory();assert.equal(history.data.historyRows.length,20);history.moreHistory();assert.equal(history.data.historyRows.length,5);history.previousHistory();assert.equal(history.data.historyRows.length,20);history.onUnload();assert.equal(paged.storage.size,45,'history paging never rewrites the saved sessions')
-console.log('Speaking retention: denial, connecting, archive-before-replacement, >120 turns, unknown/audio metadata, history and storage failure passed.')
+
+function scoringFixture(ownerId='guest'){
+ const note=deferred(),feedback=deferred(),requests=[],records=[]
+ const runtime=miniRuntime({modules:{
+  'utils/ieltsLearning':{requestIeltsLearning:async(...args)=>{requests.push(args);return feedback.promise}},
+  'utils/nativeRecords':{rememberRecord:record=>records.push(record)},
+ }})
+ if(ownerId!=='guest')runtime.storage.set('stemistUser',{id:ownerId})
+ const page=runtime.page('pages/ielts/speaking');page.onLoad();page.__turns=[{role:'user',text:'A completed spoken answer.',at:1}]
+ let closeCount=0
+ page.__engine={closed:false,stageState:{phase:'part3'},end:()=>note.promise,close(){closeCount++;this.closed=true;note.resolve('examiner note')}}
+ page.setData({active:true})
+ return {runtime,page,note,feedback,requests,records,get closeCount(){return closeCount}}
+}
+const scoreResult={mode:'ai',feedback:'Background scoring completed.',band:7,evidence:{realtimeNote:true}}
+
+{
+ const item=scoringFixture(),finishing=item.page.finish(),duplicate=item.page.finish()
+ await settle();assert.equal(item.requests.length,0,'text scoring waits for the committed realtime note')
+ item.page.onHide();await settle()
+ assert.ok(item.closeCount>0&&item.page.__engine.closed,'hiding closes realtime capture/playback before background scoring')
+ assert.equal(item.requests.length,1,'an explicitly submitted score may continue while the same account page is hidden')
+ item.feedback.resolve(scoreResult);await Promise.all([finishing,duplicate])
+ assert.equal(item.requests.length,1,'repeated finish while scoring must not issue a duplicate request')
+ assert.equal(item.runtime.storage.get(item.page.__scope).feedback,scoreResult.feedback)
+ assert.equal(item.records.length,1);assert.equal(item.runtime.storage.get('stemistSubmission:speaking').answer,scoreResult.feedback)
+}
+
+for(const boundary of ['dispose','owner','epoch']){
+ const item=scoringFixture(boundary==='owner'?'student-a':'guest'),finishing=item.page.finish();await settle()
+ if(boundary==='dispose')item.page.onUnload()
+ if(boundary==='owner'){item.runtime.storage.set('stemistUser',{id:'student-b'});item.page.onHide()}
+ if(boundary==='epoch'){item.runtime.storage.set('stemistPrivacyEpoch',1);item.page.onHide()}
+ await finishing
+ assert.equal(item.requests.length,0,`${boundary} before note completion must not start text scoring`)
+ assert.equal(item.records.length,0);assert.equal(item.runtime.storage.has('stemistSubmission:speaking'),false)
+}
+
+for(const boundary of ['dispose','owner','epoch']){
+ const item=scoringFixture(boundary==='owner'?'student-a':'guest'),finishing=item.page.finish();await settle();item.note.resolve('examiner note');await settle()
+ assert.equal(item.requests.length,1)
+ const storedBefore=item.runtime.storage.get(item.page.__scope)
+ if(boundary==='dispose')item.page.onUnload()
+ if(boundary==='owner')item.runtime.storage.set('stemistUser',{id:'student-b'})
+ if(boundary==='epoch')item.runtime.storage.set('stemistPrivacyEpoch',1)
+ item.feedback.resolve(scoreResult);await finishing
+ assert.equal(item.runtime.storage.get(item.page.__scope)?.feedback,storedBefore?.feedback,`${boundary} after request must not write the returned result`)
+ assert.equal(item.records.length,0);assert.equal(item.runtime.storage.has('stemistSubmission:speaking'),false)
+}
+
+{
+ const item=scoringFixture(),finishing=item.page.finish();await settle();item.note.resolve('examiner note');await settle()
+ const current=item.runtime.storage.get(item.page.__scope)
+ item.runtime.storage.set(item.page.__scope,{...current,sessionId:'speech-newer-page',revision:(current.revision||0)+1,feedback:'Newer page result.'})
+ item.feedback.resolve(scoreResult);await finishing
+ const retained=item.runtime.storage.get(item.page.__scope)
+ assert.equal(retained.sessionId,'speech-newer-page');assert.equal(retained.feedback,'Newer page result.','late scoring must not overwrite a newer session revision')
+ assert.equal(item.records.length,0);assert.equal(item.runtime.storage.has('stemistSubmission:speaking'),false)
+}
+
+console.log('Speaking retention: denial, connecting, archive-before-replacement, >120 turns, background-score intent/isolation, revision conflicts, history and storage failure passed.')

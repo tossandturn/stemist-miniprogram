@@ -38,7 +38,7 @@ engine.audio.currentTime+=0.5
 for(let i=0;i<5;i++)frame(900)
 frame(0,4100)
 engine.message({type:'conversation.item.input_audio_transcription.completed',item_id:'answer-2',transcript:'Future.'})
-assert.match(events('response.create').at(-1).response.instructions,/fragment|clarif/i,'single-word fragment asks for meaning rather than praise/advancement')
+assert.match(events('response.create').at(-1).response.instructions,/"inputQuality":"brief-uncertain"/,'short ASR is a quality fact, not a fabricated semantic judgement')
 engine.message({type:'response.done'});engine.audio.currentTime+=0.5
 for(let i=0;i<5;i++)frame(900)
 frame(0,4100)

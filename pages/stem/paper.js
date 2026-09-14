@@ -4,6 +4,7 @@ const {routeById}=require('../../utils/stemRoutes')
 const {categoryForSubject,familyForCategoryStage}=require('../../utils/stemCatalog')
 const {createPaperDraft,savePaperDraft,readPaperDraft,current,savePaperChoice}=require('../../utils/nativePaper')
 const {CHOICES,isSingleChoice,hasChoice}=require('../../utils/nativeChoice')
+const {sourceRegionStyle}=require('../../utils/sourceRegion')
 const {readAsJpegDataUrl}=require('../../utils/image')
 const {runCoach}=require('../../utils/coach')
 const {paperSources,paperContext,syncPaperAttempt,markPaperQuestion,markPaperChoice}=require('../../utils/nativePaperService')
@@ -40,8 +41,10 @@ Page({
   this.__draft=draft;const answer=draft.answers[draft.index]||{}
   const question=this.__context?.questions.find(q=>q.number===draft.index)||this.__sourceContext?.questions.find(q=>q.number===draft.index)
   const choiceMode=isSingleChoice({subject:draft.subject,paperComponent:this.__paper?.paperComponent,answerFormat:question?.answerFormat,choiceLabels:question?.choiceLabels})
-  this.setData({choiceMode,choice:hasChoice(answer)?answer.choice:'',choices:CHOICES,objectiveResult:answer.objectiveResult||null})
+  const options=question?.choiceOptions||CHOICES.map(label=>({label,text:''}))
+  this.setData({choiceMode,choice:hasChoice(answer)?answer.choice:'',choices:CHOICES,choiceOptions:options,hasOptionText:options.some(o=>o.text),objectiveResult:answer.objectiveResult||null})
   const sourceImages=(question?.images||[]).map(url=>'https://stem.ieltsist.com'+url)
+  this.setData({sourceFocused:Boolean(question?.sourceRegions?.length),sourceViews:sourceImages.map((url,index)=>({id:(question?.sourceQuestionId||draft.index)+':'+index,url,...(question?.sourceRegions?.[index]?sourceRegionStyle(question.sourceRegions[index]):{})}))})
   const report=draft.submitted?paperReport(draft,this.data.maxMarks):null,assessment=answer.assessment||{}
   const student=answer.studentAssessment||(assessment.state==='self'?assessment:null)
   this.setData({selfEditing:Boolean(answer.selfDraft?.started||student||assessment.state==='self-required'),studentScore:student?.score??null,studentMax:student?.maxMarks??null})
@@ -65,7 +68,7 @@ Page({
  previewQuestion(event){const current=this.data.sourceImages[Number(event.currentTarget.dataset.index)];if(current)wx.previewImage({current,urls:this.data.sourceImages})},
  sourceImageLoaded(event){const url=event.currentTarget.dataset.source;if(this.__disposed||!this.data.sourceImages.includes(url))return;this.__loadedSourceUrls.add(url);this.setData({sourceLoadedCount:this.data.sourceImages.filter(u=>this.__loadedSourceUrls.has(u)).length})},
  sourceImageFailed(event){if(!this.__disposed&&this.data.sourceImages.includes(event.currentTarget.dataset.source))this.setData({sourceImageError:true})},
- retrySourceImage(){const images=this.data.sourceImages.slice(),number=this.data.questionNumber;images.forEach(url=>this.__loadedSourceUrls.delete(url));this.setData({sourceImages:[],sourceImageError:false,sourceLoadedCount:0},()=>{const next=wx.nextTick||((f)=>f());next(()=>{if(!this.__disposed&&number===this.data.questionNumber)this.setData({sourceImages:images})})})},
+ retrySourceImage(){const images=this.data.sourceImages.slice(),views=this.data.sourceViews,number=this.data.questionNumber;images.forEach(url=>this.__loadedSourceUrls.delete(url));this.setData({sourceImages:[],sourceViews:[],sourceImageError:false,sourceLoadedCount:0},()=>{const next=wx.nextTick||((f)=>f());next(()=>{if(!this.__disposed&&number===this.data.questionNumber)this.setData({sourceImages:images,sourceViews:views})})})},
  openAccount(){wx.navigateTo({url:'/pages/account/auth'})},
  tick(){if(!this.__draft||this.__disposed)return;const seconds=Math.max(0,Math.floor(((this.__draft.submittedAt||Date.now())-this.__draft.startedAt)/1000));this.setData({elapsed:String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')})},
  chooseQuestion(event){const number=Number(event.detail.value);if(this.__disposed||!current(this.__draft)||this.data.busy||!Number.isInteger(number)||number<1||number>(this.data.questionCount||99))return;this.__draft.index=number;savePaperDraft(this.__draft);this.refresh()},

@@ -1,5 +1,5 @@
 const { deviceState, syncDevice } = require('../../utils/page')
-const { readSession, saveSession, needsSignIn, questionView, epoch, markQuestion,saveChoice,markChoice } = require('../../utils/nativePractice')
+const { readSession, saveSession, needsSignIn, questionView, epoch, markQuestion,saveChoice,markChoice,refreshQuestionDisplay } = require('../../utils/nativePractice')
 const {CHOICES}=require('../../utils/nativeChoice')
 const { isAuthError } = require('../../utils/api')
 const { routeById } = require('../../utils/stemRoutes')
@@ -11,6 +11,7 @@ Page({
     busy: false, cameraBusy: false, status: '', error: '', authRequired: false,choices:CHOICES,choice:'',objectiveResult:null }),
   onLoad(options = {}) {
     this.__disposed = false
+    this.__displayChecks=new Set()
     this.setData({ sessionId: String(options.sessionId || '') })
     this.refresh()
   },
@@ -28,11 +29,15 @@ Page({
     const label = routeById(session.routeId)?.subjectLabel || session.subjectCode
     // Updating feedback must not remount already-loaded question images.
     if (this.data.question?.id === view.question.id) {
-      view.question.images = view.question.images.map(image => this.data.question.images.find(old => old.id === image.id) || image)
+      view.question.images = view.question.images.map(image => {const old=this.data.question.images.find(old=>old.id===image.id&&old.url===image.url);return old?{...image,loaded:old.loaded,failed:old.failed}:image})
     }
     this.setData({ ...view, routeId: session.routeId, stage: session.stage, subjectCode: session.subjectCode, title: label.startsWith(session.stage) ? label : `${session.stage} ${label}`,
       photoMissing: view.photo === this.data.photo ? this.data.photoMissing : false,
       authRequired: this.data.authRequired && !wx.getStorageSync('stemistSessionToken') })
+    if(view.question.choiceMode&&view.question.fullPage&&this.__displayChecks&&!this.__displayChecks.has(view.question.id)){
+      this.__displayChecks.add(view.question.id)
+      refreshQuestionDisplay(session.id,view.question.id,()=>!this.__disposed).then(changed=>{if(changed&&!this.__disposed)this.refresh()}).catch(()=>{})
+    }
   },
   goQuestion(event) {
     if (this.data.busy) return

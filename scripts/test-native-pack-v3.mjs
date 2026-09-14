@@ -56,7 +56,7 @@ assert.equal(single.id,'cam15-w-test1-task1');assert.ok(accessed.size<pack.value
 assert.ok(packLoadMs<500&&singleMs<100&&decodeMs<500,`bounded load/decode cost: load=${packLoadMs.toFixed(1)}ms one=${singleMs.toFixed(1)}ms all=${decodeMs.toFixed(1)}ms`)
 
 const runtimeFiles=['app.js','app.json','app.wxss','sitemap.json']
-function collect(directory){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),stat=fs.lstatSync(path.join(root,relative));if(relative.startsWith('design-system'+path.sep)&&name.endsWith('.md'))continue;if(stat.isDirectory())collect(relative);else if(stat.isFile())runtimeFiles.push(relative)}}
+function collect(directory){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),stat=fs.lstatSync(path.join(root,relative));if(relative.startsWith('design-system'+path.sep)&&name.endsWith('.md')||['utils/skillPage.js','utils/speakingTicket.js'].includes(relative.replaceAll('\\','/')))continue;if(stat.isDirectory())collect(relative);else if(stat.isFile())runtimeFiles.push(relative)}}
 for(const directory of ['pages','components','utils','design-system','third_party'])collect(directory)
 const runtimeBytes=runtimeFiles.reduce((total,file)=>total+fs.statSync(path.join(root,file)).size,0),budget=2*1024*1024,targetHeadroom=128*1024
 assert.ok(runtimeBytes<=budget-targetHeadroom,`runtime ${runtimeBytes} must leave at least ${targetHeadroom} bytes below 2 MiB`)

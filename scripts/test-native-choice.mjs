@@ -45,6 +45,25 @@ const report=grading.paperReport(papers.readPaperDraft(draft.storageKey),2)
 assert.equal(report.objectiveCount,2);assert.equal(report.aiCount,0);assert.equal(report.score,1);assert.equal(report.scoreSource,'objective');assert.equal(report.wholePaper,true)
 assert.throws(()=>papers.savePaperChoice(draft.storageKey,1,'B'),'submitted paper cannot silently change')
 
+const retryRuntime=miniRuntime(),retryPapers=retryRuntime.load('utils/nativePaper'),retryGrading=retryRuntime.load('utils/nativePaperGrading')
+let retryDraft=retryPapers.createPaperDraft({id:'paper-choice-retry',subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'})
+retryPapers.savePaperDraft(retryDraft);retryPapers.savePaperChoice(retryDraft.storageKey,1,'A');retryPapers.savePaperChoice(retryDraft.storageKey,2,'B')
+retryDraft=retryPapers.readPaperDraft(retryDraft.storageKey);retryDraft.submitted=true;retryDraft.submittedAt=Date.now();retryDraft.questionCount=2;retryPapers.savePaperDraft(retryDraft)
+let objectiveCalls=0
+await assert.rejects(()=>retryGrading.runPaperAssessment(retryDraft.storageKey,{loadContext:async()=>({questions:[]}),sync:async()=>{throw Object.assign(Error('transport detail'),{code:'network_timeout'})},mark:()=>assert.fail('MCQ never uses photo AI'),markObjective:async()=>{objectiveCalls++}}),/标准答案核对暂时未完成，请重试/)
+let retrySaved=retryPapers.readPaperDraft(retryDraft.storageKey),retryReport=retryGrading.paperReport(retrySaved,2)
+assert.deepEqual([retrySaved.answers[1].assessment.state,retrySaved.answers[2].assessment.state],['pending','pending']);assert.equal(objectiveCalls,0)
+assert.equal(retryReport.objectiveCount,0);assert.equal(retryReport.objectiveScore,0);assert.equal(retryReport.needsSelf,0);assert.equal(retryReport.pending,2)
+await retryGrading.runPaperAssessment(retryDraft.storageKey,{loadContext:async()=>({questions:[]}),sync:async()=>{},mark:()=>assert.fail('MCQ never uses photo AI'),markObjective:async(d,q,selectedOption)=>{objectiveCalls++;return{source:'mark-scheme',available:true,score:1,maxScore:1,selectedOption,correctOption:selectedOption}}})
+retryReport=retryGrading.paperReport(retryPapers.readPaperDraft(retryDraft.storageKey),2);assert.equal(objectiveCalls,2);assert.equal(retryReport.objectiveCount,2);assert.equal(retryReport.objectiveScore,2)
+
+const unknownRuntime=miniRuntime(),unknownPapers=unknownRuntime.load('utils/nativePaper'),unknownGrading=unknownRuntime.load('utils/nativePaperGrading')
+let unknownDraft=unknownPapers.createPaperDraft({id:'paper-choice-unknown',subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'})
+unknownPapers.savePaperDraft(unknownDraft);unknownPapers.savePaperChoice(unknownDraft.storageKey,1,'A');unknownDraft=unknownPapers.readPaperDraft(unknownDraft.storageKey);unknownDraft.submitted=true;unknownDraft.submittedAt=Date.now();unknownDraft.questionCount=1;unknownPapers.savePaperDraft(unknownDraft)
+await unknownGrading.runPaperAssessment(unknownDraft.storageKey,{loadContext:async()=>({questions:[]}),sync:async()=>{},mark:()=>assert.fail('MCQ never uses photo AI'),markObjective:async(d,q,selectedOption)=>({source:'unavailable',available:false,score:null,maxScore:1,selectedOption,correctOption:null})})
+const unknownSaved=unknownPapers.readPaperDraft(unknownDraft.storageKey),unknownReport=unknownGrading.paperReport(unknownSaved,1)
+assert.equal(unknownSaved.answers[1].assessment.state,'self-required');assert.equal(unknownReport.objectiveCount,0);assert.equal(unknownReport.objectiveScore,0);assert.equal(unknownReport.needsSelf,1)
+
 const v=r.load('utils/nativeObjectiveAnswer').validateObjectiveResult,expected={attemptId:'a',mode:'topic',routeId:'r',stage:'AS',paperId:'p',sourceQuestionId:'p:q1',selectedOption:'A'}
 assert.throws(()=>v({...expected,schemaVersion:'stem-objective-result-v1',available:true,score:1,maxScore:1,correctOption:'B',source:'mark-scheme',sourceStatus:'reviewed-official-key'},expected))
 assert.equal(v({...expected,schemaVersion:'stem-objective-result-v1',available:false,score:null,maxScore:1,correctOption:null,source:'unavailable'},expected).available,false)
