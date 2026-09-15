@@ -19,3 +19,11 @@ Windows date verified: 2026-09-15, Asia/Shanghai.
 - Final runtime budget: 235 files, 1,966,073 bytes, 131,079 bytes headroom; minimum is 131,072 bytes.
 
 This patch changes no server, question data, student records or authentication configuration.
+
+## Delivery receipt
+
+- GitHub master commit: `7765d7603ccdeca8cbdf4448cc34e5d63ff061c3`.
+- Frozen package: `D:/CodexWork/stemist-miniprogram-review-1.0.14-7765d76`.
+- Official WeChat upload version `1.0.14`: success, 1,886,915 bytes.
+- Official Home auto-preview: success, 1,882,935 bytes.
+- Review submission and online publication were not performed. The user's existing `project.config.json` diff remains untouched.
