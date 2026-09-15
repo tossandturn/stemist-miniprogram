@@ -37,8 +37,6 @@ Page({
   },
   rememberTransform(e){
     if(!this.cropActive()||this.data.busy)return
-    // Native movable-view owns gestures. Echoing its events back via setData
-    // races native pan/pinch updates and causes visible jumps on devices.
     const detail=e?.detail||{},next={...(this.__transform||{})}
     for(const key of ['x','y','scale'])if(typeof detail[key]==='number'&&Number.isFinite(detail[key]))next[key]=detail[key]
     this.__transform=next
@@ -53,7 +51,6 @@ Page({
     query.exec(rects=>{
       const stage=rects?.[0]
       if(!this.cropActive()||this.data.busy||request!==this.__resetRequest||revision!==(this.__gestureRevision||0)||!stage?.width||!stage?.height)return
-      // movable-view uses its scaled top-left, not the CSS transform centre.
       this.__transform={x:stage.width*0.16,y:stage.height*0.16,scale:0.68}
       this.setData({...this.__transform,frameInstances:[{id:request}],error:''})
     })
@@ -78,7 +75,7 @@ Page({
           }
           try {
             const crop = computeCropRect({ viewport: imageRect, box: boxRect, imageWidth: info.width, imageHeight: info.height })
-            this.exportCrop(crop.sx, crop.sy, crop.sw, crop.sh)
+            this.exportCrop(crop.sx, crop.sy, crop.sw, crop.sh, info.path || this.data.src)
           } catch (error) {
             this.setData({ busy: false, error: error.message || '裁剪区域无效，请重新拍摄' })
           }
@@ -87,28 +84,16 @@ Page({
       fail: () => this.setData({ busy: false, error: '照片读取失败，请返回重新拍摄。' }),
     })
   },
-  exportCrop(sx, sy, sw, sh) {
+  exportCrop(sx, sy, sw, sh, sourcePath = this.data.src) {
     if(!this.cropActive())return
     const output = resizedCropSize(sw, sh)
     const destWidth = output.width
     const destHeight = output.height
     this.setData({ canvasWidth: destWidth, canvasHeight: destHeight }, () => {
-      const ctx = wx.createCanvasContext('cropCanvas', this)
-      ctx.clearRect(0, 0, destWidth, destHeight)
-      ctx.drawImage(this.data.src, sx, sy, sw, sh, 0, 0, destWidth, destHeight)
-      ctx.draw(false, () => wx.canvasToTempFilePath({
-        canvasId: 'cropCanvas',
-        x: 0,
-        y: 0,
-        width: destWidth,
-        height: destHeight,
-        destWidth,
-        destHeight,
-        fileType: 'jpg',
-        quality: 0.86,
-        success: ({ tempFilePath }) => this.finish(tempFilePath),
-        fail: () => this.setData({ busy: false, error: '裁剪失败，请重试。' }),
-      }, this))
+      const source = sourcePath || this.data.src
+      const done=({tempFilePath}={})=>{if(tempFilePath&&this.cropActive())this.finish(tempFilePath)}
+      const legacy=()=>{if(!wx.createCanvasContext)return this.setData({busy:false,error:'当前设备不支持裁剪，请更新微信。'});const c=wx.createCanvasContext('cropCanvas',this);c.clearRect(0,0,destWidth,destHeight);c.drawImage(source,sx,sy,sw,sh,0,0,destWidth,destHeight);c.draw(false,()=>wx.canvasToTempFilePath({canvasId:'cropCanvas',x:0,y:0,width:destWidth,height:destHeight,destWidth,destHeight,fileType:'png',success:done,fail:()=>this.setData({busy:false,error:'裁剪失败，请重试。'})},this))}
+      try{const q=wx.createSelectorQuery?.().in(this);if(!q?.select)return legacy();q.select('#cropCanvas2d').fields({node:true}).exec(r=>{const c=r?.[0]?.node;if(!c?.getContext||!c.createImage)return legacy();c.width=destWidth;c.height=destHeight;const i=c.createImage();i.onerror=legacy;i.onload=()=>{if(!this.cropActive())return;c.getContext('2d').drawImage(i,sx,sy,sw,sh,0,0,destWidth,destHeight);setTimeout(()=>wx.canvasToTempFilePath({canvas:c,x:0,y:0,width:destWidth,height:destHeight,destWidth,destHeight,fileType:'png',success:done,fail:legacy},this),0)};i.src=source})}catch{legacy()}
     })
   },
   async finish(path) {

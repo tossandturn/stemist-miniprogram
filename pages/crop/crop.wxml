@@ -11,6 +11,7 @@
   <button class="primary" bindtap="confirm" loading="{{busy}}" disabled="{{busy || !src}}">使用裁剪后的照片</button>
   <button class="secondary" bindtap="cancel">取消</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
+  <canvas type="2d" id="cropCanvas2d" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
   <canvas canvas-id="cropCanvas" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
   <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>
