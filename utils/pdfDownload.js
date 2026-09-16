@@ -3,6 +3,7 @@ const DEFAULT_CACHE_LIMIT=4
 const DEFAULT_CACHE_TTL_MS=5*60*1000
 const sharedPublicCaches=new WeakMap()
 const PUBLIC_PDF_URL=/^https:\/\/stem\.ieltsist\.com\/local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf$/i
+const partialName=url=>url.slice(url.lastIndexOf('/')+1)
 
 function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false}}
 
@@ -33,7 +34,7 @@ function createPdfDownloadController(options={}){
  const throttleMs=Math.max(80,Number(options.throttleMs)||DEFAULT_THROTTLE_MS)
  const cacheLimit=Math.max(1,Math.min(8,Number(options.cacheLimit)||DEFAULT_CACHE_LIMIT))
  const cacheTtlMs=Math.max(1000,Math.min(30*60*1000,Number(options.cacheTtlMs)||DEFAULT_CACHE_TTL_MS))
- const cache=new Map()
+ const cache=new Map(),partials=new Map()
  let publicCache=sharedPublicCaches.get(wxApi)
  if(!publicCache){publicCache=new Map();sharedPublicCaches.set(wxApi,publicCache)}
  let state=initialPdfDownloadState(),scope='',scopeIdentity=identitySnapshot(wxApi),disposed=false,generation=0,downloadTask=null,progressListener=null,progressTimer=null,pendingProgress=null,lastProgressAt=null,lastRequest=null
@@ -120,9 +121,15 @@ function createPdfDownloadController(options={}){
   progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pendingProgress=null;if(pending)emitProgress(context,pending)},Math.max(0,throttleMs-elapsed))
  }
  const startDownload=context=>{
+  const manager=wxApi.getFileSystemManager?.(),key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||'')
+  if(typeof wxApi.request==='function'&&manager?.writeFile&&manager?.appendFile&&base){
+   const part=partials.get(key)||{path:base+'/pdf-partial-'+partialName(key),bytes:0,total:0};partials.set(key,part)
+   const run=()=>{if(!current(context))return;const start=part.bytes;publish({visible:true,phase:'downloading',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在续传'+context.request.label+'…',error:'',downloadedBytes:start,totalBytes:part.total,canCancel:true,canRetry:false});try{downloadTask=wxApi.request({url:key,method:'GET',header:{Range:'bytes='+start+'-'},responseType:'arraybuffer',timeout:30000,success:r=>{if(context.networkSettled||!current(context))return;const data=r?.data,n=Number(data?.byteLength)||0,status=Number(r?.statusCode||0);if(!n)return failure({errMsg:'empty response'});const h=r.header||{},cr=h['Content-Range']||h['content-range']||'',cl=h['Content-Length']||h['content-length'];if(start&&status===200){part.bytes=0;part.total=n}if(status!==200&&status!==206)return failure({errMsg:'HTTP '+status});if(!part.total)part.total=Number(cr.match(/\/(\d+)$/)?.[1]||cl||0);const method=part.bytes?'appendFile':'writeFile';manager[method]({filePath:part.path,data,success:()=>{part.bytes+=n;queueProgress(context,{totalBytesWritten:part.bytes,totalBytesExpectedToWrite:part.total});if(part.total&&part.bytes>=part.total)success({statusCode:200,tempFilePath:part.path});else run()},fail:failure})},fail:failure})}catch{failure({errMsg:'request failed'})}}
+   Promise.resolve().then(run);return true
+  }
   if(!current(context))return false
   publish({visible:true,phase:'downloading',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在下载'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:true,canRetry:false,collapsed:false})
-  const success=result=>{
+  function success(result){
    if(context.networkSettled||!current(context))return
    context.networkSettled=true
    const latestProgress=pendingProgress||{downloadedBytes:state.downloadedBytes,totalBytes:state.totalBytes,downloadedLabel:state.downloadedLabel,totalLabel:state.totalLabel,knownTotal:state.knownTotal,percent:state.percent}
@@ -139,10 +146,10 @@ function createPdfDownloadController(options={}){
    publish({...completedProgress,visible:true,phase:'opening',active:true,message:'下载完成，正在打开…',error:'',canCancel:false,canRetry:false,collapsed:false})
    openLocal(context,filePath)
   }
-  const failure=error=>{
+  function failure(error){
    if(context.networkSettled||!current(context))return
    context.networkSettled=true
-   const message=/timeout/i.test(String(error?.errMsg||error?.message||''))?'下载超时，请检查网络后重试。':'文件下载失败，请检查网络后重试。'
+   const message=/timeout/i.test(String(error?.errMsg||error?.message||''))?'下载超时，已保留进度，点击重试可续传。':'下载中断，已保留进度，点击重试可续传。'
    fail(context,message)
   }
   try{downloadTask=wxApi.downloadFile({url:context.request.url,timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}

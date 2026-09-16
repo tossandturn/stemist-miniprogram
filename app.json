@@ -7,7 +7,6 @@
     "pages/notebook/index",
     "pages/papers/index",
     "pages/calculator/index",
-    "pages/webview/index",
     "pages/stem/capture",
     "pages/stem/camera",
     "pages/stem/topics",
