@@ -68,6 +68,23 @@ function controllerHarness({openDocument=true,cacheLimit=4}={}){
 const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${suffix}.pdf`,ownerKey:`paper-${suffix}:qp`,itemId:`paper-${suffix}`,label:'原卷',scope:`scope-${suffix}`})
 
 {
+ const {pdfFileName}=miniRuntime().load('utils/pdfDownload')
+ const base='https://stem.ieltsist.com/local-pdf/'
+ assert.equal(pdfFileName(base+'9709/9709_s25_qp_13.pdf'),'9709_2025_夏季_P13_原卷.pdf')
+ assert.equal(pdfFileName(base+'9709/9709_s25_ms_13.pdf'),'9709_2025_夏季_P13_参考答案.pdf')
+ assert.equal(pdfFileName(base+'0580/0580_m24_qp_12.pdf'),'0580_2024_春季_P12_原卷.pdf')
+ assert.equal(pdfFileName(base+'9702/9702_w23_ms_42.pdf'),'9702_2023_秋冬季_P42_参考答案.pdf')
+ assert.equal(pdfFileName(base+'tmua/TMUA-2023-paper-2-worked-answers.pdf'),'tmua_TMUA-2023-paper-2-worked-answers.pdf')
+ for(const url of [base+'9709/../secret.pdf',base+'9709/%2Fprivate.pdf',base+'9709/a.pdf?token=secret','https://other.example/paper.pdf'])assert.equal(pdfFileName(url),'')
+ const h=controllerHarness();h.wxApi.env={USER_DATA_PATH:'wxfile://usr'}
+ await h.controller.open({...request('a'),url:base+'9709/9709_s25_ms_13.pdf'})
+ assert.equal(h.downloads[0].options.filePath,'wxfile://usr/9709_2025_夏季_P13_参考答案.pdf')
+ h.downloads[0].options.success({statusCode:200,filePath:h.downloads[0].options.filePath})
+ assert.equal(h.opens[0].filePath,h.downloads[0].options.filePath,'document viewer/menu receives the meaningful saved filename')
+ h.controller.dispose()
+}
+
+{
  const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']]),chunks=[],opens=[],states=[]
  let requestCount=0,requestFail=true,writeBytes=0
  const manager={writeFile({filePath,data,success}){writeBytes+=data.byteLength;success()},appendFile({filePath,data,success}){writeBytes+=data.byteLength;success()}}
@@ -75,6 +92,7 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  const clock=manualClock(),controller=createPdfDownloadController({wxApi,onState:s=>states.push(s),isScopeCurrent:()=>true,now:clock.now,setTimer:clock.setTimer,clearTimer:clock.clearTimer})
  const wait=()=>new Promise(resolve=>setTimeout(resolve,20));controller.setScope('resume');await controller.open({...request('resume'),scope:'resume'});await wait();assert.equal(requestCount,2);assert.equal(writeBytes,400);assert.equal(controller.getState().downloadedBytes,400);assert.match(controller.getState().error,/已保留进度/)
  requestFail=false;await controller.retry();await wait();assert.equal(requestCount,3,'retry must request only the missing suffix');assert.equal(chunks[2].header.Range,'bytes=400-');assert.equal(writeBytes,800);assert.equal(opens.length,1);assert.equal(controller.getState().phase,'opened');controller.dispose()
+ assert.equal(opens[0].filePath,'/user/9702_resume.pdf','Range downloads also open a readable name without an internal partial prefix')
 }
 
 {
