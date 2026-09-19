@@ -23,3 +23,5 @@ Verification:
 - Previous pending upload task for 1.0.15 was checked and returned `execution_success` (1,886,686 bytes); no duplicate upload was issued.
 
 Reference API: [WeChat downloadFile](https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html), [WeChat openDocument](https://developers.weixin.qq.com/miniprogram/dev/api/file/wx.openDocument.html). The documentation pages could not be fetched in this environment; behavior was checked through the local runtime API contracts and callback tests rather than assuming an unsupported openDocument filename property.
+
+Delivery: runtime commit `818a8dc6a238837ad2d7c9dccda490f4162834ae` pushed. Frozen package `D:/CodexWork/stemist-miniprogram-review-1.0.16-818a8dc` and sibling manifest built. Upload `1.0.16` returned **pending**, task `confirmation_upload_a1250885-185f-4a75-baad-351455a934cb`, waiting for user confirmation. Do not reissue the upload; query this task on continuation. Preview/review/online publication not performed.
