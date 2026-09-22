@@ -5,6 +5,9 @@ const {clearLocalSession}=require('../../utils/session')
 const ROOT='/api/stem/paper-marking-jobs',MAX_TOTAL=40*1024*1024
 const messages={provider_image_limit:'作答和参考资料合计最多 40 页，请减少文件后新建任务。',answer_page_limit:'作答 PDF 最多 20 页，请拆分后上传。',reference_page_limit:'单份参考 PDF 最多 40 页，请拆分后上传。',asset_image_dimensions:'图片分辨率过高或无法读取，请压缩图片后重新选择。',asset_pdf_invalid:'PDF 无法读取，请确认文件未加密且可以正常打开。',asset_image_invalid:'图片无法读取，请重新选择 JPG、PNG 或 WebP。',asset_size_limit:'文件太大：PDF 最多 10 MB，单张图片最多 4 MB。',job_size_limit:'全部文件合计最多 40 MB，请压缩或拆分后上传。'}
 function errorMessage(error){return messages[error?.code]||error?.message||'请求未完成，请稍后重试。'}
+messages.asset_pdf_image_limit='PDF 中的图片分辨率过高，请压缩 PDF 中的图片后重新提交。'
+messages.asset_pdf_object_limit='PDF 内容过于复杂，请导出简化版 PDF 后重新提交。'
+messages.asset_pdf_image_count_limit='PDF 内嵌图片过多，请拆分或导出简化版后重新提交。'
 const id=value=>typeof value==='string'&&/^[a-zA-Z0-9_-]{8,100}$/.test(value)
 const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
