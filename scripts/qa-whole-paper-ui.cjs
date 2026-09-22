@@ -7,7 +7,7 @@ async function main(){
   p.pause();p.__visible=false
   // Only in-memory fixture data; never write account storage or submit files.
   p.setData({authenticated:true})
-  p.setJob({jobId:'qa-visual-report-001',status:'completed',result:{
+  p.setJob({jobId:'qa-visual-report-001',status:'completed',sourcePdfPath:'/qa/source.pdf',reportPdfPath:'/qa/report.pdf',reportTextSelectable:false,result:{
    assessmentMode:'ai-provisional',officialScore:false,provisionalScore:36,maxScore:50,reviewRequired:true,
    summary:'你已掌握主要解题方法。第 2 题需要补充单位，第 4 题的图像较模糊，需要人工复核。',
    questionResults:[{questionLabel:'1(a)',provisionalScore:4,maxScore:5,rationale:'方法正确。请补充完整推导：$x^2=16$。',reviewRequired:false,evidence:['作答第 1 页'],criteria:[{label:'推导',comment:'请补充中间步骤'}]},{questionLabel:'2',provisionalScore:2,maxScore:4,rationale:'数值正确，但缺少单位。请检查有效数字。',reviewRequired:true}],

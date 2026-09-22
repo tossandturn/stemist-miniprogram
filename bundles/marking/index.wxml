@@ -35,7 +35,8 @@
      <view wx:if="{{result.reviewRequired}}" class="notice">报告包含需要人工复核的内容。</view>
      <view wx:if="{{result.completeness}}" class="warning">{{result.completeness}}</view>
      <answer-content text="{{result.summary}}" />
-     <view class="file-actions"><button class="secondary" data-kind="report" bindtap="document" loading="{{documentBusy}}" disabled="{{documentBusy}}">下载批改报告</button><button class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看作答 PDF</button></view>
+     <view class="file-actions"><button wx:if="{{reportAvailable}}" class="secondary" data-kind="report" bindtap="document" loading="{{documentBusy}}" disabled="{{documentBusy}}">下载批改报告</button><button wx:if="{{sourceAvailable}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看作答 PDF</button></view>
+     <text wx:if="{{!reportAvailable}}" class="subtle">批改文字已保留，PDF 尚未生成。{{retryable ? '可通过上方重试继续生成。' : ''}}</text>
      <text wx:if="{{!reportTextSelectable}}" class="subtle">PDF 为压缩图像版，适合查看和打印；复制批改文字请在本页选择。</text>
      <view class="question-result" wx:for="{{questions}}" wx:key="index"><view class="card-title">{{item.questionId || '逐题反馈'}}</view><text wx:if="{{item.scoreReady}}">{{item.score}} / {{item.maxScore}}</text><answer-content text="{{item.feedback}}" /><view wx:if="{{item.evidence}}" class="subtle">作答依据</view><answer-content wx:if="{{item.evidence}}" text="{{item.evidence}}" /><view wx:if="{{item.criteria}}" class="subtle">评分点反馈</view><answer-content wx:if="{{item.criteria}}" text="{{item.criteria}}" /><text wx:if="{{item.reviewRequired}}" class="status-line">此题需人工复核</text></view>
      <view wx:if="{{reportPages > 1}}" class="file-actions"><button data-delta="-1" bindtap="reportPage" disabled="{{reportPage === 0}}">上一页</button><text>{{reportPage + 1}} / {{reportPages}}</text><button data-delta="1" bindtap="reportPage" disabled="{{reportPage + 1 >= reportPages}}">下一页</button></view>

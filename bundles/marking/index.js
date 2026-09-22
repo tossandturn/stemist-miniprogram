@@ -109,7 +109,7 @@ Page({
    return{questionId:String(q.questionLabel||q.questionId||q.label||''),feedback:String(q.rationale||q.feedback||q.summary||''),evidence:(Array.isArray(q.evidence)?q.evidence:[]).filter(e=>typeof e==='string').join('\n'),criteria:(Array.isArray(q.criteria)?q.criteria:[]).map(c=>[c.label,c.comment].filter(Boolean).join('：')).join('\n'),reviewRequired:q.reviewRequired!==false,scoreReady:scorable&&Number.isFinite(score)&&Number.isFinite(q.maxScore)&&q.maxScore>0&&score>=0&&score<=q.maxScore,score,maxScore:q.maxScore}
   })
   const cancelled=job.failureCode==='cancelled'
-  this.setData({reportTextSelectable:job.reportTextSelectable!==false})
+  this.setData({reportTextSelectable:job.reportTextSelectable!==false,reportAvailable:Boolean(job.reportPdfPath)})
   this.setData({jobId:job.jobId,jobStatus:job.status,jobLabel:cancelled?'已取消':states[job.status]||'',progress:job.progress||{},result,error:job.status==='failed'&&!cancelled?'批改暂未完成。'+(job.retryable?'原文件已保留，可点击重试。':'请检查文件后新建任务。'):'',retryable:job.retryable===true,reportPages:Math.ceil(this.__questions.length/10),sourceAvailable:Boolean(job.sourcePdfPath),expiresAt:job.expiresAt?String(job.expiresAt).replace('T',' ').replace(/\.\d{3}Z$/,' UTC'):''})
   this.renderReport(0)
  },
@@ -142,6 +142,7 @@ Page({
  },
  async document(event){
   if(!this.current()||this.data.documentBusy)return
+  if(event.currentTarget.dataset.kind==='report'&&!this.data.reportAvailable)return
   const s=this.__scope,id=this.data.jobId;this.setData({documentBusy:true,error:''})
   const alive=()=>this.accept(s)&&id===this.data.jobId
   try{const filePath=await api.download(id,event.currentTarget.dataset.kind,s,this.__job?.title||this.__draft.title||routes[this.data.routeIndex]?.label);if(alive())wx.openDocument({filePath,fileType:'pdf',showMenu:true,fail:()=>{if(alive())this.setData({error:'PDF 已下载，但未能打开，请重试。'})}})}

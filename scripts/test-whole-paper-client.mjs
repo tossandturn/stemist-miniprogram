@@ -126,6 +126,9 @@ assert.equal(p.data.questions[0].score,3)
 assert.equal(p.data.questions[0].feedback,'单位缺失')
 assert.match(p.data.questions[0].evidence,/第 1 页/)
 assert.match(p.data.result.completeness,/3\(b\)/)
+assert.equal(p.data.reportAvailable,false,'Saved AI feedback does not imply that a report PDF exists')
+p.setJob({jobId,status:'completed',reportPdfPath:'/private/report.pdf',sourcePdfPath:'/private/source.pdf'})
+assert.equal(p.data.reportAvailable,true)
 
 const late=deferred(),a=pageRuntime({list:()=>late.promise})
 const pendingHistory=a.p.loadHistory();a.switchOwner('student-b');a.p.bindOwner();late.resolve([{jobId,title:'private student A'}]);await pendingHistory
