@@ -78,6 +78,17 @@ try{
  const source=await service.download(job.jobId,'source',s,'Synthetic answers')
  const report=await service.download(job.jobId,'report',s,'Synthetic report')
  for(const file of [source,report])assert.equal(files.get(file).subarray(0,5).toString(),'%PDF-')
+ const sourcePages=await renderPdfToPageImages(files.get(source))
+ assert.equal(sourcePages.length,2)
+ const colours=[]
+ for(const rendered of sourcePages){
+  const picture=await loadImage(rendered.bytes),c=createCanvas(picture.width,picture.height),x=c.getContext('2d');x.drawImage(picture,0,0)
+  const rgba=x.getImageData(0,0,c.width,c.height).data;let green=0,blue=0
+  for(let i=0;i<rgba.length;i+=4){if(rgba[i+1]>rgba[i]+10&&rgba[i+1]>rgba[i+2]+10)green++;if(rgba[i+2]>rgba[i]+10&&rgba[i+2]>rgba[i+1]+10)blue++}
+  colours.push({green,blue})
+ }
+ assert.ok(colours[0].green>colours[0].blue+100,'First PDF page must contain the first (green) submitted image')
+ assert.ok(colours[1].blue>colours[1].green+100,'Second PDF page must contain the second (blue) submitted image')
  assert.ok(files.get(report).length>2000,'Report must contain more than an empty PDF envelope')
  const reportPages=await renderPdfToPageImages(files.get(report))
  assert.ok(reportPages.length>0)
