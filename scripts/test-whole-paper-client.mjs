@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import { miniRuntime, deferred, settle } from './helpers/mini-runtime.mjs'
 
 const clone = value => JSON.parse(JSON.stringify(value))
+const markingTemplate=fs.readFileSync(new URL('../bundles/marking/index.wxml',import.meta.url),'utf8')
+assert.doesNotMatch(markingTemplate,/需要人工复核|需人工复核|标注待复核/,'AI marking must not present human review as the final workflow step')
+assert.match(markingTemplate,/AI 自动完成批改/)
 const pdf = Uint8Array.from(Buffer.from('%PDF-1.7\nfixture')).buffer
 const jpg = Uint8Array.from([255,216,255,224,1,2]).buffer
 const input = (id='file-answer1', role='answer', mediaType='image/jpeg') => ({id, role, mediaType, kind:mediaType==='application/pdf'?'pdf':'image', path:'/tmp/'+id, name:id+(mediaType==='application/pdf'?'.pdf':'.jpg'), size:mediaType==='application/pdf'?pdf.byteLength:jpg.byteLength})

@@ -3,7 +3,7 @@
  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
  <view wx:if="{{!authenticated}}" class="panel"><text>登录后可上传作答、查看批改进度和历史报告。</text><button class="primary" bindtap="login">登录后开始</button></view>
  <block wx:else>
-  <view class="marking-intro">上传一份完整作答，批改后生成逐题反馈与 PDF 报告。</view>
+  <view class="marking-intro">上传完整作答，AI 自动完成批改并生成逐题反馈与 PDF 报告，无需人工审核。</view>
   <privacy-consent wx:if="{{privacy}}" purpose="用于读取你主动选择的作答文件并进行 AI 批改。" bind:agreed="agreePrivacy" />
   <view class="marking-grid">
    <view class="panel marking-inputs">
@@ -23,7 +23,7 @@
     <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="question-paper" bindtap="pickPdf" disabled="{{busy || picking}}">添加原卷 PDF</button><button class="secondary" data-role="mark-scheme" bindtap="pickPdf" disabled="{{busy || picking}}">添加评分标准 PDF</button></view>
     <view class="file-row" wx:for="{{references}}" wx:key="id"><view class="file-copy"><text>{{item.roleLabel}}</text><text class="file-name">{{item.name}}</text></view><button wx:if="{{!jobId}}" data-id="{{item.id}}" bindtap="remove" disabled="{{busy || picking}}">移除</button></view>
     <text class="field-label">报告备注（选填）</text><textarea value="{{instructions}}" data-field="instructions" bindinput="input" maxlength="2000" placeholder="例如：本周课堂练习。备注只展示在报告中，不改变评分标准。" disabled="{{busy || jobId}}" />
-    <text class="subtle">AI 辅助批改供教学参考。没有充分依据的题目会标注待复核，不计作零分。</text>
+    <text class="subtle">AI 自动批改并出具报告。依据不足的题目标记为不确定项，不计作零分，也不会转交人工审核。</text>
     <button wx:if="{{!jobId || jobStatus === 'draft' || !jobStatus}}" class="primary" bindtap="submit" loading="{{busy}}" disabled="{{busy || picking || !answers.length}}">{{jobId ? '继续上传并提交' : '提交整卷批改'}}</button>
     <button wx:if="{{busy}}" class="secondary" bindtap="pause">暂停上传</button>
     <button wx:if="{{jobStatus === 'draft' && !busy}}" class="text-button" bindtap="cancelDraft">取消未提交任务</button>
@@ -33,13 +33,13 @@
     <view wx:if="{{jobId}}" class="panel"><view class="card-title">{{jobLabel || '任务已建立'}}</view><text wx:if="{{progress.totalPages}}" class="status-line">已处理 {{progress.completedPages || 0}} / {{progress.totalPages}} 页</text><text wx:if="{{expiresAt}}" class="subtle">文件保留至 {{expiresAt}}，请及时下载报告。</text><button class="text-button" bindtap="refreshJob" disabled="{{busy}}">刷新进度</button><button wx:if="{{jobStatus === 'failed' && retryable}}" class="secondary" bindtap="retryJob" disabled="{{busy}}">重试批改</button><button wx:if="{{sourceAvailable && !result}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看已合成的作答 PDF</button></view>
     <view wx:if="{{result}}" class="panel">
      <view class="card-title">批改报告</view><view wx:if="{{result.scoreReady}}" class="report-score">{{result.provisionalScore}} / {{result.maxScore}} <text>AI 估分</text></view><view wx:else class="warning">本次提供批改建议，评分依据不足，暂不显示总分。</view>
-     <view wx:if="{{result.reviewRequired}}" class="notice">报告包含需要人工复核的内容。</view>
+     <view wx:if="{{result.reviewRequired}}" class="notice">AI 已完成本次批改，报告中已标明不确定项。可补充清晰作答或参考材料后重新批改。</view>
      <view wx:if="{{result.completeness}}" class="warning">{{result.completeness}}</view>
      <answer-content text="{{result.summary}}" />
      <view class="file-actions"><button wx:if="{{reportAvailable}}" class="secondary" data-kind="report" bindtap="document" loading="{{documentBusy}}" disabled="{{documentBusy}}">下载批改报告</button><button wx:if="{{sourceAvailable}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看作答 PDF</button></view>
      <text wx:if="{{!reportAvailable}}" class="subtle">批改文字已保留，PDF 尚未生成。{{retryable ? '可通过上方重试继续生成。' : ''}}</text>
      <text wx:if="{{!reportTextSelectable}}" class="subtle">PDF 为压缩图像版，适合查看和打印；复制批改文字请在本页选择。</text>
-     <view class="question-result" wx:for="{{questions}}" wx:key="index"><view class="card-title">{{item.questionId || '逐题反馈'}}</view><text wx:if="{{item.scoreReady}}">{{item.score}} / {{item.maxScore}}</text><answer-content text="{{item.feedback}}" /><view wx:if="{{item.evidence}}" class="subtle">作答依据</view><answer-content wx:if="{{item.evidence}}" text="{{item.evidence}}" /><view wx:if="{{item.criteria}}" class="subtle">评分点反馈</view><answer-content wx:if="{{item.criteria}}" text="{{item.criteria}}" /><text wx:if="{{item.reviewRequired}}" class="status-line">此题需人工复核</text></view>
+     <view class="question-result" wx:for="{{questions}}" wx:key="index"><view class="card-title">{{item.questionId || '逐题反馈'}}</view><text wx:if="{{item.scoreReady}}">{{item.score}} / {{item.maxScore}}</text><answer-content text="{{item.feedback}}" /><view wx:if="{{item.evidence}}" class="subtle">作答依据</view><answer-content wx:if="{{item.evidence}}" text="{{item.evidence}}" /><view wx:if="{{item.criteria}}" class="subtle">评分点反馈</view><answer-content wx:if="{{item.criteria}}" text="{{item.criteria}}" /><text wx:if="{{item.reviewRequired}}" class="status-line">AI 不确定项：可补充清晰作答或参考材料后重新批改。</text></view>
      <view wx:if="{{reportPages > 1}}" class="file-actions"><button data-delta="-1" bindtap="reportPage" disabled="{{reportPage === 0}}">上一页</button><text>{{reportPage + 1}} / {{reportPages}}</text><button data-delta="1" bindtap="reportPage" disabled="{{reportPage + 1 >= reportPages}}">下一页</button></view>
     </view>
     <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>

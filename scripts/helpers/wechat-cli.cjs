@@ -8,9 +8,10 @@ if(executables.length!==1)throw new Error('WeChat CLI launcher is ambiguous')
 const exe=path.join(root,executables[0]),entry=path.join(root,'resources/app.asar.unpacked/js/common/cli/skill-index.js')
 const bootstrap="const e=process.argv[1],a=process.argv.slice(2).filter(x=>x!=='--electron');process.argv=[process.execPath,e,'--electron'].concat(a);require(e)"
 function call(tool,params={}){
- const args=['-e',bootstrap,entry,'-c','Codex',tool,'--project',project]
- for(const [key,value] of Object.entries(params))args.push('--'+key,typeof value==='string'?value:JSON.stringify(value))
- return new Promise((resolve,reject)=>execFile(exe,args,{cwd:root,env:{...process.env,ELECTRON_RUN_AS_NODE:'1',cwd:project},windowsHide:true,timeout:25000,maxBuffer:2*1024*1024,encoding:'utf8'},(error,stdout)=>{
+ const target=params.project||project
+ const args=['-e',bootstrap,entry,'-c','Codex',tool,'--project',target]
+ for(const [key,value] of Object.entries(params))if(key!=='project')args.push('--'+key,typeof value==='string'?value:JSON.stringify(value))
+ return new Promise((resolve,reject)=>execFile(exe,args,{cwd:root,env:{...process.env,ELECTRON_RUN_AS_NODE:'1',cwd:target},windowsHide:true,timeout:25000,maxBuffer:2*1024*1024,encoding:'utf8'},(error,stdout)=>{
   let result
   try{result=JSON.parse(stdout.slice(stdout.indexOf('{')))}catch{}
   if(error||result?.ok!==true||result.result?.success===false){
