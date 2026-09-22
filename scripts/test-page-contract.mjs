@@ -3,13 +3,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {expandedWxml} from './helpers/wxml-source.mjs'
+import {nativeAppManifest} from './helpers/native-app-manifest.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
 const app = JSON.parse(read('app.json'))
+const registered = nativeAppManifest(app)
 const componentFiles = new Set(fs.readdirSync(path.join(root, 'components')))
 
-for (const page of app.pages) {
+for (const page of registered.allPages) {
   for (const extension of ['.js', '.wxml', '.wxss']) assert.equal(fs.existsSync(path.join(root, `${page}${extension}`)), true, `${page}${extension} is required`)
   const jsonPath = path.join(root, `${page}.json`)
   if (!fs.existsSync(jsonPath)) continue
@@ -24,4 +26,4 @@ for (const page of app.pages) {
 
 assert.equal(app.window.pageOrientation, 'auto')
 assert.match(read('.gitignore'), /project\.private\.config\.json/)
-console.log(`Page/component contract passed for ${app.pages.length} pages.`)
+console.log(`Page/component contract passed for ${registered.allPages.length} pages (${registered.mainPages.length} main, ${registered.allPages.length-registered.mainPages.length} subpackage).`)

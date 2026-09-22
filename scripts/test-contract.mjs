@@ -2,10 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
 import {execFileSync} from 'node:child_process'
+import {nativeAppManifest} from './helpers/native-app-manifest.mjs'
 const root=path.resolve(import.meta.dirname,'..')
 const read=file=>fs.readFileSync(path.join(root,file),'utf8')
 const app=JSON.parse(read('app.json'))
-assert.equal(new Set(app.pages).size,app.pages.length,'registered pages must be unique')
+const registered=nativeAppManifest(app)
+assert.equal(new Set(registered.allPages).size,registered.allPages.length,'registered pages must be unique across main and subpackages')
 assert.equal(app.window.pageOrientation,'auto')
 assert.equal(app.lazyCodeLoading,'requiredComponents')
 assert.equal(app.__usePrivacyCheck__,true)
@@ -22,11 +24,11 @@ for(const file of files) {
   }
   assert.doesNotMatch(source,/sk-[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY/)
 }
-for(const page of app.pages) {
+for(const page of registered.allPages) {
   for(const ext of ['js','json','wxml','wxss'])assert.ok(fs.existsSync(path.join(root,page+'.'+ext)),page+'.'+ext)
   const config=JSON.parse(read(page+'.json'))
   for(const [name,src] of Object.entries(config.usingComponents||{})) {
     assert.ok(fs.existsSync(path.join(root,src.replace(/^\//,'')+'.js')),page+' component '+name)
   }
 }
-console.log('Mini-program runtime imports and manifest packaging passed.')
+console.log(`Mini-program runtime imports and manifest packaging passed for ${registered.mainPages.length} main pages and ${registered.allPages.length-registered.mainPages.length} subpackage pages.`)

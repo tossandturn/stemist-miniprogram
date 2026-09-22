@@ -1,16 +1,23 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
-const r=miniRuntime(),app=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8'))
-for(const route of app.pages){
+import {nativeAppManifest} from './helpers/native-app-manifest.mjs'
+const r=miniRuntime(),app=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8')),registered=nativeAppManifest(app),registeredPages=new Set(registered.allPages)
+for(const route of registered.allPages){
  const page=r.page(route)
  assert.equal(typeof page.onShareAppMessage,'function',route+' must support native friend sharing')
  page.route=route;page.data={...page.data,sessionId:'private-session',token:'private-token',answer:'private-answer',title:'private-title',taskId:'private-task'}
  const result=page.onShareAppMessage({from:'menu'})
- assert.ok(app.pages.includes(result.path.split('?')[0].slice(1)),route+' must share a registered landing page')
+ assert.ok(registeredPages.has(result.path.split('?')[0].slice(1)),route+' must share a registered landing page')
  assert.ok(result.imageUrl.endsWith('.png'),'a fixed cover prevents private screenshot sharing')
  assert.doesNotMatch(JSON.stringify(result),/private-|sessionId|access_token|answer=/)
 }
+const markingRoute='bundles/marking/index'
+assert.ok(registeredPages.has(markingRoute),'whole-paper marking must be a registered subpackage page')
+const markingPage=r.page(markingRoute);markingPage.route=markingRoute;markingPage.data={...markingPage.data,jobId:'private-job',answer:'private-answer'}
+const markingShare=markingPage.onShareAppMessage({from:'menu'})
+assert.ok(registeredPages.has(markingShare.path.split('?')[0].slice(1)),'marking must share a safe public landing')
+assert.doesNotMatch(JSON.stringify(markingShare),/private-|jobId|answer=/)
 const share=r.load('utils/share').onShareAppMessage
 assert.equal(share.call({route:'pages/ielts/speaking',data:{sessionId:'secret'}}).path,'/pages/ielts/library?module=speaking')
 assert.equal(share.call({route:'pages/stem/topics',data:{routeId:'cie-9702-as-physics'}}).path,'/pages/stem/topics?routeId=cie-9702-as-physics')
@@ -22,8 +29,9 @@ const png=fs.readFileSync(new URL('../design-system/share-card.png',import.meta.
 assert.equal(png.subarray(1,4).toString(),'PNG');assert.equal(png.readUInt32BE(16)/png.readUInt32BE(20),5/4)
 console.log('Native friend sharing: all page hooks, registered public destinations, fixed cover and private-state exclusion passed.')
 const publicRoutes=['pages/index/index','pages/practice/index','pages/papers/index','pages/stem/topics','pages/ielts/home','pages/ielts/library','pages/ielts/vocabulary','pages/calculator/index']
+assert.equal(publicRoutes.includes(markingRoute),false,'whole-paper marking is friend-share only and never a Moments route')
 const menus=[],timelineRuntime=miniRuntime({wx:{showShareMenu:options=>menus.push(options)}})
-for(const route of app.pages){
+for(const route of registered.allPages){
  const page=timelineRuntime.page(route);page.route=route
  page.data={...page.data,routeId:'cie-9702-as-physics',activeCategory:'ielts',category:'competition',module:'speaking',sessionId:'private-session',taskId:'private-task',answer:'private-answer',title:'private-title'}
  page.options={sessionId:'private-session',token:'private-token',query:'private-query'}
@@ -39,4 +47,6 @@ for(const route of app.pages){
  if(route==='pages/ielts/library')assert.equal(result.query,'module=speaking')
  if(route==='pages/stem/topics')assert.equal(result.query,'routeId=cie-9702-as-physics')
 }
+const markingMenu=menus[registered.allPages.indexOf(markingRoute)]
+assert.deepEqual(Array.from(markingMenu.menus),['shareAppMessage'])
 console.log('Moments: eight public pages, explicit menus, same-page safe queries, app logo and private-page exclusion passed.')

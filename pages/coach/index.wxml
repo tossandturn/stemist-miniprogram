@@ -1,5 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} coach-home-page">
   <stemist-header title="AI Coach" />
+  <navigator class="secondary" url="/bundles/marking/index">整卷 AI 批改 · PDF / 多张图片</navigator>
   <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{routeContext.category}}" family="{{routeContext.family}}" />
   <picker mode="selector" range="{{contexts}}" range-key="label" value="{{contextIndex}}" bindchange="chooseContextPicker"><view class="coach-scope-select">{{contexts[contextIndex].label}}<text>更换</text></view></picker>
   <view wx:if="{{routeContextLabel}}" class="route-pill">{{routeContextLabel}}</view>

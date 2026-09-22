@@ -5,11 +5,26 @@ import path from 'node:path'
 import {performance} from 'node:perf_hooks'
 import {execFileSync} from 'node:child_process'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
+import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,packageRootForPath,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
 
 const root=path.resolve(import.meta.dirname,'..')
 const runtime=miniRuntime(),packStarted=performance.now(),pack=runtime.load('utils/ieltsTaskBootstrap'),packLoadMs=performance.now()-packStarted,{unpackTask}=runtime.load('utils/nativeDataPack')
 const hash=value=>crypto.createHash('sha256').update(typeof value==='string'?value:JSON.stringify(value)).digest('hex')
 const fileHash=value=>crypto.createHash('sha256').update(value).digest('hex')
+
+const fixtureManifest=nativeAppManifest({pages:['pages/index/index'],subPackages:[{root:'bundles/marking',pages:['index','history']}]})
+assert.deepEqual(fixtureManifest.mainPages,['pages/index/index'])
+assert.deepEqual(fixtureManifest.allPages,['pages/index/index','bundles/marking/index','bundles/marking/history'])
+assert.equal(packageRootForPath('utils/page.js',fixtureManifest.subPackages),null,'shared runtime remains in the main package')
+assert.equal(packageRootForPath('components/stemist-header/index.js',fixtureManifest.subPackages),null,'shared components remain in the main package')
+assert.equal(packageRootForPath('bundles/marking/index.js',fixtureManifest.subPackages),'bundles/marking')
+assert.throws(()=>nativeAppManifest({pages:['pages/index/index'],subPackages:[{root:'bundles/private',pages:['index'],independent:true}]}),/ordinary|independent/i)
+assert.throws(()=>nativeAppManifest({pages:['pages/index/index'],subPackages:[{root:'bundles',pages:['one']},{root:'bundles/marking',pages:['two']}]}),/overlap/i)
+const boundaryBudgets=runtimePackageBudgets([{path:'app.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES},{path:'bundles/marking/index.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES}],fixtureManifest.subPackages)
+assert.equal(boundaryBudgets.mainPackageBytes,WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES)
+assert.equal(boundaryBudgets.subPackages[0].bytes,WECHAT_PACKAGE_LIMIT_BYTES)
+assert.throws(()=>runtimePackageBudgets([{path:'app.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES+1}],[]),/Main package.*128 KiB/i)
+assert.throws(()=>runtimePackageBudgets([{path:'app.js',bytes:1},{path:'bundles/marking/index.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES+1}],fixtureManifest.subPackages),/Subpackage bundles\/marking exceeds.*2 MiB/i)
 
 const v2={schemaVersion:'stemist-native-task-pack-v2',names:['id','values'],values:['shared'],tasks:{legacy:['o',0,'legacy',1,['a',['r',0],-5]]}}
 assert.deepEqual(JSON.parse(JSON.stringify(unpackTask(v2,'legacy'))),{id:'legacy',values:['shared',-5]},'v2 bundles remain decodable during migration')
@@ -55,12 +70,19 @@ const oneStarted=performance.now(),single=unpackTask(lazyPack,'cam15-w-test1-tas
 assert.equal(single.id,'cam15-w-test1-task1');assert.ok(accessed.size<pack.values.length/4,'one task must not eagerly decode the whole shared dictionary')
 assert.ok(packLoadMs<500&&singleMs<100&&decodeMs<500,`bounded load/decode cost: load=${packLoadMs.toFixed(1)}ms one=${singleMs.toFixed(1)}ms all=${decodeMs.toFixed(1)}ms`)
 
-const runtimeFiles=['app.js','app.json','app.wxss','sitemap.json']
-function collect(directory){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),stat=fs.lstatSync(path.join(root,relative));if(relative.startsWith('design-system'+path.sep)&&name.endsWith('.md')||['utils/skillPage.js','utils/speakingTicket.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss'].includes(relative.replaceAll('\\','/')))continue;if(stat.isDirectory())collect(relative);else if(stat.isFile())runtimeFiles.push(relative)}}
-for(const directory of ['pages','components','utils','design-system','third_party'])collect(directory)
-const runtimeBytes=runtimeFiles.reduce((total,file)=>total+fs.statSync(path.join(root,file)).size,0),budget=2*1024*1024,targetHeadroom=128*1024
-assert.ok(runtimeBytes<=budget-targetHeadroom,`runtime ${runtimeBytes} must leave at least ${targetHeadroom} bytes below 2 MiB`)
+const declaredApp=nativeAppManifest(JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')))
+const runtimeFileSet=new Set(['app.js','app.json','app.wxss','sitemap.json']),legacyOnly=['utils/skillPage.js','utils/speakingTicket.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss']
+const portable=value=>value.replaceAll('\\','/')
+function collect(directory,{skipSubRoots=false}={}){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),normalized=portable(relative),stat=fs.lstatSync(path.join(root,relative));if(relative.startsWith('design-system'+path.sep)&&name.endsWith('.md')||legacyOnly.includes(normalized))continue;if(stat.isDirectory()){if(skipSubRoots&&declaredApp.subPackages.some(entry=>entry.root===normalized))continue;collect(relative,{skipSubRoots})}else if(stat.isFile())runtimeFileSet.add(relative)}}
+for(const directory of ['pages','components','utils','design-system','third_party'])collect(directory,{skipSubRoots:true})
+for(const entry of declaredApp.subPackages)collect(entry.root)
+const runtimeFiles=[...runtimeFileSet],portableRuntimeFiles=new Set(runtimeFiles.map(portable)),mainRuntimeFiles=runtimeFiles.filter(file=>packageRootForPath(portable(file),declaredApp.subPackages)===null)
+for(const page of declaredApp.allPages)for(const extension of ['.js','.json','.wxml','.wxss'])assert.ok(portableRuntimeFiles.has(page+extension),`packager file collection must include ${page+extension}`)
+const runtimeBytes=mainRuntimeFiles.reduce((total,file)=>total+fs.statSync(path.join(root,file)).size,0),totalRuntimeBytes=runtimeFiles.reduce((total,file)=>total+fs.statSync(path.join(root,file)).size,0),budget=WECHAT_PACKAGE_LIMIT_BYTES,targetHeadroom=MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES
+assert.ok(runtimeBytes<=budget-targetHeadroom,`main package ${runtimeBytes} must leave at least ${targetHeadroom} bytes below 2 MiB`)
+const subPackageStats=declaredApp.subPackages.map(entry=>{const packageFiles=runtimeFiles.filter(file=>packageRootForPath(portable(file),declaredApp.subPackages)===entry.root),bytes=packageFiles.reduce((total,file)=>total+fs.statSync(path.join(root,file)).size,0);assert.ok(bytes<=budget,`subpackage ${entry.root} ${bytes} exceeds 2 MiB`);return{root:entry.root,pages:entry.pages,files:packageFiles.length,bytes,headroom:budget-bytes,budget}})
 const packageCheck=JSON.parse(execFileSync(process.execPath,['scripts/build-native-package.mjs','--check-only'],{cwd:root,encoding:'utf8'}))
-assert.equal(packageCheck.runtimeFiles,runtimeFiles.length);assert.equal(packageCheck.runtimeBytes,runtimeBytes);assert.equal(packageCheck.headroom,budget-runtimeBytes);assert.equal(packageCheck.minimumHeadroom,targetHeadroom)
+assert.equal(packageCheck.runtimeFiles,mainRuntimeFiles.length);assert.equal(packageCheck.runtimeBytes,runtimeBytes);assert.equal(packageCheck.headroom,budget-runtimeBytes);assert.equal(packageCheck.minimumHeadroom,targetHeadroom)
+assert.equal(packageCheck.mainPackageBytes,runtimeBytes);assert.equal(packageCheck.totalRuntimeFiles,runtimeFiles.length);assert.equal(packageCheck.totalRuntimeBytes,totalRuntimeBytes);assert.deepEqual(packageCheck.subPackages,subPackageStats)
 
-console.log(JSON.stringify({status:'pass',schemaVersion:pack.schemaVersion,tasks:tasks.length,questions:questionIds.length,imageReferences:imageRefs.length,icons:iconFiles.length,packBytes:fs.statSync(path.join(root,'utils/ieltsTaskBootstrap.js')).size,runtimeFiles:runtimeFiles.length,runtimeBytes,headroom:budget-runtimeBytes,sharedValues:pack.values.length,packLoadMs:Number(packLoadMs.toFixed(2)),singleTaskSharedReads:accessed.size,singleDecodeMs:Number(singleMs.toFixed(2)),decodeAllMs:Number(decodeMs.toFixed(2))}))
+console.log(JSON.stringify({status:'pass',schemaVersion:pack.schemaVersion,tasks:tasks.length,questions:questionIds.length,imageReferences:imageRefs.length,icons:iconFiles.length,packBytes:fs.statSync(path.join(root,'utils/ieltsTaskBootstrap.js')).size,runtimeFiles:mainRuntimeFiles.length,runtimeBytes,headroom:budget-runtimeBytes,totalRuntimeFiles:runtimeFiles.length,totalRuntimeBytes,subPackages:subPackageStats,sharedValues:pack.values.length,packLoadMs:Number(packLoadMs.toFixed(2)),singleTaskSharedReads:accessed.size,singleDecodeMs:Number(singleMs.toFixed(2)),decodeAllMs:Number(decodeMs.toFixed(2))}))

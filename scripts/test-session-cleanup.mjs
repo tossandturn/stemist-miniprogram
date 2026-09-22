@@ -66,3 +66,15 @@ assert.deepEqual(removed.sort(),['/owned/ielts-speaking-transcript.txt','/owned/
 assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:single:item:a'],undefined)
 assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:pair:item:b'],undefined)
 assert.equal(values.stemistSpeakingExportPath,undefined)
+
+values.stemistPaperReports=['/owned/marking-reports/整卷批改_job-123_批改报告.pdf','/owned/marking-reports/../original.pdf','/camera/original.jpg']
+values['stemistDraft:whole-paper:student-a']={files:[{path:'/camera/original.jpg'}]}
+module.exports.clearLocalSession()
+assert.ok(removed.includes('/owned/marking-reports/整卷批改_job-123_批改报告.pdf'))
+assert.ok(!removed.includes('/owned/marking-reports/../original.pdf'))
+assert.ok(!removed.includes('/camera/original.jpg'))
+assert.equal(values.stemistPaperReports,undefined)
+assert.equal(values['stemistDraft:whole-paper:student-a'],undefined)
+values.stemistPaperReports={malformed:true}
+assert.doesNotThrow(()=>module.exports.clearLocalSession())
+assert.equal(values.stemistPaperReports,undefined)
