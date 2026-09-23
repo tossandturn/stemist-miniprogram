@@ -42,6 +42,14 @@ The real client service and local HTTP API handled ordered images and a two-page
 
 Screenshots: `D:/CodexWork/stemist-release-coordination/marking-empty-20260924.png`, `marking-selected-20260924.png`, `marking-queued-20260924.png`, `marking-processing-20260924.png`, `marking-completed-20260924.png`.
 
+## Development upload
+
+- **1.0.19 uploaded successfully**, runtime commit `7616a78`, through the official Developer Tools upload action.
+- Frozen input: `D:/CodexWork/stemist-miniprogram-review-1.0.19-7616a78`; normalized runtime comparison and frozen picker regression passed.
+- Compiled bytes: total 1,946,585; main 1,893,256; marking subpackage 53,329.
+- Code pushed to `origin/master`; no backend deployment or source-data changes.
+- This is a development-code upload, not WeChat review submission or online publication. The privacy declaration remains under review according to the user, and native file selection is not yet accepted.
+
 ## Reference-video boundary
 
 The original `https://xhslink.cn/o/Yo7JwIjnxd` remains inaccessible through web fetch; browser navigation timed out and browser inventory reported no reachable connection. The video has not been viewed. The user was asked to attach it; UI changes are based on observed product defects and the user's stated workflow, not an invented description of the video.
