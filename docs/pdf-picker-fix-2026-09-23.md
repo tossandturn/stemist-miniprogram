@@ -28,4 +28,11 @@ For PDF selection, verify that the current Mini Program privacy guide declares c
 
 References: [WeChat file selection API](https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.chooseMessageFile.html), [Tencent's upload component implementation](https://github.com/Tencent/tdesign-miniprogram/blob/develop/packages/components/upload/upload.ts).
 
-Upload status will be recorded separately after a confirmed upload receipt; passing tests does not mean the phone is running the repaired package.
+## Upload receipt
+
+- Development code **1.0.18** uploaded successfully through official Developer Tools on 2026-09-23.
+- Runtime commit: `3342477`; frozen input: `D:/CodexWork/stemist-miniprogram-review-1.0.18-3342477`.
+- Compiled total: 1,935,846 bytes; main: 1,893,256 bytes; marking subpackage: 42,590 bytes.
+- Frozen-source comparison initially detected CRLF/LF differences only; normalized content comparison and the frozen package's picker regressions passed.
+- Source pushed to `origin/master`. The user-owned `project.config.json` was excluded from commits.
+- This confirms code upload only, not review submission, publication or real-phone acceptance. The phone must open the new development/experience package to exercise the repair.
