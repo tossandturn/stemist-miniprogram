@@ -6,6 +6,7 @@ const clone = value => JSON.parse(JSON.stringify(value))
 const markingTemplate=fs.readFileSync(new URL('../bundles/marking/index.wxml',import.meta.url),'utf8')
 assert.doesNotMatch(markingTemplate,/需要人工复核|需人工复核|标注待复核/,'AI marking must not present human review as the final workflow step')
 assert.match(markingTemplate,/AI 自动完成批改/)
+assert.match(markingTemplate,/wx:if="{{selectionError}}"[^>]*role="alert"/,'File-selection failures must be announced beside the picker')
 const pdf = Uint8Array.from(Buffer.from('%PDF-1.7\nfixture')).buffer
 const jpg = Uint8Array.from([255,216,255,224,1,2]).buffer
 const input = (id='file-answer1', role='answer', mediaType='image/jpeg') => ({id, role, mediaType, kind:mediaType==='application/pdf'?'pdf':'image', path:'/tmp/'+id, name:id+(mediaType==='application/pdf'?'.pdf':'.jpg'), size:mediaType==='application/pdf'?pdf.byteLength:jpg.byteLength})
@@ -84,23 +85,204 @@ assert.deepEqual(clone(failedDownload.storage.get('stemistPaperReports')),stored
 const download401=failedDownload.api.download(jobId,'report',fsScope);await settle();failedDownload.download.success({statusCode:401})
 await assert.rejects(()=>download401);assert.equal(failedDownload.api.current(fsScope),false)
 
-function pageRuntime(overrides={}) {
+function pageRuntime(overrides={},wx={},globals={}) {
   let currentOwner='student-a',epoch=0
   const calls=[], jobs=new Map(), uploads=[]
   const service={scope:()=>({owner:currentOwner,epoch}),current:s=>s?.owner===currentOwner&&s.epoch===epoch,
-    validateFiles:api.validateFiles,inspect:async f=>({...f,size:6,mediaType:'image/jpeg'}),
+    validateFiles:api.validateFiles,inspect:async f=>({...f,size:6,mediaType:f.kind==='pdf'?'application/pdf':'image/jpeg'}),
     list:async()=>[],get:async id=>jobs.get(id),
     create:async draft=>{calls.push(['create',draft.clientRequestId]);const job={jobId,status:'draft',assets:draft.files.map((f,i)=>({clientAssetId:f.id,assetId:'asset-fixture'+i}))};jobs.set(jobId,job);return job},
     upload:async(id,file)=>{uploads.push(file.id);jobs.get(id).assets.find(a=>a.assetId===file.assetId).status='uploaded'},
     submit:async draft=>{calls.push(['submit',draft.files.map(f=>f.assetId)]);jobs.get(jobId).status='queued'},
     retry:async()=>{},...overrides,
   }
-  const r=miniRuntime({modules:{'bundles/marking/service':service}})
+  const r=miniRuntime({wx,globals,modules:{'bundles/marking/service':service}})
   r.storage.set('stemistUser',{id:currentOwner});r.storage.set('stemistSessionToken','fixture')
   const p=r.page('bundles/marking/index');p.onLoad()
-  return {...r,p,service,calls,jobs,uploads,switchOwner:owner=>{currentOwner=owner;r.storage.set('stemistUser',{id:owner})}}
+  return {...r,p,service,calls,jobs,uploads,switchOwner:owner=>{currentOwner=owner;r.storage.set('stemistUser',{id:owner})},switchEpoch:value=>{epoch=value;r.storage.set('stemistPrivacyEpoch',value)}}
+}
+function fakeTimers(){
+  let next=0
+  const timers=new Map()
+  return{globals:{setTimeout:(fn,delay)=>{const id=++next;timers.set(id,{fn,delay});return id},clearTimeout:id=>timers.delete(id)},pending:()=>timers.size,runAll:()=>{const queued=[...timers.values()];timers.clear();for(const timer of queued)timer.fn()}}
 }
 const q=pageRuntime(),p=q.p
+
+let chooser,privacyChecks=0
+const inspected=deferred()
+const selection=pageRuntime({inspect:file=>inspected.promise.then(()=>({...file,size:pdf.byteLength,mediaType:'application/pdf'}))},{
+  getPrivacySetting:options=>{privacyChecks++;options.success({needAuthorization:false})},
+  chooseMessageFile:options=>{chooser=options},
+})
+selection.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.ok(chooser,'PDF chooser must be invoked synchronously from the user tap')
+assert.equal(privacyChecks,1,'Privacy is prefetched before the user tap, not awaited inside it')
+assert.equal(selection.p.data.picking,true)
+selection.p.onHide()
+assert.equal(selection.p.data.picking,true,'Native chooser lifecycle hide must not end selection state')
+chooser.success({tempFiles:[{path:'/tmp/answer.pdf',name:'answer.pdf'}]})
+selection.p.onShow()
+assert.equal(privacyChecks,2,'Returning from the native chooser revalidates privacy state')
+await settle()
+assert.equal(selection.p.data.picking,true,'Submit remains blocked while the selected PDF is inspected')
+inspected.resolve()
+await settle()
+assert.equal(selection.p.data.picking,false)
+assert.equal(selection.p.data.answers.length,1,'Selection survives the chooser hide/show lifecycle')
+assert.equal(selection.p.data.answers[0].mediaType,'application/pdf')
+await selection.p.submit();selection.p.pause()
+assert.equal(selection.p.data.jobStatus,'queued','A PDF selected through the native chooser can be submitted')
+assert.deepEqual(selection.uploads,[selection.p.__draft.files[0].id])
+
+const recoveryClock=fakeTimers()
+let recoveryChooser
+const recovery=pageRuntime({}, {
+  getPrivacySetting:options=>options.success({needAuthorization:false}),
+  chooseMessageFile:options=>{recoveryChooser=options},
+},recoveryClock.globals)
+recovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+const abandonedChooser=recoveryChooser
+recovery.p.onHide()
+assert.equal(recoveryClock.pending(),0,'No recovery timeout runs while the native chooser owns the screen')
+recoveryClock.runAll();assert.equal(recovery.p.data.picking,true)
+recovery.p.onShow()
+assert.equal(recoveryClock.pending(),1,'Recovery starts only after the page becomes visible again')
+recoveryClock.runAll();await settle()
+assert.equal(recovery.p.data.picking,false)
+assert.match(recovery.p.data.selectionError,/未返回结果/)
+recovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+const retryChooser=recoveryChooser
+assert.notEqual(retryChooser,abandonedChooser)
+abandonedChooser.success({tempFiles:[{path:'/tmp/stale.pdf',name:'stale.pdf'}]})
+await settle()
+assert.equal(recovery.p.data.answers.length,0,'A late callback from the abandoned chooser cannot add a stale file')
+assert.equal(recovery.p.data.picking,true,'A late callback cannot unlock the newer chooser')
+retryChooser.fail({errMsg:'chooseMessageFile:fail cancel'});await settle()
+assert.equal(recovery.p.data.picking,false)
+
+const inspectionClock=fakeTimers()
+const inspectionResult=deferred()
+let inspectionChooser
+const inspectionRecovery=pageRuntime({inspect:file=>inspectionResult.promise.then(()=>({...file,size:pdf.byteLength,mediaType:'application/pdf'}))},{
+  getPrivacySetting:options=>options.success({needAuthorization:false}),
+  chooseMessageFile:options=>{inspectionChooser=options},
+},inspectionClock.globals)
+inspectionRecovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+inspectionRecovery.p.onHide();inspectionRecovery.p.onShow()
+assert.equal(inspectionClock.pending(),1)
+inspectionChooser.success({tempFiles:[{path:'/tmp/inspect.pdf',name:'inspect.pdf'}]})
+await settle()
+assert.equal(inspectionClock.pending(),0,'A native callback clears return recovery before inspection')
+inspectionClock.runAll()
+assert.equal(inspectionRecovery.p.data.picking,true,'Return recovery never interrupts file inspection')
+inspectionResult.resolve();await settle()
+assert.equal(inspectionRecovery.p.data.answers.length,1)
+
+const lifecycleClock=fakeTimers()
+let lifecycleChooser
+const lifecycleRecovery=pageRuntime({}, {
+  getPrivacySetting:options=>options.success({needAuthorization:false}),
+  chooseMessageFile:options=>{lifecycleChooser=options},
+},lifecycleClock.globals)
+lifecycleRecovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}});lifecycleRecovery.p.onHide();lifecycleRecovery.p.onShow()
+assert.equal(lifecycleClock.pending(),1)
+lifecycleRecovery.switchOwner('student-b');lifecycleRecovery.p.bindOwner()
+assert.equal(lifecycleClock.pending(),0,'Owner changes clear pending chooser recovery')
+lifecycleChooser.success({tempFiles:[{path:'/tmp/old-owner.pdf',name:'old-owner.pdf'}]});await settle()
+assert.equal(lifecycleRecovery.p.data.answers.length,0)
+lifecycleRecovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}});lifecycleRecovery.p.onHide();lifecycleRecovery.p.onShow()
+assert.equal(lifecycleClock.pending(),1)
+lifecycleRecovery.p.onUnload()
+assert.equal(lifecycleClock.pending(),0,'Unload clears pending chooser recovery')
+
+let consentChooser
+const consent=pageRuntime({}, {
+  getPrivacySetting:options=>options.success({needAuthorization:true}),
+  chooseMessageFile:options=>{consentChooser=options},
+})
+assert.equal(consent.p.data.privacy,true)
+consent.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.equal(consentChooser,undefined,'Privacy consent is required before opening protected file APIs')
+consent.p.agreePrivacy()
+assert.match(consent.p.data.status,/再次点击选择文件/)
+consent.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.ok(consentChooser,'The tap after confirmed privacy consent opens the chooser synchronously')
+const cancelledChooser=consentChooser
+consentChooser.fail({errMsg:'chooseMessageFile:fail cancel'})
+await settle()
+assert.equal(consent.p.data.selectionError,'','Cancelling the native chooser is not presented as an error')
+consent.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.notEqual(consentChooser,cancelledChooser,'Cancelling leaves the picker immediately retryable')
+consentChooser.success({tempFiles:[{path:'/tmp/retry.pdf',name:'retry.pdf'}]})
+await settle()
+assert.equal(consent.p.data.answers.length,1)
+
+let blockedChooser
+const privacyPending=pageRuntime({}, {
+  getPrivacySetting:()=>{},
+  chooseMessageFile:options=>{blockedChooser=options},
+})
+privacyPending.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.equal(blockedChooser,undefined,'Unknown privacy state never enters a protected file API')
+assert.equal(privacyPending.p.data.picking,false)
+assert.match(privacyPending.p.data.selectionError,/隐私设置/)
+
+let privacyFailChecks=0,privacyFailChooser
+const privacyFailure=pageRuntime({}, {
+  getPrivacySetting:options=>{privacyFailChecks++;options.fail({errMsg:'getPrivacySetting:fail'})},
+  chooseMessageFile:options=>{privacyFailChooser=options},
+})
+privacyFailure.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.equal(privacyFailChecks,2,'A tap retries a failed privacy preflight')
+assert.equal(privacyFailChooser,undefined)
+assert.equal(privacyFailure.p.data.picking,false)
+assert.match(privacyFailure.p.data.selectionError,/隐私设置暂时无法读取/)
+
+let failedChooser
+const nativeFailure=pageRuntime({}, {
+  getPrivacySetting:options=>options.success({needAuthorization:false}),
+  chooseMessageFile:options=>{failedChooser=options},
+})
+nativeFailure.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+failedChooser.fail({errMsg:'chooseMessageFile:fail api scope is not declared in the privacy agreement'})
+await settle()
+assert.equal(nativeFailure.p.data.picking,false)
+assert.match(nativeFailure.p.data.selectionError,/未声明“选中的文件”/,'A missing privacy declaration points to the administrator, not repeated student consent')
+nativeFailure.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+failedChooser.fail({errMsg:'chooseMessageFile:fail privacy authorization required'})
+await settle()
+assert.match(nativeFailure.p.data.selectionError,/完成隐私授权/,'A consent failure tells the student how to recover')
+assert.doesNotMatch(nativeFailure.p.data.selectionError,/未声明/)
+
+let invalidChooser
+const invalidSelection=pageRuntime({inspect:async()=>{throw Error('PDF 不能超过 10 MB。')}},{
+  getPrivacySetting:options=>options.success({needAuthorization:false}),
+  chooseMessageFile:options=>{invalidChooser=options},
+})
+invalidSelection.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+invalidChooser.success({tempFiles:[{path:'/tmp/oversize.pdf',name:'oversize.pdf'}]})
+await settle()
+assert.equal(invalidSelection.p.data.picking,false)
+assert.equal(invalidSelection.p.data.selectionError,'PDF 不能超过 10 MB。','Local inspection errors remain precise and actionable')
+
+let scopedChooser,scopePrivacyChecks=0
+const scopedInspection=deferred()
+const scopedSelection=pageRuntime({inspect:file=>scopedInspection.promise.then(()=>({...file,size:pdf.byteLength,mediaType:'application/pdf'}))},{
+  getPrivacySetting:options=>{scopePrivacyChecks++;options.success({needAuthorization:false})},
+  chooseMessageFile:options=>{scopedChooser=options},
+})
+scopedSelection.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+scopedChooser.success({tempFiles:[{path:'/tmp/private-a.pdf',name:'private-a.pdf'}]})
+await settle()
+assert.equal(scopedSelection.p.data.picking,true)
+scopedSelection.switchOwner('student-b');scopedSelection.p.bindOwner()
+assert.equal(scopePrivacyChecks,2,'Owner changes revalidate privacy instead of reusing cached state')
+assert.equal(scopedSelection.p.data.picking,false)
+scopedInspection.resolve();await settle()
+assert.equal(scopedSelection.p.data.answers.length,0,'Inspection finishing after an owner change cannot publish the old private file')
+scopedSelection.switchEpoch(1);scopedSelection.p.bindOwner()
+assert.equal(scopePrivacyChecks,3,'Privacy epoch changes also revalidate cached state')
+
 p.__draft.files=[input('file-first1'),input('file-second2'),input('file-ref123','mark-scheme','application/pdf')];p.save()
 p.move({currentTarget:{dataset:{id:'file-second2',delta:-1}}})
 assert.deepEqual(clone(p.__draft.files.map(f=>f.id)),['file-second2','file-first1','file-ref123'])
@@ -165,5 +347,5 @@ const paused=deferred(),c=pageRuntime({upload:()=>paused.promise})
 c.p.__draft.files=[input()];const pendingUpload=c.p.submit();await settle();c.p.onHide();paused.resolve({status:'uploaded'});await pendingUpload
 assert.equal(c.calls.filter(x=>x[0]==='submit').length,0,'Backgrounded upload never auto-submits')
 assert.equal(c.p.__draft.files[0].uploaded,true,'Completed upload can be resumed')
-for(const fixture of [q,a,b,c,race,stale,cancellation])fixture.p.onUnload()
-console.log('Whole-paper client: ordered uploads, bounds, idempotence, privacy, auth expiry, history, scoring, paging and pause regressions PASS')
+for(const fixture of [q,selection,recovery,inspectionRecovery,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,race,stale,cancellation])fixture.p.onUnload()
+console.log('Whole-paper client: native PDF selection, inspection, upload, privacy, ordering, idempotence, auth expiry, history, scoring, paging and pause regressions PASS')

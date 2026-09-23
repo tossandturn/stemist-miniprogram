@@ -6,57 +6,92 @@ const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)
 const routes=STEM_ROUTES.filter(r=>['IGCSE','AS','A2'].includes(r.stage)).map(r=>({id:r.routeId,label:r.stage+' · '+r.subjectCode+' · '+r.subjectLabel+' · '+r.components}))
 const roles={answer:'学生作答','question-paper':'原卷','mark-scheme':'评分标准'}
 const states={draft:'等待上传',queued:'排队中',processing:'正在批改',completed:'报告已生成',failed:'批改暂未完成'}
+const PICKER_RETURN_GRACE_MS=5000
+const pickerFailure=error=>{
+ const ownMessage=String(error?.message||'')
+ if(ownMessage&&!/^choose(?:MessageFile|Media|Image):fail/i.test(ownMessage))return ownMessage
+ const detail=String(error?.errMsg||ownMessage)
+ if(/cancel|取消/i.test(detail))return''
+ if(/tap|gesture/i.test(detail))return'文件选择器未能打开，请再次点击选择文件。'
+ if(/declare|scope|not[^\n]*privacy|未声明/i.test(detail))return'此版本未声明“选中的文件”，需要管理员完善隐私保护指引后重试。'
+ if(/privacy|authoriz|permission|隐私|授权/i.test(detail))return'微信未允许打开文件选择器，请先完成隐私授权后重试。'
+ if(/not support|unsupported|version|基础库|版本/i.test(detail))return'当前微信版本不支持选择文件，请更新微信后重试。'
+ return'文件选择器未能打开，请重试；若仍失败，请更新微信并确认小程序隐私设置。'
+}
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],busy:false,picking:false,error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false}),
- onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.bindOwner()},
+ data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],busy:false,picking:false,selectionError:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false}),
+ onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.bindOwner()},
  bindOwner(){
-  const s=api.scope();if(this.__scope&&s.owner===this.__scope.owner&&s.epoch===this.__scope.epoch)return
+  const s=api.scope();if(this.__scope&&s.owner===this.__scope.owner&&s.epoch===this.__scope.epoch)return false
   this.pause();this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
+  this.__privacyCheck++;this.__privacyKnown=typeof wx.getPrivacySetting!=='function';this.__privacyNeeded=false
   this.__job=null;this.__questions=[];this.__pickAction=null
   const old=wx.getStorageSync(this.__key)
   this.__draft=old?.epoch===s.epoch&&Array.isArray(old.files)?old:{clientRequestId:'paper-'+uid(),files:[],routeId:routes[0]?.id||'',title:'',instructions:'',epoch:s.epoch}
   const staleRoute=!routes.some(r=>r.id===this.__draft.routeId)
   if(staleRoute&&!this.__draft.jobId)this.__draft.routeId=routes[0]?.id||''
-  this.setData({authenticated:s.owner!=='guest'&&Boolean(wx.getStorageSync('stemistSessionToken')),title:this.__draft.title||'',instructions:this.__draft.instructions||'',routeIndex:Math.max(0,routes.findIndex(r=>r.id===this.__draft.routeId)),archivedRoute:staleRoute&&this.__draft.jobId?'历史学科：'+this.__draft.routeId:'',jobId:this.__draft.jobId||'',jobStatus:'',jobLabel:'',result:null,questions:[],history:[],error:staleRoute&&!this.__draft.jobId?'原学科已更新，请确认当前学科后再提交。':'',status:'',privacy:false,documentBusy:false});this.renderFiles()
+  this.setData({authenticated:s.owner!=='guest'&&Boolean(wx.getStorageSync('stemistSessionToken')),title:this.__draft.title||'',instructions:this.__draft.instructions||'',routeIndex:Math.max(0,routes.findIndex(r=>r.id===this.__draft.routeId)),archivedRoute:staleRoute&&this.__draft.jobId?'历史学科：'+this.__draft.routeId:'',jobId:this.__draft.jobId||'',jobStatus:'',jobLabel:'',result:null,questions:[],history:[],selectionError:'',error:staleRoute&&!this.__draft.jobId?'原学科已更新，请确认当前学科后再提交。':'',status:'',privacy:false,documentBusy:false});this.renderFiles();this.refreshPrivacy();return true
  },
  current(){return !this.__disposed&&api.current(this.__scope)},
  accept(s){if(this.__disposed||s!==this.__scope)return false;if(!api.current(s)){this.bindOwner();return false}return true},
- onShow(){this.__visible=true;syncDevice(this);this.bindOwner();if(this.data.authenticated){this.loadHistory();if(this.__draft.jobId)this.refreshJob()}},
+ onShow(){this.__visible=true;syncDevice(this);if(!this.bindOwner())this.refreshPrivacy();this.recoverPicker();if(this.data.authenticated){this.loadHistory();if(this.__draft.jobId)this.refreshJob()}},
  onResize(){syncDevice(this)},
- onHide(){this.__visible=false;this.pause()},
+ onHide(){this.__visible=false;if(this.__selection?.phase==='choosing'){this.__selection.hidden=true;this.clearPicker(this.__selection)}this.pause({preservePicking:true})},
  onUnload(){this.__disposed=true;this.pause()},
- pause(){this.__generation++;clearTimeout(this.__poll);if(this.__upload){this.__upload.stopped=true;this.__upload.task?.abort?.()}if(!this.__disposed)this.setData({busy:false,picking:false})},
+ clearPicker(selection=this.__selection,forget=false){if(!selection)return;if(selection.timer){clearTimeout(selection.timer);selection.timer=null}if(forget&&this.__selection===selection){selection.stale=true;this.__selection=null}},
+ recoverPicker(){
+  const selection=this.__selection
+  if(!selection||selection.stale||selection.settled||selection.phase!=='choosing'||!selection.hidden)return
+  selection.hidden=false;this.clearPicker(selection)
+  selection.timer=setTimeout(()=>{if(this.__visible&&this.__selection===selection&&!selection.stale&&!selection.settled&&selection.phase==='choosing')selection.finish(false,Error('文件选择器未返回结果，请再次点击选择文件。'))},PICKER_RETURN_GRACE_MS)
+ },
+ pause(options={}){this.__generation++;clearTimeout(this.__poll);if(options.preservePicking!==true)this.clearPicker(this.__selection,true);if(this.__upload){this.__upload.stopped=true;this.__upload.task?.abort?.()}if(!this.__disposed)this.setData(options.preservePicking===true?{busy:false}:{busy:false,picking:false})},
  save(){if(this.current()){wx.setStorageSync(this.__key,this.__draft);if(this.__draft.jobId)wx.setStorageSync(this.__key+':'+this.__draft.jobId,this.__draft);this.renderFiles()}},
  renderFiles(){const files=this.__draft?.files||[];this.setData({files,answers:files.filter(f=>f.role==='answer').map((f,i)=>({...f,page:i+1})),references:files.filter(f=>f.role!=='answer').map(f=>({...f,roleLabel:roles[f.role]}))})},
  editable(){return this.current()&&this.data.authenticated&&!this.data.busy&&!this.data.picking&&!this.__draft.jobId},
  input(event){if(!this.editable())return;const key=event.currentTarget.dataset.field;if(!['title','instructions'].includes(key))return;this.__draft[key]=String(event.detail.value||'').slice(0,key==='title'?100:2000);this.setData({[key]:this.__draft[key]});this.save()},
  routeChange(event){if(!this.editable())return;const index=Number(event.detail.value);if(!routes[index])return;this.__draft.routeId=routes[index].id;this.setData({routeIndex:index});this.save()},
- async privacyReady(action){
-  const s=this.__scope
-  this.__pickAction=action
-  if(wx.getPrivacySetting){const r=await new Promise((resolve,reject)=>wx.getPrivacySetting({success:resolve,fail:()=>reject(Error('隐私设置暂时无法读取，请重试。'))}));if(!this.accept(s))return false;if(r.needAuthorization){this.setData({privacy:true});return false}}
-  this.setData({privacy:false});return true
+ refreshPrivacy(showError=false){
+  if(typeof wx.getPrivacySetting!=='function'){this.__privacyKnown=true;this.__privacyNeeded=false;return}
+  const s=this.__scope,n=++this.__privacyCheck
+  const accept=()=>n===this.__privacyCheck&&this.accept(s)
+  const fail=()=>{if(!accept())return;this.__privacyKnown=false;if(showError)this.setData({privacy:false,selectionError:'隐私设置暂时无法读取，请稍后再次点击选择文件。',status:''})}
+  try{wx.getPrivacySetting({success:r=>{if(!accept())return;this.__privacyKnown=true;this.__privacyNeeded=r.needAuthorization===true;const patch={privacy:this.__privacyNeeded};if(showError)patch.selectionError=this.__privacyNeeded?'请先完成上方隐私授权。':'';this.setData(patch)},fail})}catch{fail()}
  },
- agreePrivacy(){this.setData({privacy:false});const a=this.__pickAction;if(a)this.pick(a.role,a.kind)},
+ privacyReady(action){
+  this.__pickAction=action
+  if(this.__privacyKnown&&!this.__privacyNeeded){this.setData({privacy:false});return true}
+  if(this.__privacyNeeded)this.setData({privacy:true,selectionError:'请先完成上方隐私授权。',status:''})
+  else{this.setData({selectionError:'正在确认隐私设置，请稍后再次点击选择文件。',status:''});this.refreshPrivacy(true)}
+  return false
+ },
+ agreePrivacy(){this.__privacyCheck++;this.__privacyKnown=true;this.__privacyNeeded=false;this.setData({privacy:false,selectionError:'',error:'',status:'隐私授权已完成，请再次点击选择文件。'})},
  pickPdf(event){const role=event.currentTarget.dataset.role;if(roles[role])this.pick(role,'pdf')},
  pickImages(){this.pick('answer','image')},
  async pick(role,kind){
   if(!this.editable())return
   const s=this.__scope
+  let selection
   try{
-   if(!await this.privacyReady({role,kind})||!this.accept(s))return
+   if(!this.privacyReady({role,kind})||!this.accept(s))return
    const existing=this.__draft.files.filter(f=>f.role==='answer')
    if(role==='answer'&&existing.length&&(kind==='pdf'||existing[0].kind==='pdf'))throw Error('请先移除已选作答，再切换 PDF 或图片。')
    if(role==='answer'&&existing.length>=20)throw Error('作答最多 20 张图片。')
-   this.setData({picking:true,error:''})
+   this.clearPicker(this.__selection,true)
+   selection={id:++this.__selectionSequence,phase:'choosing',hidden:false,settled:false,stale:false,timer:null,finish:null}
+   this.__selection=selection
+   this.setData({picking:true,selectionError:'',error:'',status:'正在打开文件选择器…'})
    const result=await new Promise((resolve,reject)=>{
-    const opts={success:resolve,fail:reject}
-    if(kind==='pdf'){if(!wx.chooseMessageFile)return reject(Error('当前微信版本不支持选择文件，请升级微信。'));wx.chooseMessageFile({...opts,count:1,type:'file',extension:['pdf']})}
+    selection.finish=(ok,value)=>{if(selection.stale||selection.settled||this.__selection!==selection)return;selection.settled=true;selection.phase=ok?'inspecting':'finished';this.clearPicker(selection);if(ok)resolve(value);else reject(value)}
+    const opts={success:value=>selection.finish(true,value),fail:error=>selection.finish(false,error)}
+    if(kind==='pdf'){if(!wx.chooseMessageFile)return selection.finish(false,Error('当前微信版本不支持选择文件，请升级微信。'));wx.chooseMessageFile({...opts,count:1,type:'file',extension:['pdf']})}
     else if(wx.chooseMedia)wx.chooseMedia({...opts,count:Math.min(9,20-existing.length),mediaType:['image'],sourceType:['album','camera'],sizeType:['compressed']})
     else wx.chooseImage({...opts,count:Math.min(9,20-existing.length),sizeType:['compressed']})
    })
    if(!this.current()||s!==this.__scope)return
+   this.clearPicker(selection);selection.phase='inspecting'
+   this.setData({status:'正在检查所选文件…'})
    const incoming=[]
    for(const [i,f] of (result.tempFiles||[]).entries()){
     const file=await api.inspect({id:'file-'+uid(),path:f.tempFilePath||f.path,name:String(f.name||(kind==='pdf'?'作答.pdf':'图片-'+(existing.length+i+1)+'.jpg')).slice(0,120),role,kind},s)
@@ -66,9 +101,9 @@ Page({
    if(!incoming.length)throw Error('没有读取到文件，请重新选择。')
    const next=(role==='answer'?this.__draft.files:this.__draft.files.filter(f=>f.role!==role)).concat(incoming)
    if(next.reduce((n,f)=>n+f.size,0)>40*1024*1024)throw Error('全部文件合计不能超过 40 MB。')
-   this.__draft.files=next;this.save()
-  }catch(e){if(this.accept(s))this.setData({error:/cancel|取消/i.test(e.errMsg||e.message||'')?'':e.message||'文件选择失败，请重试。'})}
-  finally{if(this.accept(s))this.setData({picking:false})}
+   this.__draft.files=next;this.save();this.setData({status:'文件已就绪，可以提交批改。'})
+  }catch(e){if((!selection||this.__selection===selection)&&this.accept(s))this.setData({selectionError:pickerFailure(e),status:''})}
+  finally{if(!selection){if(this.accept(s))this.setData({picking:false})}else if(this.__selection===selection){this.clearPicker(selection,true);if(this.accept(s))this.setData({picking:false})}}
  },
  remove(event){if(!this.editable())return;this.__draft.files=this.__draft.files.filter(f=>f.id!==event.currentTarget.dataset.id);this.save()},
  move(event){if(!this.editable())return;const answers=this.__draft.files.filter(f=>f.role==='answer'),i=answers.findIndex(f=>f.id===event.currentTarget.dataset.id),j=i+Number(event.currentTarget.dataset.delta);if(i<0||j<0||j>=answers.length)return;[answers[i],answers[j]]=[answers[j],answers[i]];this.__draft.files=answers.concat(this.__draft.files.filter(f=>f.role!=='answer'));this.save()},
@@ -149,7 +184,7 @@ Page({
   catch(e){if(alive())this.setData({error:e.message})}
   finally{if(alive())this.setData({documentBusy:false})}
  },
- newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__job=null;this.__questions=[];this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();this.setData({title:'',instructions:'',jobId:'',jobStatus:'',result:null,questions:[],error:'',status:'',archivedRoute:'',expiresAt:'',sourceAvailable:false});this.loadHistory()}})},
+ newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__job=null;this.__questions=[];this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();this.setData({title:'',instructions:'',jobId:'',jobStatus:'',result:null,questions:[],selectionError:'',error:'',status:'',archivedRoute:'',expiresAt:'',sourceAvailable:false});this.loadHistory()}})},
  login(){wx.navigateTo({url:'/pages/account/auth'})},
  back(){wx.navigateBack()},
 })

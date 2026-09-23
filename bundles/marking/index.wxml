@@ -11,6 +11,7 @@
     <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || jobId}}"><view class="input">{{archivedRoute || routes[routeIndex].label}}</view></picker>
     <text class="field-label">报告标题（选填）</text><input class="input" value="{{title}}" data-field="title" bindinput="input" maxlength="100" placeholder="例如：9709 2025 夏季 P13" disabled="{{busy || jobId}}" />
     <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="answer" bindtap="pickPdf" disabled="{{busy || picking}}">选择作答 PDF</button><button class="secondary" bindtap="pickImages" disabled="{{busy || picking}}">选择多张图片</button></view>
+    <view wx:if="{{selectionError}}" class="error" role="alert"><text>{{selectionError}}</text></view>
     <text class="subtle">1 份 PDF（最多 10 MB / 20 页），或 1–20 张图片（每张最多 4 MB）。含参考资料总计最多 40 页 / 40 MB。</text>
     <text wx:if="{{!jobId}}" class="subtle">PDF 从微信聊天文件中选择，可先发送到文件传输助手。</text>
     <view class="file-row" wx:for="{{answers}}" wx:key="id">
