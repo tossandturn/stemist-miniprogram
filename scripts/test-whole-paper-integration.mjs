@@ -98,13 +98,35 @@ try{
  let ink=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<180&&pixels[i+1]<180&&pixels[i+2]<180)ink++
  assert.ok(ink>1000,'Actual report body must render visible text, not only a header/footer')
  assert.ok((await service.list(s)).some(j=>j.jobId===job.jobId))
+ // Exercise the PDF selection branch, not just image-to-PDF assembly.
+ // Feed the real two-page source PDF back through the actual client inspector,
+ // authenticated binary upload, submit, async status, and report download APIs.
+ files.set('/qa/answers.pdf',files.get(source))
+ const pdfDraft={clientRequestId:'whole-paper-pdf-integration-0001',title:'Synthetic PDF integration',routeId:draft.routeId,files:[await service.inspect({id:'file-pdf-answer',role:'answer',kind:'pdf',path:'/qa/answers.pdf',name:'answers.pdf'},s)]}
+ assert.equal(pdfDraft.files[0].mediaType,'application/pdf')
+ const pdfCreated=await service.create(pdfDraft,s);pdfDraft.jobId=pdfCreated.jobId
+ assert.equal(pdfCreated.status,'draft')
+ pdfDraft.files[0].assetId=pdfCreated.assets[0].assetId
+ await service.upload(pdfDraft.jobId,pdfDraft.files[0],s,{cancelled:()=>false})
+ const pdfSubmitted=await service.submit(pdfDraft,s)
+ assert.ok(['queued','processing','completed'].includes(pdfSubmitted.status))
+ let pdfJob
+ const pdfDeadline=Date.now()+15000
+ do{pdfJob=await service.get(pdfDraft.jobId,s);if(['completed','failed'].includes(pdfJob.status))break;await new Promise(resolve=>setTimeout(resolve,40))}while(Date.now()<pdfDeadline)
+ assert.equal(pdfJob.status,'completed',pdfJob.failureCode)
+ assert.equal(pdfJob.result.assessmentMode,'ai-advisory-unscored')
+ assert.equal(pdfJob.result.provisionalScore,null)
+ const pdfReport=await service.download(pdfJob.jobId,'report',s,'PDF integration report')
+ assert.equal(files.get(pdfReport).subarray(0,5).toString(),'%PDF-')
+ assert.ok(files.get(pdfReport).length>2000)
+ assert.equal(providerCalls,2,'PDF and image submissions each run once')
  const cancellable=await service.create({...draft,clientRequestId:'whole-paper-cancel-0001'},s)
  const cancelled=await service.cancel(cancellable.jobId,'cancel-request-fixture-0001',s)
  assert.equal(cancelled.status,'failed');assert.equal(cancelled.failureCode,'cancelled')
  await service.cancel(cancellable.jobId,'cancel-request-fixture-0001',s)
- assert.equal(providerCalls,1,'Unsubmitted cancellation never invokes the model')
+ assert.equal(providerCalls,2,'Unsubmitted cancellation never invokes the model')
  page.onUnload()
- console.log(JSON.stringify({status:'pass',realLocalHttp:true,clientService:true,serverApi:true,orderedImages:2,sourcePdfBytes:files.get(source).length,reportPdfBytes:files.get(report).length,providerCalls,model:'deterministic fixture, NOT live AI',requests:calls.length}))
+ console.log(JSON.stringify({status:'pass',realLocalHttp:true,clientService:true,serverApi:true,orderedImages:2,pdfInputPages:2,pdfJobStatus:pdfJob.status,sourcePdfBytes:files.get(source).length,reportPdfBytes:files.get(report).length,pdfInputReportBytes:files.get(pdfReport).length,providerCalls,model:'deterministic fixture, NOT live AI',requests:calls.length}))
 }finally{
  await new Promise(resolve=>server.close(resolve));closeStemDatabaseForTests()
  const resolved=path.resolve(temp)

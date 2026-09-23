@@ -4,9 +4,25 @@ import { miniRuntime, deferred, settle } from './helpers/mini-runtime.mjs'
 
 const clone = value => JSON.parse(JSON.stringify(value))
 const markingTemplate=fs.readFileSync(new URL('../bundles/marking/index.wxml',import.meta.url),'utf8')
+const markingStyles=fs.readFileSync(new URL('../bundles/marking/index.wxss',import.meta.url),'utf8')
 assert.doesNotMatch(markingTemplate,/需要人工复核|需人工复核|标注待复核/,'AI marking must not present human review as the final workflow step')
 assert.match(markingTemplate,/AI 自动完成批改/)
 assert.match(markingTemplate,/wx:if="{{selectionError}}"[^>]*role="alert"/,'File-selection failures must be announced beside the picker')
+for(const id of ['marking-flow','marking-picker','marking-primary-action','marking-submit-primary','marking-optional-toggle','marking-optional-fields','marking-job-state','marking-report','marking-history'])assert.match(markingTemplate,new RegExp(`id="${id}"`),`Stable UI QA hook ${id} must remain available`)
+const pickerPosition=markingTemplate.indexOf('id="marking-picker"'),actionPosition=markingTemplate.indexOf('id="marking-primary-action"'),optionalPosition=markingTemplate.indexOf('id="marking-optional-toggle"')
+assert.ok(pickerPosition<actionPosition&&actionPosition<optionalPosition,'Selection summary and primary submit must precede optional reference fields')
+assert.match(markingTemplate,/请先选择 1 份作答 PDF 或 1–20 张图片/,'Disabled submit explains exactly what is missing')
+assert.match(markingTemplate,/<privacy-consent[^>]*button-text="同意隐私授权"/,'Privacy authorization stays adjacent to the picker with one explicit native action')
+assert.match(markingStyles,/\.device-phone[^}]*\.marking-primary-action\s*\{[^}]*position:\s*fixed/s,'Phone primary action stays above the fixed app navigation')
+assert.match(markingStyles,/bottom:\s*calc\(80px \+ env\(safe-area-inset-bottom\)\)/)
+assert.match(markingTemplate,/marking-page[^\n]*jobId[^\n]*has-job/,'Current jobs expose a class for phone-first status ordering')
+assert.match(markingStyles,/#marking-submit-primary\[disabled\]\{[^}]*background:#e4ddf7;[^}]*color:#5b4a7c;[^}]*opacity:1/s,'Disabled primary action remains legible without losing disabled semantics')
+assert.match(markingStyles,/\.device-phone\.has-job \.marking-output\{grid-row:1\}/)
+assert.match(markingStyles,/\.device-phone\.has-job \.marking-inputs\{grid-row:2\}/)
+assert.match(markingTemplate,/id="marking-flow"[^>]*aria-label="[^"]*{{flowStep}}/,'Flow exposes the current step to assistive technology')
+assert.match(markingTemplate,/id="marking-job-state"[^>]*role="status"[^>]*aria-label=/,'Current queue/report state is announced programmatically')
+assert.match(markingTemplate,/job-actions[\s\S]*?wx:if="{{reportAvailable}}"[^>]*data-kind="report"[^>]*>下载批改报告/,'Completed status card includes a direct report shortcut')
+assert.doesNotMatch(markingTemplate,/队列第|预计[^<]*(分钟|完成)/,'UI must not invent queue rank or completion time')
 const pdf = Uint8Array.from(Buffer.from('%PDF-1.7\nfixture')).buffer
 const jpg = Uint8Array.from([255,216,255,224,1,2]).buffer
 const input = (id='file-answer1', role='answer', mediaType='image/jpeg') => ({id, role, mediaType, kind:mediaType==='application/pdf'?'pdf':'image', path:'/tmp/'+id, name:id+(mediaType==='application/pdf'?'.pdf':'.jpg'), size:mediaType==='application/pdf'?pdf.byteLength:jpg.byteLength})
@@ -93,7 +109,7 @@ function pageRuntime(overrides={},wx={},globals={}) {
     list:async()=>[],get:async id=>jobs.get(id),
     create:async draft=>{calls.push(['create',draft.clientRequestId]);const job={jobId,status:'draft',assets:draft.files.map((f,i)=>({clientAssetId:f.id,assetId:'asset-fixture'+i}))};jobs.set(jobId,job);return job},
     upload:async(id,file)=>{uploads.push(file.id);jobs.get(id).assets.find(a=>a.assetId===file.assetId).status='uploaded'},
-    submit:async draft=>{calls.push(['submit',draft.files.map(f=>f.assetId)]);jobs.get(jobId).status='queued'},
+    submit:async draft=>{calls.push(['submit',draft.files.map(f=>f.assetId)]);const job=jobs.get(jobId);job.status='queued';return {...job}},
     retry:async()=>{},...overrides,
   }
   const r=miniRuntime({wx,globals,modules:{'bundles/marking/service':service}})
@@ -107,6 +123,11 @@ function fakeTimers(){
   return{globals:{setTimeout:(fn,delay)=>{const id=++next;timers.set(id,{fn,delay});return id},clearTimeout:id=>timers.delete(id)},pending:()=>timers.size,runAll:()=>{const queued=[...timers.values()];timers.clear();for(const timer of queued)timer.fn()}}
 }
 const q=pageRuntime(),p=q.p
+assert.equal(p.data.flowStep,1)
+assert.equal(p.data.optionalOpen,false)
+assert.equal(p.data.actionVisible,true)
+p.toggleOptional();assert.equal(p.data.optionalOpen,true)
+p.toggleOptional();assert.equal(p.data.optionalOpen,false)
 
 let chooser,privacyChecks=0
 const inspected=deferred()
@@ -130,9 +151,50 @@ await settle()
 assert.equal(selection.p.data.picking,false)
 assert.equal(selection.p.data.answers.length,1,'Selection survives the chooser hide/show lifecycle')
 assert.equal(selection.p.data.answers[0].mediaType,'application/pdf')
+assert.match(selection.p.data.selectionSummary,/1 份 PDF/)
 await selection.p.submit();selection.p.pause()
 assert.equal(selection.p.data.jobStatus,'queued','A PDF selected through the native chooser can be submitted')
 assert.deepEqual(selection.uploads,[selection.p.__draft.files[0].id])
+assert.equal(selection.p.data.uploadTotal,1)
+assert.equal(selection.p.data.uploadCompleted,1)
+assert.equal(selection.p.data.flowStep,2)
+assert.equal(selection.p.data.actionVisible,false)
+
+let scrolledTo
+const scrolling=pageRuntime({}, {pageScrollTo:options=>{scrolledTo=options}})
+scrolling.p.__draft.files=[input('file-scroll1')];scrolling.p.save()
+await scrolling.p.submit();scrolling.p.pause()
+assert.equal(scrolledTo.selector,'#marking-job-state','Confirmed submission focuses the real current job state')
+
+let confirmedSubmits=0,failedStatusReads=0
+const confirmedQueue=pageRuntime({
+  submit:async()=>{confirmedSubmits++;return{jobId,status:'queued',progress:{}}},
+  get:async()=>{failedStatusReads++;throw Error('状态读取暂时失败')},
+})
+confirmedQueue.p.__draft.files=[input('file-confirmed1')];confirmedQueue.p.save()
+await confirmedQueue.p.submit()
+assert.equal(confirmedSubmits,1)
+assert.equal(failedStatusReads,1)
+assert.equal(confirmedQueue.p.data.jobStatus,'queued','Validated submit response remains visible when immediate status GET fails')
+assert.equal(confirmedQueue.p.data.flowStep,2)
+assert.equal(confirmedQueue.p.data.actionVisible,false)
+await confirmedQueue.p.submit()
+assert.equal(confirmedSubmits,1,'Retry after confirmed queue state cannot submit the same job twice')
+confirmedQueue.p.pause()
+
+const stateView=pageRuntime()
+stateView.p.__draft.jobId=jobId
+stateView.p.setJob({jobId,status:'draft',progress:{}})
+assert.equal(stateView.p.data.flowStep,1);assert.match(stateView.p.data.jobStateHint,/上传/)
+stateView.p.setJob({jobId,status:'queued',progress:{}})
+assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/等待 AI 批改/)
+stateView.p.setJob({jobId,status:'processing',progress:{completedPages:2,totalPages:5}})
+assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/正在批改/)
+stateView.p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-advisory-unscored',officialScore:false,summary:'done'}})
+assert.equal(stateView.p.data.flowStep,3);assert.match(stateView.p.data.jobStateHint,/批改完成/)
+assert.equal(stateView.p.data.jobLabel,'批改已完成','Completed label must not claim a PDF exists before reportPdfPath does')
+stateView.p.setJob({jobId,status:'failed',retryable:true,progress:{}})
+assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/未完成/)
 
 const recoveryClock=fakeTimers()
 let recoveryChooser
@@ -204,7 +266,7 @@ assert.equal(consent.p.data.privacy,true)
 consent.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
 assert.equal(consentChooser,undefined,'Privacy consent is required before opening protected file APIs')
 consent.p.agreePrivacy()
-assert.match(consent.p.data.status,/再次点击选择文件/)
+assert.match(consent.p.data.selectionNotice,/再次点击/)
 consent.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
 assert.ok(consentChooser,'The tap after confirmed privacy consent opens the chooser synchronously')
 const cancelledChooser=consentChooser
@@ -244,15 +306,19 @@ const nativeFailure=pageRuntime({}, {
   chooseMessageFile:options=>{failedChooser=options},
 })
 nativeFailure.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
-failedChooser.fail({errMsg:'chooseMessageFile:fail api scope is not declared in the privacy agreement'})
+failedChooser.fail({errMsg:'chooseMessageFile:fail api scope is not declared in the privacy agreement wxfile://tmp/private-answer.pdf?token=fixture-secret',errno:20001,code:'PRIVACY_SCOPE'})
 await settle()
 assert.equal(nativeFailure.p.data.picking,false)
-assert.match(nativeFailure.p.data.selectionError,/未声明“选中的文件”/,'A missing privacy declaration points to the administrator, not repeated student consent')
+assert.match(nativeFailure.p.data.selectionError,/隐私声明尚未生效/,'A missing or pending privacy declaration points to its review state, not repeated student consent')
+assert.match(nativeFailure.p.data.selectionError,/重复授权无法解决/)
+assert.equal(nativeFailure.p.data.selectionCode,'PRIVACY_SCOPE / 20001')
+assert.deepEqual(clone(nativeFailure.p.__pickerDiagnostic),{errno:'20001',code:'PRIVACY_SCOPE',errMsg:'chooseMessageFile:fail api scope is not declared in the privacy agreement [file]'})
+assert.doesNotMatch(JSON.stringify(nativeFailure.p.__pickerDiagnostic),/private-answer|fixture-secret|token=/)
 nativeFailure.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
 failedChooser.fail({errMsg:'chooseMessageFile:fail privacy authorization required'})
 await settle()
 assert.match(nativeFailure.p.data.selectionError,/完成隐私授权/,'A consent failure tells the student how to recover')
-assert.doesNotMatch(nativeFailure.p.data.selectionError,/未声明/)
+assert.doesNotMatch(nativeFailure.p.data.selectionError,/尚未生效/)
 
 let invalidChooser
 const invalidSelection=pageRuntime({inspect:async()=>{throw Error('PDF 不能超过 10 MB。')}},{
@@ -347,5 +413,5 @@ const paused=deferred(),c=pageRuntime({upload:()=>paused.promise})
 c.p.__draft.files=[input()];const pendingUpload=c.p.submit();await settle();c.p.onHide();paused.resolve({status:'uploaded'});await pendingUpload
 assert.equal(c.calls.filter(x=>x[0]==='submit').length,0,'Backgrounded upload never auto-submits')
 assert.equal(c.p.__draft.files[0].uploaded,true,'Completed upload can be resumed')
-for(const fixture of [q,selection,recovery,inspectionRecovery,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,race,stale,cancellation])fixture.p.onUnload()
+for(const fixture of [q,selection,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,race,stale,cancellation])fixture.p.onUnload()
 console.log('Whole-paper client: native PDF selection, inspection, upload, privacy, ordering, idempotence, auth expiry, history, scoring, paging and pause regressions PASS')

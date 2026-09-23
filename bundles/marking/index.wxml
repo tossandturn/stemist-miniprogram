@@ -1,39 +1,55 @@
-<view class="page {{deviceClass}} {{orientation}} marking-page">
+<view id="marking-page" class="page {{deviceClass}} {{orientation}} marking-page {{optionalOpen ? 'optional-open' : ''}} {{actionVisible ? 'has-primary-action' : ''}} {{jobId ? 'has-job' : ''}}">
  <stemist-header title="整卷 AI 批改" action-text="返回" bind:action="back" />
  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
  <view wx:if="{{!authenticated}}" class="panel"><text>登录后可上传作答、查看批改进度和历史报告。</text><button class="primary" bindtap="login">登录后开始</button></view>
  <block wx:else>
   <view class="marking-intro">上传完整作答，AI 自动完成批改并生成逐题反馈与 PDF 报告，无需人工审核。</view>
-  <privacy-consent wx:if="{{privacy}}" purpose="用于读取你主动选择的作答文件并进行 AI 批改。" bind:agreed="agreePrivacy" />
+  <view id="marking-flow" class="marking-flow" aria-label="整卷批改三步流程，当前第 {{flowStep}} 步：{{flowStep === 1 ? '上传作答' : flowStep === 2 ? (jobLabel || 'AI 批改') : '查看报告'}}">
+   <view class="marking-step {{flowStep === 1 ? 'active' : 'done'}}"><text class="step-index">1</text><text class="step-label">上传作答</text></view>
+   <view class="marking-step {{flowStep === 2 ? (jobStatus === 'failed' ? 'failed' : 'active') : flowStep > 2 ? 'done' : ''}}"><text class="step-index">2</text><text class="step-label">AI 批改</text></view>
+   <view class="marking-step {{flowStep === 3 ? 'active done' : ''}}"><text class="step-index">3</text><text class="step-label">查看报告</text></view>
+  </view>
   <view class="marking-grid">
-   <view class="panel marking-inputs">
-    <view class="card-title">1. 选择作答</view>
+   <view id="marking-picker" class="panel marking-inputs">
+    <view class="card-title">第 1 步 · 上传作答</view>
     <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || jobId}}"><view class="input">{{archivedRoute || routes[routeIndex].label}}</view></picker>
-    <text class="field-label">报告标题（选填）</text><input class="input" value="{{title}}" data-field="title" bindinput="input" maxlength="100" placeholder="例如：9709 2025 夏季 P13" disabled="{{busy || jobId}}" />
     <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="answer" bindtap="pickPdf" disabled="{{busy || picking}}">选择作答 PDF</button><button class="secondary" bindtap="pickImages" disabled="{{busy || picking}}">选择多张图片</button></view>
-    <view wx:if="{{selectionError}}" class="error" role="alert"><text>{{selectionError}}</text></view>
-    <text class="subtle">1 份 PDF（最多 10 MB / 20 页），或 1–20 张图片（每张最多 4 MB）。含参考资料总计最多 40 页 / 40 MB。</text>
+    <privacy-consent wx:if="{{privacy}}" purpose="用于读取你主动选择的作答文件并进行 AI 批改。" button-text="同意隐私授权" bind:agreed="agreePrivacy" />
+    <view wx:if="{{selectionNotice}}" class="notice selection-notice" role="status"><text>{{selectionNotice}}</text></view>
+    <view wx:if="{{selectionError}}" class="error" role="alert"><text>{{selectionError}}</text><text wx:if="{{selectionCode}}" class="selection-code">诊断码：{{selectionCode}}</text></view>
+    <text class="subtle">1 份 PDF（最多 10 MB / 20 页），或 1–20 张图片（每张最多 4 MB）。</text>
     <text wx:if="{{!jobId}}" class="subtle">PDF 从微信聊天文件中选择，可先发送到文件传输助手。</text>
     <view class="file-row" wx:for="{{answers}}" wx:key="id">
      <image wx:if="{{item.kind === 'image'}}" class="page-thumb" src="{{item.path}}" mode="aspectFit" data-id="{{item.id}}" bindtap="preview" />
      <view class="file-copy"><text>第 {{item.page}} {{item.kind === 'image' ? '页' : '份'}}</text><text class="file-name">{{item.name}}</text><text class="subtle">{{item.uploaded ? '已上传' : '待上传'}}</text></view>
      <view class="file-buttons" wx:if="{{!jobId}}"><button data-id="{{item.id}}" data-delta="-1" bindtap="move" disabled="{{busy || picking || index === 0}}" aria-label="上移这一页">上移</button><button data-id="{{item.id}}" data-delta="1" bindtap="move" disabled="{{busy || picking || index === answers.length - 1}}" aria-label="下移这一页">下移</button><button data-id="{{item.id}}" bindtap="remove" disabled="{{busy || picking}}">移除</button></view>
     </view>
-    <view class="card-title reference-title">2. 补充批改依据（选填）</view>
-    <text class="subtle">有原卷和评分标准时，可更准确地核对题号、步骤与分值。</text>
-    <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="question-paper" bindtap="pickPdf" disabled="{{busy || picking}}">添加原卷 PDF</button><button class="secondary" data-role="mark-scheme" bindtap="pickPdf" disabled="{{busy || picking}}">添加评分标准 PDF</button></view>
-    <view class="file-row" wx:for="{{references}}" wx:key="id"><view class="file-copy"><text>{{item.roleLabel}}</text><text class="file-name">{{item.name}}</text></view><button wx:if="{{!jobId}}" data-id="{{item.id}}" bindtap="remove" disabled="{{busy || picking}}">移除</button></view>
-    <text class="field-label">报告备注（选填）</text><textarea value="{{instructions}}" data-field="instructions" bindinput="input" maxlength="2000" placeholder="例如：本周课堂练习。备注只展示在报告中，不改变评分标准。" disabled="{{busy || jobId}}" />
-    <text class="subtle">AI 自动批改并出具报告。依据不足的题目标记为不确定项，不计作零分，也不会转交人工审核。</text>
-    <button wx:if="{{!jobId || jobStatus === 'draft' || !jobStatus}}" class="primary" bindtap="submit" loading="{{busy}}" disabled="{{busy || picking || !answers.length}}">{{jobId ? '继续上传并提交' : '提交整卷批改'}}</button>
+    <view id="marking-primary-action" wx:if="{{actionVisible}}" class="marking-primary-action">
+     <view class="primary-action-copy"><text class="primary-action-summary">{{selectionSummary}}</text><text wx:if="{{!answers.length && !picking}}" class="primary-action-reason">请先选择 1 份作答 PDF 或 1–20 张图片，才能提交。</text><text wx:elif="{{picking}}" class="primary-action-reason">正在等待微信返回所选文件…</text><text wx:elif="{{busy && uploadTotal}}" class="primary-action-reason">已上传 {{uploadCompleted}} / {{uploadTotal}} 份文件</text><text wx:else class="primary-action-reason">文件就绪后即可进入 AI 批改。</text></view>
+     <button id="marking-submit-primary" class="primary" bindtap="submit" loading="{{busy}}" disabled="{{busy || picking || !answers.length}}">{{jobId ? '继续上传并提交' : '提交整卷批改'}}</button>
+    </view>
+    <button id="marking-optional-toggle" wx:if="{{!jobId}}" class="secondary optional-toggle" bindtap="toggleOptional" disabled="{{busy || picking}}" aria-expanded="{{optionalOpen}}">{{optionalOpen ? '收起补充材料' : '补充原卷、评分标准或备注（选填）'}}</button>
+    <view id="marking-optional-fields" wx:if="{{optionalOpen && !jobId}}" class="optional-fields">
+     <text class="field-label">报告标题（选填）</text><input class="input" value="{{title}}" data-field="title" bindinput="input" maxlength="100" placeholder="例如：9709 2025 夏季 P13" disabled="{{busy}}" />
+     <view class="card-title reference-title">补充批改依据（选填）</view>
+     <text class="subtle">有原卷和评分标准时，可更准确地核对题号、步骤与分值。含参考资料总计最多 40 页 / 40 MB。</text>
+     <view class="file-actions"><button class="secondary" data-role="question-paper" bindtap="pickPdf" disabled="{{busy || picking}}">添加原卷 PDF</button><button class="secondary" data-role="mark-scheme" bindtap="pickPdf" disabled="{{busy || picking}}">添加评分标准 PDF</button></view>
+     <view class="file-row" wx:for="{{references}}" wx:key="id"><view class="file-copy"><text>{{item.roleLabel}}</text><text class="file-name">{{item.name}}</text></view><button data-id="{{item.id}}" bindtap="remove" disabled="{{busy || picking}}">移除</button></view>
+     <text class="field-label">报告备注（选填）</text><textarea value="{{instructions}}" data-field="instructions" bindinput="input" maxlength="2000" placeholder="例如：本周课堂练习。备注只展示在报告中，不改变评分标准。" disabled="{{busy}}" />
+     <text class="subtle">依据不足的题目标记为不确定项，不计作零分，也不会转交人工审核。</text>
+    </view>
     <button wx:if="{{busy}}" class="secondary" bindtap="pause">暂停上传</button>
     <button wx:if="{{jobStatus === 'draft' && !busy}}" class="text-button" bindtap="cancelDraft">取消未提交任务</button>
-    <text wx:if="{{status}}" class="status-line">{{status}}</text>
+    <text wx:if="{{status}}" class="status-line" role="status">{{status}}</text>
    </view>
    <view class="marking-output">
-    <view wx:if="{{jobId}}" class="panel"><view class="card-title">{{jobLabel || '任务已建立'}}</view><text wx:if="{{progress.totalPages}}" class="status-line">已处理 {{progress.completedPages || 0}} / {{progress.totalPages}} 页</text><text wx:if="{{expiresAt}}" class="subtle">文件保留至 {{expiresAt}}，请及时下载报告。</text><button class="text-button" bindtap="refreshJob" disabled="{{busy}}">刷新进度</button><button wx:if="{{jobStatus === 'failed' && retryable}}" class="secondary" bindtap="retryJob" disabled="{{busy}}">重试批改</button><button wx:if="{{sourceAvailable && !result}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看已合成的作答 PDF</button></view>
-    <view wx:if="{{result}}" class="panel">
-     <view class="card-title">批改报告</view><view wx:if="{{result.scoreReady}}" class="report-score">{{result.provisionalScore}} / {{result.maxScore}} <text>AI 估分</text></view><view wx:else class="warning">本次提供批改建议，评分依据不足，暂不显示总分。</view>
+    <view id="marking-job-state" wx:if="{{jobId}}" class="panel job-state job-{{jobStatus || 'loading'}}" role="status" aria-label="{{jobLabel || '正在读取任务状态'}}：{{jobStateHint}}">
+     <text class="step-kicker">第 {{flowStep === 3 ? '3' : '2'}} 步 · {{flowStep === 3 ? '查看报告' : 'AI 批改'}}</text><view class="card-title">{{jobLabel || '正在读取任务状态'}}</view><text class="job-state-hint">{{jobStateHint}}</text>
+     <text wx:if="{{jobStatus === 'draft' && uploadTotal}}" class="status-line">已上传 {{uploadCompleted}} / {{uploadTotal}} 份文件</text><text wx:if="{{progress.totalPages}}" class="status-line">已处理 {{progress.completedPages || 0}} / {{progress.totalPages}} 页</text><text wx:if="{{expiresAt}}" class="subtle">文件保留至 {{expiresAt}}，请及时下载报告。</text>
+     <view class="job-actions"><button class="text-button" bindtap="refreshJob" disabled="{{busy}}">刷新状态</button><button wx:if="{{jobStatus === 'failed' && retryable}}" class="secondary" bindtap="retryJob" disabled="{{busy}}">重试批改</button><button wx:if="{{reportAvailable}}" class="secondary" data-kind="report" bindtap="document" loading="{{documentBusy}}" disabled="{{documentBusy}}">下载批改报告</button><button wx:if="{{sourceAvailable && !result}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看已合成的作答 PDF</button></view>
+    </view>
+    <view id="marking-report" wx:if="{{result}}" class="panel marking-report">
+     <text class="step-kicker">第 3 步 · 查看报告</text><view class="card-title">批改报告</view><view wx:if="{{result.scoreReady}}" class="report-score">{{result.provisionalScore}} / {{result.maxScore}} <text>AI 估分</text></view><view wx:else class="warning">本次提供批改建议，评分依据不足，暂不显示总分。</view>
      <view wx:if="{{result.reviewRequired}}" class="notice">AI 已完成本次批改，报告中已标明不确定项。可补充清晰作答或参考材料后重新批改。</view>
      <view wx:if="{{result.completeness}}" class="warning">{{result.completeness}}</view>
      <answer-content text="{{result.summary}}" />
@@ -44,8 +60,8 @@
      <view wx:if="{{reportPages > 1}}" class="file-actions"><button data-delta="-1" bindtap="reportPage" disabled="{{reportPage === 0}}">上一页</button><text>{{reportPage + 1}} / {{reportPages}}</text><button data-delta="1" bindtap="reportPage" disabled="{{reportPage + 1 >= reportPages}}">下一页</button></view>
     </view>
     <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>
-    <button wx:if="{{jobId || files.length}}" class="secondary" bindtap="newTask" disabled="{{busy || picking || documentBusy}}">新建另一份批改</button>
-    <view class="panel"><view class="card-title">最近的批改</view><text wx:if="{{!history.length}}" class="subtle">提交后的任务会显示在这里。</text><button class="history-item" wx:for="{{history}}" wx:key="jobId" data-id="{{item.jobId}}" bindtap="openJob" disabled="{{busy || documentBusy}}"><text>{{item.title || '整卷批改'}}</text><text class="subtle">{{item.statusLabel}}</text></button></view>
+    <button wx:if="{{jobId || files.length}}" class="secondary new-task" bindtap="newTask" disabled="{{busy || picking || documentBusy}}">新建另一份批改</button>
+    <view id="marking-history" class="panel marking-history"><view class="card-title">历史报告</view><text wx:if="{{!history.length}}" class="subtle">提交后的任务会显示在这里。</text><button class="history-item" wx:for="{{history}}" wx:key="jobId" data-id="{{item.jobId}}" bindtap="openJob" disabled="{{busy || documentBusy}}"><text>{{item.title || '整卷批改'}}</text><text class="history-status">{{item.statusLabel}}</text></button></view>
    </view>
   </view>
  </block>
