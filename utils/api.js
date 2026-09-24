@@ -2,118 +2,104 @@ const { clearLocalSession } = require('./session')
 const {captureNativeCookie,refreshNativeSession}=require('./nativeSession')
 const {requestIeltsLearning}=require('./ieltsLearning')
 const { DEFAULT_API_BASE, DEFAULT_IELTS_API_BASE, safeApiBase, safeIeltsApiBase } = require('./apiOrigin')
-
 function baseUrl() {
-  const app = getApp()
-  return safeApiBase(app && app.globalData && app.globalData.apiBaseUrl) || DEFAULT_API_BASE
+const app = getApp()
+return safeApiBase(app && app.globalData && app.globalData.apiBaseUrl) || DEFAULT_API_BASE
 }
-
 function ieltsBaseUrl() {
-  const app = getApp()
-  return safeIeltsApiBase(app && app.globalData && app.globalData.ieltsApiBaseUrl) || DEFAULT_IELTS_API_BASE
+const app = getApp()
+return safeIeltsApiBase(app && app.globalData && app.globalData.ieltsApiBaseUrl) || DEFAULT_IELTS_API_BASE
 }
-
 const COACH_TEXT_TIMEOUT_MS = 55_000
 const COACH_IMAGE_TIMEOUT_MS = 60_000
-
 function safeErrorMessage(payload, statusCode) {
-  const message = String((payload && (payload.error || payload.message)) || '').trim()
-  if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
-  return message.slice(0, 240) || `请求失败（${statusCode}）`
+const detail = payload && typeof payload.error === 'object' ? payload.error : null
+const message = String((detail && detail.message) || (payload && (typeof payload.error === 'string' ? payload.error : payload.message)) || '').trim()
+if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
+return message.slice(0, 240) || `请求失败（${statusCode}）`
 }
-
 function requestError(message, statusCode = 0, code = '') {
-  const error = new Error(message)
-  error.statusCode = Number(statusCode) || 0
-  error.code = String(code || '')
-  return error
+const error = new Error(message)
+error.statusCode = Number(statusCode) || 0
+error.code = String(code || '')
+return error
 }
-
 function isAuthError(error) {
-  return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
+return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
-
 function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false } = {}) {
-  const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
-  return new Promise((resolve, reject) => {
-    const request = {
-      url: `${origin}${path}`,
-      method: String(method || 'POST').toUpperCase(),
-      timeout,
-      header: {
-        ...(origin === ieltsBaseUrl() && path.startsWith('/api/native/ielts/') ? { 'X-STEMist-Catalog': 'native-topics-v1' } : {}),
-        ...(String(method || 'POST').toUpperCase() === 'GET' ? {} : { 'Content-Type': 'application/json' }),
-        ...(nativeSourceRegions && origin === baseUrl() && path === '/api/stem/practice-sets' ? { 'X-STEMist-Source-Images': 'region-v2' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(origin===baseUrl()&&path==='/api/auth/logout'&&wx.getStorageSync('stemistNativeSessionCookie')?{Cookie:'stem_session='+wx.getStorageSync('stemistNativeSessionCookie')}:{})
-      },
-      success(response) {
-        const payload = response.data || {}
-        if (response.statusCode >= 200 && response.statusCode < 300) {
-          captureNativeCookie(origin,path,response)
-          resolve(payload)
-          return
-        }
-        if (response.statusCode === 401) {
-          // Keep an in-progress draft so the same learner can sign in again;
-          // explicit logout still clears drafts and evidence completely.
-          if (stemAuth && token && token === wx.getStorageSync('stemistSessionToken')) clearLocalSession({ preserveDrafts: true })
-          reject(requestError('登录已过期，原始输入仍保留。请重新登录后再使用 AI。', 401, 'auth_required'))
-          return
-        }
-        reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && payload.code))
-      },
-      fail(error) {
-        const raw = String(error && error.errMsg || '')
-        if (/not in (?:domain|legal domain) list|不在.*合法域名|域名.*校验/i.test(raw)) return reject(requestError('当前版本的服务连接配置有误，请更新小程序后重试。', 0, 'network_domain_blocked'))
-        if (/ssl|tls|certificate|cert[ _-]|证书/i.test(raw)) return reject(requestError('安全连接未能建立，请稍后重试。', 0, 'network_tls_error'))
-        reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试', 0, /timeout|超时/i.test(raw) ? 'network_timeout' : 'network_error'))
-      },
-    }
-    if (data !== undefined && data !== null) request.data = data
-    wx.request(request)
-  })
+const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
+return new Promise((resolve, reject) => {
+const request = {
+url: `${origin}${path}`,
+method: String(method || 'POST').toUpperCase(),
+timeout,
+header: {
+...(origin === ieltsBaseUrl() && path.startsWith('/api/native/ielts/') ? { 'X-STEMist-Catalog': 'native-topics-v1' } : {}),
+...(String(method || 'POST').toUpperCase() === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+...(nativeSourceRegions && origin === baseUrl() && path === '/api/stem/practice-sets' ? { 'X-STEMist-Source-Images': 'region-v2' } : {}),
+...(token ? { Authorization: `Bearer ${token}` } : {}),
+...(origin===baseUrl()&&path==='/api/auth/logout'&&wx.getStorageSync('stemistNativeSessionCookie')?{Cookie:'stem_session='+wx.getStorageSync('stemistNativeSessionCookie')}:{})
+},
+success(response) {
+const payload = response.data || {}
+if (response.statusCode >= 200 && response.statusCode < 300) {
+captureNativeCookie(origin,path,response)
+resolve(payload)
+return
 }
-
+if (response.statusCode === 401) {
+if (stemAuth && token && token === wx.getStorageSync('stemistSessionToken')) clearLocalSession({ preserveDrafts: true })
+reject(requestError('登录已过期，原始输入仍保留。请重新登录后再使用 AI。', 401, 'auth_required'))
+return
+}
+reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && (payload.code || payload.error && payload.error.code)))
+},
+fail(error) {
+const raw = String(error && error.errMsg || '')
+if (/not in (?:domain|legal domain) list|不在.*合法域名|域名.*校验/i.test(raw)) return reject(requestError('当前版本的服务连接配置有误，请更新小程序后重试。', 0, 'network_domain_blocked'))
+if (/ssl|tls|certificate|cert[ _-]|证书/i.test(raw)) return reject(requestError('安全连接未能建立，请稍后重试。', 0, 'network_tls_error'))
+reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试', 0, /timeout|超时/i.test(raw) ? 'network_timeout' : 'network_error'))
+},
+}
+if (data !== undefined && data !== null) request.data = data
+wx.request(request)
+})
+}
 async function requestJson(path, data, options = {}) {
-  const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
-  if(options.stemAuth!==false&&!path.startsWith('/api/auth/'))await refreshNativeSession()
-  if(!path.startsWith('/data/')&&(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')
-  return requestJsonAt(baseUrl(), path, data, options)
+const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
+if(options.stemAuth!==false&&!path.startsWith('/api/auth/'))await refreshNativeSession()
+if(!path.startsWith('/data/')&&(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')
+return requestJsonAt(baseUrl(), path, data, options)
 }
-
 function requestIeltsJson(path, data, options = {}) {
-  return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false })
+return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false })
 }
-
 function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
-  return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
+return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
-
 function askCoach({ message, context = {}, imageDataUrls = [], history = [] }) {
-  const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
-  return requestJson('/api/ai/coach', { message, context, imageDataUrls: images,history:history.slice(-10) }, {
-    timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
-  })
+const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
+return requestJson('/api/ai/coach', { message, context, imageDataUrls: images,history:history.slice(-10) }, {
+timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
+})
 }
-
 function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = [] }) {
-  const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
-  const payload = {
-    message,
-    contextText: String(context && (context.contextText || context.sourceQuestionExtract) || ''),
-    helpContext: { ...context, activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice',...(context.surface||{}) } },
-    history: Array.isArray(history) ? history.slice(-8) : [],
-  }
-  if (images[0]) payload.imageDataUrl = images[0]
-  return requestIeltsLearning('/api/help/chat', payload, {
-    timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
-  }).then((result) => ({
-    ...result,
-    providerStatus: result && result.providerStatus
-      ? result.providerStatus
-      : result && result.mode === 'ai' ? 'connected' : result && result.mode === 'local' ? 'skipped' : 'error',
-  }))
+const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
+const payload = {
+message,
+contextText: String(context && (context.contextText || context.sourceQuestionExtract) || ''),
+helpContext: { ...context, activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice',...(context.surface||{}) } },
+history: Array.isArray(history) ? history.slice(-8) : [],
 }
-
+if (images[0]) payload.imageDataUrl = images[0]
+return requestIeltsLearning('/api/help/chat', payload, {
+timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
+}).then((result) => ({
+...result,
+providerStatus: result && result.providerStatus
+? result.providerStatus
+: result && result.mode === 'ai' ? 'connected' : result && result.mode === 'local' ? 'skipped' : 'error',
+}))
+}
 module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, IELTS_API_BASE: DEFAULT_IELTS_API_BASE, askCoach, askIeltsCoach, getJson, isAuthError, requestError, requestIeltsJson, requestJson, safeErrorMessage }

@@ -67,4 +67,8 @@ assert.equal(authError.code, 'auth_required')
 assert.equal(isAuthError(authError), true)
 assert.equal(storage.stemistSessionToken, undefined)
 assert.equal(sessionCleanupOptions.preserveDrafts, true)
+response = { statusCode: 400, data: { error: { code: 'invalid_board', message: 'Unknown curriculum board' } } }
+const nestedError = await getJson('/api/stem/curriculum-papers?board=unknown', { stemAuth: false }).catch((error) => error)
+assert.equal(nestedError.message, 'Unknown curriculum board')
+assert.equal(nestedError.code, 'invalid_board')
 console.log('Mini Program API client contract passed.')

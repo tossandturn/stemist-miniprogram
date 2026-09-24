@@ -82,6 +82,10 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  h.downloads[0].options.success({statusCode:200,filePath:h.downloads[0].options.filePath})
  assert.equal(h.opens[0].filePath,h.downloads[0].options.filePath,'document viewer/menu receives the meaningful saved filename')
  h.controller.dispose()
+ const named=controllerHarness();named.wxApi.env={USER_DATA_PATH:'wxfile://usr'};named.setScope('scope-named')
+ await named.controller.open({...request('named'),scope:'scope-named',url:'https://stem.ieltsist.com/api/stem/curriculum-papers/files/ap-calc-ab-2025-frq-qp',fileName:'AP_Calculus_AB_2025_FRQ_QP.pdf'})
+ assert.equal(named.downloads[0].options.filePath,'wxfile://usr/AP_Calculus_AB_2025_FRQ_QP.pdf','server-backed curriculum PDFs retain a sanitized meaningful filename')
+ named.controller.dispose()
 }
 
 {

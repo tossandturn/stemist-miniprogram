@@ -1,0 +1,36 @@
+<view class="page {{deviceClass}} {{orientation}} curriculum-page">
+ <stemist-header title="{{boardLabel ? boardLabel + ' 真题资料' : 'AP / IB 真题资料'}}" />
+ <app-nav active="practice" source="curriculum-papers" is-tablet="{{isTablet}}" />
+ <view wx:if="{{invalidBoard}}" class="error" role="alert">{{error}}</view>
+ <block wx:else>
+  <view class="curriculum-intro"><view><text class="curriculum-title">{{boardLabel}} 课程真题</text><text class="curriculum-copy">按课程、年份和卷型查看已整理的 QP / MS。公开分发授权未确认的资料只展示来源，不提供下载。</text></view><button class="secondary curriculum-share" open-type="share">分享筛选</button></view>
+  <view id="curriculum-filters" class="filter-panel">
+   <picker wx:if="{{courseOptions.length}}" mode="selector" range="{{courseOptions}}" range-key="label" value="{{courseIndex}}" bindchange="chooseCourse"><view class="filter-select"><text>{{courseOptions[courseIndex].label}}</text><text class="filter-chevron">课程</text></view></picker>
+   <picker wx:if="{{levelOptions.length > 1}}" mode="selector" range="{{levelOptions}}" range-key="label" value="{{levelIndex}}" data-filter="level" bindchange="chooseFilter"><view class="filter-select"><text>{{levelOptions[levelIndex].label}}</text><text class="filter-chevron">级别</text></view></picker>
+   <picker wx:if="{{yearOptions.length > 1}}" mode="selector" range="{{yearOptions}}" range-key="label" value="{{yearIndex}}" data-filter="year" bindchange="chooseFilter"><view class="filter-select"><text>{{yearOptions[yearIndex].label}}</text><text class="filter-chevron">年份</text></view></picker>
+   <picker wx:if="{{sessionOptions.length > 1}}" mode="selector" range="{{sessionOptions}}" range-key="label" value="{{sessionIndex}}" data-filter="session" bindchange="chooseFilter"><view class="filter-select"><text>{{sessionOptions[sessionIndex].label}}</text><text class="filter-chevron">考试季</text></view></picker>
+   <picker wx:if="{{paperOptions.length > 1}}" mode="selector" range="{{paperOptions}}" range-key="label" value="{{paperIndex}}" data-filter="paper" bindchange="chooseFilter"><view class="filter-select"><text>{{paperOptions[paperIndex].label}}</text><text class="filter-chevron">卷型</text></view></picker>
+   <view class="search-box"><input value="{{queryDraft}}" placeholder="搜索课程或试卷标题" bindinput="onQuery" bindconfirm="applySearch" confirm-type="search" maxlength="120" /><button class="search-action" bindtap="applySearch" disabled="{{loading}}">搜索</button></view>
+  </view>
+  <button wx:if="{{course || level || year || session || paper || query}}" class="text-button filter-reset" bindtap="clearFilters" disabled="{{loading}}">重置全部筛选</button>
+  <view wx:if="{{loading}}" class="loading-state" role="status">正在加载 {{boardLabel}} 真题资料…</view>
+  <view wx:elif="{{error && !catalog}}" class="error" role="alert"><text>{{error}}</text><button class="secondary" bindtap="retry">重新加载</button></view>
+  <block wx:else>
+   <view wx:if="{{catalog}}" class="catalog-summary"><text>{{summary.papers}} 份资料</text><text>可下载 {{summary.downloadable}}</text><text>仅来源 {{summary.sourceOnly}}</text></view>
+   <view id="curriculum-paper-list" class="paper-list">
+    <view wx:for="{{items}}" wx:key="id" class="paper-card">
+     <view class="paper-head"><view class="paper-heading"><text class="paper-course">{{item.courseLabel}}</text><text class="paper-title">{{item.title}}</text></view><text class="pair-badge pair-{{item.pairStatus}}">{{item.pairLabel}}</text></view>
+     <text class="paper-meta">{{item.year}}{{item.session ? ' · ' + item.session : ''}}{{item.paper ? ' · ' + item.paper : ''}}{{item.variant ? ' · ' + item.variant : ''}}</text><text wx:if="{{item.variantNote}}" class="variant-note">{{item.variantNote}}</text>
+     <text wx:if="{{item.subject || item.level || item.section}}" class="paper-detail">{{item.subject}}{{item.level ? ' · ' + item.level : ''}}{{item.section ? ' · ' + item.section : ''}}</text>
+     <view class="document-row"><view class="document-copy"><text class="document-title">Question Paper</text><text wx:if="{{item.qpMeta}}" class="document-meta">{{item.qpMeta}}</text></view><button wx:if="{{item.canDownloadQp}}" class="document-action" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" disabled="{{pdfDownload.active}}">查看原卷</button><button wx:elif="{{item.qpSourceUrl}}" class="document-action source-action" data-id="{{item.id}}" data-kind="qp" bindtap="copySource">{{item.sourceLinkLabel}}</button><text wx:else class="document-status">暂未开放下载</text></view>
+     <view wx:if="{{item.hasMarkScheme}}" class="document-row"><view class="document-copy"><text class="document-title">Mark Scheme</text><text wx:if="{{item.msMeta}}" class="document-meta">{{item.msMeta}}</text></view><button wx:if="{{item.canDownloadMs}}" class="document-action" data-id="{{item.id}}" data-kind="ms" bindtap="openPdf" disabled="{{pdfDownload.active}}">查看评分标准</button><button wx:elif="{{item.msSourceUrl}}" class="document-action source-action" data-id="{{item.id}}" data-kind="ms" bindtap="copySource">{{item.sourceLinkLabel}}</button><text wx:else class="document-status">暂未开放下载</text></view>
+     <view wx:if="{{item.sourceOnly}}" class="source-only"><text class="source-only-title">资料已整理，暂未开放下载</text><text>{{item.displayNotice}}</text></view><text wx:elif="{{item.displayNotice}}" class="paper-notice">{{item.displayNotice}}</text>
+     <pdf-download-progress wx:if="{{pdfDownload.visible && pdfDownload.itemId === item.id}}" state="{{pdfDownload}}" bind:cancel="cancelPdfDownload" bind:retry="retryPdfDownload" bind:toggle="togglePdfDownloadProgress" />
+    </view>
+   </view>
+   <view wx:if="{{catalog && !items.length}}" class="empty-state">没有匹配的 {{boardLabel}} 真题资料<button class="secondary" bindtap="clearFilters">重置筛选</button></view>
+   <view wx:if="{{pageCount > 1}}" class="paper-pagination"><button class="secondary" disabled="{{loading || pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary" disabled="{{loading || pageNumber >= pageCount}}" bindtap="nextPage">下一页</button></view>
+   <view wx:if="{{error && catalog}}" class="error" role="alert">{{error}}</view>
+  </block>
+ </block>
+</view>

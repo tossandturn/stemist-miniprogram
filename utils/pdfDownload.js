@@ -10,6 +10,7 @@ if(!m)return url.split('/').slice(-2).join('_').replace(/%[a-f0-9]{2}/gi,'_')
 const [subject,season,kind,paper]=url.split('/').pop().toLowerCase().replace('.pdf','').split('_')
 return subject+'_20'+season.slice(1)+'_'+({m:'春季',s:'夏季',w:'秋冬季'}[season[0]])+'_P'+paper+'_'+(kind==='ms'?'参考答案':'原卷')+'.pdf'
 }
+function safePdfFileName(value){const name=String(value||'').trim();return name&&name.length<=160&&/\.pdf$/i.test(name)&&!/[\\/:*?"<>|\u0000-\u001f]|\.\./.test(name)?name:''}
 
 function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false}}
 
@@ -127,7 +128,7 @@ if(progressTimer!==null)return
 progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pendingProgress=null;if(pending)emitProgress(context,pending)},Math.max(0,throttleMs-elapsed))
 }
 const startDownload=context=>{
-const manager=wxApi.getFileSystemManager?.(),key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=pdfFileName(key)
+const manager=wxApi.getFileSystemManager?.(),key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
 if(typeof wxApi.request==='function'&&manager?.writeFile&&manager?.appendFile&&base&&file){
 const part=partials.get(key)||{path:base+'/'+file,bytes:0,total:0};partials.set(key,part)
 const run=()=>{if(!current(context))return;const start=part.bytes;publish({visible:true,phase:'downloading',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在续传'+context.request.label+'…',error:'',downloadedBytes:start,totalBytes:part.total,canCancel:true,canRetry:false});try{downloadTask=wxApi.request({url:key,method:'GET',header:{Range:'bytes='+start+'-'},responseType:'arraybuffer',timeout:30000,success:r=>{if(context.networkSettled||!current(context))return;const data=r?.data,n=Number(data?.byteLength)||0,status=Number(r?.statusCode||0);if(!n)return failure({errMsg:'empty response'});const h=r.header||{},cr=h['Content-Range']||h['content-range']||'',cl=h['Content-Length']||h['content-length'];if(start&&status===200){part.bytes=0;part.total=n}if(status!==200&&status!==206)return failure({errMsg:'HTTP '+status});if(!part.total)part.total=Number(cr.match(/\/(\d+)$/)?.[1]||cl||0);const method=part.bytes?'appendFile':'writeFile';manager[method]({filePath:part.path,data,success:()=>{part.bytes+=n;queueProgress(context,{totalBytesWritten:part.bytes,totalBytesExpectedToWrite:part.total});if(part.total&&part.bytes>=part.total)success({statusCode:200,tempFilePath:part.path});else run()},fail:failure})},fail:failure})}catch{failure({errMsg:'request failed'})}}
@@ -165,7 +166,7 @@ return true
 }
 
 async function open(request={}){
-const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),cacheScope:['public','none'].includes(request.cacheScope)?request.cacheScope:'identity',cacheVersion:/^[^\s?#&]{1,160}$/.test(String(request.cacheVersion||''))?String(request.cacheVersion):'',ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),scope:String(request.scope===undefined?scope:request.scope)}
+const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),cacheScope:['public','none'].includes(request.cacheScope)?request.cacheScope:'identity',cacheVersion:/^[^\s?#&]{1,160}$/.test(String(request.cacheVersion||''))?String(request.cacheVersion):'',ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),fileName:safePdfFileName(request.fileName),scope:String(request.scope===undefined?scope:request.scope)}
 if(!/^https:\/\/[^\s]+$/i.test(normalized.url)){
 lastRequest=null;publish({...initialPdfDownloadState(),visible:true,phase:'error',error:'PDF 地址不可用。'});return false
 }
@@ -204,4 +205,4 @@ function dispose(){if(disposed)return;disposed=true;invalidate(true);lastRequest
 return{open,setScope,cancel,retry,toggleCollapsed,suspend,dispose,getState:snapshot,cacheSize:()=>cache.size}
 }
 
-module.exports={createPdfDownloadController,formatBytes,initialPdfDownloadState,pdfFileName}
+module.exports={createPdfDownloadController,formatBytes,initialPdfDownloadState,pdfFileName,safePdfFileName}
