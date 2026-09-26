@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {miniRuntime} from './helpers/mini-runtime.mjs';
+const runtime=miniRuntime(),validator=runtime.load('utils/nativeObjectiveAnswer').validateObjectiveResult;
+const expected={attemptId:'local-label-test',mode:'topic',routeId:'cie-9701-as-chemistry',stage:'AS',paperId:'cie-9701-9701_w25_qp_11',sourceQuestionId:'cie-9701-9701_w25_qp_11:q1',selectedOption:'B'};
+const ai={...expected,schemaVersion:'stem-objective-result-v1',available:true,source:'ai-reviewed-mark-scheme',sourceStatus:'ai-checked-official-key',qualityFlag:'aicheck',reviewLabel:'AI 审核',formalProgressEligible:false,score:1,maxScore:1,correctOption:'B'};
+const accepted=validator(ai,expected);assert.equal(accepted.reviewLabel,'AI 审核');assert.equal(accepted.formalProgressEligible,false);
+for(const changed of [{formalProgressEligible:true},{qualityFlag:undefined},{reviewLabel:undefined},{sourceStatus:'reviewed-official-key'},{score:0},{sourceQuestionId:'other'}])assert.throws(()=>validator({...ai,...changed},expected));
+assert.throws(()=>validator({...ai,mode:'full-paper'},{...expected,mode:'full-paper'}),'Topic-only extension must not silently alter full-paper reporting');
+const old={...expected,schemaVersion:ai.schemaVersion,available:true,source:'mark-scheme',sourceStatus:'reviewed-official-key',score:1,maxScore:1,correctOption:'B'};
+assert.equal(validator(old,expected).qualityFlag,undefined);
+assert.equal(validator({...expected,schemaVersion:ai.schemaVersion,available:false,source:'unavailable',score:null,maxScore:1,correctOption:null},expected).score,null);
+const native=runtime.load('utils/nativePractice');
+const spec={routeId:expected.routeId,stage:'AS',subjectCode:'9701',components:[1],syllabusTopicIds:['9701-as-topic-01'],questionCount:6};
+const payload={schemaVersion:'syllabus-practice-set-v1',...spec,practiceMode:'study-only',formalProgressEligible:false,questionGroups:Array.from({length:6},(_,i)=>{
+  const id=expected.paperId+':q'+(i+1),image='/question-assets/'+expected.paperId+'/qp-2.jpg';
+  return {id,routeId:spec.routeId,stage:'AS',subjectCode:'9701',paperComponent:1,studentStudyEligible:true,totalMarks:1,questionNumber:String(i+1),qualityFlag:i===0?'aicheck':undefined,reviewLabel:i===0?'AI 审核':undefined,sourceRef:{paperId:expected.paperId,paper:'9701_w25_qp_11.pdf'},sourceContent:{complete:true,fileComplete:true,assetUrls:[image],pages:[2]},syllabusMapping:{topicIds:spec.syllabusTopicIds},parts:[{partId:id+':whole',label:'whole',marks:1}]};
+})};
+const session=native.createSession(payload,spec);native.saveSession(session);
+let view=native.questionView(native.readSession(session.id),0);assert.equal(view.question.reviewLabel,'AI 审核');assert.equal(view.question.reviewNotice,'仅供练习，不计正式进度');
+assert.equal(native.questionView(session,1).question.reviewLabel,'');
+session.answers[session.questions[0].id]={choice:'B',revision:1,objectiveResult:accepted};native.saveSession(session);
+view=native.questionView(native.readSession(session.id),0);assert.equal(view.objectiveResult.reviewLabel,'AI 审核');assert.equal(view.objectiveResult.formalProgressEligible,false);
+const wxml=fs.readFileSync(new URL('../pages/stem/practice.wxml',import.meta.url),'utf8');
+assert.match(wxml,/question\.reviewLabel/);assert.match(wxml,/question\.reviewNotice/);assert.match(wxml,/objectiveResult\.qualityFlag/);assert.match(wxml,/AI 审核答案核对/);
+console.log(JSON.stringify({status:'PASS_ISOLATED_MINI_LABEL_CONTRACT',aiResultAccepted:true,malformedOrFormalResultsRejected:6,fullPaperExpansionRejected:true,humanPathPreserved:true,questionLabelPersists:true,resultLabelPersists:true,unavailableScoreNull:true,realDeviceVerified:false}));

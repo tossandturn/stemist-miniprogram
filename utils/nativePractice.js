@@ -107,6 +107,7 @@ function validatePracticeSet(payload, expected) {
       answerFormat:isSingleChoice({subjectCode:group.subjectCode,component:group.paperComponent,answerFormat:group.answerFormat,choiceLabels:group.choiceLabels})?'single-choice':'written',
       component: Number(group.paperComponent), paperId: group.sourceRef.paperId,
       sourceLabel: [group.sourceRef.paper, group.questionNumber].filter(Boolean).join(' · '),
+      qualityFlag: group.qualityFlag === 'aicheck' ? 'aicheck' : '',
       images, sourceRegions, parts,choiceOptions:options, studyOnly: payload.practiceMode === 'study-only' }
   })
   return { routeId: expected.routeId, stage: expected.stage, subjectCode: String(expected.subjectCode),
@@ -204,6 +205,8 @@ function questionView(session, index) {
   return { index: current, total: session.questions.length,
     answeredCount: session.questions.filter(item => hasChoice(session.answers[item.id])||Boolean(session.answers[item.id]?.photo)).length,
     question: { id: q.id, number: q.number, sourceLabel: q.sourceLabel, marks: q.marks,
+      reviewLabel: q.qualityFlag === 'aicheck' ? 'AI 审核' : '',
+      reviewNotice: q.qualityFlag === 'aicheck' ? '仅供练习，不计正式进度' : '',
       choiceMode,
       options:q.choiceOptions||choiceOptions(null),hasOptionText:Boolean(q.choiceOptions?.some(o=>o.text)),fullPage:!q.sourceRegions?.length,
       images: q.images.map((path, i) => ({ id: `${q.id}-${i}`, url: imageUrl(path), loaded: false, failed: false,
