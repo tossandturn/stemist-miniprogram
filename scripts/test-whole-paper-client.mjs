@@ -23,6 +23,8 @@ assert.match(markingTemplate,/id="marking-flow"[^>]*aria-label="[^"]*{{flowStep}
 assert.match(markingTemplate,/id="marking-job-state"[^>]*role="status"[^>]*aria-label=/,'Current queue/report state is announced programmatically')
 assert.match(markingTemplate,/job-actions[\s\S]*?wx:if="{{reportAvailable}}"[^>]*data-kind="report"[^>]*>下载批改报告/,'Completed status card includes a direct report shortcut')
 assert.doesNotMatch(markingTemplate,/队列第|预计[^<]*(分钟|完成)/,'UI must not invent queue rank or completion time')
+assert.match(markingTemplate,/picker[^>]*disabled="{{busy \|\| creating \|\| jobId}}"/,'An in-flight manifest freezes the selected route even after upload is paused')
+assert.match(markingTemplate,/data-field="title"[^>]*disabled="{{busy \|\| creating}}"/,'An in-flight manifest freezes report metadata')
 const pdf = Uint8Array.from(Buffer.from('%PDF-1.7\nfixture')).buffer
 const jpg = Uint8Array.from([255,216,255,224,1,2]).buffer
 const input = (id='file-answer1', role='answer', mediaType='image/jpeg') => ({id, role, mediaType, kind:mediaType==='application/pdf'?'pdf':'image', path:'/tmp/'+id, name:id+(mediaType==='application/pdf'?'.pdf':'.jpg'), size:mediaType==='application/pdf'?pdf.byteLength:jpg.byteLength})
@@ -638,11 +640,41 @@ assert.match(manual.p.data.status,/点击.*继续上传/)
 const pendingCreate=deferred(),manualCreate=pageRuntime({create:()=>pendingCreate.promise})
 manualCreate.p.__draft.files=[input('file-create-pause1')]
 const manualCreatePending=manualCreate.p.submit();manualCreate.p.pauseUpload()
+assert.equal(manualCreate.p.data.creating,true,'Pausing an in-flight manifest request does not unlock fields bound into that request')
+const frozenRoute=manualCreate.p.__draft.routeId
+manualCreate.p.input({currentTarget:{dataset:{field:'title'}},detail:{value:'mutated while create is pending'}})
+manualCreate.p.routeChange({detail:{value:1}});manualCreate.p.remove({currentTarget:{dataset:{id:'file-create-pause1'}}});manualCreate.p.toggleOptional()
+assert.equal(manualCreate.p.__draft.title,'');assert.equal(manualCreate.p.__draft.routeId,frozenRoute);assert.equal(manualCreate.p.__draft.files.length,1);assert.equal(manualCreate.p.data.optionalOpen,false)
 const createdWhilePaused={jobId,status:'draft',assets:[{clientAssetId:'file-create-pause1',assetId:'asset-create-pause1',status:'pending'}]}
 manualCreate.jobs.set(jobId,createdWhilePaused);pendingCreate.resolve(createdWhilePaused);await manualCreatePending
 assert.equal(manualCreate.p.data.jobStatus,'draft')
 assert.equal(manualCreate.p.data.actionVisible,true,'A create response arriving after explicit pause still exposes the continue action')
 assert.match(manualCreate.p.data.status,/点击.*继续上传/)
+assert.equal(manualCreate.p.data.creating,false)
+
+const lifecycleCreateDeferred=deferred(),lifecycleCreate=pageRuntime({create:()=>lifecycleCreateDeferred.promise})
+lifecycleCreate.p.__draft.files=[input('file-create-lifecycle1')];const lifecycleCreatePending=lifecycleCreate.p.submit();lifecycleCreate.p.onHide();lifecycleCreate.p.onShow();await settle()
+const lifecycleCreated={jobId,status:'draft',assets:[{clientAssetId:'file-create-lifecycle1',assetId:'asset-create-lifecycle1',status:'pending'}]};lifecycleCreate.jobs.set(jobId,lifecycleCreated);lifecycleCreateDeferred.resolve(lifecycleCreated);await lifecycleCreatePending;await settle();await settle();await settle()
+assert.equal(lifecycleCreate.calls.filter(call=>call[0]==='submit').length,1,'A lifecycle pause during create resumes once the frozen manifest response is safely bound')
+assert.equal(lifecycleCreate.p.data.jobStatus,'queued')
+
+const staleCreate=deferred(),staleCreatePage=pageRuntime({create:()=>staleCreate.promise},{showModal:options=>options.success({confirm:true})})
+staleCreatePage.p.__draft.files=[input('file-stale-create1')];const staleDraft=staleCreatePage.p.__draft,staleCreatePending=staleCreatePage.p.submit();staleCreatePage.p.pauseUpload();staleCreatePage.p.newTask();const replacementDraft=staleCreatePage.p.__draft
+assert.notEqual(replacementDraft,staleDraft);assert.equal(staleCreatePage.p.data.creating,false)
+staleCreate.resolve({jobId:'job-stale-create',status:'draft',assets:[{clientAssetId:'file-stale-create1',assetId:'asset-stale-create',status:'pending'}]});await staleCreatePending
+assert.equal(staleCreatePage.p.__draft,replacementDraft);assert.equal(staleCreatePage.p.__draft.jobId,undefined);assert.equal(staleCreatePage.p.data.jobId,'');assert.equal(staleCreatePage.p.__draft.files.length,0,'A late create response cannot overwrite a replacement draft')
+
+const lateUpload=deferred(),staleUpload=pageRuntime({upload:()=>lateUpload.promise},{showModal:options=>options.success({confirm:true})})
+staleUpload.p.__draft.files=[input('file-stale-upload1')];const staleUploadFile=staleUpload.p.__draft.files[0],staleUploadPending=staleUpload.p.submit();await settle();staleUpload.p.pauseUpload();staleUpload.p.newTask();const uploadReplacement=staleUpload.p.__draft
+lateUpload.resolve({status:'uploaded'});await staleUploadPending
+assert.equal(staleUpload.p.__draft,uploadReplacement);assert.equal(staleUpload.p.__draft.files.length,0);assert.notEqual(staleUploadFile.uploaded,true,'A late upload completion cannot update assets after its draft was replaced')
+
+const staleOpenCreate=deferred(),staleOpen=pageRuntime({create:()=>staleOpenCreate.promise})
+staleOpen.p.__draft.files=[input('file-stale-open1')];const staleOpenPending=staleOpen.p.submit();staleOpen.p.pauseUpload()
+const historyJob='job-history-123',historyDraft={clientRequestId:'history-request-123',files:[],jobId:historyJob,epoch:0,routeId:staleOpen.p.__draft.routeId}
+staleOpen.storage.set(staleOpen.p.__key+':'+historyJob,historyDraft);staleOpen.p.data.history=[{jobId:historyJob}];staleOpen.p.openJob({currentTarget:{dataset:{id:historyJob}}})
+staleOpenCreate.resolve({jobId:'job-stale-open',status:'draft',assets:[{clientAssetId:'file-stale-open1',assetId:'asset-stale-open',status:'pending'}]});await staleOpenPending
+assert.equal(staleOpen.p.__draft,historyDraft);assert.equal(staleOpen.p.data.jobId,historyJob);assert.equal(staleOpen.p.__draft.files.length,0,'A late create response cannot update assets on a history draft')
 
 let staleChooserCalls=0
 const staleLocal=pageRuntime({upload:async()=>{throw Error('本机作答文件已失效，请点击“新建另一份批改”后重新选择文件。')}},{chooseMessageFile:()=>{staleChooserCalls++}})
@@ -653,5 +685,5 @@ assert.equal(staleChooserCalls,0,'A legacy server draft does not pretend its dis
 assert.match(staleLocal.p.data.error,/新建另一份批改/)
 assert.equal(staleLocal.p.data.actionVisible,true)
 
-for(const fixture of [q,selection,queuedCleanup,newTaskCleanup,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,lifecycleRecovery,legacyImages,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,manual,manualCreate,staleLocal,race,stale,cancellation])fixture.p.onUnload()
+for(const fixture of [q,selection,queuedCleanup,newTaskCleanup,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,lifecycleRecovery,legacyImages,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,manual,manualCreate,lifecycleCreate,staleCreatePage,staleUpload,staleOpen,staleLocal,race,stale,cancellation])fixture.p.onUnload()
 console.log('Whole-paper client: native PDF selection, inspection, upload, privacy, ordering, idempotence, auth expiry, history, scoring, paging and pause regressions PASS')

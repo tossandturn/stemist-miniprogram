@@ -26,11 +26,11 @@ const pickerFailure=error=>{
 }
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false}),
- onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.bindOwner()},
+ data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,creating:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false}),
+ onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__creating=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.bindOwner()},
  bindOwner(){
   const s=api.scope();if(this.__scope&&s.owner===this.__scope.owner&&s.epoch===this.__scope.epoch)return false
-  this.pauseDocument();this.pause();this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
+  this.pauseDocument();this.pause();this.__creating=null;this.__upload=null;this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
   this.setData({documentStatus:''})
   this.__privacyCheck++;this.__privacyKnown=typeof wx.getPrivacySetting!=='function';this.__privacyNeeded=false
   this.__job=null;this.__questions=[];this.__pickAction=null;this.__pickerDiagnostic=null
@@ -39,7 +39,7 @@ Page({
   const staleRoute=!routes.some(r=>r.id===this.__draft.routeId)
   if(staleRoute&&!this.__draft.jobId)this.__draft.routeId=routes[0]?.id||''
   const hasOptional=Boolean(this.__draft.title||this.__draft.instructions||this.__draft.files.some(f=>f.role!=='answer'))
-  this.setData({authenticated:s.owner!=='guest'&&Boolean(wx.getStorageSync('stemistSessionToken')),title:this.__draft.title||'',instructions:this.__draft.instructions||'',routeIndex:Math.max(0,routes.findIndex(r=>r.id===this.__draft.routeId)),archivedRoute:staleRoute&&this.__draft.jobId?'历史学科：'+this.__draft.routeId:'',jobId:this.__draft.jobId||'',jobStatus:'',jobLabel:'',jobStateHint:this.__draft.jobId?'正在读取任务状态…':'选择作答后即可提交。',flowStep:1,actionVisible:!this.__draft.jobId,optionalOpen:!this.__draft.jobId&&hasOptional,result:null,questions:[],history:[],selectionError:'',selectionCode:'',selectionNotice:'',error:staleRoute&&!this.__draft.jobId?'原学科已更新，请确认当前学科后再提交。':'',status:'',privacy:false,documentBusy:false});this.renderFiles();this.refreshPrivacy();return true
+  this.setData({authenticated:s.owner!=='guest'&&Boolean(wx.getStorageSync('stemistSessionToken')),title:this.__draft.title||'',instructions:this.__draft.instructions||'',routeIndex:Math.max(0,routes.findIndex(r=>r.id===this.__draft.routeId)),archivedRoute:staleRoute&&this.__draft.jobId?'历史学科：'+this.__draft.routeId:'',jobId:this.__draft.jobId||'',jobStatus:'',jobLabel:'',jobStateHint:this.__draft.jobId?'正在读取任务状态…':'选择作答后即可提交。',flowStep:1,actionVisible:!this.__draft.jobId,optionalOpen:!this.__draft.jobId&&hasOptional,result:null,questions:[],history:[],selectionError:'',selectionCode:'',selectionNotice:'',error:staleRoute&&!this.__draft.jobId?'原学科已更新，请确认当前学科后再提交。':'',status:'',privacy:false,documentBusy:false,creating:false});this.renderFiles();this.refreshPrivacy();return true
  },
  current(){return !this.__disposed&&api.current(this.__scope)},
  accept(s){if(this.__disposed||s!==this.__scope)return false;if(!api.current(s)){this.bindOwner();return false}return true},
@@ -51,9 +51,8 @@ Page({
   this.loadHistory()
   const resume=this.__autoResume
   const resumable=resume&&resume.owner===this.__scope?.owner&&resume.epoch===this.__scope?.epoch&&resume.clientRequestId===this.__draft.clientRequestId&&(!resume.jobId||resume.jobId===this.__draft.jobId)
-  this.__autoResume=null
-  if(resumable&&!this.data.busy&&!this.data.picking){this.setData({status:'正在恢复上传…'});Promise.resolve().then(()=>{if(this.current()&&this.__visible&&!this.data.busy&&!this.data.picking)this.submit()})}
-  else if(this.__draft.jobId)this.refreshJob()
+  if(resumable&&this.data.creating)this.__autoResume=resume
+  else{this.__autoResume=null;if(resumable&&!this.data.busy&&!this.data.picking){this.setData({status:'正在恢复上传…'});Promise.resolve().then(()=>{if(this.current()&&this.__visible&&!this.data.busy&&!this.data.creating&&!this.data.picking)this.submit()})}else if(this.__draft.jobId)this.refreshJob()}
  },
  onResize(){syncDevice(this)},
  onHide(){
@@ -74,10 +73,10 @@ Page({
  pauseUpload(){if(!this.current()||!this.data.busy)return;this.pause({status:'上传已暂停，点击“继续上传并提交”恢复。'})},
  save(){if(this.current()){wx.setStorageSync(this.__key,this.__draft);if(this.__draft.jobId)wx.setStorageSync(this.__key+':'+this.__draft.jobId,this.__draft);this.renderFiles()}},
  renderFiles(){const files=this.__draft?.files||[],answers=files.filter(f=>f.role==='answer'),bytes=answers.reduce((n,f)=>n+(Number.isSafeInteger(f.size)?f.size:0),0);this.setData({files,answers:answers.map((f,i)=>({...f,page:i+1})),references:files.filter(f=>f.role!=='answer').map(f=>({...f,roleLabel:roles[f.role]})),selectionSummary:answers.length?(answers.length===1&&answers[0].kind==='pdf'?'1 份 PDF':answers.length+' 张图片')+' · '+fileSizeLabel(bytes):'尚未选择作答',uploadTotal:files.length,uploadCompleted:files.filter(f=>f.uploaded).length})},
- editable(){return this.current()&&this.data.authenticated&&!this.data.busy&&!this.data.picking&&!this.__draft.jobId},
+ editable(){return this.current()&&this.data.authenticated&&!this.data.busy&&!this.data.creating&&!this.data.picking&&!this.__draft.jobId},
  input(event){if(!this.editable())return;const key=event.currentTarget.dataset.field;if(!['title','instructions'].includes(key))return;this.__draft[key]=String(event.detail.value||'').slice(0,key==='title'?100:2000);this.setData({[key]:this.__draft[key]});this.save()},
  routeChange(event){if(!this.editable())return;const index=Number(event.detail.value);if(!routes[index])return;this.__draft.routeId=routes[index].id;this.setData({routeIndex:index});this.save()},
- toggleOptional(){if(!this.current()||this.data.busy||this.data.picking||this.__draft.jobId)return;this.setData({optionalOpen:!this.data.optionalOpen})},
+ toggleOptional(){if(!this.current()||this.data.busy||this.data.creating||this.data.picking||this.__draft.jobId)return;this.setData({optionalOpen:!this.data.optionalOpen})},
  refreshPrivacy(showError=false){
   if(typeof wx.getPrivacySetting!=='function'){this.__privacyKnown=true;this.__privacyNeeded=false;return}
   const s=this.__scope,n=++this.__privacyCheck
@@ -136,29 +135,39 @@ Page({
  preview(event){if(!this.current())return;const f=this.__draft.files.find(f=>f.id===event.currentTarget.dataset.id);if(!f)return;if(!f.path){this.setData({error:'本机上传副本已清理，请查看服务端合成的作答 PDF。'});return}if(f.kind==='image')wx.previewImage({current:f.path,urls:this.__draft.files.filter(f=>f.kind==='image'&&f.path).map(f=>f.path)});else wx.openDocument({filePath:f.path,fileType:'pdf',showMenu:true,fail:()=>{if(this.current())this.setData({error:'文件暂时无法打开，请重新选择。'})}})},
  focusJob(){if(this.current()&&typeof wx.pageScrollTo==='function')wx.pageScrollTo({selector:'#marking-job-state',duration:250,fail(){}})},
  async submit(){
-  if(!this.current()||!this.data.authenticated||this.data.busy||this.data.picking)return
-  const s=this.__scope,g=++this.__generation,d=this.__draft,alive=()=>this.current()&&s===this.__scope&&g===this.__generation&&this.__visible
+  if(!this.current()||!this.data.authenticated||this.data.busy||this.data.creating||this.data.picking)return
+  const s=this.__scope,g=++this.__generation,d=this.__draft
   this.__autoResume=null
-  const control=this.__upload={stopped:false,phase:'preparing',task:null,cancelled:()=>!alive()||control.stopped}
-  this.setData({busy:true,selectionNotice:'',error:'',status:'正在准备文件…'})
+  let control
+  const owns=()=>d===this.__draft&&this.__upload===control
+  const alive=()=>this.current()&&s===this.__scope&&g===this.__generation&&this.__visible&&owns()
+  control=this.__upload={stopped:false,phase:'creating',task:null,cancelled:()=>!alive()||control.stopped}
+  const creating=this.__creating={draft:d,control}
+  this.setData({busy:true,creating:true,selectionNotice:'',error:'',status:'正在准备文件…'})
   try{
    api.validateFiles(d.files)
    let job=d.jobId?await api.get(d.jobId,s):await api.create(d,s)
-   if(!this.current()||s!==this.__scope)return
+   if(!this.current()||s!==this.__scope||!owns()||this.__creating!==creating)return
+   this.__creating=null;this.setData({creating:false})
    d.jobId=job.jobId;for(const f of d.files){const a=job.assets?.find(a=>a.clientAssetId===f.id);if(a){f.assetId=a.assetId;f.uploaded=a.status==='uploaded'}}this.setData({jobId:d.jobId,actionVisible:false});this.save()
-   if(!alive()){if(this.__visible&&job.status==='draft')this.setJob(job);return}
+   if(!alive()){
+    if(this.__visible&&job.status==='draft')this.setJob(job)
+    const resume=this.__autoResume,resumable=resume&&this.__visible&&resume.owner===s.owner&&resume.epoch===s.epoch&&resume.clientRequestId===d.clientRequestId&&(!resume.jobId||resume.jobId===d.jobId)
+    if(resumable){this.__autoResume=null;Promise.resolve().then(()=>{if(this.current()&&this.__visible&&d===this.__draft&&!this.data.busy&&!this.data.creating&&!this.data.picking)this.submit()})}
+    return
+   }
    if(job.status!=='draft'){this.setJob(job);return}
    this.setJob(job)
    for(let i=0;i<d.files.length;i++){
     if(!alive())return;const f=d.files[i];if(f.uploaded)continue
     this.setData({status:'正在上传 '+(i+1)+' / '+d.files.length+'：'+f.name})
-    control.phase='uploading';await api.upload(d.jobId,f,s,control);control.phase='preparing';if(!this.current()||s!==this.__scope)return;f.uploaded=true;this.save()
+    control.phase='uploading';await api.upload(d.jobId,f,s,control);control.phase='preparing';if(!this.current()||s!==this.__scope||!owns())return;f.uploaded=true;this.save()
    }
    if(!alive())return
    control.phase='submitting';const submitted=await api.submit(d,s);control.phase='confirming'
    if(alive()){if(submitted?.jobId===d.jobId&&states[submitted.status]){this.setJob(submitted);this.schedulePoll();await this.refreshJob()}else await this.refreshJob();if(alive())this.focusJob()}
-  }catch(e){if(this.accept(s)&&g===this.__generation)this.setData({error:message(e)})}
-  finally{if(this.accept(s)&&g===this.__generation){this.setData({busy:false,status:''});this.__upload=null;if(this.__draft.jobId&&this.__visible)this.schedulePoll()}}
+  }catch(e){if(this.accept(s)&&g===this.__generation&&owns())this.setData({error:message(e)})}
+  finally{if(this.__creating===creating){this.__creating=null;if(this.accept(s)&&d===this.__draft)this.setData({creating:false})}if(this.accept(s)&&g===this.__generation&&owns()){this.setData({busy:false,status:''});this.__upload=null;if(this.__draft.jobId&&this.__visible)this.schedulePoll()}}
  },
  setJob(job){
   this.__job=job
@@ -207,9 +216,9 @@ Page({
  openJob(event){
   if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return
   const jobId=String(event.currentTarget.dataset.id);if(!this.data.history.some(j=>j.jobId===jobId))return
-  this.pause();const saved=wx.getStorageSync(this.__key+':'+jobId)
+  this.pause();this.__creating=null;this.__upload=null;const saved=wx.getStorageSync(this.__key+':'+jobId)
   this.__draft=saved?.epoch===this.__scope.epoch&&saved.jobId===jobId&&Array.isArray(saved.files)?saved:{clientRequestId:'paper-'+uid(),files:[],jobId,epoch:this.__scope.epoch,routeId:routes[0]?.id||''}
-  this.__job=null;this.__questions=[];this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:''});this.refreshJob()
+  this.__job=null;this.__questions=[];this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:'',creating:false});this.refreshJob()
  },
  pauseDocument(resume=false){
   const control=this.__document
@@ -238,7 +247,7 @@ Page({
   }catch(e){if(alive())this.setData({error:e.message,documentStatus:'下载未完成，点击下载按钮重试；不会重新批改。'})}
   finally{if(alive())this.setData({documentBusy:false});if(this.__document===control)this.__document=null}
  },
- newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAt:'',sourceAvailable:false});this.loadHistory()}})},
+ newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__creating=null;this.__upload=null;const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAt:'',sourceAvailable:false,creating:false});this.loadHistory()}})},
  login(){wx.navigateTo({url:'/pages/account/auth'})},
  back(){wx.navigateBack()},
 })

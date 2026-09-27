@@ -9,6 +9,9 @@ Date: 2026-09-27, live Windows time (Asia/Shanghai).
 - Resume lifecycle-interrupted uploads on return for the same owner, privacy
   epoch and draft. Explicit pause stays paused. A late create response retains
   a reachable continue action.
+- Bind every create/get/upload response to its original draft and operation.
+  Switching to a new or historical task invalidates late replies. Keep the
+  manifest fields frozen until creation settles, even after an explicit pause.
 - Accept legacy `tempFilePaths` image selections. Wait for the native chooser
   callback instead of discarding it after an arbitrary five seconds; provide an
   explicit cancel action.
@@ -30,7 +33,7 @@ Date: 2026-09-27, live Windows time (Asia/Shanghai).
 - `npm run test:all`: PASS, including native WXML/WXSS compilation.
 - Report-state regressions: 6/6 PASS, after reproducing the former failures.
 - Real local HTTP client -> backend -> image/PDF assembly -> job -> report:
-  PASS (27 requests after adding Range download; inference is an explicit
+  PASS (27 requests in the final run; inference is an explicit
   fixture, not a live AI claim).
 - Download lifecycle: 4/4 PASS. Downloader regressions additionally cover
   interrupt-during-write, logout during file checks, truncated completion flags,
@@ -50,10 +53,34 @@ have synthetic/state/style coverage, not real-device acceptance. Per-API WeChat
 privacy declarations still require an effective platform configuration; general
 consent alone is not proof of file-picker permission.
 
-The public production synthetic baseline reached AI completion with the expected
-3/4 estimate, but its PDF download timed out. This is **not** a full production
-acceptance pass. Backend repair deployment, report-download acceptance and
-development-package upload must be recorded separately when they actually pass.
+The earlier public production synthetic baseline reached AI completion with the
+expected 3/4 estimate, but its PDF download timed out. The first repair candidate
+also exposed real-provider response-schema failures and was rolled back before
+retesting. Neither of those earlier runs counted as end-to-end acceptance.
+
+The corrected backend commit `66182f628a1deed998b20aa01b3188f2043e3a35`
+was deployed as a two-module overlay after fresh before/after resource and health
+gates. All five HTTP health checks passed; the unrelated IELTS service was not
+restarted. A verified prior release remains available for rollback.
+
+Final real-model synthetic acceptance passed through public production HTTPS:
+
+- Two ordered answer images + question paper + mark scheme: completed in 24 s,
+  full journey 49 s, two question results, expected 3/4 AI estimate.
+- One two-page answer PDF + question paper + mark scheme: completed in 27 s,
+  full journey 43 s, two question results, expected 3/4 AI estimate.
+- Both reports were deliberately interrupted after 65,537 downloaded bytes,
+  resumed using the maintained Mini Program downloader over real HTTPS, and
+  matched the server's strong SHA-256 ETag. Both final runs used zero model
+  retries and zero network retries.
+- Both PDFs were rendered and visually inspected: one A4 page, legible Chinese
+  and English, no clipped feedback, correct question-level evidence and marks.
+  These are synthetic QA answers, not actual student submissions.
+
+The live download adapter used an isolated synthetic filesystem/account. It
+does not replace native iPad file-picker, lifecycle or Apple Pencil acceptance.
+Development-package upload, review submission and public publication are
+separate actions; the upload receipt must record the final package hash.
 
 Reference consulted: [Tencent's maintained upload implementation](https://github.com/Tencent/tdesign-miniprogram/blob/develop/packages/components/upload/upload.ts).
 Range/version checks follow [HTTP Semantics, RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-range).

@@ -12,8 +12,8 @@
   <view class="marking-grid">
    <view id="marking-picker" class="panel marking-inputs">
     <view class="card-title">第 1 步 · 上传作答</view>
-    <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || jobId}}"><view class="input">{{archivedRoute || routes[routeIndex].label}}</view></picker>
-    <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="answer" bindtap="pickPdf" disabled="{{busy || picking}}">选择作答 PDF</button><button class="secondary" bindtap="pickImages" disabled="{{busy || picking}}">选择多张图片</button></view>
+    <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || creating || jobId}}"><view class="input">{{archivedRoute || routes[routeIndex].label}}</view></picker>
+    <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="answer" bindtap="pickPdf" disabled="{{busy || creating || picking}}">选择作答 PDF</button><button class="secondary" bindtap="pickImages" disabled="{{busy || creating || picking}}">选择多张图片</button></view>
     <button wx:if="{{picking}}" class="text-button" bindtap="cancelPicker">取消选择并重试</button>
     <privacy-consent wx:if="{{privacy}}" purpose="用于读取你主动选择的作答文件并进行 AI 批改。" button-text="同意隐私授权" bind:agreed="agreePrivacy" />
     <view wx:if="{{selectionNotice}}" class="notice selection-notice" role="status"><text>{{selectionNotice}}</text></view>
@@ -23,20 +23,20 @@
     <view class="file-row" wx:for="{{answers}}" wx:key="id">
      <image wx:if="{{item.kind === 'image' && item.path}}" class="page-thumb" src="{{item.path}}" mode="aspectFit" data-id="{{item.id}}" bindtap="preview" />
      <view class="file-copy"><text>第 {{item.page}} {{item.kind === 'image' ? '页' : '份'}}</text><text class="file-name">{{item.name}}</text><text class="subtle">{{item.uploaded ? '已上传' : '待上传'}}</text></view>
-     <view class="file-buttons" wx:if="{{!jobId}}"><button data-id="{{item.id}}" data-delta="-1" bindtap="move" disabled="{{busy || picking || index === 0}}" aria-label="上移这一页">上移</button><button data-id="{{item.id}}" data-delta="1" bindtap="move" disabled="{{busy || picking || index === answers.length - 1}}" aria-label="下移这一页">下移</button><button data-id="{{item.id}}" bindtap="remove" disabled="{{busy || picking}}">移除</button></view>
+     <view class="file-buttons" wx:if="{{!jobId}}"><button data-id="{{item.id}}" data-delta="-1" bindtap="move" disabled="{{busy || creating || picking || index === 0}}" aria-label="上移这一页">上移</button><button data-id="{{item.id}}" data-delta="1" bindtap="move" disabled="{{busy || creating || picking || index === answers.length - 1}}" aria-label="下移这一页">下移</button><button data-id="{{item.id}}" bindtap="remove" disabled="{{busy || creating || picking}}">移除</button></view>
     </view>
     <view id="marking-primary-action" wx:if="{{actionVisible}}" class="marking-primary-action">
      <view class="primary-action-copy"><text class="primary-action-summary">{{selectionSummary}}</text><text wx:if="{{!answers.length && !picking}}" class="primary-action-reason">请先选择 1 份作答 PDF 或 1–20 张图片，才能提交。</text><text wx:elif="{{picking}}" class="primary-action-reason">正在等待微信返回所选文件…</text><text wx:elif="{{busy && uploadTotal}}" class="primary-action-reason">已上传 {{uploadCompleted}} / {{uploadTotal}} 份文件</text><text wx:else class="primary-action-reason">文件就绪后即可进入 AI 批改。</text></view>
-     <button id="marking-submit-primary" class="primary" bindtap="submit" loading="{{busy}}" disabled="{{busy || picking || !answers.length}}">{{jobId ? '继续上传并提交' : '提交整卷批改'}}</button>
+     <button id="marking-submit-primary" class="primary" bindtap="submit" loading="{{busy}}" disabled="{{busy || creating || picking || !answers.length}}">{{jobId ? '继续上传并提交' : '提交整卷批改'}}</button>
     </view>
-    <button id="marking-optional-toggle" wx:if="{{!jobId}}" class="secondary optional-toggle" bindtap="toggleOptional" disabled="{{busy || picking}}" aria-expanded="{{optionalOpen}}">{{optionalOpen ? '收起补充材料' : '补充原卷、评分标准或备注（选填）'}}</button>
+    <button id="marking-optional-toggle" wx:if="{{!jobId}}" class="secondary optional-toggle" bindtap="toggleOptional" disabled="{{busy || creating || picking}}" aria-expanded="{{optionalOpen}}">{{optionalOpen ? '收起补充材料' : '补充原卷、评分标准或备注（选填）'}}</button>
     <view id="marking-optional-fields" wx:if="{{optionalOpen && !jobId}}" class="optional-fields">
-     <text class="field-label">报告标题（选填）</text><input class="input" value="{{title}}" data-field="title" bindinput="input" maxlength="100" placeholder="例如：9709 2025 夏季 P13" disabled="{{busy}}" />
+     <text class="field-label">报告标题（选填）</text><input class="input" value="{{title}}" data-field="title" bindinput="input" maxlength="100" placeholder="例如：9709 2025 夏季 P13" disabled="{{busy || creating}}" />
      <view class="card-title reference-title">补充批改依据（选填）</view>
      <text class="subtle">有原卷和评分标准时，可更准确地核对题号、步骤与分值。含参考资料总计最多 40 页 / 40 MB。</text>
-     <view class="file-actions"><button class="secondary" data-role="question-paper" bindtap="pickPdf" disabled="{{busy || picking}}">添加原卷 PDF</button><button class="secondary" data-role="mark-scheme" bindtap="pickPdf" disabled="{{busy || picking}}">添加评分标准 PDF</button></view>
-     <view class="file-row" wx:for="{{references}}" wx:key="id"><view class="file-copy"><text>{{item.roleLabel}}</text><text class="file-name">{{item.name}}</text></view><button data-id="{{item.id}}" bindtap="remove" disabled="{{busy || picking}}">移除</button></view>
-     <text class="field-label">报告备注（选填）</text><textarea value="{{instructions}}" data-field="instructions" bindinput="input" maxlength="2000" placeholder="例如：本周课堂练习。备注只展示在报告中，不改变评分标准。" disabled="{{busy}}" />
+     <view class="file-actions"><button class="secondary" data-role="question-paper" bindtap="pickPdf" disabled="{{busy || creating || picking}}">添加原卷 PDF</button><button class="secondary" data-role="mark-scheme" bindtap="pickPdf" disabled="{{busy || creating || picking}}">添加评分标准 PDF</button></view>
+     <view class="file-row" wx:for="{{references}}" wx:key="id"><view class="file-copy"><text>{{item.roleLabel}}</text><text class="file-name">{{item.name}}</text></view><button data-id="{{item.id}}" bindtap="remove" disabled="{{busy || creating || picking}}">移除</button></view>
+     <text class="field-label">报告备注（选填）</text><textarea value="{{instructions}}" data-field="instructions" bindinput="input" maxlength="2000" placeholder="例如：本周课堂练习。备注只展示在报告中，不改变评分标准。" disabled="{{busy || creating}}" />
      <text class="subtle">依据不足的题目标记为不确定项，不计作零分，也不会转交人工审核。</text>
     </view>
     <button wx:if="{{busy}}" class="secondary" bindtap="pauseUpload">暂停上传</button>
