@@ -58,4 +58,17 @@
 .device-tablet.landscape .marking-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .device-tablet .marking-primary-action{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,36%);gap:16px;align-items:center}
 .device-tablet .marking-primary-action button{margin:0}
+.marking-page.device-tablet.portrait.has-primary-action{padding-bottom:calc(156px + env(safe-area-inset-bottom))}
+.marking-page.device-tablet.portrait .marking-primary-action{position:fixed;z-index:45;left:24px;right:24px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:1152px;margin:0 auto;padding:14px;border-color:#b9addf;background:#f8f6ff;box-shadow:0 8px 24px rgba(24,33,61,.18)}
+.marking-page.device-tablet.portrait .marking-primary-action button{min-height:44px;margin:0}
+.marking-page.device-tablet.portrait.has-job .marking-output{grid-row:1}
+.marking-page.device-tablet.portrait.has-job .marking-inputs{grid-row:2}
+@media (max-width:847px){
+ .marking-page.device-tablet.landscape .marking-grid{grid-template-columns:minmax(0,1fr)}
+ .marking-page.device-tablet.landscape.has-primary-action{padding-bottom:calc(156px + env(safe-area-inset-bottom))}
+ .marking-page.device-tablet.landscape .marking-primary-action{position:fixed;z-index:45;left:24px;right:24px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:1152px;margin:0 auto;padding:14px;border-color:#b9addf;background:#f8f6ff;box-shadow:0 8px 24px rgba(24,33,61,.18)}
+ .marking-page.device-tablet.landscape .marking-primary-action button{min-height:44px;margin:0}
+ .marking-page.device-tablet.landscape.has-job .marking-output{grid-row:1}
+ .marking-page.device-tablet.landscape.has-job .marking-inputs{grid-row:2}
+}
 @media (max-width:374px){.marking-flow{gap:5px}.marking-step{display:block;padding:8px 4px;text-align:center}.step-index{margin:0 auto 4px}.step-label{font-size:12px}.marking-page.device-phone .marking-primary-action{left:8px;right:8px;grid-template-columns:minmax(0,1fr) minmax(116px,40%);padding:9px 10px}}

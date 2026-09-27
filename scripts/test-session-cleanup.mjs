@@ -14,7 +14,10 @@ const values = {
 const wx = { getStorageSync: key => values[key], setStorageSync: (key, value) => { values[key] = value }, removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
 const module = { exports: {} }
 let pendingClears=0
-vm.runInNewContext(source, { module, exports: module.exports, wx, String, Array, Object, require: (name) => { assert.equal(name,'./page'); return { discardPendingDrafts: () => { pendingClears++ } } } })
+vm.runInNewContext(source, { module, exports: module.exports, wx, String, Array, Object, require: (name) => {
+  if(name==='./page')return { discardPendingDrafts: () => { pendingClears++ } }
+  assert.fail('Unexpected session dependency '+name)
+} })
 
 const preservedValues = {
   stemistSessionToken: 'expired-token',
@@ -25,10 +28,12 @@ const preservedValues = {
   stemistWritingPhoto: '/tmp/writing.jpg',
   stemistPendingAttemptSync: { routeId: 'cie-9702-as-physics' },
   'stemistNotebook:cie-9702-as-physics': { body: 'private notebook' },
+  stemistWholePaperFiles:[{path:'/owned/whole-paper-inputs/paper-held.pdf'}],
 }
 Object.assign(values, preservedValues)
 module.exports.clearLocalSession({ preserveDrafts: true })
 assert.equal(pendingClears,0)
+assert.deepEqual(values.stemistWholePaperFiles,preservedValues.stemistWholePaperFiles,'A refresh-token failure preserves resumable local paper inputs')
 assert.equal(values.stemistSessionToken, undefined)
 assert.equal(values.stemistUser, undefined)
 assert.deepEqual(values['stemistDraft:writing'], preservedValues['stemistDraft:writing'])
@@ -68,12 +73,16 @@ assert.equal(values['stemistDraft:writing-source-archive:ielts:1:0:pair:item:b']
 assert.equal(values.stemistSpeakingExportPath,undefined)
 
 values.stemistPaperReports=['/owned/marking-reports/整卷批改_job-123_批改报告.pdf','/owned/marking-reports/../original.pdf','/camera/original.jpg']
+values.stemistWholePaperFiles=[{path:'/owned/whole-paper-inputs/paper-owned.pdf'},{path:'/owned/whole-paper-inputs/../original.pdf'},{path:'/camera/original.jpg'}]
 values['stemistDraft:whole-paper:student-a']={files:[{path:'/camera/original.jpg'}]}
 module.exports.clearLocalSession()
 assert.ok(removed.includes('/owned/marking-reports/整卷批改_job-123_批改报告.pdf'))
 assert.ok(!removed.includes('/owned/marking-reports/../original.pdf'))
 assert.ok(!removed.includes('/camera/original.jpg'))
 assert.equal(values.stemistPaperReports,undefined)
+assert.ok(removed.includes('/owned/whole-paper-inputs/paper-owned.pdf'),'Explicit logout removes the registered app-owned input')
+assert.ok(!removed.includes('/owned/whole-paper-inputs/../original.pdf'),'Input cleanup rejects traversal paths')
+assert.equal(values.stemistWholePaperFiles,undefined)
 assert.equal(values['stemistDraft:whole-paper:student-a'],undefined)
 values.stemistPaperReports={malformed:true}
 assert.doesNotThrow(()=>module.exports.clearLocalSession())

@@ -6,18 +6,17 @@ const speakingExport=wx.getStorageSync('stemistSpeakingExportPath')
 const pendingWritingPhoto=wx.getStorageSync('stemistWritingPhoto')
 const pendingStemPhoto=wx.getStorageSync('stemistCroppedImage')
 const pendingCoachPhoto=wx.getStorageSync('stemistCoachPhoto')
+const paperInputs=wx.getStorageSync('stemistWholePaperFiles')
 wx.removeStorageSync('stemistSessionToken')
 wx.removeStorageSync('stemistUser')
-// A 401 clears only the expired identity. Preserve the in-progress photo,
-// crop context and pending sync so the learner can sign back in and retry
-// without taking the question again. Explicit logout still removes all
-// private evidence and drafts for shared-device safety.
+// Preserve on 401; erase owned drafts only on logout.
 if (!preserveDrafts) {
 wx.removeStorageSync('stemistNativeSessionCookie')
 wx.removeStorageSync('stemistSessionMeta')
 wx.removeStorageSync('stemistIeltsSessionState')
 wx.setStorageSync('stemistPrivacyEpoch', (Number(wx.getStorageSync('stemistPrivacyEpoch')) || 0) + 1)
 discardPendingDrafts()
+wx.removeStorageSync('stemistWholePaperFiles')
 wx.removeStorageSync('stemistCameraReturn')
 wx.removeStorageSync('stemistCoachEntry')
 wx.removeStorageSync('stemistCropReturn')
@@ -35,17 +34,16 @@ PRIVATE_SCOPES.forEach((scope) => {
 if (!preserveDrafts) wx.removeStorageSync(`stemistDraft:${scope}`)
 wx.removeStorageSync(`stemistSubmission:${scope}`)
 })
-// Explicit logout clears private drafts and app-owned report copies.
 if (!preserveDrafts) {
 const keys = wx.getStorageInfoSync ? (wx.getStorageInfoSync().keys || []) : []
 const privatePhotos = keys.filter(key => /^stemistNative(?:Practice|Paper):/.test(key)).flatMap(key => Object.values(wx.getStorageSync(key)?.answers || {}).map(answer => answer.photo).filter(Boolean))
 const writingPhotos=keys.filter(key=>/^stemistDraft:/.test(key)).flatMap(key=>{const draft=wx.getStorageSync(key)||{};return [draft.photoPath,...(draft.items||[]).map(item=>item.photo)].filter(Boolean)}).concat(pendingWritingPhoto||[],pendingStemPhoto||[])
 keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|NativeRecent|NativePaper|IeltsObjective|IeltsSpeaking|IeltsExam|VocabProgress|SavedWord|RecordIndex|Goal|CoachTurns):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
-// Only our app-private answer copies are deleted; original camera files
-// and unrelated folders are never touched.
 if (wx.env?.USER_DATA_PATH && wx.getFileSystemManager) {
 try {
 const fs = wx.getFileSystemManager()
+const inputFolder=wx.env.USER_DATA_PATH+'/whole-paper-inputs/'
+for(const f of Array.isArray(paperInputs)?paperInputs:[])if(typeof f?.path==='string'&&f.path.startsWith(inputFolder)&&/^paper-[a-z0-9-]+\.(pdf|jpg|png|webp)$/.test(f.path.slice(inputFolder.length)))fs.unlink({filePath:f.path,fail(){}})
 const folder=wx.env.USER_DATA_PATH+'/marking-reports/'
 const reports=wx.getStorageSync('stemistPaperReports')
 for(const p of Array.isArray(reports)?reports:[])if(typeof p==='string'&&p.startsWith(folder)&&/^整卷批改_[\w\u4e00-\u9fff-]+_(作答原卷|批改报告)\.pdf$/.test(p.slice(folder.length)))fs.unlink({filePath:p,fail(){}})

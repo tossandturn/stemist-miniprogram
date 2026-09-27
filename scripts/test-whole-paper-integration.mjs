@@ -44,7 +44,9 @@ const runtime=miniRuntime({
  wx:{env:{USER_DATA_PATH:'/qa/app'},getFileSystemManager:()=>({
   getFileInfo:({filePath,success,fail})=>files.has(filePath)?success({size:files.get(filePath).length}):fail(),
   readFile:({filePath,success,fail})=>{const b=files.get(filePath);if(!b)return fail();success({data:Uint8Array.from(b).buffer})},
-  mkdirSync(){},accessSync(){},unlink:({filePath})=>files.delete(filePath),
+  mkdirSync(){},accessSync(){},
+  copyFile:({srcPath,destPath,success,fail})=>{const source=files.get(srcPath);if(!source)return fail?.();files.set(destPath,Buffer.from(source));success?.({})},
+  unlink:({filePath,success})=>{files.delete(filePath);success?.({})},
  }),request:options=>{
   const controller=new AbortController();calls.push({method:options.method,url:new URL(options.url).pathname})
   const binary=Object.prototype.toString.call(options.data)==='[object ArrayBuffer]'

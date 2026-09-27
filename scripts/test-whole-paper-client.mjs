@@ -27,13 +27,14 @@ const pdf = Uint8Array.from(Buffer.from('%PDF-1.7\nfixture')).buffer
 const jpg = Uint8Array.from([255,216,255,224,1,2]).buffer
 const input = (id='file-answer1', role='answer', mediaType='image/jpeg') => ({id, role, mediaType, kind:mediaType==='application/pdf'?'pdf':'image', path:'/tmp/'+id, name:id+(mediaType==='application/pdf'?'.pdf':'.jpg'), size:mediaType==='application/pdf'?pdf.byteLength:jpg.byteLength})
 const jobId='job-fixture-123'
+const feedbackOnly={assessmentMode:'ai-advisory-unscored',officialScore:false,summary:'done',questionResults:[{questionLabel:'1',rationale:'Visible answer reviewed.',evidence:['Answer page 1'],provisionalScore:null,maxScore:null,reviewRequired:true}]}
 function serviceRuntime() {
-  let json = async () => ({}), bytes=jpg, size=jpg.byteLength, reads=0, request, download
-  const removed=[]
+  let json = async () => ({}), bytes=jpg, size=jpg.byteLength, reads=0,readFailure=false, request, download
+  const removed=[],copies=[]
   const r=miniRuntime({
     wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({
-      getFileInfo:opts=>opts.success({size}),readFile:opts=>{reads++;opts.success({data:bytes})},
-      mkdirSync(){},accessSync(){},unlink:opts=>removed.push(opts.filePath),
+      getFileInfo:opts=>opts.success({size}),readFile:opts=>{reads++;if(readFailure)opts.fail?.({errMsg:'fixture expired'});else opts.success({data:bytes})},
+      mkdirSync(){},accessSync(){},copyFile:opts=>{copies.push([opts.srcPath,opts.destPath]);opts.success?.({})},unlink:opts=>{removed.push(opts.filePath);opts.success?.({})},
     }),request:opts=>{request=opts;return{abort(){opts.fail({errMsg:'abort'})}}},downloadFile:opts=>{download=opts}},
     modules:{'utils/api':{requestJson:(...args)=>json(...args),safeErrorMessage:(_,status)=>'failed '+status},
       'utils/nativeSession':{refreshNativeSession:async()=>{}},
@@ -41,12 +42,61 @@ function serviceRuntime() {
     },
   })
   r.storage.set('stemistUser',{id:'student-a'});r.storage.set('stemistSessionToken','fixture-token')
-  return{...r,api:r.load('bundles/marking/service'),removed,setJson:fn=>{json=fn},setBytes:b=>{bytes=b;size=b.byteLength},setSize:n=>{size=n},get reads(){return reads},get request(){return request},get download(){return download}}
+  return{...r,api:r.load('bundles/marking/service'),removed,copies,setJson:fn=>{json=fn},setBytes:b=>{bytes=b;size=b.byteLength},setSize:n=>{size=n},setReadFailure:value=>{readFailure=value},get reads(){return reads},get request(){return request},get download(){return download}}
 }
 
 const r=serviceRuntime(), api=r.api, s=api.scope()
-assert.equal((await api.inspect(input(),s)).mediaType,'image/jpeg')
-r.setBytes(pdf);assert.equal((await api.inspect(input('file-pdf123','answer','application/pdf'),s)).mediaType,'application/pdf')
+const persistedImage=await api.inspect(input(),s)
+assert.equal(persistedImage.mediaType,'image/jpeg')
+assert.match(persistedImage.path,/^\/app\/whole-paper-inputs\/paper-[a-z0-9-]+\.jpg$/)
+assert.deepEqual(r.copies[0],[input().path,persistedImage.path],'Inspection stores an app-owned resumable copy without moving the picker source')
+r.setBytes(pdf);const persistedPdf=await api.inspect(input('file-pdf123','answer','application/pdf'),s)
+assert.equal(persistedPdf.mediaType,'application/pdf')
+assert.match(persistedPdf.path,/^\/app\/whole-paper-inputs\/paper-[a-z0-9-]+\.pdf$/)
+await api.releaseFiles([persistedPdf],[persistedPdf],s)
+assert.ok(!r.removed.includes(persistedPdf.path),'Cleanup cannot delete a file while a draft still references it')
+await api.releaseFiles([persistedPdf],[],s)
+assert.ok(r.removed.includes(persistedPdf.path),'Cleanup deletes only a registered app-owned copy after its draft releases it')
+assert.ok(!r.removed.includes(input('file-pdf123','answer','application/pdf').path),'Cleanup never deletes the original picker file')
+await api.releaseFiles([persistedImage],[],{owner:s.owner,epoch:s.epoch+1})
+assert.ok(!r.removed.includes(persistedImage.path),'A newer privacy epoch cannot delete a copy registered to the previous epoch')
+const bounded=serviceRuntime(),boundedScope=bounded.api.scope()
+bounded.storage.set('stemistWholePaperFiles',Array.from({length:80},(_,index)=>({path:'/app/whole-paper-inputs/paper-old-'+index+'.jpg',owner:'student-'+index,epoch:0,size:1,savedAt:index+1})))
+await assert.rejects(()=>bounded.api.inspect(input('file-bounded1'),boundedScope),/暂存.*过多/,'Multi-account draft copies are bounded instead of accumulating without limit')
+assert.equal(bounded.copies.length,0,'The local copy limit fails before allocating another private input')
+
+let emptyRootCopies=0
+const emptyRoot=miniRuntime({wx:{env:{USER_DATA_PATH:''},getFileSystemManager:()=>({mkdirSync(){},accessSync(){},copyFile(){emptyRootCopies++}})}})
+emptyRoot.storage.set('stemistUser',{id:'student-a'});emptyRoot.storage.set('stemistPrivacyEpoch',0)
+await assert.rejects(()=>emptyRoot.load('bundles/marking/files').persistWholePaperFile('/tmp/no-root.jpg','image/jpeg',6,{owner:'student-a',epoch:0}),/目录不可用/)
+assert.equal(emptyRootCopies,0,'An empty USER_DATA_PATH fails closed before copying')
+
+let logoutCopy
+const logoutUnlinks=[]
+const logoutRace=miniRuntime({wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({
+  mkdirSync(){},accessSync(){},copyFile:options=>{logoutCopy=options},unlink:options=>{logoutUnlinks.push(options.filePath);options.success?.({})},
+})}})
+logoutRace.storage.set('stemistUser',{id:'student-a'});logoutRace.storage.set('stemistPrivacyEpoch',0)
+const logoutHelper=logoutRace.load('bundles/marking/files'),logoutScope={owner:'student-a',epoch:0}
+const logoutPending=logoutHelper.persistWholePaperFile('/tmp/logout-race.jpg','image/jpeg',6,logoutScope);await settle()
+logoutRace.storage.delete('stemistUser');logoutRace.storage.set('stemistPrivacyEpoch',1);logoutRace.storage.delete('stemistWholePaperFiles')
+logoutCopy.success({})
+await assert.rejects(()=>logoutPending,/账号.*变化/,'A copy finishing after logout cannot resurrect its old registry record')
+assert.equal(logoutRace.storage.get('stemistWholePaperFiles'),undefined)
+assert.equal(logoutUnlinks.length,1,'The one just-copied stale-scope file is removed without touching old snapshots')
+
+let releaseUnlink
+const parallelRace=miniRuntime({wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({
+  mkdirSync(){},accessSync(){},copyFile:options=>options.success?.({}),unlink:options=>{releaseUnlink=options},
+})}})
+parallelRace.storage.set('stemistUser',{id:'student-a'});parallelRace.storage.set('stemistPrivacyEpoch',0)
+const oldRecord={path:'/app/whole-paper-inputs/paper-old-release.jpg',owner:'student-a',epoch:0,size:6,savedAt:1}
+parallelRace.storage.set('stemistWholePaperFiles',[oldRecord])
+const parallelHelper=parallelRace.load('bundles/marking/files'),parallelScope={owner:'student-a',epoch:0}
+const releasing=parallelHelper.releaseWholePaperFiles([oldRecord],[],parallelScope);await settle()
+const parallelNewPath=await parallelHelper.persistWholePaperFile('/tmp/new-during-release.jpg','image/jpeg',6,parallelScope)
+releaseUnlink.success({});await releasing
+assert.deepEqual(clone(parallelRace.storage.get('stemistWholePaperFiles').map(record=>record.path)),[parallelNewPath],'Release re-reads the registry and cannot overwrite a concurrently persisted copy')
 await assert.rejects(()=>api.inspect(input(),s),/格式/)
 r.setSize(11*1024*1024);const reads=r.reads
 await assert.rejects(()=>api.inspect(input('file-pdf123','answer','application/pdf'),s),/10 MB/)
@@ -74,6 +124,9 @@ assert.equal(r.request.header.Authorization,'Bearer fixture-token')
 r.request.success({statusCode:200,data:{assetId:f.assetId,status:'uploaded'}});await uploading
 const interrupted=api.upload(jobId,f,s,control);await settle();control.task.abort()
 await assert.rejects(()=>interrupted,/已上传文件保留/)
+const localGone=serviceRuntime(),localGoneScope=localGone.api.scope(),localGoneFile={...input('file-local-gone1'),assetId:'asset-local-gone1'}
+localGone.setReadFailure(true)
+await assert.rejects(()=>localGone.api.upload(jobId,localGoneFile,localGoneScope,{cancelled:()=>false}),/新建另一份批改/,'A legacy draft whose local read fails gives the only recovery action the locked draft actually supports')
 const expired=api.upload(jobId,f,s,control);await settle();r.request.success({statusCode:401,data:{}})
 await assert.rejects(()=>expired);assert.equal(api.current(s),false)
 
@@ -160,6 +213,29 @@ assert.equal(selection.p.data.uploadCompleted,1)
 assert.equal(selection.p.data.flowStep,2)
 assert.equal(selection.p.data.actionVisible,false)
 
+const queuedReleases=[]
+const queuedCleanup=pageRuntime({
+  isManagedFile:path=>String(path).startsWith('/app/whole-paper-inputs/'),
+  releaseFiles:async(files,kept)=>queuedReleases.push({files:clone(files),kept:clone(kept)}),
+})
+queuedCleanup.p.__draft.files=[{...input('file-owned1'),path:'/app/whole-paper-inputs/paper-owned-1.jpg'}];queuedCleanup.p.save()
+await queuedCleanup.p.submit();queuedCleanup.p.pause()
+assert.equal(queuedCleanup.p.__draft.files[0].path,'','A server-confirmed queued job releases its now-unreferenced local copy')
+assert.equal(queuedCleanup.p.__draft.files[0].localReleased,true)
+assert.equal(queuedReleases.length,1)
+assert.equal(queuedReleases[0].files[0].path,'/app/whole-paper-inputs/paper-owned-1.jpg')
+assert.equal(queuedReleases[0].kept[0].path,'','The persisted draft stops referencing a copy before deletion')
+
+const newTaskReleases=[]
+const newTaskCleanup=pageRuntime({
+  isManagedFile:()=>true,
+  releaseFiles:async(files,kept)=>newTaskReleases.push({files:clone(files),kept:clone(kept)}),
+},{showModal:options=>options.success({confirm:true})})
+newTaskCleanup.p.__draft.files=[{...input('file-owned2'),path:'/app/whole-paper-inputs/paper-owned-2.jpg'}];newTaskCleanup.p.save()
+newTaskCleanup.p.newTask();await settle()
+assert.equal(newTaskReleases.length,1)
+assert.equal(newTaskReleases[0].kept.length,0,'Starting a new task releases only files no longer referenced by its draft')
+
 let scrolledTo
 const scrolling=pageRuntime({}, {pageScrollTo:options=>{scrolledTo=options}})
 scrolling.p.__draft.files=[input('file-scroll1')];scrolling.p.save()
@@ -190,7 +266,7 @@ stateView.p.setJob({jobId,status:'queued',progress:{}})
 assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/等待 AI 批改/)
 stateView.p.setJob({jobId,status:'processing',progress:{completedPages:2,totalPages:5}})
 assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/正在批改/)
-stateView.p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-advisory-unscored',officialScore:false,summary:'done'}})
+stateView.p.setJob({jobId,status:'completed',result:feedbackOnly})
 assert.equal(stateView.p.data.flowStep,3);assert.match(stateView.p.data.jobStateHint,/批改完成/)
 assert.equal(stateView.p.data.jobLabel,'批改已完成','Completed label must not claim a PDF exists before reportPdfPath does')
 stateView.p.setJob({jobId,status:'failed',retryable:true,progress:{}})
@@ -208,17 +284,23 @@ recovery.p.onHide()
 assert.equal(recoveryClock.pending(),0,'No recovery timeout runs while the native chooser owns the screen')
 recoveryClock.runAll();assert.equal(recovery.p.data.picking,true)
 recovery.p.onShow()
-assert.equal(recoveryClock.pending(),1,'Recovery starts only after the page becomes visible again')
+assert.equal(recoveryClock.pending(),0,'Returning from the native chooser never starts an arbitrary failure timeout')
 recoveryClock.runAll();await settle()
+abandonedChooser.success({tempFiles:[{path:'/tmp/slow-provider.pdf',name:'slow-provider.pdf'}]})
+await settle()
+assert.equal(recovery.p.data.answers.length,1,'A valid late callback from an iPad file provider remains accepted')
 assert.equal(recovery.p.data.picking,false)
-assert.match(recovery.p.data.selectionError,/未返回结果/)
+recovery.p.remove({currentTarget:{dataset:{id:recovery.p.__draft.files[0].id}}})
+recovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+const pickerCancelledChooser=recoveryChooser
+recovery.p.onHide();recovery.p.onShow();recovery.p.cancelPicker();await settle()
+assert.equal(recovery.p.data.picking,false,'A visible cancel action exits a chooser that never returned')
 recovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
 const retryChooser=recoveryChooser
-assert.notEqual(retryChooser,abandonedChooser)
-abandonedChooser.success({tempFiles:[{path:'/tmp/stale.pdf',name:'stale.pdf'}]})
-await settle()
-assert.equal(recovery.p.data.answers.length,0,'A late callback from the abandoned chooser cannot add a stale file')
-assert.equal(recovery.p.data.picking,true,'A late callback cannot unlock the newer chooser')
+assert.notEqual(retryChooser,pickerCancelledChooser)
+pickerCancelledChooser.success({tempFiles:[{path:'/tmp/stale.pdf',name:'stale.pdf'}]});await settle()
+assert.equal(recovery.p.data.answers.length,0,'A callback from a user-cancelled chooser cannot add a stale file')
+assert.equal(recovery.p.data.picking,true,'A stale callback cannot unlock the newer chooser')
 retryChooser.fail({errMsg:'chooseMessageFile:fail cancel'});await settle()
 assert.equal(recovery.p.data.picking,false)
 
@@ -231,12 +313,11 @@ const inspectionRecovery=pageRuntime({inspect:file=>inspectionResult.promise.the
 },inspectionClock.globals)
 inspectionRecovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
 inspectionRecovery.p.onHide();inspectionRecovery.p.onShow()
-assert.equal(inspectionClock.pending(),1)
+assert.equal(inspectionClock.pending(),0)
 inspectionChooser.success({tempFiles:[{path:'/tmp/inspect.pdf',name:'inspect.pdf'}]})
 await settle()
-assert.equal(inspectionClock.pending(),0,'A native callback clears return recovery before inspection')
 inspectionClock.runAll()
-assert.equal(inspectionRecovery.p.data.picking,true,'Return recovery never interrupts file inspection')
+assert.equal(inspectionRecovery.p.data.picking,true,'Lifecycle recovery never interrupts file inspection')
 inspectionResult.resolve();await settle()
 assert.equal(inspectionRecovery.p.data.answers.length,1)
 
@@ -247,15 +328,25 @@ const lifecycleRecovery=pageRuntime({}, {
   chooseMessageFile:options=>{lifecycleChooser=options},
 },lifecycleClock.globals)
 lifecycleRecovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}});lifecycleRecovery.p.onHide();lifecycleRecovery.p.onShow()
-assert.equal(lifecycleClock.pending(),1)
+assert.equal(lifecycleClock.pending(),0)
 lifecycleRecovery.switchOwner('student-b');lifecycleRecovery.p.bindOwner()
-assert.equal(lifecycleClock.pending(),0,'Owner changes clear pending chooser recovery')
+assert.equal(lifecycleRecovery.p.data.picking,false,'Owner changes clear pending chooser recovery')
 lifecycleChooser.success({tempFiles:[{path:'/tmp/old-owner.pdf',name:'old-owner.pdf'}]});await settle()
 assert.equal(lifecycleRecovery.p.data.answers.length,0)
 lifecycleRecovery.p.pickPdf({currentTarget:{dataset:{role:'answer'}}});lifecycleRecovery.p.onHide();lifecycleRecovery.p.onShow()
-assert.equal(lifecycleClock.pending(),1)
+assert.equal(lifecycleClock.pending(),0)
 lifecycleRecovery.p.onUnload()
 assert.equal(lifecycleClock.pending(),0,'Unload clears pending chooser recovery')
+
+let legacyChooser
+const legacyImages=pageRuntime({}, {
+  getPrivacySetting:options=>options.success({needAuthorization:false}),
+  chooseImage:options=>{legacyChooser=options},
+})
+legacyImages.p.pickImages()
+legacyChooser.success({tempFilePaths:['/tmp/legacy-only.jpg']});await settle()
+assert.equal(legacyImages.p.data.answers.length,1,'Legacy chooseImage tempFilePaths-only results remain usable')
+assert.equal(legacyImages.p.data.answers[0].path,'/tmp/legacy-only.jpg')
 
 let consentChooser
 const consent=pageRuntime({}, {
@@ -366,20 +457,22 @@ assert.equal(p.__draft.clientRequestId,requestId)
 
 p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-advisory-unscored',officialScore:false,provisionalScore:100,maxScore:100,summary:'feedback',questionResults:[{questionId:'1',score:1,maxScore:1,feedback:'test'}]}})
 assert.equal(p.data.result.scoreReady,false);assert.equal(p.data.questions[0].scoreReady,false)
-p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-provisional',officialScore:false,provisionalScore:5,maxScore:10,questionResults:Array.from({length:21},(_,i)=>({questionId:String(i+1),feedback:'test'}))}})
+p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-provisional',officialScore:false,summary:'Visible question feedback.',provisionalScore:5,maxScore:21,questionResults:Array.from({length:21},(_,i)=>({questionId:String(i+1),feedback:'test',provisionalScore:i<5?1:0,maxScore:1,evidence:['Answer page 1']}))}})
 assert.equal(p.data.result.scoreReady,true);assert.equal(p.data.questions.length,10)
 p.reportPage({currentTarget:{dataset:{delta:1}}});assert.equal(p.data.questions[0].questionId,'11')
 p.reportPage({currentTarget:{dataset:{delta:1}}});assert.equal(p.data.questions.length,1)
-p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-provisional',officialScore:true,provisionalScore:5,maxScore:10}})
+p.setJob({jobId,status:'completed',result:{...feedbackOnly,assessmentMode:'ai-provisional',officialScore:true,provisionalScore:5,maxScore:10}})
 assert.equal(p.data.result.scoreReady,false,'Official flag cannot be promoted by UI')
-p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-provisional',officialScore:false,provisionalScore:3,maxScore:4,reviewRequired:true,missingPages:[2],missingQuestions:['3(b)'],questionResults:[{questionLabel:'2(a)',provisionalScore:3,maxScore:4,rationale:'单位缺失',confidence:0.7,reviewRequired:true,evidence:['作答第 1 页第二行'],criteria:[{label:'单位',awarded:0,maxScore:1,comment:'缺少 N'}]}]}})
+p.setJob({jobId,status:'completed',result:{assessmentMode:'ai-provisional',officialScore:false,summary:'Partial evidence only.',provisionalScore:3,maxScore:4,reviewRequired:true,missingPages:[2],missingQuestions:['3(b)'],questionResults:[{questionLabel:'2(a)',provisionalScore:3,maxScore:4,rationale:'单位缺失',confidence:0.7,reviewRequired:true,evidence:['作答第 1 页第二行'],criteria:[{label:'单位',awarded:0,maxScore:1,comment:'缺少 N'}]}]}})
 assert.equal(p.data.questions[0].questionId,'2(a)')
-assert.equal(p.data.questions[0].score,3)
+assert.equal(p.data.questions[0].score,null,'Incomplete source must not leave apparently complete question scores')
 assert.equal(p.data.questions[0].feedback,'单位缺失')
 assert.match(p.data.questions[0].evidence,/第 1 页/)
 assert.match(p.data.result.completeness,/3\(b\)/)
 assert.equal(p.data.reportAvailable,false,'Saved AI feedback does not imply that a report PDF exists')
 p.setJob({jobId,status:'completed',reportPdfPath:'/private/report.pdf',sourcePdfPath:'/private/source.pdf'})
+assert.equal(p.data.reportAvailable,false,'A PDF path without a usable report result is not a successful assessment')
+p.setJob({jobId,status:'completed',result:feedbackOnly,reportPdfPath:'/private/report.pdf',sourcePdfPath:'/private/source.pdf'})
 assert.equal(p.data.reportAvailable,true)
 
 const late=deferred(),a=pageRuntime({list:()=>late.promise})
@@ -393,7 +486,7 @@ const first=deferred(),second=deferred();let requestCount=0
 const race=pageRuntime({get:()=>++requestCount===1?first.promise:second.promise})
 race.p.__draft.jobId=jobId
 const earlier=race.p.refreshJob(),later=race.p.refreshJob()
-second.resolve({jobId,status:'completed'});await later
+second.resolve({jobId,status:'completed',result:feedbackOnly});await later
 first.resolve({jobId,status:'processing'});await earlier
 assert.equal(race.p.data.jobStatus,'completed','Older poll cannot roll back a newer result')
 const stale=pageRuntime()
@@ -401,17 +494,57 @@ stale.storage.set('stemistDraft:whole-paper:student-b',{epoch:0,files:[],routeId
 stale.switchOwner('student-b');stale.p.bindOwner()
 assert.equal(stale.p.__draft.routeId,stale.p.data.routes[stale.p.data.routeIndex].id,'Visible course must match new submission route')
 let cancellationCalls=0
-const cancellation=pageRuntime({cancel:async()=>{cancellationCalls++},get:async()=>({jobId,status:'failed',failureCode:'cancelled',retryable:false})})
-cancellation.p.__draft.jobId=jobId;cancellation.p.setJob({jobId,status:'draft'})
+const cancelledReleases=[]
+const cancellation=pageRuntime({cancel:async()=>{cancellationCalls++},get:async()=>({jobId,status:'failed',failureCode:'cancelled',retryable:false}),isManagedFile:()=>true,releaseFiles:async(files,kept)=>cancelledReleases.push({files:clone(files),kept:clone(kept)})})
+cancellation.p.__draft.files=[{...input('file-cancel1'),path:'/app/whole-paper-inputs/paper-cancel-1.jpg'}];cancellation.p.__draft.jobId=jobId;cancellation.p.setJob({jobId,status:'draft'})
 cancellation.wx.showModal=opts=>opts.success({confirm:false})
 await cancellation.p.cancelDraft();assert.equal(cancellationCalls,0)
 cancellation.wx.showModal=opts=>opts.success({confirm:true})
 await cancellation.p.cancelDraft();assert.equal(cancellationCalls,1);assert.equal(cancellation.p.data.jobLabel,'已取消');assert.equal(cancellation.p.data.error,'')
+assert.equal(cancellation.p.__draft.files[0].path,'','Confirmed cancellation removes the draft reference before managed cleanup')
+assert.equal(cancelledReleases.length,1)
 await cancellation.p.cancelDraft();assert.equal(cancellationCalls,1,'Completed cancellation cannot be repeated through UI')
 
-const paused=deferred(),c=pageRuntime({upload:()=>paused.promise})
-c.p.__draft.files=[input()];const pendingUpload=c.p.submit();await settle();c.p.onHide();paused.resolve({status:'uploaded'});await pendingUpload
-assert.equal(c.calls.filter(x=>x[0]==='submit').length,0,'Backgrounded upload never auto-submits')
-assert.equal(c.p.__draft.files[0].uploaded,true,'Completed upload can be resumed')
-for(const fixture of [q,selection,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,race,stale,cancellation])fixture.p.onUnload()
+const c=pageRuntime();let uploadAttempts=0,uploadAborts=0
+c.service.upload=async(id,file,_scope,control)=>{
+  uploadAttempts++
+  if(uploadAttempts===1)return new Promise((_resolve,reject)=>{control.task={abort(){uploadAborts++;reject(Error('上传已暂停，点击继续上传。'))}}})
+  c.jobs.get(id).assets.find(asset=>asset.assetId===file.assetId).status='uploaded'
+}
+c.p.__draft.files=[input()];const pendingUpload=c.p.submit();await settle();c.p.onHide();await pendingUpload
+assert.equal(uploadAborts,1)
+assert.equal(c.calls.filter(x=>x[0]==='submit').length,0)
+assert.equal(c.p.data.error,'','Lifecycle pause does not publish a false upload failure')
+assert.match(c.p.data.status,/已暂停/)
+c.p.onShow();await settle();await settle();await settle()
+assert.equal(uploadAttempts,2,'Returning to the same owner and privacy epoch safely resumes an interrupted upload once')
+assert.equal(c.calls.filter(x=>x[0]==='submit').length,1,'Lifecycle resume reaches the queue without a second student tap')
+assert.equal(c.p.data.jobStatus,'queued')
+
+const manual=pageRuntime();let manualAttempts=0
+manual.service.upload=async(_id,_file,_scope,control)=>{manualAttempts++;return new Promise((_resolve,reject)=>{control.task={abort(){reject(Error('上传已暂停，点击继续上传。'))}}})}
+manual.p.__draft.files=[input('file-manual1')];const manualPending=manual.p.submit();await settle();manual.p.pauseUpload();await manualPending
+manual.p.onHide();manual.p.onShow();await settle();await settle()
+assert.equal(manualAttempts,1,'An explicit student pause never auto-resumes on show')
+assert.match(manual.p.data.status,/点击.*继续上传/)
+
+const pendingCreate=deferred(),manualCreate=pageRuntime({create:()=>pendingCreate.promise})
+manualCreate.p.__draft.files=[input('file-create-pause1')]
+const manualCreatePending=manualCreate.p.submit();manualCreate.p.pauseUpload()
+const createdWhilePaused={jobId,status:'draft',assets:[{clientAssetId:'file-create-pause1',assetId:'asset-create-pause1',status:'pending'}]}
+manualCreate.jobs.set(jobId,createdWhilePaused);pendingCreate.resolve(createdWhilePaused);await manualCreatePending
+assert.equal(manualCreate.p.data.jobStatus,'draft')
+assert.equal(manualCreate.p.data.actionVisible,true,'A create response arriving after explicit pause still exposes the continue action')
+assert.match(manualCreate.p.data.status,/点击.*继续上传/)
+
+let staleChooserCalls=0
+const staleLocal=pageRuntime({upload:async()=>{throw Error('本机作答文件已失效，请点击“新建另一份批改”后重新选择文件。')}},{chooseMessageFile:()=>{staleChooserCalls++}})
+staleLocal.p.__draft.files=[input('file-stale1','answer','application/pdf')]
+await staleLocal.p.submit()
+staleLocal.p.pickPdf({currentTarget:{dataset:{role:'answer'}}})
+assert.equal(staleChooserCalls,0,'A legacy server draft does not pretend its disabled picker can replace a missing local file')
+assert.match(staleLocal.p.data.error,/新建另一份批改/)
+assert.equal(staleLocal.p.data.actionVisible,true)
+
+for(const fixture of [q,selection,queuedCleanup,newTaskCleanup,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,lifecycleRecovery,legacyImages,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,manual,manualCreate,staleLocal,race,stale,cancellation])fixture.p.onUnload()
 console.log('Whole-paper client: native PDF selection, inspection, upload, privacy, ordering, idempotence, auth expiry, history, scoring, paging and pause regressions PASS')

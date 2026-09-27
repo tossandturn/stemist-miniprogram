@@ -2,6 +2,7 @@ const {requestJson,safeErrorMessage}=require('../../utils/api')
 const {refreshNativeSession}=require('../../utils/nativeSession')
 const {DEFAULT_API_BASE,safeApiBase}=require('../../utils/apiOrigin')
 const {clearLocalSession}=require('../../utils/session')
+const {persistWholePaperFile,isManagedWholePaperFile,releaseWholePaperFiles}=require('./files')
 const ROOT='/api/stem/paper-marking-jobs',MAX_TOTAL=40*1024*1024
 const messages={provider_image_limit:'作答和参考资料合计最多 40 页，请减少文件后新建任务。',answer_page_limit:'作答 PDF 最多 20 页，请拆分后上传。',reference_page_limit:'单份参考 PDF 最多 40 页，请拆分后上传。',asset_image_dimensions:'图片分辨率过高或无法读取，请压缩图片后重新选择。',asset_pdf_invalid:'PDF 无法读取，请确认文件未加密且可以正常打开。',asset_image_invalid:'图片无法读取，请重新选择 JPG、PNG 或 WebP。',asset_size_limit:'文件太大：PDF 最多 10 MB，单张图片最多 4 MB。',job_size_limit:'全部文件合计最多 40 MB，请压缩或拆分后上传。'}
 function errorMessage(error){return messages[error?.code]||error?.message||'请求未完成，请稍后重试。'}
@@ -33,7 +34,9 @@ async function inspect(file,s){
  const mediaType=mime(data),size=data.byteLength
  if(file.kind==='pdf'&&mediaType!=='application/pdf'||file.kind==='image'&&mediaType==='application/pdf')throw Error('文件内容与所选格式不符。')
  if(size>(mediaType==='application/pdf'?10:4)*1024*1024)throw Error(mediaType==='application/pdf'?'PDF 不能超过 10 MB。':'单张图片不能超过 4 MB，请压缩后再选。')
- return {...file,mediaType,size}
+ const savedPath=await persistWholePaperFile(file.path,mediaType,size,s)
+ try{guard(s);return {...file,path:savedPath,mediaType,size}}
+ catch(error){await releaseWholePaperFiles([savedPath],[],s);throw error}
 }
 function validateFiles(files){
  if(!Array.isArray(files)||files.some(f=>!['answer','question-paper','mark-scheme'].includes(f.role)||!['application/pdf','image/jpeg','image/png','image/webp'].includes(f.mediaType)||!Number.isSafeInteger(f.size)||f.size<=0||f.size>(f.mediaType==='application/pdf'?10:4)*1024*1024))throw Error('文件信息无效，请重新选择。')
@@ -52,17 +55,20 @@ async function create(draft,s){
 }
 async function upload(jobId,file,s,control){
  guard(s);await refreshNativeSession();guard(s)
- const info=await new Promise((resolve,reject)=>wx.getFileSystemManager().getFileInfo({filePath:file.path,success:resolve,fail:()=>reject(Error('文件已失效，请重新选择。'))}))
+ const info=await new Promise((resolve,reject)=>wx.getFileSystemManager().getFileInfo({filePath:file.path,success:resolve,fail:()=>reject(Error('本机作答文件已失效，请点击“新建另一份批改”后重新选择文件。'))}))
  guard(s);if(info.size!==file.size)throw Error('文件内容已变化，请新建批改任务。')
- const bytes=await read(file.path);guard(s)
+ let bytes
+ try{bytes=await read(file.path)}catch{throw Error('本机作答文件已失效，请点击“新建另一份批改”后重新选择文件。')}
+ guard(s)
  if(bytes.byteLength!==file.size||mime(bytes)!==file.mediaType)throw Error('文件内容已变化，请新建批改任务。')
  if(control.cancelled())throw Error('上传已暂停，点击继续上传。')
  const origin=safeApiBase(getApp()?.globalData?.apiBaseUrl)||DEFAULT_API_BASE
  const token=wx.getStorageSync('stemistSessionToken')
  return new Promise((resolve,reject)=>{
   control.task=wx.request({url:origin+path(jobId)+'/files/'+encodeURIComponent(file.assetId),method:'PUT',data:bytes,timeout:60000,header:{'Content-Type':file.mediaType,Authorization:'Bearer '+token},success:r=>{
+   control.task=null
    try{guard(s);if(r.statusCode===401&&token===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true});if(r.statusCode<200||r.statusCode>=300)throw Object.assign(Error(safeErrorMessage(r.data,r.statusCode)),{code:r.data?.code});if(r.data?.assetId!==file.assetId||r.data?.status!=='uploaded')throw Error('上传结果未确认，请重试。');resolve(r.data)}catch(e){reject(e)}
-  },fail:()=>reject(Error(control.cancelled()?'上传已暂停，点击继续上传。':'文件上传未完成，已上传文件保留，请重试。'))})
+  },fail:()=>{control.task=null;reject(Error(control.cancelled()?'上传已暂停，点击继续上传。':'文件上传未完成，已上传文件保留，请重试。'))}})
  })
 }
 async function get(jobId,s){guard(s);const value=await requestJson(path(jobId),undefined,{method:'GET'});guard(s);if(value.jobId!==jobId||!['draft','queued','processing','completed','failed'].includes(value.status))throw Error('批改状态未能确认。');return value}
@@ -91,4 +97,6 @@ async function download(jobId,kind,s,label=''){
   try{guard(s);if(r.statusCode===401&&token===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true});if(r.statusCode!==200)throw Error('报告下载未完成，请重新登录或稍后重试。');const next=[...saved().filter(p=>p!==filePath),filePath];for(const old of next.slice(0,-20))fs.unlink({filePath:old,fail(){}});wx.setStorageSync('stemistPaperReports',next.slice(-20));resolve(filePath)}catch(e){discard();reject(e)}
  },fail:()=>{discard();reject(Error('报告下载未完成，请重试。'))}}))
 }
-module.exports={scope,current,inspect,validateFiles,create,upload,get,submit,list,retry,cancel,download,errorMessage}
+const releaseFiles=(files,referencedFiles,s)=>releaseWholePaperFiles(files,referencedFiles,s)
+const isManagedFile=(filePath,s)=>isManagedWholePaperFile(filePath,s)
+module.exports={scope,current,inspect,validateFiles,create,upload,get,submit,list,retry,cancel,download,releaseFiles,isManagedFile,errorMessage}
