@@ -33,6 +33,7 @@ const server=http.createServer((req,res)=>Promise.resolve(api(req,res,()=>{res.s
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
 const origin='http://127.0.0.1:'+server.address().port
 const files=new Map(),calls=[]
+const toBuffer=value=>typeof value==='string'?Buffer.from(value):Buffer.from(value?.buffer?value:new Uint8Array(value))
 for(let page=1;page<=2;page++){
  const canvas=createCanvas(600,800),ctx=canvas.getContext('2d')
  ctx.fillStyle='white';ctx.fillRect(0,0,600,800);ctx.fillStyle=page===1?'#173':'#137';ctx.font='28px sans-serif';ctx.fillText('Synthetic answer page '+page,30,80)
@@ -43,16 +44,18 @@ const runtime=miniRuntime({
  modules:{'utils/nativeSession':{refreshNativeSession:async()=>{},captureNativeCookie(){}},'utils/ieltsLearning':{}},
  wx:{env:{USER_DATA_PATH:'/qa/app'},getFileSystemManager:()=>({
   getFileInfo:({filePath,success,fail})=>files.has(filePath)?success({size:files.get(filePath).length}):fail(),
-  readFile:({filePath,success,fail})=>{const b=files.get(filePath);if(!b)return fail();success({data:Uint8Array.from(b).buffer})},
+  readFile:({filePath,position=0,length,success,fail})=>{const b=files.get(filePath);if(!b)return fail();success({data:Uint8Array.from(b.subarray(position,length===undefined?b.length:position+length)).buffer})},
   mkdirSync(){},accessSync(){},
+  writeFile:({filePath,data,success})=>{files.set(filePath,toBuffer(data));success?.({})},
+  appendFile:({filePath,data,success,fail})=>{if(!files.has(filePath))return fail?.({});files.set(filePath,Buffer.concat([files.get(filePath),toBuffer(data)]));success?.({})},
   copyFile:({srcPath,destPath,success,fail})=>{const source=files.get(srcPath);if(!source)return fail?.();files.set(destPath,Buffer.from(source));success?.({})},
   unlink:({filePath,success})=>{files.delete(filePath);success?.({})},
  }),request:options=>{
-  const controller=new AbortController();calls.push({method:options.method,url:new URL(options.url).pathname})
+  const controller=new AbortController();let headersListener;calls.push({method:options.method,url:new URL(options.url).pathname,range:options.header?.Range})
   const binary=Object.prototype.toString.call(options.data)==='[object ArrayBuffer]'
   fetch(localUrl(options.url),{method:options.method,headers:options.header,body:options.data===undefined?undefined:binary?Buffer.from(new Uint8Array(options.data)):JSON.stringify(options.data),signal:controller.signal})
-   .then(async response=>options.success({statusCode:response.status,data:await response.json()})).catch(error=>options.fail({errMsg:error.message}))
-  return{abort:()=>controller.abort()}
+   .then(async response=>{const header=Object.fromEntries(response.headers.entries());headersListener?.({header,statusCode:response.status});options.success({statusCode:response.status,header,data:options.responseType==='arraybuffer'?await response.arrayBuffer():await response.json()})}).catch(error=>options.fail({errMsg:error.message}))
+  return{abort:()=>controller.abort(),onHeadersReceived:fn=>{headersListener=fn},offHeadersReceived:()=>{headersListener=null}}
  },downloadFile:options=>{
   fetch(localUrl(options.url),{headers:options.header}).then(async response=>{
    files.set(options.filePath,Buffer.from(await response.arrayBuffer()));options.success({statusCode:response.status,filePath:options.filePath})

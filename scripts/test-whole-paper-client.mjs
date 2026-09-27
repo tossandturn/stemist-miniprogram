@@ -130,29 +130,136 @@ await assert.rejects(()=>localGone.api.upload(jobId,localGoneFile,localGoneScope
 const expired=api.upload(jobId,f,s,control);await settle();r.request.success({statusCode:401,data:{}})
 await assert.rejects(()=>expired);assert.equal(api.current(s),false)
 
-const d=serviceRuntime(), ds=d.api.scope()
-d.storage.set('stemistPaperReports',['/app/marking-reports/../../private.pdf','/other/photo.jpg'])
-const downloading=d.api.download(jobId,'report',ds);await settle()
-assert.match(d.download.filePath,/整卷批改_job-fixture-123-[\w-]+_批改报告\.pdf$/)
-assert.equal(d.removed.length,0,'Forged paths are never deleted')
-assert.equal(d.storage.get('stemistPaperReports').length,1)
-const firstPath=d.download.filePath
-d.download.success({statusCode:200});assert.equal(await downloading,firstPath)
-const downloading2=d.api.download(jobId,'report',ds);await settle()
-assert.notEqual(d.download.filePath,firstPath,'Retry cannot overwrite an already downloaded report')
-const secondPath=d.download.filePath
-d.storage.set('stemistUser',{id:'student-b'});d.download.success({statusCode:200})
-await assert.rejects(()=>downloading2,/账号/)
-assert.deepEqual(d.removed,[secondPath],'Late private result is removed after owner switch')
-const failedDownload=serviceRuntime(), fsScope=failedDownload.api.scope()
+const arrayBuffer=value=>{const bytes=value instanceof Uint8Array?value:new Uint8Array(value);return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)}
+function reportDownloadRuntime({deferWrite=false,deferAppend=false,deferFileInfo=false,deferRead=false}={}){
+  const files=new Map(),requests=[],removed=[],pendingWrites=[],pendingAppends=[],pendingFileInfo=[],pendingReads=[]
+  const r=miniRuntime({
+    wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({
+      mkdirSync(){},accessSync(){},
+      getFileInfo:options=>{const inspect=()=>files.has(options.filePath)?options.success({size:files.get(options.filePath).byteLength}):options.fail?.({errMsg:'not found'});if(deferFileInfo)pendingFileInfo.push(inspect);else inspect()},
+      writeFile:options=>{const write=()=>{files.set(options.filePath,new Uint8Array(arrayBuffer(options.data)));options.success?.({})};if(deferWrite)pendingWrites.push({filePath:options.filePath,run:write});else write()},
+      appendFile:options=>{const append=()=>{const before=files.get(options.filePath)||new Uint8Array();const addition=new Uint8Array(arrayBuffer(options.data));const next=new Uint8Array(before.byteLength+addition.byteLength);next.set(before);next.set(addition,before.byteLength);files.set(options.filePath,next);options.success?.({})};if(deferAppend)pendingAppends.push(append);else append()},
+      readFile:options=>{const read=()=>{const value=files.get(options.filePath);if(!value)return options.fail?.({errMsg:'not found'});const start=Number(options.position)||0,end=options.length===undefined?value.byteLength:start+Number(options.length);options.success({data:arrayBuffer(value.slice(start,end))})};if(deferRead)pendingReads.push(read);else read()},
+      unlink:options=>{removed.push(options.filePath);files.delete(options.filePath);options.success?.({})},
+    }),request:options=>{const item={options,aborted:false};requests.push(item);return{abort(){if(item.aborted)return;item.aborted=true;options.fail?.({errMsg:'request:fail abort'})}}}},
+    modules:{'utils/api':{requestJson:async()=>({}),safeErrorMessage:(_,status)=>'failed '+status},'utils/nativeSession':{refreshNativeSession:async()=>{}},'utils/session':{clearLocalSession:()=>{r.storage.delete('stemistUser');r.storage.delete('stemistSessionToken')}}},
+  })
+  r.storage.set('stemistUser',{id:'student-a'});r.storage.set('stemistSessionToken','fixture-token')
+  return{...r,api:r.load('bundles/marking/service'),files,requests,removed,pendingWrites,flushWrite:(index=0)=>pendingWrites.splice(index,1)[0]?.run(),flushAppend:()=>pendingAppends.shift()?.(),flushFileInfo:()=>pendingFileInfo.shift()?.(),flushRead:()=>pendingReads.shift()?.()}
+}
+function answerRange(item,bytes,etag='"fixture-v1"',overrides={}){
+  const match=String(item.options.header.Range||'').match(/^bytes=(\d+)-(\d+)$/)
+  assert.ok(match,'Every report request must be a bounded byte range')
+  const start=Number(match[1]),requestedEnd=Number(match[2]),end=Math.min(requestedEnd,bytes.byteLength-1),data=bytes.slice(start,end+1)
+  item.options.success({statusCode:overrides.statusCode??206,data:arrayBuffer(overrides.data||data),header:{'Content-Type':'application/pdf','Content-Range':overrides.contentRange||`bytes ${start}-${end}/${overrides.total||bytes.byteLength}`,'Content-Length':String((overrides.data||data).byteLength),ETag:overrides.etag||etag,...overrides.header}})
+}
+
+const reportBytes=new Uint8Array(70_000);reportBytes.set(Buffer.from('%PDF-1.7\n'));reportBytes.fill(65,9)
+const ownerGuard=reportDownloadRuntime(),ownerGuardScope=ownerGuard.api.scope();let ownerGuardTask
+const ownerGuardFirst=ownerGuard.api.download('job-owner-guard','report',ownerGuardScope,'Owner guard',{onTask:value=>{ownerGuardTask=value}});await settle()
+const ownerGuardSecond=ownerGuard.api.download('job-owner-other','source',ownerGuardScope,'Owner other').then(()=>null,error=>error);await settle()
+assert.equal(ownerGuard.requests.length,1,'Two marking pages for the same owner cannot start competing range sequences')
+assert.equal((await ownerGuardSecond)?.code,'download_busy')
+ownerGuardTask.abort();await assert.rejects(()=>ownerGuardFirst,/已暂停/)
+let ownerGuardRetryTask;const ownerGuardRetry=ownerGuard.api.download('job-owner-other','source',ownerGuardScope,'Owner other',{onTask:value=>{ownerGuardRetryTask=value}});await settle();assert.equal(ownerGuard.requests.length,2,'The owner lock is released after the first download settles');ownerGuardRetryTask.abort();await assert.rejects(()=>ownerGuardRetry,/已暂停/)
+
+const registryRace=reportDownloadRuntime({deferWrite:true}),registryScopeA=registryRace.api.scope();let registryTaskA
+const registryOld=registryRace.api.download('job-registry-old','report',registryScopeA,'Old owner',{onTask:value=>{registryTaskA=value}});await settle();answerRange(registryRace.requests[0],reportBytes,'"registry-a"');await settle()
+assert.equal(registryRace.pendingWrites.length,1);const registryOldPath=registryRace.pendingWrites[0].filePath
+registryRace.storage.set('stemistUser',{id:'student-b'});const registryScopeB=registryRace.api.scope();let registryTaskB
+const registryNew=registryRace.api.download('job-registry-new','report',registryScopeB,'New owner',{onTask:value=>{registryTaskB=value}});await settle();answerRange(registryRace.requests[1],reportBytes,'"registry-b"');await settle();assert.equal(registryRace.pendingWrites.length,2)
+registryRace.flushWrite(1);await settle();const registryMetaB=registryRace.storage.get('stemistDraft:whole-paper-download:student-b');assert.ok(registryMetaB?.filePath);registryTaskB.abort();await assert.rejects(()=>registryNew,/已暂停/)
+registryRace.flushWrite(0);await assert.rejects(()=>registryOld,/账号/)
+assert.deepEqual(clone(registryRace.storage.get('stemistPaperReports')),[registryMetaB.filePath],'Late old-owner write cleanup removes only its exact path and preserves the newer registry entry')
+assert.equal(registryRace.files.has(registryOldPath),false);assert.equal(registryRace.storage.get('stemistDraft:whole-paper-download:student-a'),undefined)
+
+const d=reportDownloadRuntime(),ds=d.api.scope(),progress=[];let taskControl
+const downloading=d.api.download(jobId,'report',ds,'Fixture report',{onProgress:value=>progress.push(value),onTask:value=>{taskControl=value},cancelled:()=>false})
+await settle();assert.equal(d.requests[0].options.url,'https://stem.ieltsist.com/api/stem/paper-marking-jobs/job-fixture-123/report.pdf');assert.doesNotMatch(d.requests[0].options.url,/token|fixture-token/);assert.equal(d.requests[0].options.header.Range,'bytes=0-0');assert.equal(d.requests[0].options.timeout,30_000);assert.equal(d.requests[0].options.responseType,'arraybuffer');assert.equal(typeof taskControl.abort,'function')
+answerRange(d.requests[0],reportBytes);await settle()
+assert.equal(d.requests[1].options.header.Range,'bytes=1-65536');assert.equal(d.requests[1].options.header['If-Range'],'"fixture-v1"')
+answerRange(d.requests[1],reportBytes);await settle();assert.equal(d.requests[2].options.header.Range,'bytes=65537-69999')
+answerRange(d.requests[2],reportBytes);const firstPath=await downloading
+assert.deepEqual(d.files.get(firstPath),reportBytes)
+assert.ok(progress.slice(0,-1).every(item=>item.percent<100&&item.complete!==true),'Chunk progress cannot claim completion before PDF validation')
+assert.equal(progress.at(-1).percent,100);assert.equal(progress.at(-1).complete,true)
+assert.ok(d.storage.get('stemistPaperReports').includes(firstPath))
+const requestCountBeforeCache=d.requests.length
+const cached=d.api.download(jobId,'report',ds,'Fixture report');await settle();answerRange(d.requests.at(-1),reportBytes)
+assert.equal(await cached,firstPath);assert.equal(d.requests.length,requestCountBeforeCache+1,'A matching ETag reuses the verified local PDF after one-byte validation')
+
+const writeRace=reportDownloadRuntime({deferAppend:true});const writeRaceScope=writeRace.api.scope();let writeRaceTask
+const writeRacePending=writeRace.api.download('job-write-race','report',writeRaceScope,'Write race',{onTask:value=>{writeRaceTask=value}});await settle();answerRange(writeRace.requests[0],reportBytes,'"write-race-v1"');await settle();answerRange(writeRace.requests[1],reportBytes,'"write-race-v1"');await settle()
+writeRaceTask.abort();writeRace.flushAppend();await assert.rejects(()=>writeRacePending,/已暂停/)
+const writeRaceMeta=writeRace.storage.get('stemistDraft:whole-paper-download:student-a');assert.equal(writeRaceMeta.bytes,65537);assert.equal(writeRace.files.get(writeRaceMeta.filePath).byteLength,65537,'Cancellation during a durable write checkpoints the validated chunk instead of discarding earlier progress')
+
+const infoRace=reportDownloadRuntime({deferFileInfo:true}),infoRaceScope=infoRace.api.scope()
+const infoRacePending=infoRace.api.download('job-info-race','report',infoRaceScope,'Info race');await settle();answerRange(infoRace.requests[0],reportBytes,'"info-race-v1"');await settle();answerRange(infoRace.requests[1],reportBytes,'"info-race-v1"');await settle()
+const infoRacePath=infoRace.storage.get('stemistDraft:whole-paper-download:student-a').filePath;infoRace.storage.set('stemistUser',{id:'student-b'});infoRace.flushFileInfo();await assert.rejects(()=>infoRacePending,/账号/)
+assert.equal(infoRace.files.has(infoRacePath),false,'Identity change during post-write fileInfo removes the old-account partial instead of publishing a checkpoint');assert.equal(infoRace.storage.get('stemistDraft:whole-paper-download:student-a'),undefined)
+
+const cachedRace=reportDownloadRuntime({deferRead:true}),cachedRaceScope=cachedRace.api.scope(),cachedRacePath='/app/marking-reports/整卷批改_cached-race_批改报告.pdf'
+cachedRace.files.set(cachedRacePath,reportBytes);cachedRace.storage.set('stemistPaperReports',[cachedRacePath]);cachedRace.storage.set('stemistDraft:whole-paper-download:student-a',{schemaVersion:'stem-paper-marking-download-v1',owner:'student-a',epoch:0,jobId:'job-cache-race',kind:'report',etag:'"cache-race-v1"',total:reportBytes.byteLength,filePath:cachedRacePath,bytes:reportBytes.byteLength,complete:true})
+const cachedRacePending=cachedRace.api.download('job-cache-race','report',cachedRaceScope,'Cache race');await settle();answerRange(cachedRace.requests[0],reportBytes,'"cache-race-v1"');await settle();cachedRace.storage.set('stemistUser',{id:'student-b'});cachedRace.flushRead();await assert.rejects(()=>cachedRacePending,/账号/)
+assert.equal(cachedRace.files.has(cachedRacePath),true,'A cache-head check cannot return or delete another owner’s completed report')
+
+const tampered=reportDownloadRuntime(),tamperedScope=tampered.api.scope(),tamperedBytes=new Uint8Array(1000);tamperedBytes.set(Buffer.from('%PDF-tampered'));tamperedBytes.fill(69,13)
+const tamperedPath='/app/marking-reports/整卷批改_tampered_批改报告.pdf';tampered.files.set(tamperedPath,tamperedBytes.slice(0,5));tampered.storage.set('stemistPaperReports',[tamperedPath]);tampered.storage.set('stemistDraft:whole-paper-download:student-a',{schemaVersion:'stem-paper-marking-download-v1',owner:'student-a',epoch:0,jobId:'job-tampered',kind:'report',etag:'"tampered-v1"',total:1000,filePath:tamperedPath,bytes:5,complete:true})
+let tamperedTask;const tamperedPending=tampered.api.download('job-tampered','report',tamperedScope,'Tampered',{onTask:value=>{tamperedTask=value}});await settle();answerRange(tampered.requests[0],tamperedBytes,'"tampered-v1"');await settle()
+const repairedMeta=tampered.storage.get('stemistDraft:whole-paper-download:student-a');assert.notEqual(repairedMeta.filePath,tamperedPath);assert.equal(tampered.requests[1].options.header.Range,'bytes=1-999','complete metadata with bytes below total is never returned as a cached PDF');tamperedTask.abort();await assert.rejects(()=>tamperedPending,/已暂停/)
+
+const finalizing=reportDownloadRuntime(),finalizingScope=finalizing.api.scope(),finalizingPath='/app/marking-reports/整卷批改_finalizing_批改报告.pdf'
+finalizing.files.set(finalizingPath,reportBytes);finalizing.storage.set('stemistPaperReports',[finalizingPath]);finalizing.storage.set('stemistDraft:whole-paper-download:student-a',{schemaVersion:'stem-paper-marking-download-v1',owner:'student-a',epoch:0,jobId:'job-finalizing',kind:'report',etag:'"finalizing-v1"',total:reportBytes.byteLength,filePath:finalizingPath,bytes:reportBytes.byteLength,complete:false})
+const finalizingDownload=finalizing.api.download('job-finalizing','report',finalizingScope,'Finalizing');await settle();answerRange(finalizing.requests[0],reportBytes,'"finalizing-v1"')
+assert.equal(await finalizingDownload,finalizingPath);assert.equal(finalizing.requests.length,1,'A fully persisted incomplete checkpoint runs final PDF validation without redownloading body chunks');assert.equal(finalizing.storage.get('stemistDraft:whole-paper-download:student-a').complete,true)
+
+const resumeBytes=new Uint8Array(90_000);resumeBytes.set(Buffer.from('%PDF-resume'));resumeBytes.fill(66,11)
+const resumeStart=d.requests.length,resumeProgress=[]
+const interruptedDownload=d.api.download(jobId,'source',ds,'Resume source',{onProgress:value=>resumeProgress.push(value)});await settle();answerRange(d.requests[resumeStart],resumeBytes,'"resume-v1"');await settle();answerRange(d.requests[resumeStart+1],resumeBytes,'"resume-v1"');await settle()
+assert.equal(d.requests[resumeStart+2].options.header.Range,'bytes=65537-89999');d.requests[resumeStart+2].options.fail({errMsg:'offline'})
+await assert.rejects(()=>interruptedDownload,/已下载部分已保留/);assert.ok(resumeProgress.every(item=>item.percent<100))
+const partialMeta=d.storage.get('stemistDraft:whole-paper-download:student-a'),partialPath=partialMeta.filePath
+assert.equal(partialMeta.bytes,65537);assert.equal(d.files.get(partialPath).byteLength,65537)
+const retryStart=d.requests.length,retried=d.api.download(jobId,'source',ds,'Resume source');await settle();answerRange(d.requests[retryStart],resumeBytes,'"resume-v1"');await settle()
+assert.equal(d.requests[retryStart+1].options.header.Range,'bytes=65537-89999');assert.equal(d.requests[retryStart+1].options.header['If-Range'],'"resume-v1"')
+answerRange(d.requests[retryStart+1],resumeBytes,'"resume-v1"');assert.equal(await retried,partialPath);assert.deepEqual(d.files.get(partialPath),resumeBytes)
+assert.doesNotMatch(JSON.stringify(d.storage.get('stemistDraft:whole-paper-download:student-a')),/fixture-token|authorization/i,'Resume metadata never persists credentials')
+
+const mismatch=reportDownloadRuntime(),mismatchScope=mismatch.api.scope(),mismatchBytes=new Uint8Array(70_000);mismatchBytes.set(Buffer.from('%PDF-mismatch'));mismatchBytes.fill(68,13)
+const mismatchFirst=mismatch.api.download('job-length-123','report',mismatchScope,'Length mismatch');await settle();answerRange(mismatch.requests[0],mismatchBytes,'"length-v1"');await settle();answerRange(mismatch.requests[1],mismatchBytes,'"length-v1"');await settle();mismatch.requests[2].options.fail({errMsg:'offline'});await assert.rejects(()=>mismatchFirst)
+const mismatchOldMeta=mismatch.storage.get('stemistDraft:whole-paper-download:student-a');mismatch.files.set(mismatchOldMeta.filePath,mismatch.files.get(mismatchOldMeta.filePath).slice(0,-1))
+let mismatchTask;const mismatchRetry=mismatch.api.download('job-length-123','report',mismatchScope,'Length mismatch',{onTask:value=>{mismatchTask=value}});await settle();answerRange(mismatch.requests[3],mismatchBytes,'"length-v1"');await settle()
+const mismatchNewMeta=mismatch.storage.get('stemistDraft:whole-paper-download:student-a');assert.notEqual(mismatchNewMeta.filePath,mismatchOldMeta.filePath);assert.equal(mismatch.files.has(mismatchOldMeta.filePath),false);assert.equal(mismatch.requests[4].options.header.Range,'bytes=1-65536','A file/checkpoint length mismatch resets instead of appending at a corrupt offset')
+mismatchTask.abort();await assert.rejects(()=>mismatchRetry,/已暂停/)
+
+const etagBytes=new Uint8Array(70_000);etagBytes.set(Buffer.from('%PDF-etag'));etagBytes.fill(67,9)
+const etagStart=d.requests.length,etagInterrupted=d.api.download('job-etag-123','report',ds,'ETag report');await settle();answerRange(d.requests[etagStart],etagBytes,'"etag-v1"');await settle();d.requests[etagStart+1].options.fail({errMsg:'offline'});await assert.rejects(()=>etagInterrupted)
+const etagOldPath=d.storage.get('stemistDraft:whole-paper-download:student-a').filePath,etagRetryStart=d.requests.length
+let etagTask;const etagRetry=d.api.download('job-etag-123','report',ds,'ETag report',{onTask:value=>{etagTask=value}});await settle();answerRange(d.requests[etagRetryStart],etagBytes,'"etag-v2"');await settle()
+const etagNewMeta=d.storage.get('stemistDraft:whole-paper-download:student-a');assert.notEqual(etagNewMeta.filePath,etagOldPath);assert.equal(d.files.has(etagOldPath),false);assert.equal(d.requests[etagRetryStart+1].options.header.Range,'bytes=1-65536')
+etagTask.abort();await assert.rejects(()=>etagRetry,/已暂停/);assert.equal(d.files.get(etagNewMeta.filePath).byteLength,1)
+
+const identityRuntime=reportDownloadRuntime(),identityScope=identityRuntime.api.scope(),identityBytes=new Uint8Array(Buffer.from('%PDF-identity'))
+const identityDownload=identityRuntime.api.download('job-identity-123','report',identityScope,'Identity');await settle();answerRange(identityRuntime.requests[0],identityBytes,'"identity-v1"');await settle()
+assert.equal(identityRuntime.files.values().next().value.byteLength,1);identityRuntime.storage.set('stemistUser',{id:'student-b'});answerRange(identityRuntime.requests[1],identityBytes,'"identity-v1"')
+await assert.rejects(()=>identityDownload,/账号/);assert.equal(identityRuntime.files.values().next().value.byteLength,1,'A late old-account response cannot append private bytes')
+
+for(const malformed of [
+  {etag:'W/"weak"'},
+  {contentRange:'bytes 0-1/10'},
+  {total:40*1024*1024+1},
+]){
+  const bad=reportDownloadRuntime(),badScope=bad.api.scope(),pending=bad.api.download('job-malformed-123','report',badScope,'Bad');await settle();answerRange(bad.requests[0],identityBytes,'"bad-v1"',malformed)
+  await assert.rejects(()=>pending,error=>['download_response_invalid','download_too_large'].includes(error?.code));assert.equal(bad.files.size,0)
+}
+
+const failedDownload=reportDownloadRuntime(),fsScope=failedDownload.api.scope()
 const storedReports=Array.from({length:20},(_,i)=>'/app/marking-reports/整卷批改_saved-'+i+'_批改报告.pdf')
 failedDownload.storage.set('stemistPaperReports',storedReports)
-const failure=failedDownload.api.download(jobId,'report',fsScope);await settle()
-assert.equal(failedDownload.removed.length,0,'Starting download must not evict completed reports')
-failedDownload.download.fail({});await assert.rejects(()=>failure)
-assert.deepEqual(clone(failedDownload.storage.get('stemistPaperReports')),storedReports,'Failed download must not consume retention slots')
-const download401=failedDownload.api.download(jobId,'report',fsScope);await settle();failedDownload.download.success({statusCode:401})
-await assert.rejects(()=>download401);assert.equal(failedDownload.api.current(fsScope),false)
+const failure=failedDownload.api.download(jobId,'report',fsScope,'Failure');await settle();failedDownload.requests[0].options.fail({errMsg:'offline'});await assert.rejects(()=>failure)
+assert.deepEqual(clone(failedDownload.storage.get('stemistPaperReports')),storedReports,'A failed probe must not evict completed reports')
+const unauthorized=failedDownload.api.download(jobId,'report',fsScope,'401');await settle();failedDownload.requests[1].options.success({statusCode:401,data:new ArrayBuffer(0),header:{}})
+await assert.rejects(()=>unauthorized);assert.equal(failedDownload.api.current(fsScope),false)
 
 function pageRuntime(overrides={},wx={},globals={}) {
   let currentOwner='student-a',epoch=0

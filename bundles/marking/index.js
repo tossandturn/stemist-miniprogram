@@ -27,10 +27,11 @@ const pickerFailure=error=>{
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false}),
- onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.bindOwner()},
+ onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.bindOwner()},
  bindOwner(){
   const s=api.scope();if(this.__scope&&s.owner===this.__scope.owner&&s.epoch===this.__scope.epoch)return false
-  this.pause();this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
+  this.pauseDocument();this.pause();this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
+  this.setData({documentStatus:''})
   this.__privacyCheck++;this.__privacyKnown=typeof wx.getPrivacySetting!=='function';this.__privacyNeeded=false
   this.__job=null;this.__questions=[];this.__pickAction=null;this.__pickerDiagnostic=null
   const old=wx.getStorageSync(this.__key)
@@ -45,6 +46,8 @@ Page({
  onShow(){
   this.__visible=true;syncDevice(this);if(!this.bindOwner())this.refreshPrivacy();this.recoverPicker()
   if(!this.data.authenticated)return
+  const documentResume=this.__resumeDocument;this.__resumeDocument=null
+  if(documentResume&&documentResume.owner===this.__scope.owner&&documentResume.epoch===this.__scope.epoch&&documentResume.jobId===this.__draft.jobId)this.document({currentTarget:{dataset:{kind:documentResume.kind}}})
   this.loadHistory()
   const resume=this.__autoResume
   const resumable=resume&&resume.owner===this.__scope?.owner&&resume.epoch===this.__scope?.epoch&&resume.clientRequestId===this.__draft.clientRequestId&&(!resume.jobId||resume.jobId===this.__draft.jobId)
@@ -56,10 +59,10 @@ Page({
  onHide(){
   const active=Boolean(this.__upload&&!this.__upload.stopped&&this.data.busy)
   if(active)this.__autoResume={owner:this.__scope?.owner,epoch:this.__scope?.epoch,clientRequestId:this.__draft?.clientRequestId,jobId:this.__draft?.jobId||''}
-  this.__visible=false;if(this.__selection?.phase==='choosing'){this.__selection.hidden=true;this.clearPicker(this.__selection)}
+  this.__visible=false;this.pauseDocument(true);if(this.__selection?.phase==='choosing'){this.__selection.hidden=true;this.clearPicker(this.__selection)}
   this.pause({preservePicking:true,preserveResume:active,status:active?'上传已暂停，返回后将自动继续。':undefined})
  },
- onUnload(){this.__disposed=true;this.pause()},
+ onUnload(){this.__disposed=true;this.pauseDocument();this.pause()},
  clearPicker(selection=this.__selection,forget=false){if(!selection)return;if(selection.timer){clearTimeout(selection.timer);selection.timer=null}if(forget&&this.__selection===selection){selection.stale=true;this.__selection=null}},
  recoverPicker(){
   const selection=this.__selection
@@ -208,14 +211,32 @@ Page({
   this.__draft=saved?.epoch===this.__scope.epoch&&saved.jobId===jobId&&Array.isArray(saved.files)?saved:{clientRequestId:'paper-'+uid(),files:[],jobId,epoch:this.__scope.epoch,routeId:routes[0]?.id||''}
   this.__job=null;this.__questions=[];this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:''});this.refreshJob()
  },
+ pauseDocument(resume=false){
+  const control=this.__document
+  if(!control||control.phase!=='downloading'){if(!resume)this.__resumeDocument=null;return}
+  this.__resumeDocument=resume?{owner:control.scope.owner,epoch:control.scope.epoch,jobId:control.jobId,kind:control.kind}:null
+  this.__documentGeneration++;this.__document=null;control.task?.abort?.()
+  if(!this.__disposed)this.setData({documentBusy:false,documentStatus:resume?'下载已暂停，返回后自动继续。':'下载已暂停，点击下载按钮继续；不会重新批改。'})
+ },
+ cancelDocument(){this.pauseDocument()},
  async document(event){
   if(!this.current()||this.data.documentBusy)return
   if(event.currentTarget.dataset.kind==='report'&&!this.data.reportAvailable)return
-  const s=this.__scope,id=this.data.jobId;this.setData({documentBusy:true,error:''})
-  const alive=()=>this.accept(s)&&id===this.data.jobId
-  try{const filePath=await api.download(id,event.currentTarget.dataset.kind,s,this.__job?.title||this.__draft.title||routes[this.data.routeIndex]?.label);if(alive())wx.openDocument({filePath,fileType:'pdf',showMenu:true,fail:()=>{if(alive())this.setData({error:'PDF 已下载，但未能打开，请重试。'})}})}
-  catch(e){if(alive())this.setData({error:e.message})}
-  finally{if(alive())this.setData({documentBusy:false})}
+  const s=this.__scope,id=this.data.jobId,kind=event.currentTarget.dataset.kind,g=++this.__documentGeneration
+  const control=this.__document={scope:s,jobId:id,kind,phase:'downloading',task:null}
+  this.setData({documentBusy:true,documentStatus:'正在连接并确认 PDF 下载进度…',error:''})
+  const alive=()=>this.accept(s)&&id===this.data.jobId&&g===this.__documentGeneration
+  const options={cancelled:()=>!alive(),onTask:task=>{if(alive())control.task=task;else task?.abort?.()},onProgress:progress=>{
+   if(!alive())return
+   const downloaded=Math.max(0,Number(progress.downloadedBytes)||0),total=Math.max(0,Number(progress.totalBytes)||0)
+   const percent=total>0?Math.max(0,Math.min(99,Math.floor(downloaded/total*100))):null
+   this.setData({documentStatus:'正在下载 '+(downloaded?fileSizeLabel(downloaded):'0 KB')+(total?' / '+fileSizeLabel(total)+' · '+percent+'%':'')})
+  }}
+  try{
+   const filePath=await api.download(id,kind,s,this.__job?.title||this.__draft.title||routes[this.data.routeIndex]?.label,options)
+   if(alive()&&this.__visible){control.phase='opening';this.setData({documentStatus:'下载完成，正在打开 PDF…'});wx.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(alive())this.setData({documentStatus:'PDF 已打开。'})},fail:()=>{if(alive())this.setData({error:'PDF 已下载，但未能打开，请重试。',documentStatus:'文件已保留，重新点击下载按钮可再次打开。'})}})}
+  }catch(e){if(alive())this.setData({error:e.message,documentStatus:'下载未完成，点击下载按钮重试；不会重新批改。'})}
+  finally{if(alive())this.setData({documentBusy:false});if(this.__document===control)this.__document=null}
  },
  newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAt:'',sourceAvailable:false});this.loadHistory()}})},
  login(){wx.navigateTo({url:'/pages/account/auth'})},

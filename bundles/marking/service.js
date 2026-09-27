@@ -3,6 +3,7 @@ const {refreshNativeSession}=require('../../utils/nativeSession')
 const {DEFAULT_API_BASE,safeApiBase}=require('../../utils/apiOrigin')
 const {clearLocalSession}=require('../../utils/session')
 const {persistWholePaperFile,isManagedWholePaperFile,releaseWholePaperFiles}=require('./files')
+const {downloadWholePaperPdf}=require('./reportDownload')
 const ROOT='/api/stem/paper-marking-jobs',MAX_TOTAL=40*1024*1024
 const messages={provider_image_limit:'作答和参考资料合计最多 40 页，请减少文件后新建任务。',answer_page_limit:'作答 PDF 最多 20 页，请拆分后上传。',reference_page_limit:'单份参考 PDF 最多 40 页，请拆分后上传。',asset_image_dimensions:'图片分辨率过高或无法读取，请压缩图片后重新选择。',asset_pdf_invalid:'PDF 无法读取，请确认文件未加密且可以正常打开。',asset_image_invalid:'图片无法读取，请重新选择 JPG、PNG 或 WebP。',asset_size_limit:'文件太大：PDF 最多 10 MB，单张图片最多 4 MB。',job_size_limit:'全部文件合计最多 40 MB，请压缩或拆分后上传。'}
 function errorMessage(error){return messages[error?.code]||error?.message||'请求未完成，请稍后重试。'}
@@ -80,22 +81,13 @@ async function submit(draft,s){
 async function list(s){guard(s);const value=await requestJson(ROOT+'?limit=20',undefined,{method:'GET'});guard(s);return Array.isArray(value.jobs)?value.jobs.filter(j=>id(j.jobId)):[]}
 async function retry(jobId,clientRequestId,s){guard(s);const value=await requestJson(path(jobId)+'/retry',{clientRequestId});guard(s);return value}
 async function cancel(jobId,clientRequestId,s){guard(s);const value=await requestJson(path(jobId)+'/cancel',{clientRequestId});guard(s);return value}
-async function download(jobId,kind,s,label=''){
+async function download(jobId,kind,s,label='',options={}){
  guard(s);await refreshNativeSession();guard(s)
  path(jobId)
  const origin=safeApiBase(getApp()?.globalData?.apiBaseUrl)||DEFAULT_API_BASE
- const fs=wx.getFileSystemManager(),folder=wx.env.USER_DATA_PATH+'/marking-reports'
- try{fs.mkdirSync(folder,true)}catch{fs.accessSync(folder)}
- const title=String(label).replace(/[^\w\u4e00-\u9fff-]/g,'-').slice(0,40)
- const filePath=folder+'/整卷批改_'+(title?title+'_':'')+jobId+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8)+'_'+(kind==='source'?'作答原卷':'批改报告')+'.pdf'
- const saved=()=>{const stored=wx.getStorageSync('stemistPaperReports');return Array.isArray(stored)?stored.filter(p=>typeof p==='string'&&p.startsWith(folder+'/')&&/^整卷批改_[\w\u4e00-\u9fff-]+_(作答原卷|批改报告)\.pdf$/.test(p.slice(folder.length+1))):[]}
- const discard=()=>{fs.unlink({filePath,fail(){}});wx.setStorageSync('stemistPaperReports',saved().filter(p=>p!==filePath))}
- // Register pending copies for logout cleanup, but evict old reports only on success.
- wx.setStorageSync('stemistPaperReports',[...new Set([...saved(),filePath])])
  const token=wx.getStorageSync('stemistSessionToken')
- return new Promise((resolve,reject)=>wx.downloadFile({url:origin+path(jobId)+(kind==='source'?'/source.pdf':'/report.pdf'),filePath,timeout:60000,header:{Authorization:'Bearer '+token},success:r=>{
-  try{guard(s);if(r.statusCode===401&&token===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true});if(r.statusCode!==200)throw Error('报告下载未完成，请重新登录或稍后重试。');const next=[...saved().filter(p=>p!==filePath),filePath];for(const old of next.slice(0,-20))fs.unlink({filePath:old,fail(){}});wx.setStorageSync('stemistPaperReports',next.slice(-20));resolve(filePath)}catch(e){discard();reject(e)}
- },fail:()=>{discard();reject(Error('报告下载未完成，请重试。'))}}))
+ try{return await downloadWholePaperPdf({origin,jobId,kind,scope:s,label,token,current:()=>current(s),options})}
+ catch(error){if(error?.statusCode===401&&token===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true});throw error}
 }
 const releaseFiles=(files,referencedFiles,s)=>releaseWholePaperFiles(files,referencedFiles,s)
 const isManagedFile=(filePath,s)=>isManagedWholePaperFile(filePath,s)
