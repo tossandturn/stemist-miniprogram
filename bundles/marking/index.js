@@ -166,7 +166,13 @@ Page({
    if(!alive())return
    control.phase='submitting';const submitted=await api.submit(d,s);control.phase='confirming'
    if(alive()){if(submitted?.jobId===d.jobId&&states[submitted.status]){this.setJob(submitted);this.schedulePoll();await this.refreshJob()}else await this.refreshJob();if(alive())this.focusJob()}
-  }catch(e){if(this.accept(s)&&g===this.__generation&&owns())this.setData({error:message(e)})}
+  }catch(e){
+   if(this.accept(s)&&g===this.__generation&&owns())this.setData({error:message(e)})
+   else{
+    const resume=this.__autoResume,resumable=resume&&this.__visible&&this.current()&&s===this.__scope&&owns()&&this.__creating===creating&&resume.owner===s.owner&&resume.epoch===s.epoch&&resume.clientRequestId===d.clientRequestId&&(!resume.jobId||resume.jobId===d.jobId)
+    if(resumable){this.__autoResume=null;this.setData({error:message(e),status:'自动恢复未完成，请点击'+(d.jobId?'“继续上传并提交”':'“提交整卷批改”')+'重试。'})}
+   }
+  }
   finally{if(this.__creating===creating){this.__creating=null;if(this.accept(s)&&d===this.__draft)this.setData({creating:false})}if(this.accept(s)&&g===this.__generation&&owns()){this.setData({busy:false,status:''});this.__upload=null;if(this.__draft.jobId&&this.__visible)this.schedulePoll()}}
  },
  setJob(job){

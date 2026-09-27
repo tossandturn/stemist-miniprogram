@@ -658,6 +658,39 @@ const lifecycleCreated={jobId,status:'draft',assets:[{clientAssetId:'file-create
 assert.equal(lifecycleCreate.calls.filter(call=>call[0]==='submit').length,1,'A lifecycle pause during create resumes once the frozen manifest response is safely bound')
 assert.equal(lifecycleCreate.p.data.jobStatus,'queued')
 
+const failedLifecycleCreate=deferred(),lifecycleCreateFailure=pageRuntime({create:()=>failedLifecycleCreate.promise})
+lifecycleCreateFailure.p.__draft.files=[input('file-create-lifecycle-failure1')]
+const lifecycleCreateFailurePending=lifecycleCreateFailure.p.submit();lifecycleCreateFailure.p.onHide();lifecycleCreateFailure.p.onShow();await settle()
+failedLifecycleCreate.reject(Error('创建请求网络中断'));await lifecycleCreateFailurePending;await settle()
+assert.equal(lifecycleCreateFailure.p.data.creating,false);assert.equal(lifecycleCreateFailure.p.data.busy,false)
+assert.equal(lifecycleCreateFailure.p.__autoResume,null,'A failed create after returning consumes the stale lifecycle-resume promise')
+assert.match(lifecycleCreateFailure.p.data.error,/网络中断/)
+assert.match(lifecycleCreateFailure.p.data.status,/提交.*重试/,'A failed lifecycle resume gives an honest manual retry action instead of promising an automatic retry')
+
+const explicitCreateFailureDeferred=deferred(),explicitCreateFailure=pageRuntime({create:()=>explicitCreateFailureDeferred.promise})
+explicitCreateFailure.p.__draft.files=[input('file-create-explicit-failure1')]
+const explicitCreateFailurePending=explicitCreateFailure.p.submit();explicitCreateFailure.p.pauseUpload();explicitCreateFailureDeferred.reject(Error('旧请求失败'));await explicitCreateFailurePending
+assert.equal(explicitCreateFailure.p.data.error,'','An explicitly paused create does not surface a late request error')
+assert.match(explicitCreateFailure.p.data.status,/点击.*继续上传/)
+
+const replacedCreateFailureDeferred=deferred(),replacedCreateFailure=pageRuntime({create:()=>replacedCreateFailureDeferred.promise},{showModal:options=>options.success({confirm:true})})
+replacedCreateFailure.p.__draft.files=[input('file-create-replaced-failure1')]
+const replacedCreateFailurePending=replacedCreateFailure.p.submit();replacedCreateFailure.p.pauseUpload();replacedCreateFailure.p.newTask();const failedCreateReplacement=replacedCreateFailure.p.__draft
+replacedCreateFailureDeferred.reject(Error('旧任务失败'));await replacedCreateFailurePending
+assert.equal(replacedCreateFailure.p.__draft,failedCreateReplacement);assert.equal(replacedCreateFailure.p.data.error,'');assert.equal(replacedCreateFailure.p.data.status,'','A replaced draft ignores a late create failure')
+
+const openCreateFailureDeferred=deferred(),openCreateFailure=pageRuntime({create:()=>openCreateFailureDeferred.promise})
+openCreateFailure.p.__draft.files=[input('file-create-open-failure1')];const openCreateFailurePending=openCreateFailure.p.submit();openCreateFailure.p.pauseUpload()
+const openFailureJob='job-history-failure-123',openFailureDraft={clientRequestId:'history-failure-request-123',files:[],jobId:openFailureJob,epoch:0,routeId:openCreateFailure.p.__draft.routeId}
+openCreateFailure.storage.set(openCreateFailure.p.__key+':'+openFailureJob,openFailureDraft);openCreateFailure.jobs.set(openFailureJob,{jobId:openFailureJob,status:'queued'});openCreateFailure.p.data.history=[{jobId:openFailureJob}];openCreateFailure.p.openJob({currentTarget:{dataset:{id:openFailureJob}}})
+openCreateFailureDeferred.reject(Error('旧任务失败'));await openCreateFailurePending
+assert.equal(openCreateFailure.p.__draft,openFailureDraft);assert.equal(openCreateFailure.p.data.error,'','Opening history ignores a late create failure from the replaced draft')
+
+const ownerCreateFailureDeferred=deferred(),ownerCreateFailure=pageRuntime({create:()=>ownerCreateFailureDeferred.promise})
+ownerCreateFailure.p.__draft.files=[input('file-create-owner-failure1')];const ownerCreateFailurePending=ownerCreateFailure.p.submit();ownerCreateFailure.switchOwner('student-b');ownerCreateFailure.p.bindOwner()
+ownerCreateFailureDeferred.reject(Error('旧账号失败'));await ownerCreateFailurePending
+assert.equal(ownerCreateFailure.p.__scope.owner,'student-b');assert.equal(ownerCreateFailure.p.data.error,'','A replacement account ignores the previous owner create failure')
+
 const staleCreate=deferred(),staleCreatePage=pageRuntime({create:()=>staleCreate.promise},{showModal:options=>options.success({confirm:true})})
 staleCreatePage.p.__draft.files=[input('file-stale-create1')];const staleDraft=staleCreatePage.p.__draft,staleCreatePending=staleCreatePage.p.submit();staleCreatePage.p.pauseUpload();staleCreatePage.p.newTask();const replacementDraft=staleCreatePage.p.__draft
 assert.notEqual(replacementDraft,staleDraft);assert.equal(staleCreatePage.p.data.creating,false)
@@ -685,5 +718,5 @@ assert.equal(staleChooserCalls,0,'A legacy server draft does not pretend its dis
 assert.match(staleLocal.p.data.error,/新建另一份批改/)
 assert.equal(staleLocal.p.data.actionVisible,true)
 
-for(const fixture of [q,selection,queuedCleanup,newTaskCleanup,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,lifecycleRecovery,legacyImages,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,manual,manualCreate,lifecycleCreate,staleCreatePage,staleUpload,staleOpen,staleLocal,race,stale,cancellation])fixture.p.onUnload()
+for(const fixture of [q,selection,queuedCleanup,newTaskCleanup,scrolling,confirmedQueue,stateView,recovery,inspectionRecovery,lifecycleRecovery,legacyImages,consent,privacyPending,privacyFailure,nativeFailure,invalidSelection,scopedSelection,a,b,c,manual,manualCreate,lifecycleCreate,lifecycleCreateFailure,explicitCreateFailure,replacedCreateFailure,openCreateFailure,ownerCreateFailure,staleCreatePage,staleUpload,staleOpen,staleLocal,race,stale,cancellation])fixture.p.onUnload()
 console.log('Whole-paper client: native PDF selection, inspection, upload, privacy, ordering, idempotence, auth expiry, history, scoring, paging and pause regressions PASS')
