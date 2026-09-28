@@ -2,6 +2,8 @@ const { deviceState, syncDevice, scheduleDraft, cancelDraft } = require('../../u
 const { getJson, requestJson } = require('../../utils/api')
 const { STEM_ROUTES } = require('../../utils/stemRoutes')
 const { categoryForRoute, familyForCategoryStage, normalizeStemCategory, stemCategoryProfile } = require('../../utils/stemCatalog')
+const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest')
+const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
 const ROUTE_OPTIONS = STEM_ROUTES.map((route) => ({ ...route, pickerLabel: `${route.subjectLabel} · ${route.stage} · ${route.components}` }))
 
@@ -15,6 +17,7 @@ Page({
   data: deviceState({ category: 'alevel', categoryLabel: 'A-Level 学科', family: 'exam', routeId: 'cie-9702-as-physics', routeIndex: 0, stage: 'AS', subjectCode: '9702', note: '', saving: false, status: '本机自动保存已开启', error: '', routes: routesForCategory('alevel') }),
   onLoad(options) {
     this.__disposed = false
+    this.__owner=owner();this.__epoch=epoch()
     this.__requestId = 0
     this.__editVersion = 0
     const requested = String(options && options.routeId || '')
@@ -27,9 +30,11 @@ Page({
     const route = routes[routeIndex]
     this.setData({ category, categoryLabel: stemCategoryProfile(category).label, family: familyForCategoryStage(category, route?.stage), routes, routeIndex, routeId: route?.routeId || '', stage: route?.stage || '', subjectCode: route?.subjectCode || '' }, () => this.loadNote())
   },
-  onShow() { syncDevice(this) },
+  onShow() { syncDevice(this);if(!this.current())this.resetIdentity();else if(this.__saveError){this.setData({saving:false,status:'本机笔记已保留',error:this.__saveError});this.__saveError=''} },
   onResize() { syncDevice(this) },
   onUnload() { this.__disposed = true; this.__requestId += 1; cancelDraft(this) },
+  current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
+  resetIdentity(){this.__requestId+=1;this.__editVersion+=1;this.__saveError='';cancelDraft(this);this.setData({note:'',saving:false,status:'账号已变化',error:'账号已变化，请返回后重新打开笔记。'})},
   chooseRoute(event) {
     const routeId = String(event.currentTarget.dataset.route || '')
     this.selectRoute(routeId)
@@ -39,7 +44,7 @@ Page({
     if (route) this.selectRoute(route.routeId)
   },
   selectRoute(routeId) {
-    if (!routeId || this.data.saving) return
+    if (!this.current() || !routeId || this.data.saving) return
     const routeIndex = this.data.routes.findIndex((route) => route.routeId === routeId)
     if (routeIndex < 0) return
     cancelDraft(this)
@@ -48,6 +53,7 @@ Page({
     this.setData({ routeId, routeIndex, stage: route?.stage || '', subjectCode: route?.subjectCode || '', family: familyForCategoryStage(this.data.category, route?.stage), note: '', status: '正在读取这条路线的笔记…', error: '' }, () => this.loadNote())
   },
   loadNote() {
+    if(!this.current())return
     const routeId = this.data.routeId
     const requestId = ++this.__requestId
     const editVersion = this.__editVersion
@@ -55,7 +61,7 @@ Page({
     const local = wx.getStorageSync(`stemistNotebook:${routeId}`)
     this.setData({ note: local && typeof local.body === 'string' ? local.body : '', status: local ? '已恢复本机笔记' : '本机自动保存已开启' })
     if (!token) return
-    const current = () => !this.__disposed && requestId === this.__requestId && routeId === this.data.routeId && editVersion === this.__editVersion && token === wx.getStorageSync('stemistSessionToken')
+    const current = () => this.current() && requestId === this.__requestId && routeId === this.data.routeId && editVersion === this.__editVersion && token === wx.getStorageSync('stemistSessionToken')
     getJson(`/api/stem/notebook/notes?routeId=${encodeURIComponent(routeId)}`, { timeout: 8000 }).then((payload) => {
       if (!current()) return
       if (payload && payload.routeId && payload.routeId !== routeId) return
@@ -69,6 +75,7 @@ Page({
     }).catch(() => { if (current()) this.setData({ status: '本机笔记已保留 · 暂时无法读取云端' }) })
   },
   onInput(event) {
+    if(!this.current())return
     const note = String(event.detail.value || '')
     this.__editVersion += 1
     wx.setStorageSync(`stemistNotebook:${this.data.routeId}`, { body: note, updatedAt: Date.now(), dirty: true })
@@ -76,13 +83,14 @@ Page({
     scheduleDraft(this, `notebook:${this.data.routeId}`, { body: note })
   },
   async save() {
-    if (this.data.saving) return
+    if (this.data.saving||!this.current()) return
     const note = this.data.note.trim()
     const routeId = this.data.routeId
     const editVersion = this.__editVersion
     const token = wx.getStorageSync('stemistSessionToken')
     wx.setStorageSync(`stemistNotebook:${routeId}`, { body: note, updatedAt: Date.now(), dirty: true })
     if (!wx.getStorageSync('stemistSessionToken')) return this.setData({ status: '已保存到本机（登录后可同步）' })
+    this.__saveError=''
     this.setData({ saving: true, error: '', status: '正在同步到账号…' })
     try {
       await requestJson(`/api/stem/notebook/notes/${encodeURIComponent(routeId)}`, { body: note }, { method: 'PUT', timeout: 8000 })
@@ -90,14 +98,14 @@ Page({
         wx.setStorageSync(`stemistNotebook:${routeId}`, { body: note, updatedAt: Date.now(), dirty: false })
         this.setData({ status: '已同步到账号' })
       }
-    } catch (error) { if (!this.__disposed) this.setData({ status: '本机已保存', error: error.message || '云端同步失败，可稍后重试。' }) }
-    finally { if (!this.__disposed) this.setData({ saving: false }) }
+    } catch (error) { this.__saveError=error.message||'云端同步失败，可稍后重试。';if(this.current())this.setData({status:'本机已保存',error:this.__saveError}) }
+    finally { if(this.current())this.setData({saving:false}) }
   },
   clear() {
-    if (this.data.saving) return
+    if (this.data.saving||!this.current()) return
     const routeId = this.data.routeId
     wx.showModal({ title: '清空这条笔记？', content: '当前路线的笔记将被清空，练习记录会保留。', confirmText: '清空', success: ({ confirm }) => {
-      if (!confirm || this.__disposed || routeId !== this.data.routeId) return
+      if (!confirm || !this.current() || routeId !== this.data.routeId) return
       this.onInput({ detail: { value: '' } }); this.save()
     } })
   },

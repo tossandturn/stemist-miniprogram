@@ -1,5 +1,6 @@
 // Public source audio only. Temporary downloads are reused within this app
 // session; active players pin their files so LRU eviction cannot interrupt them.
+const {acquireRangeAudio}=require('./listeningAudioRangeCache')
 const entries=new Map()
 const MAX_FILE=32*1024*1024,MAX_BYTES=64*1024*1024,MAX_FILES=4,STALL=30e3,HARD=300e3
 const ALLOWED=/^https:\/\/ieltsist\.com\/(?:generated\/|cambridge15\/audio\/|cambridge-local\/file\/)[a-zA-Z0-9_./% -]+$/
@@ -17,7 +18,7 @@ function prune(){
   bytes-=entry.size;count--;remove(entry)
  }
 }
-function acquireListeningAudio(url,{version='',onProgress=()=>{}}={}){
+function legacyListeningAudio(url,{version='',onProgress=()=>{}}={}){
  if(!ALLOWED.test(url)||/\.\.|%2e|%2f|%5c/i.test(url))throw Error('音频地址无效，请重新选题。')
  if(typeof wx.downloadFile!=='function'||typeof wx.getFileSystemManager!=='function')return {promise:Promise.resolve(url),release(){},invalidate(){}}
  const key=url+'|'+String(version),fs=wx.getFileSystemManager()
@@ -59,7 +60,14 @@ function acquireListeningAudio(url,{version='',onProgress=()=>{}}={}){
   if(released)return;released=true;entry.listeners.delete(onProgress);entry.refs--
   if(!entry.refs&&!entry.done){fail('音频准备已取消。');entry.task?.abort()}
   if(!entry.refs&&entry.stale)remove(entry)
-  prune()
+ prune()
  }}
+}
+function acquireListeningAudio(url,options={}){
+ if(!ALLOWED.test(url)||/\.\.|%2e|%2f|%5c/i.test(url))throw Error('音频地址无效，请重新选题。')
+ const ranged=acquireRangeAudio(url,options);if(!ranged)return legacyListeningAudio(url,options)
+ let active=ranged,released=false,stale=false
+ const promise=ranged.promise.catch(error=>{if(error?.code!=='audio_range_unsupported'||released)throw error;ranged.release();active=legacyListeningAudio(url,options);if(stale)active.invalidate();return active.promise})
+ return{promise,release(){if(released)return;released=true;active.release()},invalidate(){if(released)return;stale=true;active.invalidate()}}
 }
 module.exports={acquireListeningAudio}

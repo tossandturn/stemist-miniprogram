@@ -70,6 +70,10 @@ Page({
   },
   current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
   identity(){return {owner:this.__owner,epoch:this.__epoch}},
+  resetIdentity(){
+    this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
+    this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false})
+  },
   async prepareEntry(){
     const entry=this.__entry;if(!entry)return {}
     if(entry.skill==='reading'&&!entry.reading?.paperText){const data=await requestIeltsLearning('/api/reading/context?id='+encodeURIComponent(entry.taskId),undefined,{method:'GET',timeout:12000});if(!this.current())throw new Error('账号已变化。');const text=focusPassage(data.paperText,entry.section);if(!text)throw new Error('当前原文暂未连接，请重试。');entry.reading.paperText=text}
@@ -78,7 +82,8 @@ Page({
   },
   onShow() {
     syncDevice(this)
-    if(this.current())this.restorePhoto()
+    if(!this.current()){this.resetIdentity();return}
+    this.restorePhoto()
     if(this.data.mediaBusy)this.setData({mediaBusy:false})
     if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.setData({ authRequired: false, error: '' })
   },

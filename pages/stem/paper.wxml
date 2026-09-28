@@ -28,11 +28,11 @@
 </view>
  <view class="paper-native-answer">
 <view class="paper-number">
-<button bindtap="previous" disabled="{{questionNumber <= 1}}">−</button>
+<button class="paper-previous-question" bindtap="previous" disabled="{{questionNumber <= 1}}">−</button>
 <text>第</text>
 <input type="number" value="{{questionNumber}}" bindconfirm="chooseQuestion" bindblur="chooseQuestion"/>
 <text>题</text>
-<button bindtap="next" disabled="{{questionCount && questionNumber >= questionCount}}">+</button>
+<button class="paper-next-question" bindtap="next" disabled="{{questionCount && questionNumber >= questionCount}}">+</button>
 </view>
 <view wx:if="{{choiceMode}}" class="mcq-options {{hasOptionText ? 'mcq-text-options' : ''}}"><button wx:for="{{choiceOptions}}" wx:key="label" class="mcq-option {{choice === item.label ? 'selected' : ''}}" data-value="{{item.label}}" bindtap="chooseAnswer" disabled="{{submitted || busy}}" aria-label="选项 {{item.label}} {{item.text}}" aria-pressed="{{choice === item.label}}"><text>{{item.label}}</text><text wx:if="{{item.text}}" class="mcq-option-text">{{item.text}}</text></button></view>
 <text wx:if="{{choiceMode && choice}}" class="paper-input-help">已选 {{choice}} · 已保存</text>

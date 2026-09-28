@@ -1,6 +1,8 @@
 // Real native page/cache/playback; synthetic local identity, no submission.
 const assert=require('node:assert/strict')
 const {call,evaluate,until}=require('./helpers/wechat-cli.cjs')
+const budgetAt=process.argv.indexOf('--download-budget-ms'),downloadBudget=budgetAt<0?90000:Number(process.argv[budgetAt+1])
+assert.ok(downloadBudget>=1000&&downloadBudget<=310000,'Bounded download observation only')
 async function main(){
  const page=(await call('automation_runtime_info',{action:'currentPage'})).currentPage?.path
  assert.equal(page,'pages/index/index','Do not interrupt student work')
@@ -12,9 +14,12 @@ async function main(){
   wx.setStorageSync('stemistUser',{id:'qa_audio_page'});wx.removeStorageSync('stemistSessionToken');return true
  })
  try{
+  const began=Date.now()
   await call('automation_navigate',{action:'navigateTo',url:'/pages/ielts/listening?taskId=cam14-l-test2'})
   console.log(JSON.stringify({phase:'page-navigation',...(await call('automation_runtime_info',{action:'currentPage'}))}))
-  const ready=await until(function(){const p=getCurrentPages().slice(-1)[0];return p.route==='pages/ielts/listening'&&!p.data.loading&&!p.data.audioPreparing?{questions:p.data.total,ready:p.data.audioReady,error:p.data.error,audioError:p.data.audioError,local:!!p.__preparedAudio&&!/^https?:/.test(p.__preparedAudio.path)}:null},'listening page audio cache',90000)
+  const ready=await until(function(){const p=getCurrentPages().slice(-1)[0];if(p.route!=='pages/ielts/listening'||p.data.loading||p.data.audioPreparing)return null;let local=false;try{if(p.__preparedAudio&&!/^https:/.test(p.__preparedAudio.path)){wx.getFileSystemManager().accessSync(p.__preparedAudio.path);local=true}}catch{};return {questions:p.data.total,ready:p.data.audioReady,error:p.data.error,audioError:p.data.audioError,local}},'listening page audio cache',downloadBudget)
+  ready.loadMs=Date.now()-began
+  console.log(JSON.stringify({phase:'audio-ready',...ready}))
   assert.ok(ready.questions>0);assert.equal(ready.error,'');assert.equal(ready.audioError,'');assert.equal(ready.ready,true);assert.equal(ready.local,true)
   await evaluate(function(){const p=getCurrentPages().slice(-1)[0];p.initAudio();p.__audio.volume=0;p.__qaWaits=0;p.__audio.onWaiting(()=>p.__qaWaits++);return true})
   await call('automation_element_action',{action:'tap',selector:'.player-toggle','wait-for-selector':'.player-toggle'})
@@ -23,7 +28,7 @@ async function main(){
   await call('automation_element_action',{action:'tap',selector:'.player-toggle'})
   const paused=await evaluate(function(){return !getCurrentPages().slice(-1)[0].data.audioPlaying})
   assert.equal(paused,true)
-  await call('automation_page_action',{action:'callMethod',method:'seekAudio',args:[{detail:{value:25}}]})
+  await call('automation_element_action',{action:'trigger',selector:'.native-player slider',type:'change',detail:{value:25}})
   await call('automation_element_action',{action:'tap',selector:'.player-toggle'})
   const seek=await until(function(){const p=getCurrentPages().slice(-1)[0];return p.data.audioPosition>=28?{position:p.data.audioPosition,waits:p.__qaWaits}:null},'seek continues',15000)
   console.log(JSON.stringify({status:'PASS',surface:'native simulator',ready,playing,paused,seek,muted:true,realDevice:false,studentRecordsSubmitted:0}))

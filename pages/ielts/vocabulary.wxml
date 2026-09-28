@@ -33,7 +33,7 @@
       <view wx:if="{{word.example}}" class="vocab-example"><text>{{word.example}}</text><text>{{word.translation}}</text></view>
      </block>
      <view class="vocab-review"><button class="secondary" data-known="no" data-id="{{word.id}}" bindtap="remember" disabled="{{rating || (mode === 'recall' && !revealed)}}">再练一次</button><button class="primary" data-known="yes" data-id="{{word.id}}" bindtap="remember" disabled="{{rating || (mode === 'recall' && !revealed)}}">记住了</button></view>
-     <view class="vocab-utility"><button class="text-button" bindtap="saveWord" loading="{{saving}}" disabled="{{saving || (saved && !syncPending)}}">{{syncPending ? '重试同步收藏' : saved ? '已收藏' : '收藏词条'}}</button><button wx:if="{{revealed}}" class="text-button" bindtap="expand">{{expanded ? '收起完整讲解' : '完整讲解'}}</button></view>
+     <view class="vocab-utility"><button class="text-button vocab-save-word" bindtap="saveWord" loading="{{saving}}" disabled="{{saving || (saved && !syncPending)}}">{{syncPending ? '重试同步收藏' : saved ? '已收藏' : '收藏词条'}}</button><button wx:if="{{revealed}}" class="text-button vocab-expand" bindtap="expand">{{expanded ? '收起完整讲解' : '完整讲解'}}</button></view>
      <view wx:if="{{expanded && revealed}}" class="vocab-knowledge">
       <view wx:if="{{word.explanation}}" class="vocab-section"><text class="vocab-section-title">核心理解</text><answer-content text="{{word.explanation}}"/></view>
       <view wx:if="{{word.formula}}" class="vocab-section"><text class="vocab-section-title">公式与条件</text><answer-content text="{{word.formula}}"/><answer-content text="{{word.formulaExplanation}}"/></view>

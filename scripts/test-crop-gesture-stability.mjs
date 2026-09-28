@@ -28,6 +28,14 @@ const template=fs.readFileSync(new URL('../pages/crop/crop.wxml',import.meta.url
 assert.match(template,/out-of-bounds="\{\{false\}\}"/)
 assert.match(template,/catch:htouchmove="holdGesture"/);assert.match(template,/catch:vtouchmove="holdGesture"/)
 console.log('Crop stability: no gesture feedback loop, no resize reset, stale measurement rejected, explicit keyed reset and no overscroll rebound passed.')
+const owned=miniRuntime();owned.storage.set('stemistUser',{id:'ielts:1'})
+const ownedCrop=owned.page('pages/crop/crop');ownedCrop.onLoad({src:'private-owner-one-photo'});ownedCrop.onShow()
+assert.equal(ownedCrop.data.src,'private-owner-one-photo','same owner retains crop preview')
+owned.storage.set('stemistUser',{id:'ielts:2'});owned.storage.set('stemistPrivacyEpoch',1)
+ownedCrop.onShow()
+assert.equal(ownedCrop.data.src,'','a new owner cannot see the earlier crop image')
+assert.equal(ownedCrop.cropActive(),false,'old crop must not export after owner switch')
+assert.match(ownedCrop.data.error,/账号已变化/)
 for(const route of ['native-paper','native-practice'])for(const phase of ['compress','copy']){
  const gate=deferred(),removed=[];let copied
  const r=miniRuntime({modules:{'utils/image':{compressImage:async()=>{if(phase==='compress')await gate.promise;return '/fixture-compressed'}}},wx:{env:{USER_DATA_PATH:'/fixture-user-data'},getFileSystemManager:()=>({mkdirSync(){},accessSync(){},copyFile(opts){copied=opts;if(phase==='compress')opts.success()},unlink({filePath}){removed.push(filePath)}})}})

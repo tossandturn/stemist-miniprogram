@@ -23,11 +23,11 @@ Page({
     const routeContext=context.routeContext||context
     this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍摄。', coachSource: isWriting ? 'writing' : isCoach ? context.contextId || 'stem-photo' : routeContext.category === 'competition' ? 'competition' : 'alevel', category: isWriting ? 'ielts' : isCoach && context.contextId !== 'stem-photo' ? 'ielts' : routeContext.category || 'alevel', family: isWriting || (isCoach && context.contextId !== 'stem-photo') ? '' : routeContext.family || 'exam', routeId: routeContext.routeId || '', stage: routeContext.stage || '', subjectCode: routeContext.subjectCode || '' })
   },
-  onShow() { syncDevice(this) },
+  onShow() { syncDevice(this);if(!this.cropActive())this.setData({src:'',busy:false,error:'账号已变化，请返回重新拍摄。'}) },
   onReady(){this.resetFrame()},
   onResize() { syncDevice(this) },
   onUnload(){this.__disposed=true},
-  cropActive(){return !this.__disposed},
+  cropActive(){return !this.__disposed&&(this.__owner===undefined||this.__owner===String((wx.getStorageSync('stemistUser')||{}).id||'guest'))&&(this.__epoch===undefined||this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))},
   clearOwnReturn(){const current=wx.getStorageSync('stemistCropReturn');if(!this.__returnInfo||(this.__returnInfo.captureId?current?.captureId===this.__returnInfo.captureId:JSON.stringify(current)===JSON.stringify(this.__returnInfo)))wx.removeStorageSync('stemistCropReturn')},
   onMove(e) {
     this.rememberTransform(e)
