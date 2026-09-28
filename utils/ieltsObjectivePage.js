@@ -10,13 +10,22 @@ const {readExam,completeExamModule,startExamModuleClock,clockState}=require('./n
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const clock=seconds=>`${Math.floor(seconds/60).toString().padStart(2,'0')}:${Math.floor(seconds%60).toString().padStart(2,'0')}`
-function makeObjectivePage(module){return{
- data:deviceState({module,title:module==='listening'?'Listening':'Reading',taskId:'',taskTitle:'',loading:true,busy:false,error:'',questions:[],questionNav:[],current:0,total:0,answer:'',answered:0,sourceImages:[],imageIndex:0,imageCount:0,passageText:'',showPassage:false,audioAvailable:false,audioPlaying:false,audioPosition:0,audioDuration:0,audioTracks:[],audioIndex:0,elapsed:'00:00',saveStatus:'',submitted:false,result:null,review:[],captionsEnabled:false,captionBubbles:[],captionStatus:''}),
+function makeObjectivePage(module){
+ const initial={module,title:module==='listening'?'Listening':'Reading',taskId:'',taskTitle:'',loading:true,busy:false,error:'',questions:[],questionNav:[],current:0,total:0,answer:'',answered:0,sourceImages:[],imageIndex:0,imageCount:0,passageText:'',showPassage:false,audioAvailable:false,audioPlaying:false,audioPosition:0,audioDuration:0,audioTracks:[],audioIndex:0,elapsed:'00:00',saveStatus:'',submitted:false,result:null,review:[],captionsEnabled:false,captionBubbles:[],captionStatus:''}
+ return{
+ data:deviceState(initial),
  onLoad(options={}){this.__disposed=false;this.__epoch=epoch();this.__owner=owner();this.__generation=0;this.__section=Number(options.section)||0;this.__examKey=String(options.examKey||'');this.setData({taskId:String(options.taskId||''),examMode:Boolean(this.__examKey)});if(this.__examKey){this.__exam=readExam(this.__examKey);if(this.__section||!this.__exam||this.__exam.sources[module]!==this.data.taskId){this.setData({loading:false,error:'试题不属于当前模拟。'});return}}if(!this.data.taskId){wx.redirectTo({url:`/pages/ielts/library?module=${module}`});return}this.load()},
- onShow(){this.__visible=true;syncDevice(this);if(this.__task){this.startClock();if(this.data.audioAvailable&&!this.__preparedAudio&&!this.data.audioPreparing)this.prepareAudio()}},onResize(){syncDevice(this)},
+ onShow(){this.__visible=true;syncDevice(this);if(this.__epoch!==epoch()||this.__owner!==owner()){this.resetIdentity();return}if(this.__task){this.startClock();if(this.data.audioAvailable&&!this.__preparedAudio&&!this.data.audioPreparing)this.prepareAudio()}},onResize(){syncDevice(this)},
  onHide(){this.__visible=false;this.pauseAudio();if(this.data.audioPreparing)this.cancelAudioPreparation();this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
  onUnload(){this.flush();this.__disposed=true;this.__visible=false;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy();this.cancelAudioPreparation()},
  currentOwner(){return !this.__disposed&&this.__epoch===epoch()&&this.__owner===owner()},
+ resetIdentity(){
+  this.__generation=(this.__generation||0)+1;clearInterval(this.__clock);clearTimeout(this.__saveTimer)
+  this.__audioWanted=false;const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.stop?.();audio?.destroy?.();this.cancelAudioPreparation();this.__audioPreparation=null
+  this.__captionRequest=(this.__captionRequest||0)+1;this.__captionModel=null;this.__captionIndex=-2
+  this.__task=null;this.__draft=null;this.__storageKey='';this.__images=[];this.__exam=null;this.__examClock=null;this.__baseElapsed=0;this.__activeAt=null
+  this.setData({...initial,loading:false,error:'账号已变化，请重新打开这份练习。',timeExpired:false})
+ },
  async load(){const generation=++this.__generation;this.setData({loading:true,error:''});try{
   const task=sectionTask(await getIeltsTask(module,this.data.taskId),this.__section);if(!this.currentOwner()||generation!==this.__generation)return
   if(!task.questions.length)throw new Error('这份试题尚未完整导入。')

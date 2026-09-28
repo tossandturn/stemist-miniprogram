@@ -14,6 +14,14 @@ assert.equal(choice.isSingleChoice({subjectCode:'9709',component:1}),false,'math
 assert.equal(choice.isSingleChoice({subjectCode:'0625',component:2}),true)
 assert.equal(choice.isSingleChoice({subjectCode:'0620',component:2}),true)
 assert.equal(choice.isSingleChoice({subjectCode:'9702',component:1,answerFormat:'written'}),false)
+const switched=choice.nextChoiceAnswer({inputMode:'photo',photo:'/app/native-practice/legacy.jpg',results:{part:{score:1}},feedback:'legacy AI feedback',attemptId:'legacy-attempt',legacyAiResults:{part:{score:1}},assessment:{state:'ai',score:1,maxMarks:1},studentAssessment:{state:'self',score:1,maxMarks:1},selfDraft:{started:true}},'A')
+for(const field of ['photo','results','feedback','attemptId','legacyAiResults','assessment','studentAssessment','selfDraft'])assert.equal(Object.hasOwn(switched,field),false,`switching to ABCD must clear stale ${field}`)
+assert.equal(switched.choice,'A');assert.equal(switched.inputMode,'choice');assert.equal(switched.previousAssessments.length,1)
+const sameChoice=choice.nextChoiceAnswer({inputMode:'choice',choice:'B',revision:2,photo:'/app/native-practice/stale.jpg',objectiveResult:{score:1},assessment:{state:'objective',score:1,maxMarks:1}},'B')
+assert.equal(Object.hasOwn(sameChoice,'photo'),false);assert.equal(sameChoice.revision,2);assert.equal(sameChoice.objectiveResult.score,1);assert.equal(sameChoice.assessment.state,'objective')
+const legacySame=choice.nextChoiceAnswer({inputMode:'choice',choice:'A',revision:4,objectiveResult:{score:1},assessment:{state:'ai',score:9},studentAssessment:{state:'self',score:9},selfDraft:{score:9}},'A')
+for(const field of ['assessment','studentAssessment','selfDraft'])assert.equal(Object.hasOwn(legacySame,field),false,`unchanged ABCD must not retain legacy ${field}`)
+assert.equal(legacySame.revision,4);assert.equal(legacySame.objectiveResult.score,1)
 const inv={practicePolicy:{schemaVersion:'stem-topic-practice-policy-v1',minSourceGroups:6,minReviewedGroups:12,setSizes:[6,10,15],allowReviewedSubsetStudy:true},paperComponents:[1,2],topics:[{id:'t1',apiStartable:true,questionIdsByComponent:{1:{verifiedQuestionIds:Array.from({length:7},(_,i)=>'p1-'+i),apiReadyQuestionIds:Array.from({length:7},(_,i)=>'p1-'+i)},2:{verifiedQuestionIds:[],apiReadyQuestionIds:[]}}}]}
 const subset=native.selectionState(inv,['t1'],[1],6)
 assert.equal(subset.canStart,true);assert.equal(subset.studyReady,true);assert.equal(subset.ready,false)
@@ -36,6 +44,24 @@ native.saveChoice(session.id,'paper:q1','A');assert.equal(native.readSession(ses
 assert.equal(native.readSession(session.id).answers['paper:q1'].objectiveHistory[1].score,1,'prior graded revision remains preserved')
 r.storage.set('stemistPrivacyEpoch',1);assert.throws(()=>native.saveChoice(session.id,'paper:q1','D'))
 
+const removed=[]
+const switchRuntime=miniRuntime({wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({unlink:options=>{removed.push(options.filePath);options.success?.({})}})}})
+switchRuntime.storage.set('stemistUser',{id:'student'});switchRuntime.storage.set('stemistPrivacyEpoch',0)
+const switchNative=switchRuntime.load('utils/nativePractice')
+const switchSession={schema:1,id:'mini-set-choice-switch',owner:'student',privacyEpoch:0,routeId:'cie-9702-as-physics',subjectCode:'9702',stage:'AS',index:0,answers:{'paper:q1':{photo:'/app/native-practice/mini-set-choice-switch-0-1-old.jpg',revision:1,results:{part:{score:1}},feedback:'old',attemptId:'old'}},questions:[{id:'paper:q1',paperId:'paper',component:1,number:'1',marks:1,images:['/question-assets/paper/qp-1.jpg'],parts:[{id:'paper:q1:answer',label:'answer',marks:1,provenance:{sourceQuestionId:'paper:q1',questionPartId:'paper:q1:answer',routeId:'cie-9702-as-physics',bindingSignature:'test'}}]}]}
+switchNative.saveSession(switchSession);switchNative.saveChoice(switchSession.id,'paper:q1','C')
+const switchedTopic=switchNative.readSession(switchSession.id).answers['paper:q1']
+assert.equal(switchedTopic.choice,'C');assert.equal(Object.hasOwn(switchedTopic,'photo'),false);assert.deepEqual(removed,['/app/native-practice/mini-set-choice-switch-0-1-old.jpg'])
+
+const paperRemoved=[]
+const paperSwitchRuntime=miniRuntime({wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({unlink:options=>{paperRemoved.push(options.filePath);options.success?.({})}})}})
+const paperSwitch=paperSwitchRuntime.load('utils/nativePaper')
+let paperSwitchDraft=paperSwitch.createPaperDraft({id:'paper-choice-switch',subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'})
+const paperPhoto='/app/native-paper/'+paperSwitchDraft.id+'-q1-r1-old.jpg'
+paperSwitchDraft.answers[1]={photo:paperPhoto,revision:1,results:{part:{score:1}},feedback:'old',attemptId:'old'};paperSwitch.savePaperDraft(paperSwitchDraft)
+paperSwitch.savePaperChoice(paperSwitchDraft.storageKey,1,'D');paperSwitchDraft=paperSwitch.readPaperDraft(paperSwitchDraft.storageKey)
+assert.equal(paperSwitchDraft.answers[1].choice,'D');assert.equal(Object.hasOwn(paperSwitchDraft.answers[1],'photo'),false);assert.deepEqual(paperRemoved,[paperPhoto])
+
 const p=miniRuntime(),papers=p.load('utils/nativePaper'),grading=p.load('utils/nativePaperGrading')
 let draft=papers.createPaperDraft({id:'paper-choice',subject:'9702'}, {routeId:'cie-9702-as-physics',stage:'AS'})
 papers.savePaperDraft(draft);papers.savePaperChoice(draft.storageKey,1,'A');papers.savePaperChoice(draft.storageKey,2,'B')
@@ -44,6 +70,19 @@ await grading.runPaperAssessment(draft.storageKey,{loadContext:async()=>({questi
 const report=grading.paperReport(papers.readPaperDraft(draft.storageKey),2)
 assert.equal(report.objectiveCount,2);assert.equal(report.aiCount,0);assert.equal(report.score,1);assert.equal(report.scoreSource,'objective');assert.equal(report.wholePaper,true)
 assert.throws(()=>papers.savePaperChoice(draft.storageKey,1,'B'),'submitted paper cannot silently change')
+
+const syncBodies=[],syncRuntime=miniRuntime({modules:{'utils/api':{requestJson:async(path,body)=>{syncBodies.push({path,body});return{attempt:{attemptId:body.attemptId}}}}}})
+const syncPapers=syncRuntime.load('utils/nativePaper'),syncService=syncRuntime.load('utils/nativePaperService')
+let syncDraft=syncPapers.createPaperDraft({id:'paper-choice-sync',subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'})
+syncPapers.savePaperDraft(syncDraft);syncPapers.savePaperChoice(syncDraft.storageKey,1,'A');syncPapers.savePaperChoice(syncDraft.storageKey,2,'B');syncDraft=syncPapers.readPaperDraft(syncDraft.storageKey)
+syncDraft.answers[4]={};syncPapers.savePaperDraft(syncDraft)
+await syncService.syncPaperAttempt(syncDraft,{questions:[]},2)
+assert.equal(syncBodies.at(-1).body.attempt.evidence.kind,'single-choice','choice-only papers must not claim photo or mixed evidence');assert.equal(syncBodies.at(-1).body.attempt.evidence.count,2,'empty answer objects must not inflate evidence count')
+syncDraft.answers[3]={photo:'/app/native-paper/answer.jpg',revision:1};syncPapers.savePaperDraft(syncDraft);await syncService.syncPaperAttempt(syncDraft,{questions:[]},3)
+assert.equal(syncBodies.at(-1).body.attempt.evidence.kind,'mixed-answers')
+delete syncDraft.answers[1];delete syncDraft.answers[2];syncPapers.savePaperDraft(syncDraft);await syncService.syncPaperAttempt(syncDraft,{questions:[]},3)
+assert.equal(syncBodies.at(-1).body.attempt.evidence.kind,'photo')
+syncDraft.answers={4:{}};syncPapers.savePaperDraft(syncDraft);await assert.rejects(()=>syncService.syncPaperAttempt(syncDraft,{questions:[]},3),/先选择或拍摄/)
 
 const retryRuntime=miniRuntime(),retryPapers=retryRuntime.load('utils/nativePaper'),retryGrading=retryRuntime.load('utils/nativePaperGrading')
 let retryDraft=retryPapers.createPaperDraft({id:'paper-choice-retry',subject:'9702'},{routeId:'cie-9702-as-physics',stage:'AS'})

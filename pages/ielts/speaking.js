@@ -9,9 +9,10 @@ const speakingStore=require('../../utils/speakingStore')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const clock=seconds=>String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')
+const initial={taskId:'',taskTitle:'Speaking',taskLoading:false,active:false,connecting:false,scoring:false,status:'',error:'',turns:[],turnCount:0,elapsed:'00:00',feedback:'',band:null,warning:'',canRetry:false,retryAction:'start',permissionAction:'',privacyContractName:'用户隐私保护指引',viewingArchive:false,hasEarlier:false,hasLater:false,showHistory:false,historyRows:[],historyHasMore:false}
 Page({
   onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({taskId:'',taskTitle:'Speaking',taskLoading:false,active:false,connecting:false,scoring:false,status:'',error:'',turns:[],turnCount:0,elapsed:'00:00',feedback:'',band:null,warning:'',canRetry:false,retryAction:'start',permissionAction:'',privacyContractName:'用户隐私保护指引',viewingArchive:false,hasEarlier:false,hasLater:false,showHistory:false,historyRows:[],historyHasMore:false}),
+ data:deviceState(initial),
  onLoad(options={}){
   this.__disposed=false;this.__visible=true;this.__valid=false;this.__dirty=false;this.__startGeneration=0;this.__owner=owner();this.__epoch=epoch();this.__turns=[];this.__baseSnapshot={}
   let taskId=String(options.taskId||'')
@@ -29,10 +30,15 @@ Page({
  },
  current(){return !this.__disposed&&this.__valid&&this.__owner===owner()&&this.__epoch===epoch()},
  async loadTask(){this.setData({taskLoading:true});try{this.__task=await getIeltsTask('speaking',this.data.taskId);if(this.current())this.setData({taskTitle:this.__task.title})}catch(e){if(this.current())this.setData({error:e.message})}finally{this.state({taskLoading:false})}},
- onShow(){this.__visible=true;syncDevice(this);if(this.current()&&!this.data.viewingArchive&&!this.__dirty&&!this.data.active&&!this.data.connecting&&!this.data.scoring){const saved=wx.getStorageSync(this.__scope);if(saved&&saved.epoch===this.__epoch&&saved.taskId===this.data.taskId&&(saved.sessionId!==this.__sessionId||(saved.revision||0)!==(this.__baseSnapshot.revision||0))){this.__baseSnapshot={...saved};this.__sessionId=saved.sessionId;this.__turns=saved.turns||[];this.__elapsed=saved.elapsed||0;this.__lastNote=saved.note||'';this.state({feedback:saved.feedback||'',band:saved.band??null,warning:saved.warning||'',elapsed:clock(this.__elapsed),status:'已恢复最新口语记录'});this.renderTurns()}}},onResize(){syncDevice(this)},
+ onShow(){this.__visible=true;syncDevice(this);if(this.__owner!==owner()||this.__epoch!==epoch()){this.resetIdentity();return}if(this.current()&&!this.data.viewingArchive&&!this.__dirty&&!this.data.active&&!this.data.connecting&&!this.data.scoring){const saved=wx.getStorageSync(this.__scope);if(saved&&saved.epoch===this.__epoch&&saved.taskId===this.data.taskId&&(saved.sessionId!==this.__sessionId||(saved.revision||0)!==(this.__baseSnapshot.revision||0))){this.__baseSnapshot={...saved};this.__sessionId=saved.sessionId;this.__turns=saved.turns||[];this.__elapsed=saved.elapsed||0;this.__lastNote=saved.note||'';this.state({feedback:saved.feedback||'',band:saved.band??null,warning:saved.warning||'',elapsed:clock(this.__elapsed),status:'已恢复最新口语记录'});this.renderTurns()}}},onResize(){syncDevice(this)},
  onHide(){this.__visible=false;this.stopSession();this.persist()},
  onUnload(){this.stopSession();this.persist();this.__disposed=true},
  state(patch){if(!this.current())return;const changes=Object.fromEntries(Object.entries(patch).filter(([key,value])=>this.data[key]!==value));if(Object.keys(changes).length)this.setData(changes)},
+ resetIdentity(){
+  this.__startGeneration=(this.__startGeneration||0)+1;this.__engine?.close?.();this.__engine=null;clearInterval(this.__clock)
+  this.__valid=false;this.__dirty=false;this.__turns=[];this.__baseSnapshot={};this.__task=null;this.__lastNote='';this.__elapsed=0;this.__startedAt=null;this.__sessionId='';this.__scope='';this.__historyRows=[];this.__historyPage=0;this.__examKey=''
+  this.setData({...initial,error:'账号已变化，请重新打开口语练习。',historyHasPrevious:false})
+ },
  snapshot(){return {...this.__baseSnapshot,examinerState:this.__engine?.stageState||this.__baseSnapshot.examinerState,sessionId:this.__sessionId,note:this.__lastNote||'',turns:this.__turns,elapsed:this.elapsedSeconds(),epoch:this.__epoch,taskId:this.data.taskId,taskTitle:this.data.taskTitle,feedback:this.data.feedback,band:this.data.band,warning:this.data.warning,updatedAt:Date.now()}},
  persist(){if(!this.current()||this.data.viewingArchive||!this.__dirty)return true;try{this.__baseSnapshot=speakingStore.saveSession(this.__scope,this.__owner,this.snapshot());this.__dirty=false;return true}catch{this.state({error:'记录尚未保存，请检查本机空间。已有记录未删除。'});return false}},
  elapsedSeconds(){return (this.__elapsed||0)+(this.__startedAt?Math.floor((Date.now()-this.__startedAt)/1000):0)},

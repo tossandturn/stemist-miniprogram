@@ -1,7 +1,7 @@
 // Public source audio only. Temporary downloads are reused within this app
 // session; active players pin their files so LRU eviction cannot interrupt them.
 const entries=new Map()
-const MAX_FILE=32*1024*1024,MAX_BYTES=64*1024*1024,MAX_FILES=4
+const MAX_FILE=32*1024*1024,MAX_BYTES=64*1024*1024,MAX_FILES=4,STALL=30e3,HARD=300e3
 const ALLOWED=/^https:\/\/ieltsist\.com\/(?:generated\/|cambridge15\/audio\/|cambridge-local\/file\/)[a-zA-Z0-9_./% -]+$/
 function remove(entry){
  if(entries.get(entry.key)===entry)entries.delete(entry.key)
@@ -30,25 +30,27 @@ function acquireListeningAudio(url,{version='',onProgress=()=>{}}={}){
  }
  entry.refs++;entry.used=Date.now();entry.listeners.add(onProgress)
  if(!entry.path)onProgress(entry.progress)
+ const clear=()=>{clearTimeout(entry.stall);clearTimeout(entry.hard)}
  const fail=message=>{
   if(entry.done)return
-  entry.done=true;remove(entry);entry.reject(Error(message))
+  entry.done=true;clear();remove(entry);entry.reject(Error(message))
  }
+ const arm=()=>{clearTimeout(entry.stall);entry.stall=setTimeout(()=>{fail('音频下载停滞，请重试。');entry.task?.abort()},STALL)}
  if(!entry.started){
-  entry.started=true
-  try{entry.task=wx.downloadFile({url,timeout:60000,success:result=>{
+  entry.started=true;arm();entry.hard=setTimeout(()=>{fail('音频准备超时，请重试。');entry.task?.abort()},HARD)
+  try{entry.task=wx.downloadFile({url,timeout:HARD,success:result=>{
    if(entry.done){if(result.tempFilePath)try{fs.unlink({filePath:result.tempFilePath,fail(){}})}catch{};return}
    entry.path=result.tempFilePath||''
    if(result.statusCode!==200||!entry.path)return fail('音频下载未完成，请重试。')
    try{entry.size=Number(fs.statSync(entry.path).size)||0}catch{return fail('音频文件未能读取，请重试。')}
    if(entry.size<=0||entry.size>MAX_FILE)return fail('音频文件不完整或过大，请重新选题。')
-   entry.done=true;entry.used=Date.now();entry.resolve(entry.path);prune()
+   entry.done=true;clear();entry.used=Date.now();entry.resolve(entry.path);prune()
   },fail:()=>fail('音频准备失败，请检查网络后重试。')})
   entry.task?.onProgressUpdate(event=>{
    if(entry.done)return
-   const bytes=Math.max(0,Number(event.totalBytesWritten)||0),total=Math.max(0,Number(event.totalBytesExpectedToWrite)||0)
+   const before=entry.progress.bytes,bytes=Math.max(0,Number(event.totalBytesWritten)||0),total=Math.max(0,Number(event.totalBytesExpectedToWrite)||0)
    if(bytes>MAX_FILE||total>MAX_FILE){fail('音频文件过大，请重新选题。');entry.task.abort();return}
-   entry.progress={bytes,total,percent:total?Math.min(99,Math.floor(bytes*100/total)):null}
+   if(bytes>before)arm();entry.progress={bytes,total,percent:total?Math.min(99,Math.floor(bytes*100/total)):null}
    if(!entry.lastProgress||Date.now()-entry.lastProgress>=250){entry.lastProgress=Date.now();for(const listener of entry.listeners)listener(entry.progress)}
   })}catch{fail('音频准备失败，请重试。')}
  }

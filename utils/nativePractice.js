@@ -175,8 +175,9 @@ async function refreshQuestionDisplay(sessionId,questionId,active=()=>true){
 function saveChoice(sessionId,questionId,choice){
  const session=readSession(sessionId),question=session?.questions.find(q=>q.id===questionId)
  if(!session||!question||!isSingleChoice({...question,subjectCode:session.subjectCode}))throw Error('这道题不支持选项作答。')
+ const oldPhoto=session.answers[questionId]?.photo
  session.answers[questionId]=nextChoiceAnswer(session.answers[questionId],choice)
- saveSession(session);return session
+ saveSession(session);if(oldPhoto)removeEvidence(oldPhoto);return session
 }
 
 async function markChoice(sessionId,questionId){
@@ -262,7 +263,7 @@ return { score, maxScore, summary: String(result.summary || result.rationale || 
 
 async function markQuestion(sessionId, questionId, onProgress = () => {}) {
 const lock = `${sessionId}:${questionId}`
-if (marking.has(lock)) return
+if (marking.has(lock)) throw new Error('本题正在批改，请等待当前结果。')
 const token = wx.getStorageSync('stemistSessionToken')
 if (!token || !identity()) throw Object.assign(new Error('请先登录，拍好的照片会保留。'), { statusCode: 401 })
 let session = readSession(sessionId)

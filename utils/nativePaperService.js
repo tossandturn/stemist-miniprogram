@@ -36,10 +36,14 @@ async function paperContext(draft){
 async function syncPaperAttempt(draft,context,maxMarks){
  if(!current(draft))throw new Error('账号已变化。')
  const markingParts=(context?.questions||[]).flatMap(q=>q.parts.map(p=>({unitPartId:p.partId,provenance:p.provenance})))
+ const submittedAnswers=Object.values(draft.answers||{}).filter(answer=>hasChoice(answer)||typeof answer?.photo==='string'&&answer.photo)
+ if(!submittedAnswers.length)throw new Error('请先选择或拍摄并保存答案。')
+ const hasChoices=submittedAnswers.some(hasChoice),hasPhotos=submittedAnswers.some(answer=>typeof answer?.photo==='string'&&answer.photo)
+ const evidenceKind=hasChoices&&hasPhotos?'mixed-answers':hasChoices?'single-choice':'photo'
  const response=await requestJson('/api/stem/attempts',{
   attemptId:draft.id,mode:'full-paper',routeId:draft.routeId,stage:draft.stage,paperId:draft.paperId,markingParts,
   ...(draft.submitted?{submittedAt:new Date(draft.submittedAt).toISOString()}:{}),
-  attempt:{id:draft.id,mode:'full-paper',routeId:draft.routeId,stage:draft.stage,paperId:draft.paperId,paperStudyMode:draft.mode,attemptStatus:draft.submitted?'submitted':'draft',answers:Object.fromEntries(Object.entries(draft.answers).filter(([,a])=>hasChoice(a)).map(([n,a])=>[draft.paperId+':q'+n,a.choice])),selfAssessment:{score:draft.grading?'':draft.selfScore,maxMarks},evidence:{kind:Object.values(draft.answers).some(hasChoice)?'mixed-answers':'photo',count:Object.keys(draft.answers).length}}
+  attempt:{id:draft.id,mode:'full-paper',routeId:draft.routeId,stage:draft.stage,paperId:draft.paperId,paperStudyMode:draft.mode,attemptStatus:draft.submitted?'submitted':'draft',answers:Object.fromEntries(Object.entries(draft.answers).filter(([,a])=>hasChoice(a)).map(([n,a])=>[draft.paperId+':q'+n,a.choice])),selfAssessment:{score:draft.grading?'':draft.selfScore,maxMarks},evidence:{kind:evidenceKind,count:submittedAnswers.length}}
  })
  if(!current(draft)||response?.attempt?.attemptId!==draft.id)throw new Error('服务端尚未确认本次练习。')
  return response

@@ -1,5 +1,6 @@
 const { requestJson } = require('./api')
 const {rememberNativeSession,refreshNativeSession}=require('./nativeSession')
+const {adoptOwner}=require('./session')
 const {authGuard}=require('./authGuard')
 
 let exchangeInFlight = null
@@ -8,13 +9,12 @@ function storedToken() {
 return String(wx.getStorageSync('stemistSessionToken') || '').trim()
 }
 
-function storeIdentity(payload = {}) {
-const token = String(payload.accessToken || payload.token || '').trim()
-if (!token) throw new Error('微信登录响应缺少会话令牌')
+function storeIdentity(payload,verified) {
 const identity = payload.identity || payload.user || {}
-wx.setStorageSync('stemistSessionToken', token)
+adoptOwner(verified.owner)
+wx.setStorageSync('stemistSessionToken',verified.token)
 wx.setStorageSync('stemistUser', {
-id: payload.id || identity.id || '',
+id: verified.owner,
 username: payload.username || identity.username || '微信用户',
 displayName: identity.displayName || '',
 avatarDataUrl: identity.avatarDataUrl || '',
@@ -40,9 +40,9 @@ fail: (error) => reject(Object.assign(new Error('微信登录暂时失败，请�
 
 async function exchangeCode(code,check=authGuard()) {
 check()
-const payload = await requestJson('/api/auth/wechat', { code }, { method: 'POST', timeout: 10000, stemAuth:false })
-check()
-return { status: 'authenticated', user: storeIdentity(payload), payload }
+const payload=await requestJson('/api/auth/wechat', { code }, { method: 'POST', timeout: 10000, stemAuth:false, authCheck:check })
+const verified=check(payload)
+return { status: 'authenticated', user: storeIdentity(payload,verified), payload }
 }
 
 async function ensureWeChatSession({ silent = true } = {}) {

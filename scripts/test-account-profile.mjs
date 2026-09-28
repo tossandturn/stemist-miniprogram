@@ -94,6 +94,103 @@ for(const mode of ['wechat','password']){
  assert.equal(race.storage.get('stemistSessionToken'),'new-token')
 }
 
+// requestJson captures Set-Cookie before signIn's authGuard sees the response;
+// a stale password response must not replace the newer account's cookie.
+let passwordRequest
+const cookieRace=miniRuntime({wx:{request(options){passwordRequest=options}}})
+const oldLogin=cookieRace.load('utils/auth').signIn('old_user','password','login').then(()=>null,error=>error)
+await Promise.resolve()
+cookieRace.storage.set('stemistUser',{id:'ielts:202',username:'new_user'})
+cookieRace.storage.set('stemistSessionToken','new-token')
+cookieRace.storage.set('stemistPrivacyEpoch',1)
+cookieRace.storage.set('stemistNativeSessionCookie','B'.repeat(32))
+passwordRequest.success({statusCode:200,data:{accessToken:'old-token',identity:{id:'ielts:101',username:'old_user',roles:['student']}},header:{'Set-Cookie':'stem_session='+'A'.repeat(32)+'; Path=/; HttpOnly'}})
+assert.match((await oldLogin).message,/账号已变化/)
+assert.equal(cookieRace.storage.get('stemistNativeSessionCookie'),'B'.repeat(32),'late old-account login must not replace the current native cookie')
+assert.equal(cookieRace.storage.get('stemistSessionToken'),'new-token')
+assert.equal(cookieRace.storage.get('stemistUser').id,'ielts:202')
+
+const overlappingRequests=[]
+const overlapping=miniRuntime({wx:{request(options){overlappingRequests.push(options)}}})
+const firstLogin=overlapping.load('utils/auth').signIn('old_user','password','login').then(()=>null,error=>error)
+await Promise.resolve()
+overlapping.storage.set('stemistUser',{id:'ielts:202',username:'new_user'});overlapping.storage.set('stemistSessionToken','new-token');overlapping.storage.set('stemistPrivacyEpoch',1);overlapping.storage.set('stemistNativeSessionCookie','B'.repeat(32))
+const currentLogin=overlapping.load('utils/auth').signIn('new_user','password','login').then(()=>null,error=>error)
+await Promise.resolve()
+overlappingRequests[0].success({statusCode:200,data:{accessToken:'old-token',identity:{id:'ielts:101'}},header:{'Set-Cookie':'stem_session='+'A'.repeat(32)+'; Path=/'}})
+overlappingRequests[1].fail({errMsg:'request:fail offline'})
+await firstLogin;await currentLogin
+assert.equal(overlapping.storage.get('stemistNativeSessionCookie'),'B'.repeat(32),'an older auth response cannot capture through a newer auth attempt')
+
+const cookieHappy=miniRuntime({wx:{request(options){options.success({statusCode:200,data:{accessToken:'fresh-token',identity:{id:'ielts:303',username:'fresh_user',roles:['student']}},header:{'Set-Cookie':'stem_session='+'C'.repeat(32)+'; Path=/; HttpOnly'}})}}})
+await cookieHappy.load('utils/auth').signIn('fresh_user','password','login')
+assert.equal(cookieHappy.storage.get('stemistNativeSessionCookie'),'C'.repeat(32),'current login still captures its native session cookie')
+assert.equal(cookieHappy.storage.get('stemistUser').id,'ielts:303')
+
+for(const invalidPayload of [
+ {accessToken:'invalid-owner-token',identity:{username:'missing_id'}},
+ {accessToken:'conflicting-owner-token',id:'ielts:707',identity:{id:'ielts:808'}},
+ {accessToken:'first-token',token:'different-token',identity:{id:'ielts:707'}},
+]){
+ const invalid=miniRuntime({wx:{request(options){options.success({statusCode:200,data:invalidPayload,header:{'Set-Cookie':'stem_session='+'X'.repeat(32)+'; Path=/'}})}}})
+ invalid.storage.set('stemistUser',{id:'ielts:404'});invalid.storage.set('stemistSessionToken','owner-a-token');invalid.storage.set('stemistNativeSessionCookie','W'.repeat(32));invalid.storage.set('stemistDraft:coach',{text:'owner A private'})
+ await assert.rejects(()=>invalid.load('utils/auth').signIn('owner_b','password','login'),/登录响应/)
+ assert.equal(invalid.storage.get('stemistUser').id,'ielts:404');assert.equal(invalid.storage.get('stemistSessionToken'),'owner-a-token')
+ assert.equal(invalid.storage.get('stemistNativeSessionCookie'),'W'.repeat(32),'invalid auth envelopes cannot replace the current cookie')
+ assert.equal(invalid.storage.get('stemistDraft:coach').text,'owner A private')
+}
+
+// A 401 preserves drafts for same-owner recovery, but a different account
+// must not inherit those private drafts after authenticating.
+const switchRuntime=miniRuntime({wx:{request(options){options.success({statusCode:200,data:{accessToken:'owner-b-token',expiresAt:new Date(Date.now()+300000).toISOString(),identity:{id:'ielts:505',username:'owner_b',roles:['student']}},header:{'Set-Cookie':'stem_session='+'D'.repeat(32)+'; Path=/; HttpOnly'}})}}})
+switchRuntime.storage.set('stemistUser',{id:'ielts:404',username:'owner_a'})
+switchRuntime.storage.set('stemistSessionToken','expired-a')
+switchRuntime.storage.set('stemistSessionMeta',{kind:'password',owner:'ielts:404',expiresAt:new Date(0).toISOString()})
+switchRuntime.storage.set('stemistDraft:coach',{text:'A private draft'})
+switchRuntime.load('utils/session').clearLocalSession({preserveDrafts:true})
+assert.equal(switchRuntime.storage.get('stemistDraft:coach').text,'A private draft','same owner must be able to recover after a 401')
+const epochBeforeSwitch=Number(switchRuntime.storage.get('stemistPrivacyEpoch'))||0
+await switchRuntime.load('utils/auth').signIn('owner_b','password','login')
+assert.equal(switchRuntime.storage.get('stemistUser').id,'ielts:505')
+assert.equal(switchRuntime.storage.get('stemistDraft:coach'),undefined,'a different owner must not inherit preserved private drafts')
+assert.ok((Number(switchRuntime.storage.get('stemistPrivacyEpoch'))||0)>epochBeforeSwitch)
+assert.equal(switchRuntime.storage.get('stemistNativeSessionCookie'),'D'.repeat(32),'the new password account keeps its own fresh native cookie')
+
+const missingMeta=miniRuntime({wx:{request(options){options.success({statusCode:200,data:{accessToken:'owner-b-token',expiresAt:new Date(Date.now()+300000).toISOString(),identity:{id:'ielts:505',username:'owner_b',roles:['student']}},header:{'Set-Cookie':'stem_session='+'G'.repeat(32)+'; Path=/'}})}}})
+missingMeta.storage.set('stemistUser',{id:'ielts:404'});missingMeta.storage.set('stemistSessionToken','expired-a');missingMeta.storage.set('stemistDraft:coach',{text:'legacy owner A private'})
+missingMeta.load('utils/session').clearLocalSession({preserveDrafts:true})
+assert.equal(missingMeta.storage.get('stemistSessionMeta').owner,'ielts:404','401 preservation retains a missing legacy owner boundary')
+await missingMeta.load('utils/auth').signIn('owner_b','password','login')
+assert.equal(missingMeta.storage.get('stemistUser').id,'ielts:505');assert.equal(missingMeta.storage.get('stemistDraft:coach'),undefined,'a legacy owner draft cannot cross into another account')
+
+const sameOwner=miniRuntime({wx:{request(options){options.success({statusCode:200,data:{accessToken:'owner-a-fresh',expiresAt:new Date(Date.now()+300000).toISOString(),identity:{id:'ielts:404',username:'owner_a',roles:['student']}},header:{'Set-Cookie':'stem_session='+'E'.repeat(32)+'; Path=/'}})}}})
+sameOwner.storage.set('stemistUser',{id:'ielts:404'});sameOwner.storage.set('stemistSessionToken','expired-a');sameOwner.storage.set('stemistSessionMeta',{kind:'password',owner:'ielts:404',expiresAt:new Date(0).toISOString()});sameOwner.storage.set('stemistDraft:coach',{text:'recover me'})
+sameOwner.load('utils/session').clearLocalSession({preserveDrafts:true})
+await sameOwner.load('utils/auth').signIn('owner_a','password','login')
+assert.equal(sameOwner.storage.get('stemistDraft:coach').text,'recover me','same-owner recovery keeps the preserved draft')
+
+const failedSwitch=miniRuntime({wx:{request(options){options.fail({errMsg:'request:fail offline'})}}})
+failedSwitch.storage.set('stemistSessionMeta',{kind:'password',owner:'ielts:404',expiresAt:new Date(0).toISOString()});failedSwitch.storage.set('stemistDraft:coach',{text:'keep on failed login'})
+await assert.rejects(()=>failedSwitch.load('utils/auth').signIn('owner_b','password','login'))
+assert.equal(failedSwitch.storage.get('stemistDraft:coach').text,'keep on failed login','failed authentication cannot clear old private data')
+
+const guestAdoption=miniRuntime({wx:{request(options){options.success({statusCode:200,data:{accessToken:'first-token',identity:{id:'ielts:606',username:'first',roles:['student']}}})}}})
+guestAdoption.storage.set('stemistDraft:coach',{text:'guest draft'})
+await guestAdoption.load('utils/auth').signIn('first','password','login')
+assert.equal(guestAdoption.storage.get('stemistDraft:coach').text,'guest draft','first login adopts rather than deletes a guest draft')
+
+const wechatSwitch=miniRuntime({wx:{login({success}){success({code:'new-owner-code'})},request(options){options.success({statusCode:200,data:{accessToken:'wechat-b-token',expiresAt:new Date(Date.now()+300000).toISOString(),identity:{id:'ielts:505',username:'wechat_b',roles:['student']}}})}}})
+wechatSwitch.storage.set('stemistUser',{id:'ielts:404'});wechatSwitch.storage.set('stemistSessionToken','expired-a');wechatSwitch.storage.set('stemistSessionMeta',{kind:'wechat',owner:'ielts:404',expiresAt:new Date(0).toISOString()});wechatSwitch.storage.set('stemistNativeSessionCookie','F'.repeat(32));wechatSwitch.storage.set('stemistDraft:coach',{text:'A private draft'})
+wechatSwitch.load('utils/session').clearLocalSession({preserveDrafts:true})
+await wechatSwitch.load('utils/wechatAuth').ensureWeChatSession({silent:false})
+assert.equal(wechatSwitch.storage.get('stemistUser').id,'ielts:505')
+assert.equal(wechatSwitch.storage.get('stemistDraft:coach'),undefined)
+assert.equal(wechatSwitch.storage.get('stemistNativeSessionCookie'),undefined,'WeChat account switch must not carry the old password cookie')
+
+const invalidWeChat=miniRuntime({wx:{login({success}){success({code:'invalid-owner-code'})},request(options){options.success({statusCode:200,data:{accessToken:'bad-wechat-token',identity:{id:'wechat:9'}}})}}})
+await assert.rejects(()=>invalidWeChat.load('utils/wechatAuth').ensureWeChatSession({silent:false}),/登录响应/)
+assert.equal(invalidWeChat.storage.get('stemistSessionToken'),undefined);assert.equal(invalidWeChat.storage.get('stemistUser'),undefined)
+
 const unloaded=deferred()
 const u=miniRuntime({modules:{'utils/api':{requestJson:()=>unloaded.promise}}})
 u.storage.set('stemistUser',{id:'ielts:42'});u.storage.set('stemistSessionToken','fixture-token')

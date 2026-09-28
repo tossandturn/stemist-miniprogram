@@ -50,4 +50,29 @@ assert.ok(!removed.includes('/temp/pinned.mp3'),'eviction must not remove a play
 assert.ok(removed.includes('/temp/cache-0.mp3'),'unreferenced old downloads are evicted')
 pinned.release()
 assert.throws(()=>cache.acquireListeningAudio('https://evil.example/audio.mp3'))
+
+function fakeClock(){let now=0,id=0;const jobs=new Map();return{setTimeout(fn,ms){const key=++id;jobs.set(key,{at:now+ms,fn});return key},clearTimeout(key){jobs.delete(key)},tick(ms){const end=now+ms;for(;;){const next=[...jobs].sort((a,b)=>a[1].at-b[1].at).find(([,job])=>job.at<=end);if(!next)break;now=next[1].at;jobs.delete(next[0]);next[1].fn()}now=end}}}
+function timedCache(){const clock=fakeClock(),downloads=[],removed=[];const runtime=miniRuntime({globals:{setTimeout:clock.setTimeout,clearTimeout:clock.clearTimeout},wx:{downloadFile(options){const task={options,aborts:0,onProgressUpdate(fn){this.progress=fn},abort(){this.aborts++}};downloads.push(task);return task},getFileSystemManager:()=>({accessSync(){},statSync(){return{size:4096}},unlink:({filePath})=>removed.push(filePath)})}});return{clock,downloads,removed,cache:runtime.load('utils/listeningAudioCache')}}
+
+const stalled=timedCache(),stalledLease=stalled.cache.acquireListeningAudio(base+'stalled.mp3');let stalledError
+stalledLease.promise.catch(error=>{stalledError=error});stalled.clock.tick(29_999);await settle();assert.equal(stalledError,undefined);stalled.clock.tick(1);await settle()
+assert.match(stalledError?.message||'',/停滞|重试/);assert.equal(stalled.downloads[0].aborts,1,'stalled SDK work is actively aborted even if it never calls fail')
+stalled.downloads[0].options.success({statusCode:200,tempFilePath:'/temp/stalled-late.mp3'});assert.ok(stalled.removed.includes('/temp/stalled-late.mp3'),'a late success after watchdog failure is deleted and cannot revive cache state')
+const stalledRetry=stalled.cache.acquireListeningAudio(base+'stalled.mp3');let retryError;stalledRetry.promise.catch(error=>{retryError=error});assert.equal(stalled.downloads.length,2,'a stalled entry is removed so retry starts a fresh DownloadTask');stalledRetry.release();await settle();assert.ok(retryError)
+
+const repeated=timedCache(),repeatedLease=repeated.cache.acquireListeningAudio(base+'repeated.mp3');let repeatedError
+repeatedLease.promise.catch(error=>{repeatedError=error});repeated.clock.tick(10_000);repeated.downloads[0].progress({totalBytesWritten:100,totalBytesExpectedToWrite:4096});repeated.clock.tick(29_000);repeated.downloads[0].progress({totalBytesWritten:100,totalBytesExpectedToWrite:4096});repeated.clock.tick(1_000);await settle()
+assert.ok(repeatedError,'repeating the same byte count must not feed the stall watchdog');assert.equal(repeated.downloads[0].aborts,1)
+
+const moving=timedCache(),movingLease=moving.cache.acquireListeningAudio(base+'moving.mp3');assert.equal(moving.downloads[0].options.timeout,300_000)
+for(let step=1;step<=5;step++){moving.clock.tick(25_000);moving.downloads[0].progress({totalBytesWritten:step*500,totalBytesExpectedToWrite:4096})}
+assert.equal(moving.downloads[0].aborts,0,'forward progress may continue beyond the previous 60 second window')
+moving.downloads[0].options.success({statusCode:200,tempFilePath:'/temp/moving.mp3'});assert.equal(await movingLease.promise,'/temp/moving.mp3');moving.clock.tick(400_000);assert.equal(moving.downloads[0].aborts,0,'success clears both watchdog timers')
+
+const hard=timedCache(),hardLease=hard.cache.acquireListeningAudio(base+'hard.mp3');let hardError;hardLease.promise.catch(error=>{hardError=error})
+for(let step=1;step<=11;step++){hard.clock.tick(25_000);hard.downloads[0].progress({totalBytesWritten:step,totalBytesExpectedToWrite:4096})}
+hard.clock.tick(25_000);await settle();assert.ok(hardError,'hard wall clock ends a download even while bytes still advance');assert.equal(hard.downloads[0].aborts,1)
+
+const cancelled=timedCache(),cancelledLease=cancelled.cache.acquireListeningAudio(base+'cancelled.mp3');let cancelledError;cancelledLease.promise.catch(error=>{cancelledError=error});cancelledLease.release();await settle();assert.ok(cancelledError);assert.equal(cancelled.downloads[0].aborts,1)
+cancelled.downloads[0].options.success({statusCode:200,tempFilePath:'/temp/cancelled-late.mp3'});cancelled.clock.tick(400_000);assert.ok(cancelled.removed.includes('/temp/cancelled-late.mp3'));assert.equal(cancelled.downloads[0].aborts,1,'cancel and late callbacks clear timers without a second abort')
 console.log('Listening buffering: selected-track prefetch, real progress, complete local playback, cached resume/seek, cancellation, late callbacks and partial-download rejection passed.')

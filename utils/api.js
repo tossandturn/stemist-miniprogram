@@ -27,7 +27,7 @@ return error
 function isAuthError(error) {
 return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
-function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false } = {}) {
+function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null } = {}) {
 const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
 return new Promise((resolve, reject) => {
 const request = {
@@ -44,6 +44,7 @@ header: {
 success(response) {
 const payload = response.data || {}
 if (response.statusCode >= 200 && response.statusCode < 300) {
+try{if(authCheck)authCheck(payload)}catch(error){reject(error);return}
 captureNativeCookie(origin,path,response)
 resolve(payload)
 return

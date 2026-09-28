@@ -2,6 +2,7 @@ const { discardPendingDrafts } = require('./page')
 const PRIVATE_SCOPES = ['listening', 'reading', 'writing', 'speaking', 'stem-photo']
 
 function clearLocalSession({ preserveDrafts = false } = {}) {
+if(preserveDrafts){const id=wx.getStorageSync('stemistUser')?.id;if(id)wx.setStorageSync('stemistSessionMeta',{...(wx.getStorageSync('stemistSessionMeta')||{}),owner:String(id)})}
 const speakingExport=wx.getStorageSync('stemistSpeakingExportPath')
 const pendingWritingPhoto=wx.getStorageSync('stemistWritingPhoto')
 const pendingStemPhoto=wx.getStorageSync('stemistCroppedImage')
@@ -63,4 +64,12 @@ wx.removeStorageSync('stemistSpeakingExportPath')
 }
 }
 
-module.exports = { clearLocalSession }
+function adoptOwner(nextOwner,nativeCookie=''){
+const priorOwner=String(wx.getStorageSync('stemistSessionMeta')?.owner||''),owner=String(nextOwner||'')
+if(!priorOwner||!owner||priorOwner===owner)return false
+clearLocalSession()
+if(/^[a-zA-Z0-9_-]{32,128}$/.test(String(nativeCookie||'')))wx.setStorageSync('stemistNativeSessionCookie',nativeCookie)
+return true
+}
+
+module.exports = { clearLocalSession,adoptOwner }

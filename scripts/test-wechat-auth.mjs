@@ -21,8 +21,9 @@ vm.runInNewContext(source, {
     setStorageSync: (key, value) => { storage[key] = value },
   },
   require(name) {
-    if(name === './authGuard') return {authGuard:()=>()=>{}}
+    if(name === './authGuard') return {authGuard:()=>payload=>payload?{owner:payload.id||payload.identity?.id||payload.user?.id,token:payload.accessToken||payload.token}:undefined}
     if(name === './nativeSession') return {rememberNativeSession(){},refreshNativeSession:async()=>{}}
+    if(name === './session') return {adoptOwner(){}}
     assert.equal(name, './api')
     return { requestJson: async (url, payload, options) => {
       requestCount += 1

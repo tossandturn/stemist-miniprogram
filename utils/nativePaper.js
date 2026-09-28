@@ -15,7 +15,8 @@ function readPaperDraft(storageKey){const draft=wx.getStorageSync(storageKey);re
 function savePaperChoice(storageKey,number,choice){
  const draft=readPaperDraft(storageKey)
  if(!draft||draft.submitted||!Number.isInteger(number)||number<1||number>(draft.questionCount||99))throw Error('当前试卷不可修改作答。')
- draft.answers[number]=nextChoiceAnswer(draft.answers[number],choice);savePaperDraft(draft);return draft
+ const oldPhoto=draft.answers[number]?.photo
+ draft.answers[number]=nextChoiceAnswer(draft.answers[number],choice);savePaperDraft(draft);if(oldPhoto)removeOwnedPhoto(oldPhoto);return draft
 }
 function directory(){return wx.env.USER_DATA_PATH+'/native-paper'}
 function removeOwnedPhoto(filePath){const prefix=directory()+'/';if(String(filePath).startsWith(prefix)&&/^mini-paper-[a-z0-9-]+\.jpg$/.test(String(filePath).slice(prefix.length)))wx.getFileSystemManager().unlink({filePath,fail(){}})}

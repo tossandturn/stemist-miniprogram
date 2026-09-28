@@ -9,10 +9,10 @@ const source = fs.readFileSync(path.join(root, 'utils', 'auth.js'), 'utf8')
 const storage = {}
 const module = { exports: {} }
 const fakeRequire = (name) => {
-  if(name === './authGuard') return {authGuard:()=>()=>{}}
+  if(name === './authGuard') return {authGuard:()=>payload=>payload?{owner:payload.id||payload.identity?.id||payload.user?.id,token:payload.accessToken||payload.token}:undefined}
   if(name === './nativeSession') return {rememberNativeSession(){}}
   if (name === './api') return { requestJson: async (url) => url === '/api/auth/logout' ? { ok: true } : ({ accessToken: 'token', identity: { id: 'ielts:42', username: 'student-42', displayName:'学生', avatarDataUrl:'data:image/png;base64,fixture', roles: ['student'] } }) }
-  if (name === './session') return { clearLocalSession: () => { delete storage.stemistSessionToken; delete storage.stemistUser } }
+  if (name === './session') return { clearLocalSession: () => { delete storage.stemistSessionToken; delete storage.stemistUser },adoptOwner(){} }
   throw new Error(`unexpected module ${name}`)
 }
 const wx = {

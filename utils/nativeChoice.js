@@ -7,8 +7,15 @@ function isSingleChoice(value={}){
 function hasChoice(answer){return answer?.inputMode==='choice'&&CHOICES.includes(answer.choice)}
 function nextChoiceAnswer(previous={},choice){
  if(!CHOICES.includes(choice))throw Error('请选择 A、B、C 或 D。')
- if(hasChoice(previous)&&previous.choice===choice)return previous
+ const retained={...previous}
+ for(const field of ['photo','results','feedback','attemptId','legacyAiResults'])delete retained[field]
+ if(hasChoice(previous)&&previous.choice===choice){
+  delete retained.studentAssessment;delete retained.selfDraft
+  if(retained.assessment?.state!=='objective')delete retained.assessment
+  return retained
+ }
  const oldAssessment=previous.assessment||previous.studentAssessment
- return {...previous,...(oldAssessment?{previousAssessments:[...(previous.previousAssessments||[]),{revision:previous.revision,assessment:previous.assessment,studentAssessment:previous.studentAssessment}]}:{}),inputMode:'choice',choice,revision:(Number(previous.revision)||0)+1,objectiveResult:null,assessment:null,studentAssessment:null,selfDraft:null,at:Date.now()}
+ for(const field of ['assessment','studentAssessment','selfDraft','objectiveResult'])delete retained[field]
+ return {...retained,...(oldAssessment?{previousAssessments:[...(previous.previousAssessments||[]),{revision:previous.revision,assessment:previous.assessment,studentAssessment:previous.studentAssessment}]}:{}),inputMode:'choice',choice,revision:(Number(previous.revision)||0)+1,objectiveResult:null,at:Date.now()}
 }
 module.exports={CHOICES,isSingleChoice,hasChoice,nextChoiceAnswer}

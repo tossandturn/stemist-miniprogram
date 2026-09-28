@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import path from 'node:path'
+const outputAt=process.argv.indexOf('--output')
+if(outputAt<0||!process.argv[outputAt+1])throw Error('Use --output <new current-run QA directory>; preserve earlier receipts.')
+const directory=path.resolve(process.argv[outputAt+1]),receipt=path.join(directory,'production.json')
+if(fs.existsSync(receipt))throw Error('Preserve the existing production acceptance receipt')
 const base='https://stem.ieltsist.com',results=[],subjects=['0580','0606','0610','0625','9231','9700','9701','9702','9708','9709','bpho','amc12','esat','tmua']
 async function get(path){const start=Date.now(),r=await fetch(base+path,{signal:AbortSignal.timeout(15000)}),text=await r.text();assert.equal(r.status,200,'public resource '+path);return {value:JSON.parse(text),bytes:Buffer.byteLength(text),ms:Date.now()-start}}
 for(let i=0;i<subjects.length;i+=2)await Promise.all(subjects.slice(i,i+2).map(async subject=>{
@@ -14,4 +19,4 @@ const sources=await get('/api/stem/papers/cie-9702-9702_m25_qp_22/source-context
 assert.equal(sources.value.questions.length,7);assert.doesNotMatch(JSON.stringify(sources.value),/"(parts|provenance|bindingSignature|answer|markScheme)"\s*:/)
 const privateResponse=await fetch(base+'/api/stem/papers/cie-9702-9702_m25_qp_22/native-context?routeId=cie-9702-as-physics&stage=AS',{signal:AbortSignal.timeout(10000)});await privateResponse.text();assert.equal(privateResponse.status,401)
 const output={status:'pass',surface:'public HTTPS from Windows',results:results.sort((a,b)=>a.subject.localeCompare(b.subject)),sourceQuestions:7,sourceMs:sources.ms,unauthenticatedMarkingContext:401}
-const directory='D:/CodexWork/qa-artifacts/native-materials-runtime-20260907';fs.mkdirSync(directory,{recursive:true});fs.writeFileSync(directory+'/production.json',JSON.stringify(output,null,2)+'\n','utf8');console.log(JSON.stringify({status:'pass',subjects:results.length,sourceQuestions:7}))
+fs.mkdirSync(directory,{recursive:true});fs.writeFileSync(receipt,JSON.stringify(output,null,2)+'\n',{encoding:'utf8',flag:'wx'});console.log(JSON.stringify({status:'pass',subjects:results.length,sourceQuestions:7}))

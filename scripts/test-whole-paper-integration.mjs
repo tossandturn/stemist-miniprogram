@@ -130,8 +130,22 @@ try{
  assert.equal(cancelled.status,'failed');assert.equal(cancelled.failureCode,'cancelled')
  await service.cancel(cancellable.jobId,'cancel-request-fixture-0001',s)
  assert.equal(providerCalls,2,'Unsubmitted cancellation never invokes the model')
+ const paperModel=runtime.load('utils/nativePaper'),paperService=runtime.load('utils/nativePaperService'),paperRoute={routeId:'cie-9702-as-physics',stage:'AS'}
+ async function persistedEvidence(suffix,{choices=[],photo=false}={}){
+  let nativeDraft=paperModel.createPaperDraft({id:'paper-evidence-'+suffix,subject:'9702'},paperRoute)
+  paperModel.savePaperDraft(nativeDraft)
+  for(const [number,choice] of choices)paperModel.savePaperChoice(nativeDraft.storageKey,number,choice)
+  nativeDraft=paperModel.readPaperDraft(nativeDraft.storageKey)
+  if(photo)nativeDraft.answers[3]={photo:'/qa/app/native-paper/synthetic-answer.jpg',revision:1}
+  nativeDraft.submitted=true;nativeDraft.submittedAt=Date.now();paperModel.savePaperDraft(nativeDraft)
+  const response=await paperService.syncPaperAttempt(nativeDraft,{questions:[]},3)
+  return response.attempt.evidence
+ }
+ assert.deepEqual(await persistedEvidence('choice',{choices:[[1,'A'],[2,'B']]}),{kind:'single-choice',count:2})
+ assert.deepEqual(await persistedEvidence('photo',{photo:true}),{kind:'photo',count:1})
+ assert.deepEqual(await persistedEvidence('mixed',{choices:[[1,'C']],photo:true}),{kind:'mixed-answers',count:2})
  page.onUnload()
- console.log(JSON.stringify({status:'pass',realLocalHttp:true,clientService:true,serverApi:true,orderedImages:2,pdfInputPages:2,pdfJobStatus:pdfJob.status,sourcePdfBytes:files.get(source).length,reportPdfBytes:files.get(report).length,pdfInputReportBytes:files.get(pdfReport).length,providerCalls,model:'deterministic fixture, NOT live AI',requests:calls.length}))
+ console.log(JSON.stringify({status:'pass',realLocalHttp:true,clientService:true,serverApi:true,orderedImages:2,pdfInputPages:2,pdfJobStatus:pdfJob.status,evidenceKinds:['single-choice','photo','mixed-answers'],sourcePdfBytes:files.get(source).length,reportPdfBytes:files.get(report).length,pdfInputReportBytes:files.get(pdfReport).length,providerCalls,model:'deterministic fixture, NOT live AI',requests:calls.length}))
 }finally{
  await new Promise(resolve=>server.close(resolve));closeStemDatabaseForTests()
  const resolved=path.resolve(temp)

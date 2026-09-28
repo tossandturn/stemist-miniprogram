@@ -106,6 +106,22 @@ await check('marking requires authentic identity and keeps grants/images off per
   assert.doesNotMatch(JSON.stringify([...runtime.storage.values()].filter(v => typeof v === 'object')), /test-grant|base64/)
   assert.equal(native.readSession(session.id).answers.q0.results['q0:a'].score, 1)
 })
+await check('parallel marking reports pending instead of a false second success', async () => {
+  const imageGate = deferred()
+  const runtime = miniRuntime({ modules: { 'utils/image': { readAsJpegDataUrl: () => imageGate.promise }, 'utils/api': { requestJson: async (path, body) => {
+    if (path.endsWith('/attempts')) return { attempt: { attemptId: body.attemptId } }
+    if (path.endsWith('/capabilities')) return { capabilities: [{ questionPartId: 'q0:a', markingGrant: 'test-grant' }] }
+    return { mode: 'vision', providerStatus: 'connected', score: 1, maxScore: 2, confidence: 0.8, summary: 'Checked.', reviewRequired: true }
+  } } } })
+  runtime.storage.set('stemistUser', { id: 'student-a' }); runtime.storage.set('stemistSessionToken', 'test-token')
+  const native = runtime.load('utils/nativePractice'), session = native.createSession(payload(), spec)
+  session.answers.q0 = { photo: 'wxfile://usr/native-practice/test.jpg', revision: 1, results: {}, attemptId: 'native-test-q0' }
+  native.saveSession(session)
+  const first = native.markQuestion(session.id, 'q0'); await settle()
+  await assert.rejects(() => native.markQuestion(session.id, 'q0'), /正在批改/)
+  imageGate.resolve('data:image/jpeg;base64,cGhvdG8='); await first
+  assert.equal(native.readSession(session.id).answers.q0.results['q0:a'].score, 1)
+})
 await check('durable crop binds one question, retake clears stale marking only after copy succeeds', async () => {
   const copied = [], removed = []
   let failCopy = false
