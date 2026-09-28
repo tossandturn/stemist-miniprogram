@@ -42,6 +42,8 @@ async function refreshNativeSession(){
   const id=String(result?.id||result?.identity?.id||result?.user?.id||'')
   if(id!==started.owner||!result.authenticated||typeof result.accessToken!=='string'||Date.parse(result.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(result.expiresAt)))throw new Error('账号续期状态未确认，请重新登录。')
   wx.setStorageSync('stemistSessionToken',result.accessToken);rememberNativeSession(result,meta.kind)
+  const profile=result.identity||result.user||result,saved=wx.getStorageSync('stemistUser')||{}
+  wx.setStorageSync('stemistUser',{...saved,displayName:profile.displayName??saved.displayName??'',avatarDataUrl:profile.avatarDataUrl??saved.avatarDataUrl??''})
   return result.accessToken
  })().finally(()=>{if(pending?.promise===promise)pending=null})
  pending={owner:started.owner,epoch:started.epoch,promise}

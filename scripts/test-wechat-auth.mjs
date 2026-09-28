@@ -21,12 +21,13 @@ vm.runInNewContext(source, {
     setStorageSync: (key, value) => { storage[key] = value },
   },
   require(name) {
+    if(name === './authGuard') return {authGuard:()=>()=>{}}
     if(name === './nativeSession') return {rememberNativeSession(){},refreshNativeSession:async()=>{}}
     assert.equal(name, './api')
     return { requestJson: async (url, payload, options) => {
       requestCount += 1
       requestPayload = { url, payload, options }
-      return { accessToken: 'short-lived-token', identity: { id: 'ielts:42', username: '微信用户', roles: ['student'] } }
+      return { accessToken: 'short-lived-token', identity: { id: 'ielts:42', username: '微信用户', displayName:'微信昵称', avatarDataUrl:'data:image/png;base64,fixture', roles: ['student'] } }
     } }
   },
 })
@@ -43,6 +44,8 @@ assert.equal(first.status, 'authenticated')
 assert.equal(second.status, 'authenticated')
 assert.equal(storage.stemistSessionToken, 'short-lived-token')
 assert.equal(storage.stemistUser.id, 'ielts:42')
+assert.equal(storage.stemistUser.displayName,'微信昵称')
+assert.equal(storage.stemistUser.avatarDataUrl,'data:image/png;base64,fixture')
 const reused = await module.exports.ensureWeChatSession({ silent: false })
 assert.equal(reused.reused, true)
 assert.equal(requestCount, 1)

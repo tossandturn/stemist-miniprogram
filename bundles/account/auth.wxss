@@ -1,0 +1,3 @@
+.input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 22rpx; background: #fff; border: 1rpx solid #dfe4ef; border-radius: 14rpx; font-size: 29rpx; }
+.wechat-login { margin-top: 0; }
+.account-avatar { width: 64px; height: 64px; border-radius: 50%; margin-bottom: 12px; }

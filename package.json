@@ -13,7 +13,7 @@
     "test:ai-fab": "node scripts/test-ai-fab.mjs",
     "test:inventory": "node scripts/test-inventory.mjs && node scripts/test-public-inventory.mjs",
     "test:api": "node scripts/test-api-client.mjs",
-    "test:auth": "node scripts/test-auth-client.mjs",
+    "test:auth": "node scripts/test-auth-client.mjs && node scripts/test-account-profile.mjs",
     "test:session": "node scripts/test-session-cleanup.mjs",
     "test:attempt-sync": "node scripts/test-attempt-sync.mjs",
     "test:stem-coach-page": "node scripts/test-stem-coach-page.mjs",

@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "微信头像与昵称",
+  "usingComponents": {"stemist-header": "/components/stemist-header/index"}
+}

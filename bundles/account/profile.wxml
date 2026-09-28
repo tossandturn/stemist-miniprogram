@@ -1,0 +1,23 @@
+<view class="page {{deviceClass}} {{orientation}} profile-page">
+  <stemist-header title="头像与昵称" action-text="返回" bind:action="goBack" />
+  <view class="panel profile-card">
+    <view class="card-title">使用微信头像与昵称</view>
+    <view class="profile-help">由你确认使用的资料。保存后，下次登录会继续显示；不会更改账号和学习记录。</view>
+    <view wx:if="{{loading}}" class="profile-help" aria-role="status">正在读取账号资料…</view>
+    <form wx:if="{{loaded}}" bindsubmit="submit">
+      <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{saving || processing}}" aria-label="选择微信头像">
+        <image wx:if="{{avatarDataUrl}}" class="profile-avatar" src="{{avatarDataUrl}}" mode="aspectFill" aria-label="当前头像" />
+        <view wx:else class="profile-avatar avatar-placeholder">头像</view>
+        <text>{{processing ? '正在处理头像…' : '选择微信头像'}}</text>
+      </button>
+      <label class="field-label" for="nickname">昵称</label>
+      <input id="nickname" name="nickname" class="profile-input" type="nickname" value="{{displayName}}" maxlength="64" cursor-spacing="100" adjust-position="{{true}}" disabled="{{saving}}" placeholder="点击使用微信昵称，也可以自行填写" />
+      <view class="profile-help">点击昵称输入框，可在微信键盘上方选用微信昵称。</view>
+      <button class="primary" form-type="submit" loading="{{saving}}" disabled="{{saving || processing}}">{{saving ? '正在保存…' : '保存头像与昵称'}}</button>
+    </form>
+    <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
+    <button wx:if="{{!loaded && !loading}}" class="secondary" bindtap="loadProfile">重新读取资料</button>
+    <view wx:if="{{saved}}" class="profile-success" aria-role="status">已保存，下次登录将继续使用。</view>
+    <button class="text-button" bindtap="goBack" disabled="{{saving}}">{{saved ? '完成并返回' : '暂不设置，返回账号'}}</button>
+  </view>
+</view>
