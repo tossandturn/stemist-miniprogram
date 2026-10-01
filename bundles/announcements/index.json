@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "Stemist · 公告与更新",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true,
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
+  }
+}

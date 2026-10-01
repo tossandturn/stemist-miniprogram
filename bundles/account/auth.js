@@ -1,6 +1,7 @@
 const { signIn, currentUser, signOut } = require('../../utils/auth')
 const { deviceState, syncDevice } = require('../../utils/page')
 const { ensureWeChatSession } = require('../../utils/wechatAuth')
+const { shouldShowOnboarding, isWechatProfileSession, markOnboardingShown } = require('./profileData')
 
 Page({
 onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
@@ -11,6 +12,7 @@ syncDevice(this)
 const user = wx.getStorageSync('stemistSessionToken') ? currentUser() : null
 this.setData({ user: user || null })
 if (user && user.username) this.setData({ username: user.username })
+if (isWechatProfileSession(user)) this.openWeChatProfileOnboarding(user,this._version||0)
 },
 onResize() { syncDevice(this) },
 onHide() { this._active=false;this._version=(this._version||0)+1 },
@@ -24,12 +26,22 @@ const version=this._version||0
 try {
 const result = await ensureWeChatSession({ silent: false })
 if(!this._active||version!==(this._version||0))return
-this.setData({ user: result.user || currentUser() })
+const user=result.user || currentUser()
+this.setData({ user })
 wx.showToast({ title: '微信登录成功', icon: 'success' })
-if (!this.data.user?.displayName) this.editProfile()
+this.openWeChatProfileOnboarding(user,version)
 } catch (error) {
 if(this._active&&version===(this._version||0))this.setData({ error: error.message || '微信登录暂时不可用，请稍后重试。' })
 } finally { this.setData({ wechatLoading: false }) }
+},
+openWeChatProfileOnboarding(user,version){
+ if(!this._active||version!==(this._version||0)||!shouldShowOnboarding(user))return
+ const ownerId=String(user.id)
+ wx.navigateTo({url:'/bundles/account/profile?onboarding=1',complete:(result)=>{
+  if(String(result?.errMsg||'').includes(':fail'))return
+  if(!this._active||version!==(this._version||0)||String(currentUser()?.id||'')!==ownerId)return
+  markOnboardingShown(ownerId)
+ }})
 },
 openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
 editProfile() { wx.navigateTo({ url: '/bundles/account/profile' }) },

@@ -1,8 +1,9 @@
 <view class="page {{deviceClass}} {{orientation}} profile-page">
-  <stemist-header title="头像与昵称" action-text="返回" bind:action="goBack" />
+  <stemist-header title="{{onboarding ? '完善微信资料' : '头像与昵称'}}" action-text="返回" bind:action="goBack" />
   <view class="panel profile-card">
-    <view class="card-title">使用微信头像与昵称</view>
-    <view class="profile-help">由你确认使用的资料。保存后，下次登录会继续显示；不会更改账号和学习记录。</view>
+    <view class="profile-eyebrow" wx:if="{{onboarding}}">首次微信登录</view>
+    <view class="card-title">{{onboarding ? '完善头像与昵称' : '使用微信头像与昵称'}}</view>
+    <view class="profile-help">需由你在下方主动选择。我们不会自动读取你的微信头像或昵称；保存后下次登录会继续显示，不会更改账号和学习记录。</view>
     <view wx:if="{{loading}}" class="profile-help" aria-role="status">正在读取账号资料…</view>
     <form wx:if="{{loaded}}" bindsubmit="submit">
       <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{saving || processing}}" aria-label="选择微信头像">
@@ -18,6 +19,6 @@
     <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
     <button wx:if="{{!loaded && !loading}}" class="secondary" bindtap="loadProfile">重新读取资料</button>
     <view wx:if="{{saved}}" class="profile-success" aria-role="status">已保存，下次登录将继续使用。</view>
-    <button class="text-button" bindtap="goBack" disabled="{{saving}}">{{saved ? '完成并返回' : '暂不设置，返回账号'}}</button>
+    <button class="text-button profile-skip" bindtap="goBack" disabled="{{saving}}">{{saved ? '完成并返回' : '暂不设置，稍后可在我的账号编辑'}}</button>
   </view>
 </view>

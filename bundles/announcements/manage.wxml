@@ -1,0 +1,21 @@
+<view class="page {{deviceClass}} {{orientation}} announcement-manager-page">
+  <stemist-header title="管理公告" />
+  <app-nav active="today" source="announcement-manager" is-tablet="{{isTablet}}" />
+  <view wx:if="{{loading}}" class="announcement-manager-state" role="status">正在验证公告管理权限…</view>
+  <view wx:elif="{{!canManage}}" class="error" role="alert"><text>{{error || '当前账号没有公告管理权限。'}}</text><button class="secondary" bindtap="backToBoard">返回公告中心</button></view>
+  <block wx:else>
+    <view class="announcement-manager-intro"><view><text class="announcement-manager-title">发布公告</text><text class="announcement-manager-copy">公告为纯文本内容，只支持跳转到已登记的小程序站内页面。</text></view><button class="secondary" bindtap="beginNew" disabled="{{saving}}">新建</button></view>
+    <view class="announcement-form">
+      <text class="field-label">标题</text><input class="announcement-input" value="{{draft.title}}" maxlength="90" placeholder="例如：章节练习已更新" data-field="title" bindinput="updateField" disabled="{{saving}}" />
+      <text class="field-label">摘要</text><input class="announcement-input" value="{{draft.summary}}" maxlength="180" placeholder="首页和列表中显示的简短说明" data-field="summary" bindinput="updateField" disabled="{{saving}}" />
+      <text class="field-label">分类</text><picker mode="selector" range="{{categoryOptions}}" range-key="label" value="{{categoryIndex}}" bindchange="chooseCategory" disabled="{{saving}}"><view class="announcement-select"><text>{{categoryOptions[categoryIndex].label}}</text><text>选择分类</text></view></picker>
+      <view class="announcement-switch"><view><text class="field-label">置顶显示</text><text class="field-help">置顶公告会排在学生公告中心最前面。</text></view><switch checked="{{draft.pinned}}" color="#7357e8" bindchange="togglePinned" disabled="{{saving}}" /></view>
+      <text class="field-label">正文</text><textarea class="announcement-textarea" value="{{draft.body}}" maxlength="6000" placeholder="写清楚更新内容、影响范围和下一步动作。" data-field="body" bindinput="updateField" disabled="{{saving}}" auto-height="{{true}}" />
+      <text class="field-label">跳转按钮（可选）</text><input class="announcement-input" value="{{draft.actionLabel}}" maxlength="30" placeholder="按钮文案，例如：开始练习" data-field="actionLabel" bindinput="updateField" disabled="{{saving}}" /><input class="announcement-input announcement-input-spaced" value="{{draft.actionUrl}}" maxlength="260" placeholder="站内路径，例如：/pages/practice/index?category=alevel" data-field="actionUrl" bindinput="updateField" disabled="{{saving}}" />
+      <text class="field-help">不填写则不显示跳转按钮；外部链接和未登记页面会被拒绝。</text>
+      <view wx:if="{{error}}" class="error" role="alert">{{error}}</view><view wx:if="{{status}}" class="announcement-manager-status" role="status">{{status}}</view>
+      <view class="announcement-form-actions"><button class="secondary" data-status="draft" bindtap="saveAnnouncement" disabled="{{saving}}">保存草稿</button><button data-status="published" bindtap="saveAnnouncement" loading="{{saving}}" disabled="{{saving}}">{{editingId ? '更新并发布' : '发布公告'}}</button></view>
+    </view>
+    <view class="announcement-manager-list"><view class="announcement-manager-list-head"><text>已有公告</text><text>{{items.length}} 条</text></view><view wx:for="{{items}}" wx:key="id" class="announcement-manager-card"><view><text class="announcement-manager-card-title">{{item.title}}</text><text class="announcement-manager-card-meta">{{item.status === 'published' ? '已发布' : item.status === 'draft' ? '草稿' : '已下线'}} · {{item.categoryLabel}}</text></view><view class="announcement-manager-card-actions"><button class="text-button" data-id="{{item.id}}" bindtap="editAnnouncement" disabled="{{saving}}">编辑</button><button wx:if="{{item.status !== 'archived'}}" class="text-button announcement-archive" data-id="{{item.id}}" bindtap="archiveAnnouncement" disabled="{{saving}}">下线</button></view></view></view>
+  </block>
+</view>

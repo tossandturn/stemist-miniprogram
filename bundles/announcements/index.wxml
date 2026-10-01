@@ -1,0 +1,27 @@
+<view class="page {{deviceClass}} {{orientation}} announcement-page">
+  <stemist-header title="公告与更新" />
+  <app-nav active="today" source="announcements" is-tablet="{{isTablet}}" />
+  <view class="announcement-intro">
+    <view><text class="announcement-title">公告与更新</text><text class="announcement-copy">版本更新、资料状态和服务通知会集中发布在这里。</text></view>
+    <button wx:if="{{canManage}}" class="secondary announcement-manage" bindtap="openManage">管理公告</button>
+  </view>
+  <view class="announcement-filters" aria-label="公告分类筛选"><button wx:for="{{filters}}" wx:key="id" class="filter-chip {{activeFilter === item.id ? 'active' : ''}}" data-filter="{{item.id}}" bindtap="chooseFilter">{{item.label}}</button></view>
+  <view wx:if="{{loading}}" class="announcement-state" role="status">正在读取公告…</view>
+  <view wx:elif="{{error}}" class="error" role="alert"><text>{{error}}</text><button class="secondary" bindtap="retry">重新加载</button></view>
+  <block wx:else>
+    <view wx:if="{{unreadCount}}" class="announcement-unread" role="status">当前列表有 {{unreadCount}} 条未读公告</view>
+    <view wx:if="{{items.length}}">
+      <view class="announcement-list">
+        <view wx:for="{{items}}" wx:key="id" class="announcement-card {{item.unread ? 'unread' : ''}}" data-id="{{item.id}}" bindtap="openAnnouncement" hover-class="announcement-card-pressed" hover-stay-time="100" role="button" aria-label="{{item.title}}">
+          <view class="announcement-meta"><view class="announcement-tags"><text class="announcement-category announcement-category-{{item.category}}">{{item.categoryLabel}}</text><text wx:if="{{item.pinned}}" class="announcement-pinned">置顶</text><text wx:if="{{item.unread}}" class="announcement-new">未读</text></view><text class="announcement-date">{{item.publishedLabel}}</text></view>
+          <text class="announcement-card-title">{{item.title}}</text>
+          <text class="announcement-summary">{{item.summary}}</text>
+          <view wx:if="{{expandedId === item.id}}" class="announcement-detail"><text class="announcement-body">{{item.body}}</text><button wx:if="{{item.hasAction}}" class="secondary announcement-action" data-id="{{item.id}}" catchtap="openAction">{{item.action.label}}</button></view>
+          <text class="announcement-expand">{{expandedId === item.id ? '收起详情' : '查看详情'}}</text>
+        </view>
+      </view>
+      <view wx:if="{{hasMore}}" class="announcement-load-more"><button class="secondary" bindtap="loadMore" loading="{{loadingMore}}" disabled="{{loadingMore}}">加载更多公告</button></view>
+    </view>
+    <view wx:else class="empty-state">暂时没有匹配的公告。</view>
+  </block>
+</view>

@@ -2,8 +2,8 @@ const {deviceState,syncDevice}=require('../../utils/page')
 const {context,isCurrent,normalizeName,profileRequest,cacheProfile,readAvatar}=require('./profileData')
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({displayName:'',avatarDataUrl:'',loading:false,loaded:false,processing:false,saving:false,error:'',saved:false}),
- onLoad(){this._owner=context();this._disposed=false;this._avatarVersion=0;return this.loadProfile()},
+ data:deviceState({displayName:'',avatarDataUrl:'',loading:false,loaded:false,processing:false,saving:false,error:'',saved:false,onboarding:false}),
+ onLoad(options={}){this._owner=context();this._disposed=false;this._avatarVersion=0;this.setData({onboarding:String(options.onboarding||'')==='1'});return this.loadProfile()},
  onShow(){syncDevice(this);this.checkOwner()},
  onResize(){syncDevice(this)},
  onUnload(){this._disposed=true;this._avatarVersion++},

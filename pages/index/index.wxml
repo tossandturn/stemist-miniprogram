@@ -9,6 +9,11 @@
       <text class="entry-detail">{{item.detail}}</text>
     </button>
   </view>
+  <view wx:if="{{announcement || announcementLoading}}" class="home-announcement" bindtap="openAnnouncements" hover-class="home-announcement-pressed" hover-stay-time="100" role="button" aria-label="打开公告与更新">
+    <view class="home-announcement-head"><view><text class="home-announcement-label">公告与更新</text><text wx:if="{{announcementUnread}}" class="home-announcement-unread">新公告</text></view><text class="home-announcement-link">查看全部</text></view>
+    <view wx:if="{{announcementLoading}}" class="home-announcement-loading" role="status">正在读取最新公告…</view>
+    <block wx:else><text class="home-announcement-title">{{announcement.title}}</text><text class="home-announcement-summary">{{announcement.summary}}</text><text class="home-announcement-date">{{announcement.categoryLabel}} · {{announcement.publishedLabel}}</text></block>
+  </view>
   <view wx:if="{{entryError}}" class="error">{{entryError}}</view>
   <navigator class="home-account" url="/pages/account/auth">我的学习记录与账号</navigator>
   <button class="home-share secondary" open-type="share">分享给好友</button>

@@ -1,5 +1,6 @@
 .profile-page { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
 .profile-card { max-width: 560px; margin-left: auto; margin-right: auto; }
+.profile-eyebrow { margin-bottom: 8px; color: #5940bc; font-size: 14px; font-weight: 700; letter-spacing: .04em; }
 .profile-help { color: #536079; font-size: 15px; line-height: 1.6; margin: 12px 0; }
 .avatar-picker { display: flex; align-items: center; gap: 16px; width: 100%; padding: 16px; margin: 20px 0; color: #5940bc; background: #f0ecfc; font-size: 16px; text-align: left; border-radius: 16px; min-height: 104px; line-height: 1.5; }
 .profile-avatar { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; }
@@ -9,3 +10,4 @@
 .profile-card button { min-height: 48px; }
 .profile-card .error { word-break: break-word; }
 .profile-success { margin-top: 16px; color: #16735f; font-size: 16px; }
+.profile-skip { margin-top: 12px; color: #536079; }

@@ -1,6 +1,7 @@
 const {requestJson}=require('../../utils/api')
 const {imageMime}=require('../../utils/image')
 const MAX_AVATAR_BYTES=64*1024
+const ONBOARDING_KEY_PREFIX='stemistProfileOnboarding:'
 const context=()=>({ownerId:String(wx.getStorageSync('stemistUser')?.id||''),epoch:Number(wx.getStorageSync('stemistPrivacyEpoch'))||0})
 function isCurrent(started){const now=context();return !!wx.getStorageSync('stemistSessionToken')&&!!started.ownerId&&now.ownerId===started.ownerId&&now.epoch===started.epoch}
 function normalizeName(value){
@@ -21,6 +22,24 @@ function cacheProfile(started,profile){
  wx.setStorageSync('stemistUser',{...wx.getStorageSync('stemistUser'),displayName:profile.displayName,avatarDataUrl:profile.avatarDataUrl})
  return true
 }
+function onboardingKey(ownerId){return ONBOARDING_KEY_PREFIX+encodeURIComponent(String(ownerId||''))}
+function needsProfileCompletion(user){
+ const ownerId=String(user?.id||'').trim()
+ const displayName=String(user?.displayName||'').trim()
+ const avatarDataUrl=String(user?.avatarDataUrl||'').trim()
+ return !!ownerId&&(!displayName||!avatarDataUrl)
+}
+function shouldShowOnboarding(user){return needsProfileCompletion(user)&&wx.getStorageSync(onboardingKey(user.id))!=='shown'}
+function isWechatProfileSession(user){
+ const owner=String(user?.id||'').trim(),meta=wx.getStorageSync('stemistSessionMeta')||{}
+ return !!owner&&meta.kind==='wechat'&&String(meta.owner||'')===owner
+}
+function markOnboardingShown(ownerId){
+ const owner=String(ownerId||'').trim()
+ if(!owner||String(wx.getStorageSync('stemistUser')?.id||'')!==owner||!wx.getStorageSync('stemistSessionToken'))return false
+ wx.setStorageSync(onboardingKey(owner),'shown')
+ return true
+}
 const readBase64=filePath=>new Promise((resolve,reject)=>wx.getFileSystemManager().readFile({filePath,encoding:'base64',success:r=>resolve(String(r.data||'')),fail:()=>reject(new Error('头像读取失败，请重新选择。'))}))
 async function readAvatar(filePath){
  if(typeof filePath!=='string'||!filePath)throw new Error('请选择要使用的头像。')
@@ -38,4 +57,4 @@ async function readAvatar(filePath){
  }
  throw new Error('头像仍然过大，请换一张较小的图片。')
 }
-module.exports={context,isCurrent,normalizeName,profileRequest,cacheProfile,readAvatar,MAX_AVATAR_BYTES}
+module.exports={context,isCurrent,normalizeName,profileRequest,cacheProfile,readAvatar,MAX_AVATAR_BYTES,onboardingKey,needsProfileCompletion,shouldShowOnboarding,isWechatProfileSession,markOnboardingShown}

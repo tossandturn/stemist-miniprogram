@@ -2,6 +2,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { getJson } = require('../../utils/api')
 const { localLearningSummary } = require('../../utils/learningSummary')
 const { ensureWeChatSession } = require('../../utils/wechatAuth')
+const { announcementViews, fetchAnnouncements, ownerId } = require('../../utils/announcements')
 const ENTRY_POINTS = [
 {id:'alevel',title:'A-Level 学科',detail:'IGCSE · AS · A2',tone:'alevel',url:'/pages/practice/index?category=alevel'},
 {id:'ap',title:'AP',detail:'课程真题 · QP / MS 资料',tone:'ap',url:'/bundles/curricula/index?board=ap'},
@@ -21,6 +22,9 @@ entryError: '',
 wechatLoading: false,
 recentActivity: null,
 summary: { completedThisWeek: 0, draftCount: 0, submissionCount: 0 },
+announcement: null,
+announcementUnread: false,
+announcementLoading: false,
 }),
 onShow() {
 this.__disposed = false
@@ -36,12 +40,13 @@ aiStatus: token ? '检查中…' : '登录后使用 AI',
 recentActivity,
 summary: { completedThisWeek: token ? summary.completedThisWeek : 0, draftCount: drafts, submissionCount: token ? summary.submissions.length : 0 },
 })
+this.loadAnnouncementPreview()
 if (!token && !this.__wechatAutoAttempted) {
 this.__wechatAutoAttempted = true
 ensureWeChatSession({ silent: true }).then((result) => {
 if (this.__disposed || !result || !result.user) return
 const latest = localLearningSummary()
-this.setData({ user: result.user, aiStatus: '微信已登录 · AI 可用', summary: { completedThisWeek: latest.completedThisWeek, draftCount: latest.draftCount, submissionCount: latest.submissions.length } })
+this.setData({ user: result.user, aiStatus: '微信已登录 · AI 可用', summary: { completedThisWeek: latest.completedThisWeek, draftCount: latest.draftCount, submissionCount: latest.submissions.length } });this.loadAnnouncementPreview()
 }).catch(() => {})
 }
 getJson('/api/ai/status', { timeout: 6000 }).then((status) => {
@@ -53,6 +58,20 @@ this.setData({ aiStatus: connected ? (hasToken ? 'AI 已连接' : 'AI 服务已�
 },
 onUnload() { this.__disposed = true },
 onResize() { syncDevice(this) },
+async loadAnnouncementPreview() {
+const request = (this.__announcementRequest || 0) + 1
+this.__announcementRequest = request
+this.setData({ announcementLoading: true })
+try {
+const result = await fetchAnnouncements({ limit: 2 })
+if (this.__disposed || request !== this.__announcementRequest) return
+const currentOwner = ownerId()
+const items = announcementViews(result.items, currentOwner)
+this.setData({ announcement: items[0] || null, announcementUnread: items.some((item) => item.unread) })
+} catch {
+if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcement: null, announcementUnread: false })
+} finally { if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcementLoading: false }) }
+},
 async loginWechat() {
 if (this.data.wechatLoading) return
 if (wx.getStorageSync('stemistSessionToken')) return wx.navigateTo({ url: '/pages/account/auth' })
@@ -83,6 +102,7 @@ openPractice() { wx.navigateTo({ url: '/pages/practice/index' }) },
 openPapers() { wx.navigateTo({ url: '/pages/papers/index' }) },
 openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
 openCoach() { wx.navigateTo({ url: '/pages/coach/index' }) },
+openAnnouncements() { wx.navigateTo({ url: '/bundles/announcements/index' }) },
 openIelts(event) {
 const id = event.currentTarget.dataset.id
 wx.navigateTo({ url: `/pages/ielts/${id}` })

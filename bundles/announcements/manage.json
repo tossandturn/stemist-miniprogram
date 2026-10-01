@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "Stemist · 管理公告",
+  "enableShareAppMessage": true,
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
+  }
+}
