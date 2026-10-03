@@ -8,7 +8,7 @@ const problem=(code,message)=>Object.assign(Error(message),{code})
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
 const contentRange=s=>{const m=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(s);if(!m)return null;const n=m.slice(1).map(Number);return n.every(Number.isSafeInteger)?{start:n[0],end:n[1],total:n[2]}:null}
 
-function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expectedSha256='',onProgress=()=>{}}){
+function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expectedSha256='',onProgress=()=>{},onTemporary=()=>{}}){
  const root=String(wxApi.env?.USER_DATA_PATH||''),fs=wxApi.getFileSystemManager?.()
  if(!URL_OK.test(url)||/\.\.|%2e|%2f|%5c/i.test(url)||!root||!fs||!/^[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(fileName)||typeof wxApi.request!=='function'||!['writeFile','appendFile','readFile','statSync','mkdirSync','accessSync','unlink'].every(k=>typeof fs[k]==='function'))return null
  const folder=root+'/pdf-cache',owned=p=>typeof p==='string'&&p.startsWith(folder+'/')&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length+1))
@@ -66,6 +66,18 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
   if(expectedSha256){const hash=createSha256();for(let at=0;at<record.total;at+=CHUNK){check();const d=await read(record.path,at,Math.min(CHUNK,record.total-at));if(!d||!d.length)return false;hash.update(d)}return hash.digest()===expectedSha256}
   return true
  }
+ async function temporary(){
+  if(typeof wxApi.downloadFile!=='function')throw problem('pdf_storage_full','本机空间不足，请清理下载缓存后重试。')
+  onTemporary();onProgress(0,record.total)
+  const result=await new Promise((resolve,reject)=>{
+   let settled=false;const finish=(fn,value)=>{if(settled)return;settled=true;task=null;rejectRequest=null;fn(value)}
+   rejectRequest=e=>finish(reject,e)
+   try{task=wxApi.downloadFile({url,timeout:180000,success:r=>finish(resolve,r),fail:()=>finish(reject,problem('pdf_network','临时预览下载中断，请重试。'))});task?.onProgressUpdate?.(r=>{if(!settled&&!stopped)onProgress(Number(r.totalBytesWritten)||0,Number(r.totalBytesExpectedToWrite)||record.total)})}catch{finish(reject,problem('pdf_storage_full','临时文件未能准备，请重试。'))}
+  })
+  check();const p=String(result.tempFilePath||result.filePath||'')
+  if(Number(result.statusCode)!==200||!p||!await verify({path:p,total:record.total}))throw problem('pdf_integrity','临时 PDF 校验失败，请重新下载。')
+  check();onProgress(record.total,record.total);return p
+ }
  let record=registry().find(x=>x.key===key),restarts=0
  async function run(){
   try{
@@ -91,6 +103,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
    if(!await verify(record))throw problem('pdf_integrity','PDF 完整性校验失败，请重新下载。')
    check();return record.path
   }catch(error){
+   if(error?.code==='pdf_storage_full'&&record)return temporary()
    if(record&&record.offset===0){await unlink(record.path);record=null}
    if(['pdf_source_changed','pdf_invalid_range','pdf_checkpoint','pdf_integrity'].includes(error?.code)){forget(record);record=null;if(error.code==='pdf_source_changed'&&restarts++===0&&!stopped)return run()}
    throw error

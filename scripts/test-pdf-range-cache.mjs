@@ -90,3 +90,10 @@ console.log('Native PDF: bounded chunks, persisted resume, ETag restart, exact r
  assert.ok(quotaErrors>0);assert.deepEqual(h.files.get(path),source);assert.equal(h.files.has(oldPath),false,'storage pressure evicts only old public PDF cache')
  assert.deepEqual(h.files.get(studentPath),Buffer.alloc(100000,8),'student photos are never reclaimed as cache')
 }
+{
+ const h=harness(),manager=h.wx.getFileSystemManager(),student='/user/native-writing/student.jpg';h.files.set(student,Buffer.alloc(400000,7));let temporary=0
+ for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const used=[...h.files].filter(([p])=>p.startsWith('/user/')).reduce((n,[,b])=>n+b.length,0);if(used+o.data.byteLength>550000){queueMicrotask(()=>o.fail({errMsg:'file storage limit exceeded'}));return}original(o)}}
+ h.wx.downloadFile=o=>{temporary++;setImmediate(()=>{h.files.set('/tmp/native-pdf.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/native-pdf.pdf'})});return{abort(){},onProgressUpdate(){}}}
+ const p=await h.acquire().promise;assert.equal(p,'/tmp/native-pdf.pdf');assert.equal(temporary,1);assert.deepEqual(h.files.get(p),source)
+ assert.deepEqual(h.files.get(student),Buffer.alloc(400000,7));assert.ok(h.storage.get(h.module.REGISTRY)[0].offset<source.length,'temporary preview never claims a durable complete checkpoint')
+}
