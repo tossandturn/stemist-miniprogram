@@ -109,7 +109,7 @@ const rememberOpened=()=>{if(context.cacheAfterOpen&&sameIdentity(wxApi,context.
 const evictShared=()=>{if(context.cacheTarget?.shared&&sameIdentity(wxApi,context.identity))evict(context.cacheTarget,filePath)}
 let settled=false
 try{
-wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(current(context))publish({visible:true,phase:'opened',active:false,message:'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(current(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
+wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(current(context))publish({visible:true,phase:'opened',active:false,message:context.fromCache?'已从下载缓存打开':'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(current(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
 }catch(error){evictShared();return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}
 return true
 }
@@ -120,6 +120,11 @@ const percent=knownTotal?Math.max(0,Math.min(99,Number.isFinite(calculated)?calc
 return{downloadedBytes,totalBytes,downloadedLabel:formatBytes(downloadedBytes),totalLabel:knownTotal?formatBytes(totalBytes):'',knownTotal,percent,...metrics}
 }
 const setTransferPhase=(context,phase,saved=0,total=0)=>{
+if(['checking-cache','cached'].includes(phase)&&current(context)&&!context.networkSettled){
+clearProgress();context.metrics.reset();if(phase==='cached')context.fromCache=true
+publish({...progressState({totalBytesWritten:saved,totalBytesExpectedToWrite:total}),...NO_METRICS,visible:true,phase:'verifying',active:true,message:phase==='cached'?'已找到下载缓存，正在打开…':'正在读取已下载的'+context.request.label+'…',error:'',canCancel:true,canRetry:false,...(phase==='cached'?{percent:100}:{})})
+return true
+}
 if(!['connecting','downloading','verifying'].includes(phase)||!current(context)||context.networkSettled)return false
 clearProgress();context.metrics.reset()
 const metrics=phase==='downloading'?context.metrics.observe(saved,total):NO_METRICS
@@ -147,7 +152,7 @@ progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pen
 const startDownload=context=>{
 const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
 if(!current(context))return false
-context.metrics.reset();publish({visible:true,phase:'connecting',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在连接并确认'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
+context.metrics.reset();publish({visible:true,phase:'preparing',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
 const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
 if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
@@ -166,7 +171,7 @@ else remember(context.cacheTarget,filePath)
 const completedProgress=latestProgress.knownTotal&&latestProgress.totalBytes>0
 ?{...latestProgress,...NO_METRICS,downloadedBytes:latestProgress.totalBytes,downloadedLabel:formatBytes(latestProgress.totalBytes),percent:100}
 :{...latestProgress,...NO_METRICS,totalBytes:0,totalLabel:'',knownTotal:false,percent:null}
-publish({...completedProgress,visible:true,phase:'opening',active:true,message:'下载完成，正在打开…',error:'',canCancel:false,canRetry:false,collapsed:false})
+publish({...completedProgress,visible:true,phase:'opening',active:true,message:context.fromCache?'已找到下载缓存，正在打开…':'下载完成，正在打开…',error:'',canCancel:false,canRetry:false,collapsed:false})
 openLocal(context,filePath)
 }
 function failure(error){
@@ -178,6 +183,7 @@ const detail=['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf
 resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)
 fail(context,detail||(context.rangeBacked&&saved>0?'下载中断，已保存 '+formatBytes(saved)+(total?' / '+formatBytes(total):'')+'；点击重试继续下载。':'下载未完成，请检查网络后重试。'))
 }
+publish({phase:'connecting',message:'正在连接并确认'+context.request.label+'…'})
 try{downloadTask=wxApi.downloadFile({url:key,...(base&&file?{filePath:base+'/'+file}:{}),timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}
 progressListener=event=>queueProgress(context,event)
 if(typeof downloadTask?.onProgressUpdate==='function')try{downloadTask.onProgressUpdate(progressListener)}catch{}
@@ -195,7 +201,10 @@ invalidate(true);const context={generation,scope,identity:identitySnapshot(wxApi
 const target=cacheTarget(normalized,context.identity),entry=target?.store.get(target.key)
 const cached=entry&&now()>=entry.at&&now()-entry.at<=cacheTtlMs?entry.filePath:''
 if(entry&&!cached)target.store.delete(target.key)
-if(cached){
+// Owned persistent PDFs must go through the registry's size/digest validation,
+// rather than an in-memory temporary-path shortcut. This also survives pages/restarts.
+const cacheFolder=String(wxApi.env?.USER_DATA_PATH||'')+'/pdf-cache/'
+if(cached&&!cached.startsWith(cacheFolder)){
 publish({visible:true,phase:'preparing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false})
 if(await cachedFileExists(cached)){
 if(!current(context))return false

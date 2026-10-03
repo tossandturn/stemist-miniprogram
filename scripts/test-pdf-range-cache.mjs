@@ -42,6 +42,46 @@ function harness({data=source,failAt=-1,damage=false}={}){
  const count=h.requests.length,cache=h.acquire();assert.equal(await cache.promise,path);assert.equal(h.requests.length,count,'verified complete files survive controller recreation');cache.release()
 }
 {
+ const h=harness(),paths=[]
+ for(let index=0;index<6;index++){const handle=h.acquire({url:'https://stem.ieltsist.com/local-pdf/9702/cache-'+index+'.pdf',version:'catalog-v1',fileName:'cache-'+index+'.pdf'});paths.push(await handle.promise);handle.release()}
+ assert.ok(h.files.has(paths[0]),'downloading more than four papers must retain earlier complete files within the storage budget')
+ const requests=h.requests.length,phaseStart=h.phases.length
+ const fresh=miniRuntime({wx:h.wx}).load('utils/pdfRangeCache')
+ const reopened=fresh.acquirePdf({wxApi:h.wx,url:'https://stem.ieltsist.com/local-pdf/9702/cache-0.pdf',owner:'student-1|1',version:'catalog-v1',fileName:'cache-0.pdf',expectedBytes:source.length,expectedSha256:digest(source),onPhase:(phase,n,total)=>h.phases.push({phase,n,total})})
+ assert.equal(await reopened.promise,paths[0]);assert.equal(h.requests.length,requests,'a fresh runtime opens persisted complete papers without any HTTP or Range probe');reopened.release()
+ assert.ok(h.phases.some(item=>item.phase==='cached'),'a cache hit is distinguishable from downloading')
+ assert.ok(!h.phases.slice(phaseStart).some(item=>['connecting','downloading'].includes(item.phase)),'opening a complete cache file does not claim an HTTP connection or a new transfer')
+}
+{
+ const h=harness(),handle=h.acquire({expectedSha256:''}),path=await handle.promise;handle.release()
+ const saved=h.storage.get(h.module.REGISTRY)[0]
+ assert.equal(saved.sha256,digest(source),'public CIE PDFs also retain their verified local content digest')
+ const damaged=Buffer.from(h.files.get(path));damaged[20]^=1;h.files.set(path,damaged)
+ const calls=h.requests.length,again=h.acquire({expectedSha256:''}),repaired=await again.promise;again.release()
+ assert.ok(h.requests.length>calls,'same-size corrupted local files must be reacquired, not mistaken for a valid cache hit')
+ assert.deepEqual(h.files.get(repaired),source)
+}
+{
+ const h=harness(),c=h.r.load('utils/pdfDownload').createPdfDownloadController({wxApi:h.wx,onState:s=>h.phases.push({ui:s})})
+ const req={url:URL,scope:'cached-file',fileName:'AP_Cached_QP.pdf',cacheVersion:'sha-v1',expectedBytes:source.length,sha256:digest(source),ownerKey:'cached:qp',itemId:'cached'}
+ c.setScope(req.scope);await c.open(req);await waitFor(()=>c.getState().phase==='opened');c.dispose()
+ const requestCount=h.requests.length
+ const second=miniRuntime({wx:h.wx}).load('utils/pdfDownload').createPdfDownloadController({wxApi:h.wx,onState:s=>h.phases.push({cachedUi:s})})
+ second.setScope(req.scope);await second.open(req);await waitFor(()=>second.getState().phase==='opened')
+ assert.equal(h.requests.length,requestCount)
+ assert.match(second.getState().message,/缓存/,'students see that a complete saved paper was opened from local cache')
+ assert.equal(second.getState().percent,100);second.dispose()
+}
+{
+ const h=harness(),create=h.r.load('utils/pdfDownload').createPdfDownloadController,c=create({wxApi:h.wx})
+ const req={url:'https://stem.ieltsist.com/local-pdf/9702/hot-cache.pdf',scope:'hot-cache',cacheKey:'https://stem.ieltsist.com/local-pdf/9702/hot-cache.pdf',cacheScope:'public',cacheVersion:'v1',fileName:'hot-cache.pdf',expectedBytes:source.length,ownerKey:'hot:qp',itemId:'hot'}
+ c.setScope(req.scope);await c.open(req);await waitFor(()=>c.getState().phase==='opened')
+ const first=h.opens.at(-1).filePath,damaged=Buffer.from(h.files.get(first));damaged[20]^=1;h.files.set(first,damaged)
+ const before=h.requests.length;await c.open(req);await waitFor(()=>c.getState().phase==='opened')
+ assert.ok(h.requests.length>before,'even a same-page CIE memory reference cannot bypass persisted PDF digest validation')
+ assert.deepEqual(h.files.get(h.opens.at(-1).filePath),source);c.dispose()
+}
+{
  const h=harness({failAt:2});await assert.rejects(h.acquire().promise);const alternate=Buffer.from(source);alternate[30]=7;h.setData(alternate);const attempts=h.requests.length;h.setFail(-1)
  const path=await h.acquire().promise;assert.deepEqual(h.files.get(path),alternate);assert.equal(h.requests[attempts+1].start,5,'a changed ETag safely restarts before appending new data')
 }
@@ -96,7 +136,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
 {
  const h=harness(),privatePath='/user/native-writing/private-answer.jpg',partials=[]
  h.files.set(privatePath,Buffer.alloc(64,9))
- for(let i=0;i<4;i++){const path=`/user/pdf-cache/pdf-count-${i}/paused-${i}.pdf`,record={schema:1,key:`foreign-count-${i}`,owner:`other-${i}|1`,url:URL,version:`partial-${i}`,path,total:source.length,offset:100+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,i+1))}
+ for(let i=0;i<h.module.PDF_CACHE_LIMITS.files;i++){const path=`/user/pdf-cache/pdf-count-${i}/paused-${i}.pdf`,record={schema:1,key:`foreign-count-${i}`,owner:`other-${i}|1`,url:URL,version:`partial-${i}`,path,total:source.length,offset:100+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,i+1))}
  h.storage.set(h.module.REGISTRY,partials)
  await h.acquire({owner:'current-owner|1',version:'count-pressure',fileName:'count-pressure.pdf'}).promise
  const saved=h.storage.get(h.module.REGISTRY)
@@ -105,26 +145,26 @@ function harness({data=source,failAt=-1,damage=false}={}){
 }
 {
  const h=harness(),partials=[],completedPath='/user/pdf-cache/pdf-complete/completed.pdf'
- for(let i=0;i<3;i++){const path=`/user/pdf-cache/pdf-safe-partial-${i}/paused-${i}.pdf`,record={schema:1,key:`safe-partial-${i}`,owner:`paused-${i}|1`,url:URL,version:`partial-${i}`,path,total:source.length,offset:200+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,4))}
+ for(let i=0;i<h.module.PDF_CACHE_LIMITS.files-1;i++){const path=`/user/pdf-cache/pdf-safe-partial-${i}/paused-${i}.pdf`,record={schema:1,key:`safe-partial-${i}`,owner:`paused-${i}|1`,url:URL,version:`partial-${i}`,path,total:source.length,offset:200+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,4))}
  const completed={schema:1,key:'safe-completed',owner:'completed-owner|1',url:URL,version:'complete',path:completedPath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:99}
  h.files.set(completedPath,Buffer.from(source));h.storage.set(h.module.REGISTRY,[...partials,completed])
  await h.acquire({owner:'current-owner|1',version:'safe-reclaim',fileName:'safe-reclaim.pdf'}).promise
  assert.equal(h.files.has(completedPath),false,'record-count pressure evicts a nonactive completed cache even when partials are older')
  for(const record of partials)assert.equal(h.files.has(record.path),true,'bounded completed-cache reclamation never substitutes an older partial')
- assert.equal(h.storage.get(h.module.REGISTRY).length,4,'completed-only reclamation keeps the record limit when a safe candidate exists')
+ assert.equal(h.storage.get(h.module.REGISTRY).length,h.module.PDF_CACHE_LIMITS.files,'completed-only reclamation keeps the record limit when a safe candidate exists')
 }
 {
- const h=harness(),partials=[],partialSize=2200000,total=3000000
+ const h=harness(),partials=[],partialSize=9*1024*1024,total=10*1024*1024
  for(let i=0;i<4;i++){const path=`/user/pdf-cache/pdf-budget-${i}/paused-${i}.pdf`,record={schema:1,key:`foreign-budget-${i}`,owner:`budget-owner-${i}|1`,url:URL,version:`budget-${i}`,path,total,offset:partialSize,etag:'"budget-'+i+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(partialSize,i+1))}
  h.storage.set(h.module.REGISTRY,partials)
  await h.acquire({owner:'current-owner|1',version:'budget-pressure',fileName:'budget-pressure.pdf'}).promise
  const saved=h.storage.get(h.module.REGISTRY)
- for(const record of partials){assert.equal(h.files.has(record.path),true,'8 MiB soft-budget pressure must not delete paused foreign bytes');assert.ok(saved.some(item=>item.key===record.key),'soft-budget overflow keeps resumable foreign metadata')}
+ for(const record of partials){assert.equal(h.files.has(record.path),true,'32 MiB soft-budget pressure must not delete paused foreign bytes');assert.ok(saved.some(item=>item.key===record.key),'soft-budget overflow keeps resumable foreign metadata')}
 }
 {
  const h=harness(),activePath='/user/pdf-cache/pdf-active/active.pdf',activeRecord={schema:1,key:'active-owner|1|'+URL+'|active',owner:'active-owner|1',url:URL,version:'active',path:activePath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:0},partials=[]
  h.files.set(activePath,Buffer.from(source))
- for(let i=0;i<3;i++){const path=`/user/pdf-cache/pdf-active-partial-${i}/paused-${i}.pdf`,record={schema:1,key:`active-partial-${i}`,owner:`paused-owner-${i}|1`,url:URL,version:`p-${i}`,path,total:source.length,offset:100+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,3))}
+ for(let i=0;i<h.module.PDF_CACHE_LIMITS.files-1;i++){const path=`/user/pdf-cache/pdf-active-partial-${i}/paused-${i}.pdf`,record={schema:1,key:`active-partial-${i}`,owner:`paused-owner-${i}|1`,url:URL,version:`p-${i}`,path,total:source.length,offset:100+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,3))}
  h.storage.set(h.module.REGISTRY,[activeRecord,...partials]);h.holdReadFor(activePath)
  const active=h.acquire({owner:'active-owner|1',version:'active',fileName:'active.pdf'});await waitFor(()=>h.readHeld)
  const incoming=h.acquire({owner:'incoming-owner|1',version:'incoming',fileName:'incoming.pdf'});await incoming.promise

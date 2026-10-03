@@ -1,5 +1,6 @@
 const {createSha256}=require('./sha256')
-const REGISTRY='stemistPdfRanges',CHUNK=128*1024,MAX_FILE=32*1024*1024,MAX_FILES=4,MAX_BYTES=8*1024*1024
+const REGISTRY='stemistPdfRanges',CHUNK=128*1024,MAX_FILE=32*1024*1024,MAX_FILES=64,MAX_BYTES=32*1024*1024
+const PDF_CACHE_LIMITS=Object.freeze({files:MAX_FILES,bytes:MAX_BYTES})
 const activePdfFiles=new WeakMap()
 const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/file-[a-f0-9]{32}|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
 const header=(h,n)=>{const k=Object.keys(h||{}).find(k=>k.toLowerCase()===n.toLowerCase());return k===undefined?'':String(h[k]).trim()}
@@ -80,10 +81,13 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
   }
  }
  async function verify(record){
+  if(expectedBytes&&record.total!==expectedBytes)return false
   if(size(record.path)!==record.total)return false
   const head=await read(record.path,0,5);if(!head||String.fromCharCode(...head)!=='%PDF-')return false
-  if(expectedSha256){const hash=createSha256();for(let at=0;at<record.total;at+=CHUNK){check();const d=await read(record.path,at,Math.min(CHUNK,record.total-at));if(!d||!d.length)return false;hash.update(d)}return hash.digest()===expectedSha256}
-  return true
+  const expected=expectedSha256||record.sha256||'',hash=createSha256()
+  for(let at=0;at<record.total;at+=CHUNK){check();const length=Math.min(CHUNK,record.total-at),d=await read(record.path,at,length);if(!d||d.length!==length)return false;hash.update(d)}
+  const actual=hash.digest();if(expected&&actual!==expected)return false
+  record.sha256=actual;return true
  }
  async function temporary(){
   if(typeof wxApi.downloadFile!=='function')throw problem('pdf_storage_full','本机空间不足，请清理下载缓存后重试。')
@@ -105,9 +109,9 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  async function run(){
   try{
    check()
-   phase('connecting',record?.offset||0,record?.total||expectedBytes||0)
    if(record&&size(record.path)!==record.offset){forget(record);record=null}
-   if(record?.offset===record?.total&&record){phase('verifying',record.total,record.total);if(await verify(record)){check();put({...record,used:Date.now()});progress(record.total,record.total);return record.path}forget(record);record=null;phase('connecting',0,expectedBytes||0)}
+   if(record?.offset===record?.total&&record){phase('checking-cache',record.total,record.total);if(await verify(record)){check();put({...record,used:Date.now()});phase('cached',record.total,record.total);progress(record.total,record.total);return record.path}forget(record);record=null}
+   phase('connecting',record?.offset||0,record?.total||expectedBytes||0)
    const probe=await segment(0,4);check()
    if(String.fromCharCode(...probe.data)!=='%PDF-')throw problem('pdf_integrity','下载内容不是完整 PDF。')
    if(record&&(record.etag!==probe.etag||record.total!==probe.total)){forget(record);record=null}
@@ -127,7 +131,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
    }
    phase('verifying',record.total,record.total)
    if(!await verify(record))throw problem('pdf_integrity','PDF 完整性校验失败，请重新下载。')
-   check();return record.path
+   check();put({...record,used:Date.now()});return record.path
   }catch(error){
    if(error?.code==='pdf_storage_full'&&record)return temporary()
    if(record&&record.offset===0){await unlink(record.path);record=null}
@@ -139,4 +143,4 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  const promise=run().finally(()=>{clearTimeout(hard);for(const p of reservations){const count=(active.get(p)||1)-1;if(count)active.set(p,count);else active.delete(p)}})
  return{promise,release(){if(stopped)return;stopped=true;const active=task;rejectRequest?.(problem('pdf_cancelled','已暂停下载。'));active?.abort?.()},invalidate(){forget(record)}}
 }
-module.exports={acquirePdf,reclaimCompletedPublicPdfs,REGISTRY}
+module.exports={acquirePdf,reclaimCompletedPublicPdfs,REGISTRY,PDF_CACHE_LIMITS}
