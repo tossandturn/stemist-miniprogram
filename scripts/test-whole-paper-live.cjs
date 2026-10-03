@@ -50,7 +50,8 @@ async function main(){
  try{
   // Warm the newly compiled native view before the automator's navigation
   // command: otherwise a cold Developer Tools window can have no page meta.
-  await evaluate(function(){return new Promise((resolve,reject)=>wx.reLaunch({url:'/pages/index/index',success:()=>resolve(true),fail:()=>reject(Error('Native Home initialization failed'))}))})
+  await evaluate(function(){wx.reLaunch({url:'/pages/index/index'});return true})
+  await until(function(){return getCurrentPages().at(-1)?.route==='pages/index/index'},'Home initialized')
   await account.begin()
   console.log(JSON.stringify({phase:'isolated-account-ready'}))
   // The marking service lives in a WeChat subpackage; loading Home alone does
@@ -102,7 +103,7 @@ async function main(){
    if(q.progress.at(-1)?.stage!==p.stage)q.progress.push({stage:p.stage,phase:p.phase,elapsedSeconds:p.elapsedSeconds,isEstimate:p.isEstimate,estimatedRemainingSeconds:p.estimatedRemainingSeconds,completedPages:p.completedPages,totalPages:p.totalPages})
    if(!['completed','failed'].includes(value.status))return null
    q.job=value
-   const questionEvidence=(value.result?.questionResults||[]).map(r=>({questionId:r.questionId,score:r.score,maxScore:r.maxScore,scoreReady:r.scoreReady,feedback:r.feedback,sourceEvidence:r.sourceEvidence,markingCriteria:r.markingCriteria,criteria:r.criteria}))
+   const questionEvidence=(value.result?.questionResults||[]).map(r=>({questionLabel:r.questionLabel,provisionalScore:r.provisionalScore,maxScore:r.maxScore,rationale:r.rationale,evidence:r.evidence,criteria:r.criteria}))
    return {status:value.status,failureCode:value.failureCode||'',states:q.states,progress:q.progress,mode:value.result?.assessmentMode,score:value.result?.provisionalScore,maxScore:value.result?.maxScore,questionCount:value.result?.questionResults?.length||0,scoreReady:value.result?.scoreReady,missingPages:value.result?.missingPages||[],missingQuestions:value.result?.missingQuestions||[],questionEvidence}
   },'live whole-paper report',220000)
   fs.writeFileSync(path.join(output,'whole-paper-observed.json'),JSON.stringify(job,null,2),'utf8')
