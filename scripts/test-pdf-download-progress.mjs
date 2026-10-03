@@ -88,16 +88,8 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  named.controller.dispose()
 }
 
-{
- const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']]),chunks=[],opens=[],states=[]
- let requestCount=0,requestFail=true,writeBytes=0
- const manager={writeFile({filePath,data,success}){writeBytes+=data.byteLength;success()},appendFile({filePath,data,success}){writeBytes+=data.byteLength;success()}}
- const wxApi={env:{USER_DATA_PATH:'/user'},getStorageSync:key=>storage.get(key),getFileSystemManager:()=>manager,request(options){requestCount++;chunks.push(options);const body=new Uint8Array(400);if(requestCount===1)return options.success({statusCode:206,header:{'Content-Range':'bytes 0-399/800'},data:body.buffer});if(requestFail)return options.fail({errMsg:'timeout'});return options.success({statusCode:206,header:{'Content-Range':'bytes 400-799/800'},data:body.buffer})},openDocument(options){opens.push(options);options.success?.()}}
- const clock=manualClock(),controller=createPdfDownloadController({wxApi,onState:s=>states.push(s),isScopeCurrent:()=>true,now:clock.now,setTimer:clock.setTimer,clearTimer:clock.clearTimer})
- const wait=()=>new Promise(resolve=>setTimeout(resolve,20));controller.setScope('resume');await controller.open({...request('resume'),scope:'resume'});await wait();assert.equal(requestCount,2);assert.equal(writeBytes,400);assert.equal(controller.getState().downloadedBytes,400);assert.match(controller.getState().error,/已保留进度/)
- requestFail=false;await controller.retry();await wait();assert.equal(requestCount,3,'retry must request only the missing suffix');assert.equal(chunks[2].header.Range,'bytes=400-');assert.equal(writeBytes,800);assert.equal(opens.length,1);assert.equal(controller.getState().phase,'opened');controller.dispose()
- assert.equal(opens[0].filePath,'/user/9702_resume.pdf','Range downloads also open a readable name without an internal partial prefix')
-}
+// Binary Range/resume coverage uses real-sized PDF bodies, persistent files,
+// validators and corruption cases in test-pdf-range-cache.mjs.
 
 {
  const h=controllerHarness();h.setScope('scope-a')

@@ -24,7 +24,7 @@
     "test:navigation-shell": "node scripts/test-navigation-shell.mjs",
     "test:paper-catalog": "node scripts/test-paper-catalog.mjs && node scripts/test-paper-page-service.mjs && node scripts/test-paper-filters.mjs && node scripts/test-paper-source-mapping.mjs && node scripts/test-native-topic-directory.mjs && node scripts/test-ielts-topic-integrity.mjs && node scripts/test-ielts-shared-topics.mjs",
     "test:curricula": "node scripts/test-curriculum-papers-client.mjs",
-    "test:pdf-download": "node scripts/test-pdf-download-progress.mjs",
+    "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs",
     "test:learning-summary": "node scripts/test-learning-summary.mjs",
     "test:webview-policy": "node scripts/test-webview-policy.mjs",
     "test:responsive": "node scripts/test-responsive-contract.mjs",

@@ -1,4 +1,5 @@
 const DEFAULT_THROTTLE_MS=100
+const {acquirePdf}=require('./pdfRangeCache')
 const DEFAULT_CACHE_LIMIT=4
 const DEFAULT_CACHE_TTL_MS=5*60*1000
 const sharedPublicCaches=new WeakMap()
@@ -41,10 +42,12 @@ const clearTimer=typeof options.clearTimer==='function'?options.clearTimer:clear
 const throttleMs=Math.max(80,Number(options.throttleMs)||DEFAULT_THROTTLE_MS)
 const cacheLimit=Math.max(1,Math.min(8,Number(options.cacheLimit)||DEFAULT_CACHE_LIMIT))
 const cacheTtlMs=Math.max(1000,Math.min(30*60*1000,Number(options.cacheTtlMs)||DEFAULT_CACHE_TTL_MS))
-const cache=new Map(),partials=new Map()
+const cache=new Map()
 let publicCache=sharedPublicCaches.get(wxApi)
 if(!publicCache){publicCache=new Map();sharedPublicCaches.set(wxApi,publicCache)}
-let state=initialPdfDownloadState(),scope='',scopeIdentity=identitySnapshot(wxApi),disposed=false,generation=0,downloadTask=null,progressListener=null,progressTimer=null,pendingProgress=null,lastProgressAt=null,lastRequest=null
+let state=initialPdfDownloadState(),scope='',scopeIdentity=identitySnapshot(wxApi),disposed=false,generation=0,downloadTask=null,rangeDownload=null,progressListener=null,progressTimer=null,pendingProgress=null,lastProgressAt=null,lastRequest=null,resumeOnShow=false,resumeOnNetwork=false
+const networkChanged=event=>{if(!disposed&&event?.isConnected&&resumeOnNetwork&&state.phase==='error'&&lastRequest){resumeOnNetwork=false;retry()}}
+wxApi.onNetworkStatusChange?.(networkChanged)
 
 const snapshot=()=>({...state})
 const publish=patch=>{state={...state,...patch};if(!disposed)onState(snapshot());return snapshot()}
@@ -56,6 +59,7 @@ const clearProgress=()=>{if(progressTimer!==null)clearTimer(progressTimer);progr
 const detachTask=abort=>{
 const task=downloadTask,listener=progressListener
 downloadTask=null;progressListener=null;clearProgress()
+if(rangeDownload){if(abort)rangeDownload.release();rangeDownload=null}
 if(listener&&typeof task?.offProgressUpdate==='function')try{task.offProgressUpdate(listener)}catch{}
 if(abort&&typeof task?.abort==='function')try{task.abort()}catch{}
 }
@@ -128,14 +132,13 @@ if(progressTimer!==null)return
 progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pendingProgress=null;if(pending)emitProgress(context,pending)},Math.max(0,throttleMs-elapsed))
 }
 const startDownload=context=>{
-const manager=wxApi.getFileSystemManager?.(),key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
-if(typeof wxApi.request==='function'&&manager?.writeFile&&manager?.appendFile&&base&&file){
-const part=partials.get(key)||{path:base+'/'+file,bytes:0,total:0};partials.set(key,part)
-const run=()=>{if(!current(context))return;const start=part.bytes;publish({visible:true,phase:'downloading',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在续传'+context.request.label+'…',error:'',downloadedBytes:start,totalBytes:part.total,canCancel:true,canRetry:false});try{downloadTask=wxApi.request({url:key,method:'GET',header:{Range:'bytes='+start+'-'},responseType:'arraybuffer',timeout:30000,success:r=>{if(context.networkSettled||!current(context))return;const data=r?.data,n=Number(data?.byteLength)||0,status=Number(r?.statusCode||0);if(!n)return failure({errMsg:'empty response'});const h=r.header||{},cr=h['Content-Range']||h['content-range']||'',cl=h['Content-Length']||h['content-length'];if(start&&status===200){part.bytes=0;part.total=n}if(status!==200&&status!==206)return failure({errMsg:'HTTP '+status});if(!part.total)part.total=Number(cr.match(/\/(\d+)$/)?.[1]||cl||0);const method=part.bytes?'appendFile':'writeFile';manager[method]({filePath:part.path,data,success:()=>{part.bytes+=n;queueProgress(context,{totalBytesWritten:part.bytes,totalBytesExpectedToWrite:part.total});if(part.total&&part.bytes>=part.total)success({statusCode:200,tempFilePath:part.path});else run()},fail:failure})},fail:failure})}catch{failure({errMsg:'request failed'})}}
-Promise.resolve().then(run);return true
-}
+const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
 if(!current(context))return false
 publish({visible:true,phase:'downloading',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在下载'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:true,canRetry:false,collapsed:false})
+if(file){
+const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total})})
+if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
+}
 function success(result){
 if(context.networkSettled||!current(context))return
 context.networkSettled=true
@@ -156,8 +159,11 @@ openLocal(context,filePath)
 function failure(error){
 if(context.networkSettled||!current(context))return
 context.networkSettled=true
-const message=/timeout/i.test(String(error?.errMsg||error?.message||''))?'下载超时，已保留进度，点击重试可续传。':'下载中断，已保留进度，点击重试可续传。'
-fail(context,message)
+if(pendingProgress)publish(pendingProgress)
+const saved=state.downloadedBytes,total=state.totalBytes
+const detail=['pdf_domain','pdf_storage','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
+resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)
+fail(context,detail||(context.rangeBacked&&saved>0?'下载中断，已保存 '+formatBytes(saved)+(total?' / '+formatBytes(total):'')+'；点击重试继续下载。':'下载未完成，请检查网络后重试。'))
 }
 try{downloadTask=wxApi.downloadFile({url:key,...(base&&file?{filePath:base+'/'+file}:{}),timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}
 progressListener=event=>queueProgress(context,event)
@@ -166,7 +172,7 @@ return true
 }
 
 async function open(request={}){
-const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),cacheScope:['public','none'].includes(request.cacheScope)?request.cacheScope:'identity',cacheVersion:/^[^\s?#&]{1,160}$/.test(String(request.cacheVersion||''))?String(request.cacheVersion):'',ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),fileName:safePdfFileName(request.fileName),scope:String(request.scope===undefined?scope:request.scope)}
+const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),cacheScope:['public','none'].includes(request.cacheScope)?request.cacheScope:'identity',cacheVersion:/^[^\s?#&]{1,160}$/.test(String(request.cacheVersion||''))?String(request.cacheVersion):'',ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),fileName:safePdfFileName(request.fileName),expectedBytes:Number.isSafeInteger(Number(request.expectedBytes))?Number(request.expectedBytes):0,sha256:/^[a-f0-9]{64}$/.test(String(request.sha256||''))?String(request.sha256):'',scope:String(request.scope===undefined?scope:request.scope)}
 if(!/^https:\/\/[^\s]+$/i.test(normalized.url)){
 lastRequest=null;publish({...initialPdfDownloadState(),visible:true,phase:'error',error:'PDF 地址不可用。'});return false
 }
@@ -192,17 +198,18 @@ return startDownload(context)
 function setScope(value){
 const next=String(value||'')
 if(next===scope&&sameIdentity(wxApi,scopeIdentity))return
-invalidate(true);scope=next;scopeIdentity=identitySnapshot(wxApi);lastRequest=null;state=initialPdfDownloadState();if(!disposed)onState(snapshot())
+invalidate(true);scope=next;scopeIdentity=identitySnapshot(wxApi);lastRequest=null;resumeOnShow=false;resumeOnNetwork=false;state=initialPdfDownloadState();if(!disposed)onState(snapshot())
 }
 function cancel(){
 if(!state.active||!lastRequest)return false
-const request=lastRequest;invalidate(true);publish({...initialPdfDownloadState(),visible:true,phase:'cancelled',ownerKey:request.ownerKey,itemId:request.itemId,label:request.label,message:'已取消下载',canRetry:true});return true
+const request=lastRequest;resumeOnNetwork=false;resumeOnShow=false;invalidate(true);publish({...initialPdfDownloadState(),visible:true,phase:'cancelled',ownerKey:request.ownerKey,itemId:request.itemId,label:request.label,message:'已取消下载',canRetry:true});return true
 }
 function retry(){if(state.active||!lastRequest)return Promise.resolve(false);return open({...lastRequest,scope})}
 function toggleCollapsed(){if(!state.visible)return false;publish({collapsed:!state.collapsed});return true}
-function suspend(){invalidate(true);lastRequest=null;state=initialPdfDownloadState();if(!disposed)onState(snapshot())}
-function dispose(){if(disposed)return;disposed=true;invalidate(true);lastRequest=null;state=initialPdfDownloadState()}
-return{open,setScope,cancel,retry,toggleCollapsed,suspend,dispose,getState:snapshot,cacheSize:()=>cache.size}
+function suspend(){const resumable=state.phase==='downloading'&&Boolean(lastRequest);invalidate(true);resumeOnShow=resumable;if(resumable){publish({phase:'paused',active:false,message:'已暂停，返回后继续下载。',canCancel:false,canRetry:true})}else{lastRequest=null;state=initialPdfDownloadState();if(!disposed)onState(snapshot())}}
+function resume(){if(disposed||!resumeOnShow||!lastRequest)return false;resumeOnShow=false;return retry()}
+function dispose(){if(disposed)return;disposed=true;wxApi.offNetworkStatusChange?.(networkChanged);invalidate(true);lastRequest=null;state=initialPdfDownloadState()}
+return{open,setScope,cancel,retry,toggleCollapsed,suspend,resume,dispose,getState:snapshot,cacheSize:()=>cache.size}
 }
 
 module.exports={createPdfDownloadController,formatBytes,initialPdfDownloadState,pdfFileName,safePdfFileName}
