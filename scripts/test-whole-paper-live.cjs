@@ -127,7 +127,7 @@ async function main(){
   fs.writeFileSync(path.join(output,'whole-paper-live.json'),JSON.stringify(result,null,2),'utf8')
   console.log(JSON.stringify(result))
  }finally{
-  await evaluate(function(){const app=getApp(),q=app.__wholePaperLive;if(!q)return true;const manager=wx.getFileSystemManager(),partial=q.scope&&wx.getStorageSync('stemistDraft:whole-paper-download:'+q.scope.owner);const extra=partial?.owner===q.scope?.owner&&partial?.epoch===q.scope?.epoch&&typeof partial.filePath==='string'?[partial.filePath]:[];for(const file of [...q.ownedPaths,...q.reports,...extra])manager.unlink({filePath:file,success(){},fail(){}});delete app.__wholePaperLive;return true}).catch(()=>{})
+  await evaluate(function(){const app=getApp(),q=app.__wholePaperLive;if(!q)return true;const manager=wx.getFileSystemManager(),partial=q.scope&&wx.getStorageSync('stemistDraft:whole-paper-download:'+q.scope.owner);const extra=partial&&q.scope&&partial.owner===q.scope.owner&&partial.epoch===q.scope.epoch&&typeof partial.filePath==='string'?[partial.filePath]:[];for(const file of [...q.ownedPaths,...q.reports,...extra])manager.unlink({filePath:file,success(){},fail(){}});delete app.__wholePaperLive;return true}).catch(()=>{})
   await account.end()
  }
 }
