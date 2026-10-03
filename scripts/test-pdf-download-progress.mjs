@@ -31,7 +31,7 @@ page.setData({mode:'exam-simulation'});page.openPdf({currentTarget:{dataset:{id:
 page.onUnload()
 
 const {createPdfDownloadController,initialPdfDownloadState}=miniRuntime().load('utils/pdfDownload')
-assert.deepEqual(Object.keys(initialPdfDownloadState()).sort(),['active','canCancel','canRetry','collapsed','downloadedBytes','downloadedLabel','error','itemId','knownTotal','label','message','ownerKey','percent','phase','totalBytes','totalLabel','visible'].sort())
+assert.deepEqual(Object.keys(initialPdfDownloadState()).sort(),['active','canCancel','canRetry','collapsed','downloadedBytes','downloadedLabel','error','etaSeconds','itemId','knownTotal','label','message','ownerKey','percent','phase','remainingLabel','speedLabel','totalBytes','totalLabel','visible'].sort())
 
 function manualClock(){
  let time=1000,id=0
@@ -65,6 +65,32 @@ function controllerHarness({openDocument=true,cacheLimit=4}={}){
  return {controller,downloads,opens,states,storage,clock,wxApi,get state(){return controller.getState()},setScope(value){scope=value;controller.setScope(value)},setCachedPathExists(value){cachedPathExists=value}}
 }
 
+const {createDownloadMetrics}=miniRuntime().load('utils/downloadMetrics')
+const MIB=1024*1024
+{
+ let time=0
+ const metrics=createDownloadMetrics({now:()=>time})
+ let value=metrics.observe(4*MIB,8*MIB)
+ assert.equal(value.etaSeconds,null);assert.equal(value.speedLabel,'');assert.equal(value.remainingLabel,'','a resumed offset establishes a baseline and is not counted as newly downloaded')
+ time+=500;value=metrics.observe(4.5*MIB,8*MIB)
+ assert.equal(value.speedLabel,'','one short sample is too little evidence for a speed estimate')
+ time+=500;value=metrics.observe(5*MIB,8*MIB)
+ assert.match(value.speedLabel,/^约 /);assert.match(value.remainingLabel,/^预计剩余 /);assert.ok(value.etaSeconds>=2&&value.etaSeconds<=4,'ETA uses only bytes observed after the resumed baseline')
+ metrics.reset();time+=1000;metrics.observe(10*MIB,0);time+=500;metrics.observe(10.5*MIB,0);time+=500;value=metrics.observe(11*MIB,0)
+ assert.match(value.speedLabel,/^约 /,'observed speed remains measurable without a server total');assert.equal(value.etaSeconds,null);assert.equal(value.remainingLabel,'','an unknown total never fabricates remaining time')
+ time+=1000;value=metrics.observe(11.5*MIB,20*MIB)
+ assert.equal(value.etaSeconds,null);assert.equal(value.speedLabel,'');assert.equal(value.remainingLabel,'','a newly known or changed total rebases the estimate')
+}
+{
+ let time=0
+ const metrics=createDownloadMetrics({now:()=>time})
+ metrics.observe(0,20*MIB)
+ time+=1000;metrics.observe(1*MIB,20*MIB);time+=1000;let fast=metrics.observe(2*MIB,20*MIB)
+ for(let index=0;index<4;index++){time+=1000;var slow=metrics.observe(2*MIB+(index+1)*256*1024,20*MIB)}
+ assert.ok(slow.etaSeconds>fast.etaSeconds,'bounded rate samples adapt when the active transfer slows down')
+ metrics.reset();time+=1000;assert.equal(metrics.observe(12*MIB,20*MIB).speedLabel,'','pause/retry reset rebases instead of counting the old offset')
+}
+
 const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${suffix}.pdf`,ownerKey:`paper-${suffix}:qp`,itemId:`paper-${suffix}`,label:'原卷',scope:`scope-${suffix}`})
 
 {
@@ -95,6 +121,7 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  const h=controllerHarness();h.setScope('scope-a')
  await h.controller.open(request('a'))
  const task=h.downloads[0]
+ assert.equal(h.state.phase,'connecting');assert.equal(h.state.speedLabel,'');assert.equal(h.state.etaSeconds,null)
  assert.equal(typeof task.progress,'function')
  const before=h.states.length
  const lateProgress=task.progress;task.progress({progress:40,totalBytesWritten:400,totalBytesExpectedToWrite:1000})
@@ -110,9 +137,29 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
 }
 
 {
+ const h=controllerHarness();h.setScope('scope-m');await h.controller.open(request('m'));const task=h.downloads[0]
+ task.progress({totalBytesWritten:1*MIB,totalBytesExpectedToWrite:8*MIB})
+ h.clock.tick(1000);task.progress({totalBytesWritten:2*MIB,totalBytesExpectedToWrite:8*MIB})
+ h.clock.tick(1000);task.progress({totalBytesWritten:3*MIB,totalBytesExpectedToWrite:8*MIB})
+ assert.match(h.state.speedLabel,/^约 /);assert.match(h.state.remainingLabel,/^预计剩余 /);assert.ok(h.state.etaSeconds>0)
+ task.options.success({statusCode:200,tempFilePath:'wxfile://metrics.pdf'})
+ assert.equal(h.state.phase,'opening');assert.equal(h.state.speedLabel,'');assert.equal(h.state.remainingLabel,'');assert.equal(h.state.etaSeconds,null,'non-download phases do not retain stale estimates')
+}
+
+{
+ const h=controllerHarness();h.setScope('scope-background-rate');await h.controller.open({...request('background-rate'),scope:'scope-background-rate'});const first=h.downloads[0]
+ first.progress({totalBytesWritten:1*MIB,totalBytesExpectedToWrite:8*MIB});h.clock.tick(1000);first.progress({totalBytesWritten:2*MIB,totalBytesExpectedToWrite:8*MIB});h.clock.tick(1000);first.progress({totalBytesWritten:3*MIB,totalBytesExpectedToWrite:8*MIB});assert.ok(h.state.speedLabel)
+ h.controller.suspend();assert.equal(h.state.phase,'paused');assert.equal(h.state.speedLabel,'');assert.equal(h.state.etaSeconds,null)
+ await h.controller.resume();const resumed=h.downloads[1];resumed.progress({totalBytesWritten:3*MIB,totalBytesExpectedToWrite:8*MIB});assert.equal(h.state.speedLabel,'');assert.equal(h.state.etaSeconds,null,'background resume rebases before using new active-time samples')
+ h.controller.dispose()
+}
+
+{
  const h=controllerHarness();h.setScope('scope-u');await h.controller.open(request('u'))
  h.downloads[0].progress({progress:62,totalBytesWritten:262144,totalBytesExpectedToWrite:0})
- assert.equal(h.state.knownTotal,false);assert.equal(h.state.percent,null);assert.equal(h.state.totalLabel,'');assert.match(h.state.downloadedLabel,/KB/)
+ h.clock.tick(1000);h.downloads[0].progress({totalBytesWritten:524288,totalBytesExpectedToWrite:0})
+ h.clock.tick(1000);h.downloads[0].progress({totalBytesWritten:786432,totalBytesExpectedToWrite:0})
+ assert.equal(h.state.knownTotal,false);assert.equal(h.state.percent,null);assert.equal(h.state.totalLabel,'');assert.match(h.state.downloadedLabel,/KB/);assert.match(h.state.speedLabel,/^约 /);assert.equal(h.state.etaSeconds,null);assert.equal(h.state.remainingLabel,'')
 }
 
 {
@@ -182,6 +229,15 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  await h.controller.open({...request('n'),scope:'scope-next'});const second=h.downloads[1];h.storage.set('stemistUser',{id:'student-2'});second.progress({progress:20,totalBytesWritten:20,totalBytesExpectedToWrite:100});second.options.success({statusCode:200,tempFilePath:'wxfile://late-account.pdf'});assert.equal(second.aborted,1);assert.equal(h.opens.length,0,'an account change must invalidate progress and late success callbacks')
  h.setScope('scope-next');assert.equal(h.state.phase,'idle','the next explicit lifecycle/scope sync clears stale busy UI after an account change')
  h.controller.dispose();assert.equal(h.controller.getState().active,false)
+}
+
+{
+ const h=controllerHarness();h.setScope('scope-old-rate');await h.controller.open({...request('old-rate'),scope:'scope-old-rate'});const oldProgress=h.downloads[0].progress
+ h.setScope('scope-new-rate');await h.controller.open({...request('new-rate'),scope:'scope-new-rate'});const currentTask=h.downloads[1]
+ currentTask.progress({totalBytesWritten:1024,totalBytesExpectedToWrite:8192});const before={...h.state}
+ oldProgress({totalBytesWritten:8192,totalBytesExpectedToWrite:8192})
+ assert.equal(currentTask.aborted,0,'a late old-generation progress event cannot abort the replacement transfer');assert.equal(h.state.itemId,before.itemId);assert.equal(h.state.downloadedBytes,before.downloadedBytes);assert.equal(h.state.speedLabel,before.speedLabel,'late bytes cannot resurrect an old rate estimate')
+ h.controller.dispose()
 }
 
 {

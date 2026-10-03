@@ -15,6 +15,7 @@ Component({
     error: { type: String, value: '' },
     canRetry: { type: Boolean, value: false },
     authRequired: { type: Boolean, value: false },
+    progress: { type: Object, value: null },
   },
   methods: {
     onInput(event) { if(!this.data.readOnly&&!this.data.loading)this.triggerEvent('input', { value: event.detail.value }) },

@@ -45,15 +45,18 @@ function coachState(result = {}) {
   return { label: '反馈状态待确认', isConnected: false, isFallback: true, warning: '请确认反馈状态后再把结果当作学习依据。' }
 }
 
-async function runCoach({ message = '', context = {}, imageDataUrls = [], history = [] } = {}) {
+async function runCoach({ message = '', context = {}, imageDataUrls = [], history = [], onStage = null } = {}) {
   const cleanMessage = String(message || '').trim()
   const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
   if (!cleanMessage && !images.length) throw new Error('请先输入内容或提供照片证据')
   const normalizedContext = normalizeCoachContext(context)
   const isIelts = String(normalizedContext.product || '').toLowerCase() === 'ieltsist'
+  const stage=value=>{if(typeof onStage==='function')try{onStage(value)}catch{}}
+  stage('calling')
   const result = isIelts
-    ? await askIeltsCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history })
-    : await askCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history })
+    ? await askIeltsCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history,onStage:stage })
+    : await askCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history,onStage:stage })
+  stage('arranging')
   const state=coachState(result)
   const photoFailed=images.length>0&&(String(result.mode||'').toLowerCase()==='offline'||['error','not_configured'].includes(String(result.providerStatus||'').toLowerCase()))
   return { ...result, answer: photoFailed?'这次图片答疑尚未完成，图片和补充说明已保留，直接重试即可，无需重新拍照。':coachAnswer(result), coachState: state }

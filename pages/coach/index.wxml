@@ -25,7 +25,7 @@
         </button>
       </view>
     </view>
-    <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{mediaBusy || (!message && !imagePath && !entryHasImage)}}" submit-label="{{imagePath || entryHasImage ? '发送图片给 AI Coach' : '发送文字给 AI Coach'}}" placeholder="补充你想检查的地方（可选）" helper="" bind:input="onMessage" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+    <coach-panel id="coach-panel" progress="{{progress}}" message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{mediaBusy || (!message && !imagePath && !entryHasImage)}}" submit-label="{{imagePath || entryHasImage ? '发送图片给 AI Coach' : '发送文字给 AI Coach'}}" placeholder="补充你想检查的地方（可选）" helper="" bind:input="onMessage" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
   </view>
   <view class="coach-actions"><button class="text-button" bindtap="clear" disabled="{{loading || mediaBusy}}">清空本次对话</button></view>
 </view>

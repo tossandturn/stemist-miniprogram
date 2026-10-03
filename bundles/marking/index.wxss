@@ -72,3 +72,4 @@
  .marking-page.device-tablet.landscape.has-job .marking-inputs{grid-row:2}
 }
 @media (max-width:374px){.marking-flow{gap:5px}.marking-step{display:block;padding:8px 4px;text-align:center}.step-index{margin:0 auto 4px}.step-label{font-size:12px}.marking-page.device-phone .marking-primary-action{left:8px;right:8px;grid-template-columns:minmax(0,1fr) minmax(116px,40%);padding:9px 10px}}
+.marking-live-progress{margin-top:12px}.marking-live-track{height:6px;background:#e4ddf7;border-radius:6px;overflow:hidden}.marking-live-fill{height:100%;background:#7357e8}.marking-live-fill.pulse{width:35%;animation:marking-pulse 1.4s ease-in-out infinite}.marking-live-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:8px;font-size:13px;color:#66708a}@keyframes marking-pulse{from{transform:translateX(-100%)}to{transform:translateX(290%)}}@media(prefers-reduced-motion:reduce){.marking-live-fill.pulse{animation:none;width:100%;opacity:.5}}

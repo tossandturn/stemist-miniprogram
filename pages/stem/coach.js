@@ -3,12 +3,13 @@ const { runCoach } = require('../../utils/coach')
 const { nextAttemptId, syncStemPhotoAttempt } = require('../../utils/attemptSync')
 const { deviceState, syncDevice } = require('../../utils/page')
 const { isAuthError } = require('../../utils/api')
+const {createOperationTracker}=require('../../utils/operationProgress')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
 Page({
   onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
-  data: deviceState({ imagePath: '', message: '', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', syncStatus: '', syncFailed: false, syncing: false, context: {}, contextLabel: '等待题目范围' }),
+  data: deviceState({ imagePath: '', message: '', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', syncStatus: '', syncFailed: false, syncing: false, context: {}, contextLabel: '等待题目范围',progress:{} }),
   onLoad(options) {
     this.__disposed = false
     this.__owner=owner();this.__epoch=epoch()
@@ -25,12 +26,12 @@ Page({
     this.__pendingSync = pendingSync
     this.setData({ imagePath: path || '', context, contextLabel: label, syncFailed: Boolean(pendingSync), syncStatus: pendingSync ? '上次反馈尚未同步' : '' })
   },
-  onUnload() { this.__disposed = true },
+  onUnload() { this.__disposed = true;this.__coachProgress?.dispose() },
   current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
   onShow() {
     syncDevice(this)
     if(this.__authResumeRequested&&wx.getStorageSync('stemistSessionToken')&&owner()!=='guest'&&(this.__owner==='guest'||this.__owner===owner())){this.__owner=owner();this.__epoch=epoch();this.__authResumeRequested=false;wx.setStorageSync('stemistCroppedImageMeta',{owner:this.__owner,epoch:this.__epoch,path:this.data.imagePath});this.setData({authRequired:false,error:''})}
-    if(!this.current())this.setData({imagePath:'',answer:'',message:'',warning:'',error:'账号已变化，请重新拍照。',canRetry:false,authRequired:false})
+    if(!this.current()){this.__coachProgress?.dispose();this.setData({imagePath:'',answer:'',message:'',warning:'',error:'账号已变化，请重新拍照。',canRetry:false,authRequired:false,loading:false,progress:{}})}
   },
   onResize() { syncDevice(this) },
   onMessage(event) { if(this.current()&&!this.data.loading)this.setData({ message: event.detail.value, error: '', authRequired: false }) },
@@ -38,6 +39,8 @@ Page({
     if (this.data.loading||!this.current()) return
     if (!this.data.imagePath) return this.setData({ error: '还没有题目照片，请先拍摄并裁剪' })
     this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', syncStatus: '', syncFailed: false, syncing: false, coachStatus: '正在分析…' })
+    this.__coachProgress?.dispose()
+    const progress=this.__coachProgress=createOperationTracker({key:'coach-photo',onChange:value=>{if(this.current())this.setData({progress:value})}})
     try {
       const dataUrl = await readAsJpegDataUrl(this.data.imagePath)
       if (!this.current()) return
@@ -45,11 +48,14 @@ Page({
         message: this.data.message.trim() || '请阅读这道 STEM 题和我的答案，指出第一处问题，并给出一个下一步提示。',
         imageDataUrls: [dataUrl],
         context: { ...this.data.context, stage: this.data.context.stage || 'practice' },
+        onStage:stage=>progress.stage(stage),
       })
       if (!this.current()) return
       if(result.mode!=='ai'||result.providerStatus!=='connected'||!String(result.answer||'').trim())throw new Error('AI 反馈未完成，照片已保留，请重试。')
       const answer = result.answer || 'AI 返回了空结果，请重试。'
       const coachState = result.coachState || {}
+      progress.finish(true)
+      this.setData({answer,coachStatus:coachState.label||'反馈状态待确认',syncStatus:'正在同步学习记录…'})
       this.__coachWarning = coachState.warning || ''
       this.__pendingSync = { owner:this.__owner,epoch:this.__epoch,attemptId: nextAttemptId(), context: this.data.context, answer, coachMode: result.mode || '', providerStatus: result.providerStatus || '' }
       wx.setStorageSync('stemistPendingAttemptSync', this.__pendingSync)
@@ -76,7 +82,7 @@ Page({
       wx.setStorageSync('stemistSubmission:stem-photo', { skill: 'STEM AI Coach', category: this.data.context.category || '', family: this.data.context.family || '', routeId: this.data.context.routeId || '', stage: this.data.context.stage || '', subjectCode: this.data.context.subjectCode || '', subject: this.data.context.subject || '', answer, attemptId: syncedAttemptId || this.__pendingSync?.attemptId || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', syncStatus, submittedAt: Date.now() })
       this.setData({ answer, warning: [coachState.warning || '', syncWarning].filter(Boolean).join('\n'), coachStatus: coachState.label || '反馈状态待确认', syncStatus, syncFailed: Boolean(syncWarning) })
     } catch (error) { if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始照片已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' }) }
-    finally { if (this.current()) this.setData({ loading: false }) }
+    finally { progress.finish(false);if (this.current()) this.setData({ loading: false }) }
   },
   retry() { if (!this.data.loading) this.ask() },
   openAccount() { this.__authResumeRequested=true;wx.navigateTo({ url: '/pages/account/auth' }) },

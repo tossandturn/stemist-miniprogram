@@ -1,8 +1,10 @@
 const DEFAULT_THROTTLE_MS=100
 const {acquirePdf}=require('./pdfRangeCache')
+const {createDownloadMetrics}=require('./downloadMetrics')
 const DEFAULT_CACHE_LIMIT=4
 const DEFAULT_CACHE_TTL_MS=5*60*1000
 const sharedPublicCaches=new WeakMap()
+const NO_METRICS={etaSeconds:null,speedLabel:'',remainingLabel:''}
 const PUBLIC_PDF_URL=/^https:\/\/stem\.ieltsist\.com\/local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf$/i
 function pdfFileName(url){
 if(!PUBLIC_PDF_URL.test(url)||url.includes('..')||/%2e|%2f|%5c/i.test(url))return ''
@@ -13,7 +15,7 @@ return subject+'_20'+season.slice(1)+'_'+({m:'春季',s:'夏季',w:'秋冬季'}[
 }
 function safePdfFileName(value){const name=String(value||'').trim();return name&&name.length<=160&&/\.pdf$/i.test(name)&&!/[\\/:*?"<>|\u0000-\u001f]|\.\.|%2e|%2f|%5c/i.test(name)?name:''}
 
-function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false}}
+function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false}}
 
 function formatBytes(value){
 const bytes=Math.max(0,Number(value)||0)
@@ -67,7 +69,7 @@ const invalidate=abort=>{generation++;detachTask(abort)}
 const fail=(context,error)=>{
 if(!current(context))return false
 detachTask(false)
-publish({visible:true,phase:'error',active:false,message:'',error,canCancel:false,canRetry:Boolean(lastRequest),collapsed:false})
+context.metrics?.reset();publish({visible:true,phase:'error',active:false,message:'',error,...NO_METRICS,canCancel:false,canRetry:Boolean(lastRequest),collapsed:false})
 return false
 }
 const cacheTarget=(request,identity)=>{
@@ -111,21 +113,32 @@ wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settle
 }catch(error){evictShared();return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}
 return true
 }
-const progressState=event=>{
+const progressState=(event,metrics=NO_METRICS)=>{
 const downloadedBytes=Math.max(0,Number(event?.totalBytesWritten)||0),totalBytes=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0),knownTotal=totalBytes>0
 const calculated=knownTotal?Math.floor(downloadedBytes/totalBytes*100):null
 const percent=knownTotal?Math.max(0,Math.min(99,Number.isFinite(calculated)?calculated:Number(event?.progress)||0)):null
-return{downloadedBytes,totalBytes,downloadedLabel:formatBytes(downloadedBytes),totalLabel:knownTotal?formatBytes(totalBytes):'',knownTotal,percent}
+return{downloadedBytes,totalBytes,downloadedLabel:formatBytes(downloadedBytes),totalLabel:knownTotal?formatBytes(totalBytes):'',knownTotal,percent,...metrics}
+}
+const setTransferPhase=(context,phase,saved=0,total=0)=>{
+if(!['connecting','downloading','verifying'].includes(phase)||!current(context)||context.networkSettled)return false
+clearProgress();context.metrics.reset()
+const metrics=phase==='downloading'?context.metrics.observe(saved,total):NO_METRICS
+const model=progressState({totalBytesWritten:saved,totalBytesExpectedToWrite:total},metrics)
+const message=phase==='connecting'?'正在连接并确认'+context.request.label+'…':phase==='verifying'?(context.temporaryPreview?'临时预览下载完成，正在校验 PDF…':'下载完成，正在校验 PDF…'):(context.temporaryPreview?'本机空间不足，正在下载临时预览…':'正在下载'+context.request.label+'…')
+publish({...model,visible:true,phase,active:true,message,error:'',canCancel:true,canRetry:false})
+return true
 }
 const emitProgress=(context,model)=>{
-if(!current(context)||context.networkSettled||state.phase!=='downloading')return false
-lastProgressAt=now();publish({...model,visible:true,phase:'downloading',active:true,message:'正在下载'+context.request.label+'…',error:'',canCancel:true,canRetry:false})
+if(!current(context)||context.networkSettled||!['connecting','downloading'].includes(state.phase))return false
+lastProgressAt=now();publish({...model,visible:true,phase:'downloading',active:true,message:context.temporaryPreview?'本机空间不足，正在下载临时预览…':'正在下载'+context.request.label+'…',error:'',canCancel:true,canRetry:false})
 return true
 }
 const queueProgress=(context,event)=>{
-if(context.networkSettled)return
+if(context.networkSettled||disposed||context.generation!==generation)return
 if(!current(context)){invalidate(true);state={...initialPdfDownloadState()};return}
-const model=progressState(event),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
+if(state.phase==='verifying')return
+const downloaded=Math.max(0,Number(event?.totalBytesWritten)||0),total=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0)
+const model=progressState(event,context.metrics.observe(downloaded,total)),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
 if(elapsed>=throttleMs){emitProgress(context,model);return}
 pendingProgress=model
 if(progressTimer!==null)return
@@ -134,15 +147,15 @@ progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pen
 const startDownload=context=>{
 const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
 if(!current(context))return false
-publish({visible:true,phase:'downloading',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在下载'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:true,canRetry:false,collapsed:false})
+context.metrics.reset();publish({visible:true,phase:'connecting',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在连接并确认'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
-const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onTemporary:()=>{if(current(context))publish({message:'本机空间不足，正在准备临时预览…'})}})
+const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
 if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
 }
 function success(result){
 if(context.networkSettled||!current(context))return
 context.networkSettled=true
-const latestProgress=pendingProgress||{downloadedBytes:state.downloadedBytes,totalBytes:state.totalBytes,downloadedLabel:state.downloadedLabel,totalLabel:state.totalLabel,knownTotal:state.knownTotal,percent:state.percent}
+const latestProgress=pendingProgress||{downloadedBytes:state.downloadedBytes,totalBytes:state.totalBytes,downloadedLabel:state.downloadedLabel,totalLabel:state.totalLabel,knownTotal:state.knownTotal,percent:state.percent,etaSeconds:state.etaSeconds,speedLabel:state.speedLabel,remainingLabel:state.remainingLabel}
 detachTask(false)
 if(Number(result?.statusCode)!==200)return fail(context,'文件下载失败（HTTP '+String(result?.statusCode||'未知')+'），请重试。')
 const filePath=String(result?.tempFilePath||result?.filePath||'')
@@ -151,8 +164,8 @@ context.cacheTarget=cacheTarget(context.request,context.identity)
 if(context.cacheTarget?.shared)context.cacheAfterOpen=context.cacheTarget
 else remember(context.cacheTarget,filePath)
 const completedProgress=latestProgress.knownTotal&&latestProgress.totalBytes>0
-?{...latestProgress,downloadedBytes:latestProgress.totalBytes,downloadedLabel:formatBytes(latestProgress.totalBytes),percent:100}
-:{...latestProgress,totalBytes:0,totalLabel:'',knownTotal:false,percent:null}
+?{...latestProgress,...NO_METRICS,downloadedBytes:latestProgress.totalBytes,downloadedLabel:formatBytes(latestProgress.totalBytes),percent:100}
+:{...latestProgress,...NO_METRICS,totalBytes:0,totalLabel:'',knownTotal:false,percent:null}
 publish({...completedProgress,visible:true,phase:'opening',active:true,message:'下载完成，正在打开…',error:'',canCancel:false,canRetry:false,collapsed:false})
 openLocal(context,filePath)
 }
@@ -178,12 +191,12 @@ lastRequest=null;publish({...initialPdfDownloadState(),visible:true,phase:'error
 }
 if(normalized.scope!==scope)setScope(normalized.scope)
 if(state.active&&lastRequest?.ownerKey===normalized.ownerKey)return false
-invalidate(true);const context={generation,scope,identity:identitySnapshot(wxApi),request:normalized,networkSettled:false};lastRequest=normalized
+invalidate(true);const context={generation,scope,identity:identitySnapshot(wxApi),request:normalized,networkSettled:false,metrics:createDownloadMetrics({now})};lastRequest=normalized
 const target=cacheTarget(normalized,context.identity),entry=target?.store.get(target.key)
 const cached=entry&&now()>=entry.at&&now()-entry.at<=cacheTtlMs?entry.filePath:''
 if(entry&&!cached)target.store.delete(target.key)
 if(cached){
-publish({visible:true,phase:'preparing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false})
+publish({visible:true,phase:'preparing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false})
 if(await cachedFileExists(cached)){
 if(!current(context))return false
 context.cacheTarget=target
@@ -206,7 +219,7 @@ const request=lastRequest;resumeOnNetwork=false;resumeOnShow=false;invalidate(tr
 }
 function retry(){if(state.active||!lastRequest)return Promise.resolve(false);return open({...lastRequest,scope})}
 function toggleCollapsed(){if(!state.visible)return false;publish({collapsed:!state.collapsed});return true}
-function suspend(){const resumable=state.phase==='downloading'&&Boolean(lastRequest);invalidate(true);resumeOnShow=resumable;if(resumable){publish({phase:'paused',active:false,message:'已暂停，返回后继续下载。',canCancel:false,canRetry:true})}else{lastRequest=null;state=initialPdfDownloadState();if(!disposed)onState(snapshot())}}
+function suspend(){const resumable=['connecting','downloading','verifying'].includes(state.phase)&&Boolean(lastRequest);invalidate(true);resumeOnShow=resumable;if(resumable){publish({phase:'paused',active:false,message:'已暂停，返回后继续下载。',...NO_METRICS,canCancel:false,canRetry:true})}else{lastRequest=null;state=initialPdfDownloadState();if(!disposed)onState(snapshot())}}
 function resume(){if(disposed||!resumeOnShow||!lastRequest)return false;resumeOnShow=false;return retry()}
 function dispose(){if(disposed)return;disposed=true;wxApi.offNetworkStatusChange?.(networkChanged);invalidate(true);lastRequest=null;state=initialPdfDownloadState()}
 return{open,setScope,cancel,retry,toggleCollapsed,suspend,resume,dispose,getState:snapshot,cacheSize:()=>cache.size}

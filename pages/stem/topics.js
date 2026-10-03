@@ -7,10 +7,11 @@ const loadMessage=error=>error?.code==='network_domain_blocked'?'当前版本无
 Page({
   ...require('../../utils/share').public,
   data: deviceState({ routeId: '', stage: '', subjectCode: '', title: '', loading: true, busy: false, error: '', inventoryFailed: false,
-    topics: [], selected: [], components: [], componentOptions: [], counts: [], questionCount: 10, availableCount: 0, canStart: false, hint: '', recentId: '', recentLabel: '' }),
+    topics: [], selected: [], components: [], componentOptions: [], counts: [], questionCount: 10, availableCount: 0, canStart: false, hint: '', recentId: '', recentLabel: '', studyMode: '', chapterStudyAvailable: false }),
   onLoad(options = {}) {
     this.__disposed = false
     this.__loadId = 0
+    this.__modeTouched=false
     const route = routeById(String(options.routeId || ''))
     if (!route || !['IGCSE', 'IG', 'AS', 'A2'].includes(route.stage)) {
       this.setData({ loading: false, inventoryFailed: true, error: '当前路线不支持章节组卷。' }); return
@@ -32,38 +33,55 @@ Page({
     try {
       const inventory = await fetchRouteInventory(this.data.routeId)
       if (this.__disposed || loadId !== this.__loadId) return
+      const firstInventory=!this.__inventory
       this.__inventory = inventory
-      const components = this.data.components.filter(c => inventory.paperComponents.includes(c))
-      this.setData({ components: components.length ? components : inventory.paperComponents, selected: this.data.selected.filter(id => inventory.topics.some(t => t.id === id)) })
+      let components = this.data.components.filter(c => inventory.paperComponents.includes(c)),studyMode=this.data.studyMode
+      if(inventory.chapterStudy&&firstInventory&&!this.__modeTouched)studyMode='chapter-study'
+      if(!inventory.chapterStudy)studyMode=''
+      if(studyMode==='chapter-study'&&components.length!==1&&components.length!==inventory.paperComponents.length)components=inventory.paperComponents.slice()
+      const selected=this.data.selected.filter(id => inventory.topics.some(t => t.id === id))
+      this.setData({ components: components.length ? components : inventory.paperComponents, selected: studyMode==='chapter-study'?selected.slice(0,1):selected,studyMode,chapterStudyAvailable:Boolean(inventory.chapterStudy) })
       this.recompute()
     } catch (error) { if (!this.__disposed && loadId === this.__loadId) this.setData({ error: loadMessage(error), inventoryFailed: true, canStart: false }) }
     finally { if (!this.__disposed && loadId === this.__loadId) this.setData({ loading: false }) }
   },
   recompute() {
-    const { selected, components } = this.data
+    const { selected, components,studyMode } = this.data
     let count = this.data.questionCount
-    let state = selectionState(this.__inventory, selected, components, count)
+    let state = selectionState(this.__inventory, selected, components, count,studyMode)
     if (!state.sizes.includes(count) && state.sizes.length) count = state.sizes[state.sizes.length - 1]
-    state = selectionState(this.__inventory, selected, components, count)
+    state = selectionState(this.__inventory, selected, components, count,studyMode)
+    const allComponents=components.length===this.__inventory?.paperComponents.length
+    const chapterFor=topic=>allComponents?topic.chapterStudy:components.length===1?topic.componentCounts?.[components[0]]?.chapterStudy:null
     this.setData({ questionCount: count, availableCount: state.availableCount, canStart: state.canStart, hint: state.hint,
-      topics: (this.__inventory?.topics || []).map(t => ({ id: t.id, code: t.code || '', name: t.name, count: state.topicCounts[t.id] || 0, selected: selected.includes(t.id) })),
+      topics: (this.__inventory?.topics || []).map(t => {const chapter=chapterFor(t);return{ id: t.id, code: t.code || '', name: t.name, count: state.topicCounts[t.id] || 0, selected: selected.includes(t.id),startable:chapter?.startable!==false,
+        sourceLabel:chapter?.fallbackKind==='original-foundation'?'原创基础练习':chapter?.originalAvailable>0?'真题优先 · 原创补充':'真题章节练习'}}),
       componentOptions: (this.__inventory?.paperComponents || []).map(c => ({ value: c, label: `P${c}`, selected: components.includes(c),onlySelected:components.length===1&&components[0]===c })),
       allComponentsSelected:components.length===this.__inventory?.paperComponents.length,
-      counts: [6, 10, 15].map(n => ({ value: n, selected: n === count, disabled: !state.sizes.includes(n) })),
+      counts: (studyMode==='chapter-study'?state.sizes:[6,10,15]).map(n => ({ value: n, selected: n === count, disabled: !state.sizes.includes(n) })),
     })
+  },
+  chooseStudyMode(event){
+    if(this.data.busy||this.data.loading)return
+    const studyMode=String(event.currentTarget.dataset.mode||'')
+    if(!['','chapter-study'].includes(studyMode)||studyMode==='chapter-study'&&!this.data.chapterStudyAvailable)return
+    this.__modeTouched=true
+    const allowed=this.__inventory?.paperComponents||[],current=this.data.components
+    const components=studyMode==='chapter-study'&&current.length!==1&&current.length!==allowed.length?allowed.slice():current
+    this.setData({studyMode,components,selected:studyMode==='chapter-study'?this.data.selected.slice(0,1):this.data.selected,questionCount:studyMode==='chapter-study'?3:10,error:''});this.recompute()
   },
   toggleTopic(event) {
     if (this.data.busy || this.data.loading) return
     const id = event.currentTarget.dataset.id
     if (!this.__inventory?.topics.some(t => t.id === id)) return
-    const selected = this.data.selected.includes(id) ? this.data.selected.filter(t => t !== id) : [...this.data.selected, id]
+    const selected = this.data.studyMode==='chapter-study'?(this.data.selected.includes(id)?[]:[id]):this.data.selected.includes(id) ? this.data.selected.filter(t => t !== id) : [...this.data.selected, id]
     this.setData({ selected, error: '' }); this.recompute()
   },
   toggleComponent(event) {
     if (this.data.busy || this.data.loading) return
     const c = Number(event.currentTarget.dataset.value)
     if (!this.__inventory?.paperComponents.includes(c)) return
-    const components = this.data.components.includes(c) ? this.data.components.filter(v => v !== c) : [...this.data.components, c]
+    const components = this.data.studyMode==='chapter-study'?[c]:this.data.components.includes(c) ? this.data.components.filter(v => v !== c) : [...this.data.components, c]
     this.setData({ components, error: '' }); this.recompute()
   },
   onlyComponent(event){
@@ -82,7 +100,8 @@ Page({
     if (this.data.busy || this.data.loading || !this.data.canStart) return
     this.setData({ busy: true, error: '' })
     const spec = { routeId: this.data.routeId, stage: this.data.stage, subjectCode: this.data.subjectCode,
-      syllabusTopicIds: this.data.selected.slice(), components: this.data.components.slice(), questionCount: this.data.questionCount }
+      syllabusTopicIds: this.data.selected.slice(), components: this.data.components.slice(), questionCount: this.data.questionCount,
+      ...(this.data.studyMode==='chapter-study'?{studyMode:'chapter-study',sourcePreference:'official-first'}:{}) }
     try {
       const session = await generatePractice(spec)
       if (this.__disposed) return

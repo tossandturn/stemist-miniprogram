@@ -8,9 +8,11 @@
     </scroll-view>
     <view class="native-question-layout">
       <view class="question-column">
-        <view class="question-meta"><text>原卷 {{question.number}}</text><text>{{question.marks}} 分</text></view>
+        <view class="question-meta"><text>{{question.original ? '原创基础练习' : '原卷 ' + question.number}}</text><text>{{question.marks}} 分{{question.original ? ' · 学习自测' : ''}}</text></view>
         <view class="source-caption">{{question.sourceLabel}}</view>
         <view wx:if="{{question.reviewLabel}}" class="source-caption">{{question.reviewLabel}} · {{question.reviewNotice}}</view>
+        <view wx:if="{{question.original}}" class="choice-result"><view class="answer-heading">原创基础练习</view><view class="subtle">{{question.originalNotice}}</view></view>
+        <view wx:if="{{question.original}}" class="answer-panel">{{question.prompt}}</view>
         <view wx:if="{{question.fullPage}}" class="source-caption">以下为原卷整页，请对应 {{question.number}} 作答；轻点可放大。</view>
         <view wx:for="{{question.images}}" wx:key="id" class="source-page">
           <view wx:if="{{item.cropped && item.url && !item.failed}}" class="source-region" style="{{item.clipStyle}}">
@@ -23,12 +25,13 @@
       </view>
       <view class="answer-column">
         <view class="answer-panel">
-          <view class="answer-heading">本题答案 · 原卷 {{question.number}}</view>
+          <view class="answer-heading">{{question.original ? '选择你的答案' : '本题答案 · 原卷 ' + question.number}}</view>
           <block wx:if="{{question.choiceMode}}">
             <button wx:if="{{photo}}" class="text-button" bindtap="previewPhoto">查看原答案照片</button>
             <view class="mcq-options {{question.hasOptionText ? 'mcq-text-options' : ''}}"><button wx:for="{{question.options}}" wx:key="label" class="mcq-option {{choice === item.label ? 'selected' : ''}}" data-value="{{item.label}}" bindtap="chooseAnswer" disabled="{{busy}}" aria-label="选项 {{item.label}} {{item.text}}" aria-pressed="{{choice === item.label}}"><text>{{item.label}}</text><text wx:if="{{item.text}}" class="mcq-option-text">{{item.text}}</text></button></view>
-            <button class="primary" bindtap="submit" disabled="{{busy || !choice}}" loading="{{busy}}">提交答案</button>
-            <view wx:if="{{objectiveResult}}" class="choice-result">{{objectiveResult.available ? (objectiveResult.qualityFlag === 'aicheck' ? 'AI 审核答案核对：' : '标准答案核对：') + objectiveResult.score + ' / ' + objectiveResult.maxScore : '答案已保存，标准答案尚待核验。'}}<text wx:if="{{objectiveResult.available}}"> · 正确选项 {{objectiveResult.correctOption}}</text><view wx:if="{{objectiveResult.qualityFlag === 'aicheck'}}">仅供练习，不计正式进度</view></view>
+            <button class="primary" bindtap="submit" disabled="{{busy || !choice}}" loading="{{busy}}">{{question.original ? '提交原创练习答案' : '提交答案'}}</button>
+            <view wx:if="{{objectiveResult && question.original}}" class="choice-result"><view class="answer-heading">{{objectiveResult.correct ? '回答正确' : '继续练习'}} · {{objectiveResult.score}} / {{objectiveResult.maxScore}}</view><view>正确选项 {{objectiveResult.correctOptionId}}</view><view class="subtle">原创学习结果，仅用于本章学习，不计正式进度或官方成绩。</view><view class="feedback-text">{{objectiveResult.solution.summary}}</view><view wx:for="{{objectiveResult.solution.markPoints}}" wx:key="id" class="part-feedback"><view class="feedback-score"><text>{{item.awarded ? '已掌握' : '待巩固'}}</text></view><view class="feedback-text">{{item.reason}}</view></view></view>
+            <view wx:elif="{{objectiveResult}}" class="choice-result">{{objectiveResult.available ? (objectiveResult.qualityFlag === 'aicheck' ? 'AI 审核答案核对：' : '标准答案核对：') + objectiveResult.score + ' / ' + objectiveResult.maxScore : '答案已保存，标准答案尚待核验。'}}<text wx:if="{{objectiveResult.available}}"> · 正确选项 {{objectiveResult.correctOption}}</text><view wx:if="{{objectiveResult.qualityFlag === 'aicheck'}}">仅供练习，不计正式进度</view></view>
           </block>
           <block wx:else>
           <view class="subtle">{{question.partsLabel ? '包含分问 ' + question.partsLabel : '在纸上完成后拍照'}}</view>

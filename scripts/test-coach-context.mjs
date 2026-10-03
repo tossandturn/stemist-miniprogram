@@ -2,11 +2,13 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const source = fs.readFileSync(path.join(root, 'pages/coach/index.js'), 'utf8')
 let pageConfig
 const fakeRequire = (name) => {
+  if (name === '../../utils/operationProgress') return miniRuntime().load('utils/operationProgress')
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {}, readDraft: () => null, scheduleDraft: () => {}, clearDraft: () => {}, cancelDraft: () => {} }
   if (name === '../../utils/coach') return { runCoach: async () => ({ answer: 'ok', mode: 'ai', providerStatus: 'connected', coachState: { label: 'AI 已连接' } }) }
   if (name === '../../utils/api') return { isAuthError: () => false }

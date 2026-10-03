@@ -6,6 +6,7 @@ const {takeCoachEntry,focusPassage}=require('../../utils/coachEntry')
 const {loadCaptions}=require('../../utils/nativeCaptions')
 const {readAsJpegDataUrl}=require('../../utils/image')
 const {readCoachPhoto,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
+const {createOperationTracker}=require('../../utils/operationProgress')
 
 const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
 const STEM_FAMILIES = new Set(['exam', 'competition', 'admissions'])
@@ -39,6 +40,7 @@ Page({
     imageSource: '',
     entryHasImage: false,
     mediaBusy: false,
+    progress: {},
   }),
   onLoad(options) {
     this.__disposed = false;this.__mediaRequest=0
@@ -71,7 +73,7 @@ Page({
   current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
   identity(){return {owner:this.__owner,epoch:this.__epoch}},
   resetIdentity(){
-    this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
+    this.__coachProgress?.dispose();this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
     this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false})
   },
   async prepareEntry(){
@@ -88,7 +90,7 @@ Page({
     if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.setData({ authRequired: false, error: '' })
   },
   onResize() { syncDevice(this) },
-  onUnload() { this.__disposed = true;this.__mediaRequest++; cancelDraft(this) },
+  onUnload() { this.__disposed = true;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
   restorePhoto(){
     const imagePath=readCoachPhoto(this.identity(),this.data.contextId)
     if(imagePath!==this.data.imagePath)this.setData({imagePath,imageSource:imagePath?'已裁剪':''})
@@ -159,6 +161,8 @@ Page({
     if (!typedMessage&&!this.data.imagePath&&!entryImages.length) return this.setData({ error: '请先拍照、上传图片，或写下你的问题。' })
     const message=typedMessage||(selected.product==='IELTSist'?'请分析这张 IELTS 学习图片，指出关键问题并给出下一步建议。':'请分析这张学科题目或作答图片，指出关键问题并给出下一步提示。')
     this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
+    this.__coachProgress?.dispose()
+    const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:value})}})
     try {
       const entry=await this.prepareEntry()
       const {imagePaths,...entryContext}=entry
@@ -170,11 +174,13 @@ Page({
         imageDataUrls,
         context: { product: selected.product, skill: selected.id, inputMode: imageDataUrls.length?'photo':'text', stage: 'practice', source: 'stemist-miniprogram', ...(selected.id === 'stem-photo' ? this.data.routeContext : {}),...entryContext },
         history:this.__history.slice(-10),
+        onStage:stage=>progress.stage(stage),
       })
       if (!this.current()) return
       const coachState = result.coachState || {}
       this.setData({ answer: result.answer || 'AI 返回了空结果，请重试。', warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
       if(result.mode!=='ai'||result.providerStatus!=='connected'){
+        progress.finish(false)
         cancelDraft(this)
         writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey})
         this.setData({canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
@@ -186,9 +192,10 @@ Page({
       }
       wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { category: selected.product === 'IELTSist' ? 'ielts' : 'stem', skill: selected.id, message, inputMode:imageDataUrls.length?'photo':'text', answer: result.answer || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
       clearDraft('coach')
+      progress.finish(true)
     } catch (error) {
       if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })
-    } finally { if (this.current()) this.setData({ loading: false }) }
+    } finally { progress.finish(false);if (this.current()) this.setData({ loading: false }) }
   },
   retry() { if (!this.data.loading) return this.submit() },
   openContext(event) {

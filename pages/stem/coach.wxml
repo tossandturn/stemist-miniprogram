@@ -8,7 +8,7 @@
       <image wx:if="{{imagePath}}" class="photo-preview" src="{{imagePath}}" mode="aspectFit" />
       <view wx:else class="empty-evidence">照片未找到，请返回重新拍摄。</view>
     </view>
-  <coach-panel message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{!imagePath}}" submit-label="提交给 AI Coach" placeholder="可以补充：你卡在哪一步，或想检查哪个公式。" helper="" bind:input="onMessage" bind:submit="ask" bind:retry="retry" bind:account="openAccount" />
+  <coach-panel id="coach-panel" message="{{message}}" answer="{{answer}}" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" progress="{{progress}}" disabled="{{!imagePath}}" submit-label="提交给 AI Coach" placeholder="可以补充：你卡在哪一步，或想检查哪个公式。" helper="" bind:input="onMessage" bind:submit="ask" bind:retry="retry" bind:account="openAccount" />
   </view>
   <view wx:if="{{syncStatus}}" class="status-line"><text>{{syncStatus}}</text></view>
   <button wx:if="{{syncFailed}}" class="text-button" bindtap="retrySync" disabled="{{syncing}}">{{syncing ? '同步中…' : '重新同步学习记录'}}</button>

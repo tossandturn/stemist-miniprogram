@@ -26,15 +26,16 @@ async function ensureIeltsSession(){
  })).finally(()=>{if(nativeSessionPending?.promise===promise)nativeSessionPending=null})
  nativeSessionPending={owner:started.owner,epoch:started.epoch,promise};return promise
 }
-async function requestIeltsLearning(path,data,{method='POST',timeout=20000,headers={}}={}){
+async function requestIeltsLearning(path,data,{method='POST',timeout=20000,headers={},onDispatched=null}={}){
  const originalOwner=owner(),originalEpoch=epoch()
  const base=safeIeltsApiBase(getApp()?.globalData?.ieltsApiBaseUrl)||DEFAULT_IELTS_API_BASE
  if(!/^\/api\/[a-zA-Z0-9/_?=&.%:-]+$/.test(path)||path.includes('..'))return Promise.reject(new Error('请求地址无效。'))
  const started=await ensureIeltsSession()
  if(originalOwner!==owner()||originalEpoch!==epoch())throw new Error('账号已变化，当前请求已取消。')
- return new Promise((resolve,reject)=>wx.request({url:base+path,method,timeout,data,
+ return new Promise((resolve,reject)=>{let settled=false;wx.request({url:base+path,method,timeout,data,
   header:{'Content-Type':'application/json','X-Stemist-Native':'1',...(started.token?{Authorization:'Bearer '+started.token}:{}),...(started.guest?{Cookie:'ieltsist_objective_guest='+started.guest}:{}),...headers},
   success(response){
+   settled=true
    if(owner()!==started.owner||epoch()!==started.epoch)return reject(new Error('账号已变化，当前请求已取消。'))
    // Keep only this app's newly issued guest capability, never browser cookies
    // or a STEM bearer forwarded to an unrelated IELTS authorization path.
@@ -45,6 +46,6 @@ async function requestIeltsLearning(path,data,{method='POST',timeout=20000,heade
    if(response.statusCode===401&&started.token&&context().token===started.token)wx.setStorageSync(STATE,{...context(),token:'',expiresAt:''})
    const error=new Error(response.statusCode===401?'请登录后继续。':response.statusCode===409?'这次练习状态已变化，请重新打开。':response.statusCode===429?'请求较多，请稍后再试。':'服务暂未完成请求，输入已保留。')
    error.statusCode=response.statusCode;error.code=String(response.data?.code||'');reject(error)
-  },fail(error){reject(new Error(/timeout/i.test(error?.errMsg||'')?'网络超时，请重试。':'网络连接失败，输入已保留。'))}}))
+  },fail(error){settled=true;reject(new Error(/timeout/i.test(error?.errMsg||'')?'网络超时，请重试。':'网络连接失败，输入已保留。'))}});if(!settled&&typeof onDispatched==='function')try{onDispatched()}catch{}})
 }
 module.exports={requestIeltsLearning,ensureIeltsSession}

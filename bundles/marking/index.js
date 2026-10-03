@@ -177,6 +177,7 @@ Page({
  },
  setJob(job){
   this.__job=job
+  this.setData({markingProgress:require('./progress').markingProgress(job)})
   if(job.routeId){const index=routes.findIndex(r=>r.id===job.routeId);this.setData({routeIndex:Math.max(0,index),archivedRoute:index<0?'历史学科：'+job.routeId:''})}
   if(typeof job.title==='string')this.setData({title:job.title})
   const display=reportState(job.result),result=display.result,invalidCompleted=job.status==='completed'&&!display.valid
@@ -184,9 +185,8 @@ Page({
   const displayStatus=invalidCompleted?'failed':job.status
   const cancelled=job.failureCode==='cancelled',uploadTotal=this.__draft?.files?.length||0,uploadCompleted=(this.__draft?.files||[]).filter(f=>f.uploaded).length
   const flowStep=displayStatus==='completed'?3:['queued','processing','failed'].includes(displayStatus)?2:1
-  const handled=Number(job.progress?.completedPages)||0,total=Number(job.progress?.totalPages)||0
   const invalidMessage='报告数据不完整，暂不能视为批改完成。请刷新状态；若仍无内容，可新建任务重新提交。'
-  const jobStateHint=invalidCompleted?invalidMessage:job.status==='draft'?(uploadTotal?'已上传 '+uploadCompleted+' / '+uploadTotal+' 份文件，完成后提交 AI 批改。':'正在准备上传文件。'):job.status==='queued'?'文件已提交，正在等待 AI 批改。':job.status==='processing'?'AI 正在批改。'+(total>0?'已处理 '+handled+' / '+total+' 页。':''):job.status==='completed'?(job.reportPdfPath?'批改完成，PDF 报告已可下载。':'批改完成，可查看本页反馈；PDF 尚未生成。'):cancelled?'任务已取消。':job.status==='failed'?'批改未完成。'+(job.retryable?'原文件已保留，可重试。':'请检查文件后新建任务。'):'正在读取任务状态…'
+  const jobStateHint=invalidCompleted?invalidMessage:job.status==='draft'?(uploadTotal?'已上传 '+uploadCompleted+' / '+uploadTotal+' 份文件，完成后提交 AI 批改。':'正在准备上传文件。'):job.status==='queued'?'文件已提交，正在等待 AI 批改。':job.status==='processing'?'完成后可在这里查看逐题反馈和 PDF 报告。':job.status==='completed'?(job.reportPdfPath?'批改完成，PDF 报告已可下载。':'批改完成，可查看本页反馈；PDF 尚未生成。'):cancelled?'任务已取消。':job.status==='failed'?'批改未完成。'+(job.retryable?'原文件已保留，可重试。':'请检查文件后新建任务。'):'正在读取任务状态…'
   this.setData({reportTextSelectable:job.reportTextSelectable!==false,reportAvailable:display.valid&&Boolean(job.reportPdfPath)})
   this.setData({jobId:job.jobId,jobStatus:displayStatus,jobLabel:invalidCompleted?'报告暂不可用':cancelled?'已取消':states[job.status]||'',jobStateHint,flowStep,actionVisible:job.status==='draft',progress:job.progress||{},result,error:invalidCompleted?invalidMessage:job.status==='failed'&&!cancelled?'批改暂未完成。'+(job.retryable?'原文件已保留，可点击重试。':'请检查文件后新建任务。'):'',retryable:!invalidCompleted&&job.retryable===true,reportPages:Math.ceil(this.__questions.length/10),sourceAvailable:Boolean(job.sourcePdfPath),expiresAt:job.expiresAt?String(job.expiresAt).replace('T',' ').replace(/\.\d{3}Z$/,' UTC'):''})
   this.renderReport(0)
@@ -245,7 +245,7 @@ Page({
    if(!alive())return
    const downloaded=Math.max(0,Number(progress.downloadedBytes)||0),total=Math.max(0,Number(progress.totalBytes)||0)
    const percent=total>0?Math.max(0,Math.min(99,Math.floor(downloaded/total*100))):null
-   this.setData({documentStatus:(control.temporary?'临时预览下载 ':'正在下载 ')+(downloaded?fileSizeLabel(downloaded):'0 KB')+(total?' / '+fileSizeLabel(total)+' · '+percent+'%':'')})
+   this.setData({documentStatus:progress.phase==='verifying'?'下载已完成，正在校验 PDF…':(control.temporary?'临时预览下载 ':'正在下载 ')+(downloaded?fileSizeLabel(downloaded):'0 KB')+(total?' / '+fileSizeLabel(total)+' · '+percent+'%':'')+(progress.speedLabel?' · '+progress.speedLabel:'')+(progress.remainingLabel?' · '+progress.remainingLabel:'')})
   }}
   try{
    const filePath=await api.download(id,kind,s,this.__job?.title||this.__draft.title||routes[this.data.routeIndex]?.label,options)

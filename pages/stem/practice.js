@@ -87,8 +87,9 @@ Page({
   async submit() {
     if(this.data.question?.choiceMode){
       if(this.data.busy||!this.data.choice)return
-      this.setData({busy:true,error:'',authRequired:false,status:'正在核对答案…'})
-      try{await markChoice(this.data.sessionId,this.data.question.id);if(!this.__disposed)this.setData({status:'答案已提交'})}
+      const original=this.data.question.original===true
+      this.setData({busy:true,error:'',authRequired:false,status:original?'正在提交原创基础练习…':'正在核对答案…'})
+      try{await markChoice(this.data.sessionId,this.data.question.id);if(!this.__disposed)this.setData({status:original?'学习结果已保存':'答案已提交'})}
       catch(error){if(!this.__disposed)this.setData({error:error.message,authRequired:isAuthError(error),status:'答案已保留'})}
       finally{if(!this.__disposed){this.setData({busy:false});this.refresh()}}
       return

@@ -58,7 +58,7 @@ async function main(){
   await call('automation_navigate',{action:'navigateTo',url:'/bundles/marking/index'})
   await until(function(){return getCurrentPages().at(-1)?.route==='bundles/marking/index'},'marking subpackage')
   console.log(JSON.stringify({phase:'marking-subpackage-ready'}))
-  await evaluate(function(){const app=getApp();if(app.__wholePaperLive)throw Error('Another whole-paper QA is active');app.__wholePaperLive={inputs:[],ownedPaths:[],reports:[],states:[],phase:'prepare'};return true})
+  await evaluate(function(){const app=getApp();if(app.__wholePaperLive)throw Error('Another whole-paper QA is active');app.__wholePaperLive={inputs:[],ownedPaths:[],reports:[],states:[],progress:[],phase:'prepare'};return true})
   for(const material of materials){
    const inputFile=path.join(output,'synthetic-input.json')
    fs.writeFileSync(inputFile,JSON.stringify([{id:material.id,role:material.role,kind:material.kind,name:material.name},material.bytes.toString('base64')]),'utf8')
@@ -97,9 +97,12 @@ async function main(){
   const job=await until(async function(){
    const q=getApp().__wholePaperLive,value=await q.service.get(q.draft.jobId,q.scope)
    if(q.states.at(-1)!==value.status)q.states.push(value.status)
+   const p=value.progress||{}
+   if(!Number.isFinite(p.elapsedSeconds)||typeof p.isEstimate!=='boolean'||!Object.prototype.hasOwnProperty.call(p,'estimatedRemainingSeconds'))throw Error('Live marking progress schema missing')
+   if(q.progress.at(-1)?.stage!==p.stage)q.progress.push({stage:p.stage,phase:p.phase,elapsedSeconds:p.elapsedSeconds,isEstimate:p.isEstimate,estimatedRemainingSeconds:p.estimatedRemainingSeconds,completedPages:p.completedPages,totalPages:p.totalPages})
    if(!['completed','failed'].includes(value.status))return null
    q.job=value
-   return {status:value.status,failureCode:value.failureCode||'',states:q.states,mode:value.result?.assessmentMode,score:value.result?.provisionalScore,maxScore:value.result?.maxScore,questionCount:value.result?.questionResults?.length||0,scoreReady:value.result?.scoreReady,missingPages:value.result?.missingPages||[],missingQuestions:value.result?.missingQuestions||[]}
+   return {status:value.status,failureCode:value.failureCode||'',states:q.states,progress:q.progress,mode:value.result?.assessmentMode,score:value.result?.provisionalScore,maxScore:value.result?.maxScore,questionCount:value.result?.questionResults?.length||0,scoreReady:value.result?.scoreReady,missingPages:value.result?.missingPages||[],missingQuestions:value.result?.missingQuestions||[]}
   },'live whole-paper report',220000)
   assert.equal(job.status,'completed',JSON.stringify(job))
   assert.equal(job.questionCount,2)

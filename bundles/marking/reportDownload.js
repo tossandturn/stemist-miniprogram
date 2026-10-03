@@ -1,5 +1,6 @@
 const {reclaimCompletedPublicPdfs}=require('../../utils/pdfRangeCache')
 const {createSha256}=require('../../utils/sha256')
+const {createDownloadMetrics}=require('../../utils/downloadMetrics')
 const CHUNK_BYTES=64*1024
 const MAX_PDF_BYTES=40*1024*1024
 const REQUEST_TIMEOUT_MS=30_000
@@ -106,8 +107,15 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
  const cancelled=()=>controller.cancelled||externallyCancelled()
  const isCurrent=()=>identityCurrent()&&!cancelled()
  const ensureCurrent=()=>{if(!isCurrent())throw error(cancelled()?'download_paused':'download_identity_changed',cancelled()?'报告下载已暂停，已下载部分已保留。':'账号已变化，报告下载已停止。')}
+ const metrics=createDownloadMetrics({now:typeof options.now==='function'?options.now:Date.now})
  try{options.onTask?.(controller)}catch{/* UI callbacks cannot alter download integrity. */}
- const publish=(downloadedBytes,totalBytes,complete=false)=>{try{options.onProgress?.({downloadedBytes,totalBytes,percent:complete?100:Math.min(99,Math.floor(downloadedBytes*100/totalBytes)),complete})}catch{/* UI callbacks cannot alter download integrity. */}}
+ const publish=(downloadedBytes,totalBytes,complete=false,phase=complete?'complete':'downloading')=>{
+  const knownTotal=totalBytes>0
+  let estimate
+  if(phase==='downloading')estimate=metrics.observe(downloadedBytes,totalBytes)
+  else{metrics.reset();estimate={etaSeconds:null,speedLabel:'',remainingLabel:''}}
+  try{options.onProgress?.({downloadedBytes,totalBytes,percent:complete?100:knownTotal?Math.min(99,Math.floor(downloadedBytes*100/totalBytes)):null,complete,phase,...estimate})}catch{/* UI callbacks cannot alter download integrity. */}
+ }
  const requestRange=(start,end,etag='')=>new Promise((resolve,reject)=>{
   ensureCurrent()
    const requestOptions={url:targetUrl,method:'GET',responseType:'arraybuffer',timeout:REQUEST_TIMEOUT_MS,header:{Authorization:'Bearer '+token,Range:`bytes=${start}-${end}`,...(etag?{'If-Range':etag}:{})},success:value=>{activeTask=null;try{ensureCurrent();resolve(value)}catch(failure){reject(failure)}},fail:()=>{activeTask=null;reject(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告下载已暂停，已下载部分已保留。':'报告下载中断，已下载部分已保留，请重试。'))}}
@@ -127,6 +135,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   ensureCurrent()
   if(typeof wx.downloadFile!=='function'||!/^"[a-f0-9]{64}"$/i.test(verifiedProbe?.etag||''))throw error('download_storage_failed','本机空间不足，请释放空间后重试；云端报告仍保留，无需重新批改。')
   try{options.onTemporary?.()}catch{}
+  publish(0,verifiedProbe.total,false,'downloading')
   const response=await new Promise((resolve,reject)=>{
    activeTask=wx.downloadFile({url:targetUrl,timeout:180000,header:{Authorization:'Bearer '+token},success:value=>{activeTask=null;resolve(value)},fail:()=>{activeTask=null;reject(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告预览已暂停，云端报告已保留。':'临时预览下载中断，请重试；云端报告已保留，无需重新批改。'))}})
    activeTask?.onProgressUpdate?.(p=>{if(isCurrent())publish(Number(p.totalBytesWritten)||0,verifiedProbe.total,false)})
@@ -135,6 +144,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   if(Number(response.statusCode)===401)throw error('download_unauthorized','报告下载需要重新登录。',401)
   const filePath=String(response.tempFilePath||'')
   if(Number(response.statusCode)!==200||!filePath)throw error('download_response_invalid','临时报告下载响应无效，请重试。')
+  publish(verifiedProbe.total,verifiedProbe.total,false,'verifying')
   const info=await fileInfo(filePath)
   if(!info||Number(info.size)!==verifiedProbe.total)throw error('download_pdf_invalid','临时报告完整性校验失败，请重试。')
   const hash=createSha256()
@@ -145,19 +155,21 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
    hash.update(part)
   }
   if(hash.digest()!==verifiedProbe.etag.slice(1,-1).toLowerCase())throw error('download_pdf_invalid','临时报告完整性校验失败，请重试。')
-  ensureCurrent();publish(verifiedProbe.total,verifiedProbe.total,true);return filePath
+  ensureCurrent();publish(verifiedProbe.total,verifiedProbe.total,true,'complete');return filePath
  }
 
  try{
  ensureCurrent();try{wx.getFileSystemManager().mkdirSync(folder,true)}catch{wx.getFileSystemManager().accessSync(folder)}
+ publish(0,0,false,'connecting')
  const probe=validateRange(await requestRange(0,0),{start:0,end:0})
  verifiedProbe=probe
  ensureCurrent()
  let meta=readMetadata(scope)
  if(meta&&meta.jobId===jobId&&meta.kind===kind&&meta.etag===probe.etag&&meta.total!==probe.total)throw error('download_response_invalid','报告版本与文件长度不一致。')
  if(meta&&meta.jobId===jobId&&meta.kind===kind&&meta.etag===probe.etag){
+  if(meta.complete===true)publish(meta.total,meta.total,false,'verifying')
   if(await validLocalFile(meta,{pdf:meta.complete===true})){
-   if(meta.complete===true){ensureCurrent();publish(meta.total,meta.total,true);return meta.filePath}
+   if(meta.complete===true){ensureCurrent();publish(meta.total,meta.total,true,'complete');return meta.filePath}
   }else{await discardPartial(scope,meta,{removeComplete:true});meta=null}
  }else if(meta){await discardPartial(scope,meta);meta=null}
  ensureCurrent()
@@ -170,8 +182,9 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
    const latest=reports();if(latest.length>=MAX_REGISTERED_FILES)throw error('download_file_limit','本机批改报告过多，请先清理旧报告。')
    saveReports([...latest,filePath]);registered=true;writeMetadata(scope,meta)
   }catch(failure){await unlink(filePath);if(registered)saveReports(reports().filter(item=>item!==filePath));if(failure?.code)throw failure;throw error('download_storage_failed','报告断点未能保存，请检查本机空间。')}
-  publish(1,meta.total,false);if(cancelled())ensureCurrent()
+  if(cancelled())ensureCurrent()
  }
+ publish(meta.bytes,meta.total,false,'downloading')
  while(meta.bytes<meta.total){
   ensureCurrent();const start=meta.bytes,end=Math.min(start+CHUNK_BYTES-1,meta.total-1)
   let part
@@ -183,11 +196,12 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   if(!identityCurrent()){await discardPartial(scope,meta);ensureCurrent()}
   meta={...meta,bytes:end+1};writeMetadata(scope,meta);publish(meta.bytes,meta.total,false);if(cancelled())ensureCurrent()
  }
+ publish(meta.total,meta.total,false,'verifying')
  if(!await validLocalFile(meta,{pdf:true})){await discardPartial(scope,meta);throw error('download_pdf_invalid','下载内容不是有效的 PDF。')}
  ensureCurrent();meta={...meta,complete:true};writeMetadata(scope,meta)
  const next=[...reports().filter(item=>item!==meta.filePath),meta.filePath],evicted=next.slice(0,-MAX_COMPLETED_FILES)
  saveReports(next.slice(-MAX_COMPLETED_FILES));for(const filePath of evicted)await unlink(filePath)
- ensureCurrent();publish(meta.total,meta.total,true);return meta.filePath
+ ensureCurrent();publish(meta.total,meta.total,true,'complete');return meta.filePath
  }catch(failure){if(['download_storage_full','download_storage_failed','download_file_limit'].includes(failure?.code)&&verifiedProbe)return temporaryPreview();throw failure}
 }
 

@@ -34,7 +34,17 @@ assert.deepEqual(JSON.parse(JSON.stringify(unpackTask(v3,'current'))),{id:'curre
 assert.equal(pack.schemaVersion,'stemist-native-task-pack-v3')
 assert.equal(pack.version,'31191da7c62c4607b1317fcb')
 assert.equal(Object.keys(pack.tasks).length,291)
-assert.ok(fs.statSync(path.join(root,'utils/ieltsTaskBootstrap.js')).size<=1_000_000,'v3 task pack must retain material package headroom')
+const taskPackBytes=fs.statSync(path.join(root,'utils/ieltsTaskBootstrap.js')).size
+assert.ok(taskPackBytes<=950_445-15*1024,'v3 task pack must recover at least 15 KiB without dropping content')
+const references=Array(pack.values.length).fill(0)
+function countReferences(value){
+ if(typeof value==='number'&&value<0){const index=-value-1;if(index<references.length)references[index]++;return}
+ if(!Array.isArray(value)||value[0]===2)return
+ if(value[0]===1){for(let i=1;i<value.length;i++)countReferences(value[i]);return}
+ if(value[0]===0)for(let i=2;i<value.length;i+=2)countReferences(value[i])
+}
+Object.values(pack.tasks).forEach(countReferences);pack.values.forEach(countReferences)
+assert.ok(references.every(count=>count>1),'shared-value dictionary must not retain entries used only once in the encoded graph')
 
 const ids=Object.keys(pack.tasks),started=performance.now(),tasks=ids.map(id=>unpackTask(pack,id)),decodeMs=performance.now()-started
 const raw=JSON.stringify(tasks)
@@ -84,5 +94,7 @@ const subPackageStats=declaredApp.subPackages.map(entry=>{const packageFiles=run
 const packageCheck=JSON.parse(execFileSync(process.execPath,['scripts/build-native-package.mjs','--check-only'],{cwd:root,encoding:'utf8'}))
 assert.equal(packageCheck.runtimeFiles,mainRuntimeFiles.length);assert.equal(packageCheck.runtimeBytes,runtimeBytes);assert.equal(packageCheck.headroom,budget-runtimeBytes);assert.equal(packageCheck.minimumHeadroom,targetHeadroom)
 assert.equal(packageCheck.mainPackageBytes,runtimeBytes);assert.equal(packageCheck.totalRuntimeFiles,runtimeFiles.length);assert.equal(packageCheck.totalRuntimeBytes,totalRuntimeBytes);assert.deepEqual(packageCheck.subPackages,subPackageStats)
+const taskPackCheck=JSON.parse(execFileSync(process.execPath,['scripts/build-native-task-bundle.mjs','--repack-existing','--check'],{cwd:root,encoding:'utf8'}))
+assert.equal(taskPackCheck.status,'verified');assert.equal(taskPackCheck.packedBytes,taskPackBytes);assert.equal(taskPackCheck.rawSha256,'2c64d9b27d730a1701bdc2d818640dfa09b7383682c50cb71fe4c21c8446d361');assert.equal(taskPackCheck.version,pack.version)
 
-console.log(JSON.stringify({status:'pass',schemaVersion:pack.schemaVersion,tasks:tasks.length,questions:questionIds.length,imageReferences:imageRefs.length,icons:iconFiles.length,packBytes:fs.statSync(path.join(root,'utils/ieltsTaskBootstrap.js')).size,runtimeFiles:mainRuntimeFiles.length,runtimeBytes,headroom:budget-runtimeBytes,totalRuntimeFiles:runtimeFiles.length,totalRuntimeBytes,subPackages:subPackageStats,sharedValues:pack.values.length,packLoadMs:Number(packLoadMs.toFixed(2)),singleTaskSharedReads:accessed.size,singleDecodeMs:Number(singleMs.toFixed(2)),decodeAllMs:Number(decodeMs.toFixed(2))}))
+console.log(JSON.stringify({status:'pass',schemaVersion:pack.schemaVersion,tasks:tasks.length,questions:questionIds.length,imageReferences:imageRefs.length,icons:iconFiles.length,packBytes:taskPackBytes,runtimeFiles:mainRuntimeFiles.length,runtimeBytes,headroom:budget-runtimeBytes,totalRuntimeFiles:runtimeFiles.length,totalRuntimeBytes,subPackages:subPackageStats,sharedValues:pack.values.length,packLoadMs:Number(packLoadMs.toFixed(2)),singleTaskSharedReads:accessed.size,singleDecodeMs:Number(singleMs.toFixed(2)),decodeAllMs:Number(decodeMs.toFixed(2))}))

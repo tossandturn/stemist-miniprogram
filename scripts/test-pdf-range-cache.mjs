@@ -8,7 +8,7 @@ const URL='https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'a
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 
 function harness({data=source,failAt=-1,damage=false}={}){
- const files=new Map(),storage=new Map(),requests=[],opens=[],states=[]
+ const files=new Map(),storage=new Map(),requests=[],opens=[],states=[],phases=[]
  let calls=0,errorAt=failAt,changedData=data,badRange=false,badEtag=false,writesFail=false
  const manager={
   mkdirSync(){},accessSync(p){if(!files.has(p))throw Error('not found')},statSync(p){if(!files.has(p))throw Error('not found');return{size:files.get(p).length}},
@@ -24,8 +24,8 @@ function harness({data=source,failAt=-1,damage=false}={}){
  },openDocument(o){opens.push(o);o.success()}}
  storage.set('stemistUser',{id:'student-1'});storage.set('stemistPrivacyEpoch',1)
  const r=miniRuntime({wx,globals:{setTimeout:(fn,ms)=>setTimeout(fn,ms===350||ms===900?0:ms)}}),module=r.load('utils/pdfRangeCache')
- const acquire=(extra={})=>module.acquirePdf({wxApi:wx,url:URL,owner:'student-1|1',version:'v1',fileName:'IB_Math_AA_2025_QP.pdf',expectedBytes:changedData.length,expectedSha256:digest(changedData),onProgress:(n,total)=>states.push({n,total}),...extra})
- return{acquire,module,wx,files,storage,requests,states,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v}
+ const acquire=(extra={})=>module.acquirePdf({wxApi:wx,url:URL,owner:'student-1|1',version:'v1',fileName:'IB_Math_AA_2025_QP.pdf',expectedBytes:changedData.length,expectedSha256:digest(changedData),onProgress:(n,total)=>states.push({n,total}),onPhase:(phase,n,total)=>phases.push({phase,n,total}),...extra})
+ return{acquire,module,wx,files,storage,requests,states,phases,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v}
 }
 
 {
@@ -36,6 +36,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
  const h=harness({failAt:2}),first=h.acquire();await assert.rejects(first.promise,error=>error.code==='pdf_network');first.release()
  const record=h.storage.get(h.module.REGISTRY)[0],savedOffset=record.offset;assert.equal(savedOffset,128*1024+5);assert.equal(h.files.get(record.path).length,savedOffset)
  const attempts=h.requests.length;h.setFail(-1);const next=h.acquire(),path=await next.promise;assert.equal(h.requests[attempts].start,0,'retry probes source version');assert.equal(h.requests[attempts+1].start,savedOffset,'retry starts at the saved byte, not at zero');assert.deepEqual(h.files.get(path),source);next.release()
+ assert.ok(h.phases.some(item=>item.phase==='connecting'));assert.ok(h.phases.some(item=>item.phase==='downloading'&&item.n===savedOffset),'resume reports its durable offset without treating it as new bytes');assert.ok(h.phases.some(item=>item.phase==='verifying'&&item.n===source.length),'integrity validation is a distinct phase')
  const count=h.requests.length,cache=h.acquire();assert.equal(await cache.promise,path);assert.equal(h.requests.length,count,'verified complete files survive controller recreation');cache.release()
 }
 {
@@ -53,10 +54,11 @@ function harness({data=source,failAt=-1,damage=false}={}){
 }
 {
  const h=harness({failAt:2}),{createPdfDownloadController}=h.r.load('utils/pdfDownload')
- let state;const c=createPdfDownloadController({wxApi:h.wx,onState:s=>state=s});c.setScope('ap')
+ let state;const timeline=[];const c=createPdfDownloadController({wxApi:h.wx,onState:s=>{state=s;timeline.push({...s})}});c.setScope('ap')
  const req={url:URL,scope:'ap',fileName:'AP_Test_QP.pdf',cacheVersion:'source',expectedBytes:source.length,sha256:digest(source),ownerKey:'ap:qp',itemId:'ap',label:'原卷'}
  await c.open(req);await wait(60);assert.equal(state.phase,'error');assert.ok(state.downloadedBytes>0);assert.match(state.error,/已保存/)
  h.setFail(-1);await c.retry();await wait(100);assert.equal(state.phase,'opened');assert.equal(h.opens.length,1);assert.deepEqual(h.files.get(h.opens[0].filePath),source)
+ const verifying=timeline.filter(item=>item.phase==='verifying');assert.ok(verifying.length);assert.ok(verifying.every(item=>item.percent===null||item.percent<=99));assert.ok(verifying.every(item=>!item.speedLabel&&!item.remainingLabel),'verification never displays stale download estimates or 100%')
  c.dispose()
 }
 {
@@ -95,5 +97,6 @@ console.log('Native PDF: bounded chunks, persisted resume, ETag restart, exact r
  for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const used=[...h.files].filter(([p])=>p.startsWith('/user/')).reduce((n,[,b])=>n+b.length,0);if(used+o.data.byteLength>550000){queueMicrotask(()=>o.fail({errMsg:'file storage limit exceeded'}));return}original(o)}}
  h.wx.downloadFile=o=>{temporary++;setImmediate(()=>{h.files.set('/tmp/native-pdf.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/native-pdf.pdf'})});return{abort(){},onProgressUpdate(){}}}
  const p=await h.acquire().promise;assert.equal(p,'/tmp/native-pdf.pdf');assert.equal(temporary,1);assert.deepEqual(h.files.get(p),source)
+ assert.ok(h.phases.some(item=>item.phase==='verifying'),'temporary previews are validated before completion')
  assert.deepEqual(h.files.get(student),Buffer.alloc(400000,7));assert.ok(h.storage.get(h.module.REGISTRY)[0].offset<source.length,'temporary preview never claims a durable complete checkpoint')
 }

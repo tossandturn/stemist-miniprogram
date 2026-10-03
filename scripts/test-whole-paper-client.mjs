@@ -175,16 +175,20 @@ registryRace.flushWrite(0);await assert.rejects(()=>registryOld,/账号/)
 assert.deepEqual(clone(registryRace.storage.get('stemistPaperReports')),[registryMetaB.filePath],'Late old-owner write cleanup removes only its exact path and preserves the newer registry entry')
 assert.equal(registryRace.files.has(registryOldPath),false);assert.equal(registryRace.storage.get('stemistDraft:whole-paper-download:student-a'),undefined)
 
-const d=reportDownloadRuntime(),ds=d.api.scope(),progress=[];let taskControl
-const downloading=d.api.download(jobId,'report',ds,'Fixture report',{onProgress:value=>progress.push(value),onTask:value=>{taskControl=value},cancelled:()=>false})
+const d=reportDownloadRuntime(),ds=d.api.scope(),progress=[];let taskControl,reportNow=0
+const downloading=d.api.download(jobId,'report',ds,'Fixture report',{onProgress:value=>progress.push(value),onTask:value=>{taskControl=value},cancelled:()=>false,now:()=>reportNow})
 await settle();assert.equal(d.requests[0].options.url,'https://stem.ieltsist.com/api/stem/paper-marking-jobs/job-fixture-123/report.pdf');assert.doesNotMatch(d.requests[0].options.url,/token|fixture-token/);assert.equal(d.requests[0].options.header.Range,'bytes=0-0');assert.equal(d.requests[0].options.timeout,30_000);assert.equal(d.requests[0].options.responseType,'arraybuffer');assert.equal(typeof taskControl.abort,'function')
 answerRange(d.requests[0],reportBytes);await settle()
 assert.equal(d.requests[1].options.header.Range,'bytes=1-65536');assert.equal(d.requests[1].options.header['If-Range'],'"fixture-v1"')
-answerRange(d.requests[1],reportBytes);await settle();assert.equal(d.requests[2].options.header.Range,'bytes=65537-69999')
-answerRange(d.requests[2],reportBytes);const firstPath=await downloading
+reportNow=1000;answerRange(d.requests[1],reportBytes);await settle();assert.equal(d.requests[2].options.header.Range,'bytes=65537-69999')
+reportNow=2000;answerRange(d.requests[2],reportBytes);const firstPath=await downloading
 assert.deepEqual(d.files.get(firstPath),reportBytes)
 assert.ok(progress.slice(0,-1).every(item=>item.percent<100&&item.complete!==true),'Chunk progress cannot claim completion before PDF validation')
+assert.equal(progress[0].phase,'connecting');assert.equal(progress[0].etaSeconds,null)
+assert.ok(progress.some(item=>item.phase==='downloading'&&item.speedLabel&&item.etaSeconds!==null),'private report progress exposes an observed speed and ETA')
+assert.ok(progress.some(item=>item.phase==='verifying'&&item.percent===99&&!item.remainingLabel),'private reports stay below 100% while validation runs')
 assert.equal(progress.at(-1).percent,100);assert.equal(progress.at(-1).complete,true)
+assert.equal(progress.at(-1).phase,'complete');assert.equal(progress.at(-1).etaSeconds,null);assert.equal(progress.at(-1).speedLabel,'')
 assert.ok(d.storage.get('stemistPaperReports').includes(firstPath))
 const requestCountBeforeCache=d.requests.length
 const cached=d.api.download(jobId,'report',ds,'Fixture report');await settle();answerRange(d.requests.at(-1),reportBytes)
@@ -222,9 +226,11 @@ assert.equal(d.requests[resumeStart+2].options.header.Range,'bytes=65537-89999')
 await assert.rejects(()=>interruptedDownload,/已下载部分已保留/);assert.ok(resumeProgress.every(item=>item.percent<100))
 const partialMeta=d.storage.get('stemistDraft:whole-paper-download:student-a'),partialPath=partialMeta.filePath
 assert.equal(partialMeta.bytes,65537);assert.equal(d.files.get(partialPath).byteLength,65537)
-const retryStart=d.requests.length,retried=d.api.download(jobId,'source',ds,'Resume source');await settle();answerRange(d.requests[retryStart],resumeBytes,'"resume-v1"');await settle()
+const retryStart=d.requests.length,retryProgress=[];let retryNow=0
+const retried=d.api.download(jobId,'source',ds,'Resume source',{onProgress:value=>retryProgress.push(value),now:()=>retryNow});await settle();answerRange(d.requests[retryStart],resumeBytes,'"resume-v1"');await settle()
 assert.equal(d.requests[retryStart+1].options.header.Range,'bytes=65537-89999');assert.equal(d.requests[retryStart+1].options.header['If-Range'],'"resume-v1"')
-answerRange(d.requests[retryStart+1],resumeBytes,'"resume-v1"');assert.equal(await retried,partialPath);assert.deepEqual(d.files.get(partialPath),resumeBytes)
+const retryBaseline=retryProgress.find(item=>item.phase==='downloading');assert.equal(retryBaseline.downloadedBytes,partialMeta.bytes);assert.equal(retryBaseline.speedLabel,'');assert.equal(retryBaseline.etaSeconds,null,'a private report retry rebases at the durable offset')
+retryNow=1000;answerRange(d.requests[retryStart+1],resumeBytes,'"resume-v1"');assert.equal(await retried,partialPath);assert.deepEqual(d.files.get(partialPath),resumeBytes);assert.ok(retryProgress.filter(item=>item.phase==='downloading').every(item=>!item.speedLabel),'one post-resume sample is too little evidence for a rate')
 assert.doesNotMatch(JSON.stringify(d.storage.get('stemistDraft:whole-paper-download:student-a')),/fixture-token|authorization/i,'Resume metadata never persists credentials')
 
 const mismatch=reportDownloadRuntime(),mismatchScope=mismatch.api.scope(),mismatchBytes=new Uint8Array(70_000);mismatchBytes.set(Buffer.from('%PDF-mismatch'));mismatchBytes.fill(68,13)
@@ -374,7 +380,9 @@ assert.equal(stateView.p.data.flowStep,1);assert.match(stateView.p.data.jobState
 stateView.p.setJob({jobId,status:'queued',progress:{}})
 assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/等待 AI 批改/)
 stateView.p.setJob({jobId,status:'processing',progress:{completedPages:2,totalPages:5}})
-assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/正在批改/)
+assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/逐题反馈.*PDF 报告/)
+assert.equal(stateView.p.data.markingProgress.label,'AI 批改中')
+assert.doesNotMatch(stateView.p.data.jobStateHint,/已处理.*页/,'file preparation is not marking completion')
 stateView.p.setJob({jobId,status:'completed',result:feedbackOnly})
 assert.equal(stateView.p.data.flowStep,3);assert.match(stateView.p.data.jobStateHint,/批改完成/)
 assert.equal(stateView.p.data.jobLabel,'批改已完成','Completed label must not claim a PDF exists before reportPdfPath does')

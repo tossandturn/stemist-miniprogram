@@ -27,9 +27,10 @@ return error
 function isAuthError(error) {
 return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
-function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null } = {}) {
+function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null, onDispatched = null } = {}) {
 const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
 return new Promise((resolve, reject) => {
+let settled=false
 const request = {
 url: `${origin}${path}`,
 method: String(method || 'POST').toUpperCase(),
@@ -42,6 +43,7 @@ header: {
 ...(origin===baseUrl()&&path==='/api/auth/logout'&&wx.getStorageSync('stemistNativeSessionCookie')?{Cookie:'stem_session='+wx.getStorageSync('stemistNativeSessionCookie')}:{})
 },
 success(response) {
+settled=true
 const payload = response.data || {}
 if (response.statusCode >= 200 && response.statusCode < 300) {
 try{if(authCheck)authCheck(payload)}catch(error){reject(error);return}
@@ -57,6 +59,7 @@ return
 reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && (payload.code || payload.error && payload.error.code)))
 },
 fail(error) {
+settled=true
 const raw = String(error && error.errMsg || '')
 if (/not in (?:domain|legal domain) list|不在.*合法域名|域名.*校验/i.test(raw)) return reject(requestError('当前版本的服务连接配置有误，请更新小程序后重试。', 0, 'network_domain_blocked'))
 if (/ssl|tls|certificate|cert[ _-]|证书/i.test(raw)) return reject(requestError('安全连接未能建立，请稍后重试。', 0, 'network_tls_error'))
@@ -65,6 +68,7 @@ reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网�
 }
 if (data !== undefined && data !== null) request.data = data
 wx.request(request)
+if(!settled&&typeof onDispatched==='function')try{onDispatched()}catch{}
 })
 }
 async function requestJson(path, data, options = {}) {
@@ -79,13 +83,14 @@ return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false }
 function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
 return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
-function askCoach({ message, context = {}, imageDataUrls = [], history = [] }) {
+function askCoach({ message, context = {}, imageDataUrls = [], history = [], onStage = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
 return requestJson('/api/ai/coach', { message, context, imageDataUrls: images,history:history.slice(-10) }, {
 timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
+onDispatched:()=>{if(typeof onStage==='function')onStage('analysis')},
 })
 }
-function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = [] }) {
+function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = [], onStage = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
 const payload = {
 message,
@@ -96,6 +101,7 @@ history: Array.isArray(history) ? history.slice(-8) : [],
 if (images[0]) payload.imageDataUrl = images[0]
 return requestIeltsLearning('/api/help/chat', payload, {
 timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
+onDispatched:()=>{if(typeof onStage==='function')onStage('analysis')},
 }).then((result) => ({
 ...result,
 providerStatus: result && result.providerStatus

@@ -3,11 +3,16 @@
     <view class="ai-orb" aria-hidden="true"><view class="ai-orb-mark"></view></view>
     <view>
       <view class="coach-title">AI Coach</view>
-    <view wx:if="{{loading || status}}" class="coach-status">{{loading ? '正在分析…' : status}}</view>
+    <view wx:if="{{loading || status}}" class="coach-status">{{loading ? (progress.label || '正在分析…') : status}}</view>
     </view>
   </view>
+  <view wx:if="{{loading && progress.active !== false}}" class="coach-progress" role="status" aria-label="{{progress.label || '等待 AI 返回'}}">
+    <view class="coach-progress-steps"><text class="{{progress.phase === 'calling' || progress.phase === 'preparing' ? 'active' : 'done'}}">调用接口</text><text class="{{progress.phase === 'analysis' ? 'active' : progress.phase === 'arranging' ? 'done' : ''}}">分析</text><text class="{{progress.phase === 'arranging' ? 'active' : ''}}">整理答案</text></view>
+    <view class="coach-progress-track"><view class="coach-progress-pulse"></view></view>
+    <view class="coach-progress-meta"><text>{{progress.elapsedLabel || '正在连接…'}}</text><text>{{progress.etaLabel || '预计时间估算中'}}</text></view>
+  </view>
   <textarea wx:if="{{!hideInput}}" value="{{message}}" disabled="{{readOnly || loading}}" maxlength="{{maxLength}}" cursor-spacing="24" adjust-position="true" show-confirm-bar="true" placeholder="{{placeholder}}" bindinput="onInput" />
-  <button data-testid="coach-submit" class="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{disabled || loading}}">{{loading ? 'AI 正在分析…' : submitLabel}}</button>
+  <button data-testid="coach-submit" class="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{disabled || loading}}">{{loading ? (progress.phase === 'complete' ? '正在保存记录…' : (progress.label || 'AI 正在分析…')) : submitLabel}}</button>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <button wx:if="{{authRequired}}" class="secondary account-recovery" bindtap="onAccount" disabled="{{loading}}">登录 / 注册后重试</button>
   <button wx:if="{{canRetry}}" class="secondary retry-button" bindtap="onRetry" disabled="{{loading}}">重试 AI</button>
