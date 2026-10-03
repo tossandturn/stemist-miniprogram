@@ -1,5 +1,6 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const {KNOWN_BOARDS,fetchCurriculumPapers}=require('./service')
+const {fetchCatalog:fetchPracticeCatalog}=require('./practiceService')
 const {createPdfDownloadController,formatBytes,initialPdfDownloadState}=require('../../utils/pdfDownload')
 
 const filterOptions=(values,allLabel)=>[{value:'',label:allLabel},...(values||[]).map(value=>({value:String(value),label:String(value)}))]
@@ -7,15 +8,15 @@ const pairLabel=(status,hasMarkScheme)=>status==='verified'&&hasMarkScheme?'QP /
 const publicParam=value=>String(value||'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,100)
 
 Page({
- data:deviceState({board:'',boardLabel:'',invalidBoard:false,course:'',courseOptions:[],courseIndex:0,level:'',levelOptions:[],levelIndex:0,year:'',yearOptions:[],yearIndex:0,session:'',sessionOptions:[],sessionIndex:0,paper:'',paperOptions:[],paperIndex:0,query:'',queryDraft:'',loading:false,catalog:false,error:'',items:[],summary:{papers:0,downloadable:0,sourceOnly:0},pageNumber:1,pageCount:0,total:0,pdfBusy:'',pdfDownload:initialPdfDownloadState()}),
+ data:deviceState({board:'',boardLabel:'',invalidBoard:false,course:'',courseOptions:[],courseIndex:0,level:'',levelOptions:[],levelIndex:0,year:'',yearOptions:[],yearIndex:0,session:'',sessionOptions:[],sessionIndex:0,paper:'',paperOptions:[],paperIndex:0,query:'',queryDraft:'',loading:false,catalog:false,error:'',items:[],summary:{papers:0,downloadable:0,sourceOnly:0},pageNumber:1,pageCount:0,total:0,practiceLoading:false,practiceRoutes:[],pdfBusy:'',pdfDownload:initialPdfDownloadState()}),
  onLoad(options={}){
-  this.__disposed=false;this.__requestId=0;this.__items=[];this.setupPdfDownload()
+  this.__disposed=false;this.__requestId=0;this.__practiceRequestId=0;this.__items=[];this.__practiceRoutes=[];this.setupPdfDownload()
   const board=publicParam(options.board).toLowerCase()
   if(!KNOWN_BOARDS[board]){this.setData({invalidBoard:true,error:'课程体系参数无效，请从首页重新进入。'});return Promise.resolve(false)}
   this.setData({board,boardLabel:KNOWN_BOARDS[board],course:publicParam(options.course),level:publicParam(options.level),year:publicParam(options.year),session:publicParam(options.session),paper:publicParam(options.paper),query:'',queryDraft:''})
-  return this.loadCatalog(1)
+  const loaded=this.loadCatalog(1);if(board==='ap')this.loadPracticeCatalog();return loaded
  },
- onShow(){syncDevice(this);this.syncPdfScope();this.__pdfDownload?.resume?.()},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},onUnload(){this.__disposed=true;this.__requestId++;this.__pdfDownload?.dispose()},
+ onShow(){syncDevice(this);this.syncPdfScope();this.__pdfDownload?.resume?.()},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},onUnload(){this.__disposed=true;this.__requestId++;this.__practiceRequestId++;this.__pdfDownload?.dispose()},
  pdfScope(){return[this.__requestId||0,this.data.board,this.data.course,this.data.level,this.data.year,this.data.session,this.data.paper,this.data.query,this.data.pageNumber].join('|')},
  setupPdfDownload(){if(this.__pdfDownload)return;this.__pdfDownload=createPdfDownloadController({wxApi:wx,isScopeCurrent:scope=>!this.__disposed&&scope===this.pdfScope(),onState:state=>{if(!this.__disposed)this.setData({pdfDownload:state,pdfBusy:state.active?state.itemId:''})}});this.__pdfDownload.setScope(this.pdfScope())},
  syncPdfScope(){if(!this.__disposed)this.__pdfDownload?.setScope(this.pdfScope())},
@@ -40,6 +41,8 @@ Page({
   }catch(error){if(!this.__disposed&&request===this.__requestId)this.setData({catalog:false,error:error?.code==='invalid_board'?'课程体系参数无效，请从首页重新进入。':error?.message||'真题目录暂时无法加载，请重试。'});return false}
   finally{if(!this.__disposed&&request===this.__requestId)this.setData({loading:false})}
  },
+ async loadPracticeCatalog(){const request=++this.__practiceRequestId;this.setData({practiceLoading:true,practiceRoutes:[]});try{const catalog=await fetchPracticeCatalog();if(this.__disposed||request!==this.__practiceRequestId)return false;this.__practiceRoutes=catalog.routes.filter(route=>route.questionCount>0);this.setData({practiceRoutes:this.__practiceRoutes.map(route=>({id:route.id,label:route.label,questionCount:route.questionCount,topicCount:route.topics.filter(topic=>topic.questionCount>0).length}))});return true}catch{return false}finally{if(!this.__disposed&&request===this.__practiceRequestId)this.setData({practiceLoading:false})}},
+ openPractice(event){const route=String(event.currentTarget?.dataset?.route||''),item=this.__practiceRoutes.find(value=>value.id===route);if(!item||item.questionCount<=0)return;wx.navigateTo({url:'/bundles/curricula/practice?routeId='+encodeURIComponent(route)})},
  chooseCourse(event){const option=this.data.courseOptions[Number(event.detail?.value)];if(!option||this.data.loading)return;this.setData({course:option.value});return this.loadCatalog(1)},
  chooseFilter(event){const key=String(event.currentTarget?.dataset?.filter||''),map={level:'levelOptions',year:'yearOptions',session:'sessionOptions',paper:'paperOptions'};if(!map[key]||this.data.loading)return;const option=this.data[map[key]][Number(event.detail?.value)];if(!option)return;this.setData({[key]:option.value});return this.loadCatalog(1)},
  onQuery(event){this.setData({queryDraft:String(event.detail?.value||'').slice(0,120)})},

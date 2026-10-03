@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "Stemist · AP 选择题练习",
+  "enableShareAppMessage": true,
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
+  }
+}

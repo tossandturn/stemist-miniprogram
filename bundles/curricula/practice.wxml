@@ -1,0 +1,37 @@
+<view class="page {{deviceClass}} {{orientation}} curriculum-practice-page">
+ <stemist-header title="AP 选择题练习" subtitle="AI 核对学习题库" />
+ <app-nav active="practice" source="curriculum-practice" is-tablet="{{isTablet}}" />
+ <view wx:if="{{loading}}" class="loading-state" role="status">正在读取已开放的选择题练习…</view>
+ <view wx:elif="{{phase === 'setup'}}" class="setup-layout">
+  <view class="practice-intro"><text class="practice-title">选择题练习</text><text class="practice-copy">题目文字与选项保留在原卷图片中。根据双模型核验的答案核对结果，仅用于学习，不计正式进度或官方成绩。</text><text class="authority-badge">AI 核对 · 非正式学习结果</text></view>
+  <button wx:if="{{resumeVisible}}" class="resume-card" bindtap="resume" disabled="{{busy}}"><text>继续上次练习</text><text>{{resumeLabel}}</text></button>
+  <view class="setup-card">
+   <text class="field-label">课程</text><picker mode="selector" range="{{routeOptions}}" range-key="label" value="{{routeIndex}}" bindchange="chooseRoute" disabled="{{busy}}"><view class="field-control"><text>{{routeOptions[routeIndex].label}}</text><text>{{routeOptions[routeIndex].count}} 题</text></view></picker>
+   <text class="field-label">练习范围</text><picker mode="selector" range="{{topicOptions}}" range-key="label" value="{{topicIndex}}" bindchange="chooseTopic" disabled="{{busy}}"><view class="field-control"><text>{{topicOptions[topicIndex].label}}</text><text>{{availableCount}} 题</text></view></picker>
+   <text class="field-label">本次题量</text><view class="count-options"><button wx:for="{{countOptions}}" wx:key="value" class="count-option {{count === item.value ? 'selected' : ''}}" data-count="{{item.value}}" bindtap="chooseCount" disabled="{{busy}}" aria-pressed="{{count === item.value}}">{{item.label}}</button></view>
+   <button wx:if="{{!authRequired}}" class="primary start-practice" bindtap="start" loading="{{busy}}" disabled="{{busy || !routeId}}">{{busy ? '正在建立练习…' : '开始选择题练习'}}</button><button wx:else class="primary" bindtap="openAccount">登录后开始</button>
+  </view>
+  <view wx:if="{{history.length}}" class="history-card"><text class="section-title">最近学习结果</text><button wx:for="{{history}}" wx:key="id" class="history-row" data-id="{{item.id}}" bindtap="reviewHistory" disabled="{{busy}}"><text>{{item.label}}</text><text>{{item.score}} / {{item.maxScore}}</text></button></view>
+ </view>
+ <block wx:else>
+  <view class="practice-progress"><text>第 {{index + 1}} / {{total}} 题</text><text>已作答 {{answeredCount}} / {{total}}</text></view>
+  <view class="practice-layout">
+   <view class="question-pane">
+    <view class="question-head"><view><text class="question-title">Question {{question.questionNumber}}</text><text class="question-source">{{question.sourceLabel}}</text></view><text class="quality-badge">AI 核对 · 不计正式进度</text></view>
+    <view wx:if="{{questionLoading}}" class="loading-state" role="status">正在加载当前题原图…</view>
+    <button wx:if="{{error && !question && !questionLoading}}" class="secondary retry-question" bindtap="retryQuestion" disabled="{{busy}}">重试当前题</button>
+    <view wx:for="{{question.source.regions}}" wx:key="assetId" class="source-region">
+     <image wx:if="{{item.imageUrl && !item.failed}}" class="question-image" src="{{item.imageUrl}}" mode="widthFix" lazy-load="{{true}}" data-id="{{item.assetId}}" bindload="imageLoaded" binderror="imageFailed" bindtap="previewImage" aria-label="第 {{question.questionNumber}} 题原卷图片，轻点放大" />
+     <view wx:if="{{!item.loaded && !item.failed}}" class="image-state">正在加载原卷图片…</view><view wx:if="{{item.failed}}" class="image-state" role="alert"><text>原卷图片加载失败</text><button class="text-button" data-id="{{item.assetId}}" bindtap="retryImage">重试</button></view>
+    </view>
+   </view>
+   <view class="answer-pane">
+    <view class="answer-card"><text class="section-title">选择答案</text><text class="answer-help">{{question.answerMode === 'multiple' ? '本题可多选；已选 ' + selectedOptions.length + ' 项' : '本题单选'}}</text><view class="answer-options"><button wx:for="{{question.options}}" wx:key="value" class="answer-option {{item.selected ? 'selected' : ''}}" data-option="{{item.value}}" bindtap="toggleOption" disabled="{{busy || phase === 'result'}}" aria-pressed="{{item.selected}}">{{item.value}}</button></view><text wx:if="{{status && !busy}}" class="saved-state">{{status}}</text></view>
+    <view wx:if="{{phase === 'result'}}" class="result-card"><text class="section-title">学习结果 {{result.score}} / {{result.maxScore}}</text><text class="result-scope">AI 核对学习结果，不计正式进度或官方成绩。</text><text wx:if="{{currentResult}}" class="question-result">本题：{{currentResult.unanswered ? '未作答' : (currentResult.correct ? '回答正确' : '需要复习')}}</text></view>
+    <view wx:if="{{error}}" class="error" role="alert">{{error}}</view><button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录并继续</button>
+    <view class="question-actions"><button class="secondary" bindtap="previous" disabled="{{busy || index === 0}}">上一题</button><button wx:if="{{index + 1 < total}}" class="secondary" bindtap="next" disabled="{{busy}}">下一题</button><button wx:if="{{phase !== 'result'}}" class="primary submit-practice" bindtap="submit" loading="{{busy}}" disabled="{{busy || answeredCount === 0}}">{{busy ? '正在提交…' : '提交学习结果'}}</button><button wx:else class="primary" bindtap="backToLibrary">返回真题目录</button></view>
+   </view>
+  </view>
+ </block>
+ <view wx:if="{{error && phase === 'setup'}}" class="error" role="alert">{{error}}</view>
+</view>
