@@ -1,3 +1,5 @@
+const {reclaimCompletedPublicPdfs}=require('../../utils/pdfRangeCache')
+const {createSha256}=require('../../utils/sha256')
 const CHUNK_BYTES=64*1024
 const MAX_PDF_BYTES=40*1024*1024
 const REQUEST_TIMEOUT_MS=30_000
@@ -57,7 +59,7 @@ function clearMetadata(scope){wx.removeStorageSync(metadataKey(scope.owner))}
 const fileInfo=filePath=>new Promise(resolve=>{try{wx.getFileSystemManager().getFileInfo({filePath,success:value=>resolve(value),fail:()=>resolve(null)})}catch{resolve(null)}})
 const writeFile=(filePath,data,append=false)=>new Promise((resolve,reject)=>{
  const method=append?'appendFile':'writeFile'
- try{wx.getFileSystemManager()[method]({filePath,data:buffer(data),success:resolve,fail:()=>reject(error('download_storage_failed','报告未能写入本机，请检查存储空间。'))})}
+ try{wx.getFileSystemManager()[method]({filePath,data:buffer(data),success:resolve,fail:e=>reject(error(/limit|quota|no space|storage.*full|exceed|空间/i.test(String(e?.errMsg||''))?'download_storage_full':'download_storage_failed','报告未能写入本机，请检查存储空间。'))})}
  catch{reject(error('download_storage_failed','报告未能写入本机，请检查存储空间。'))}
 })
 const readHead=filePath=>new Promise((resolve,reject)=>{try{wx.getFileSystemManager().readFile({filePath,position:0,length:5,success:value=>resolve(bytes(value.data)),fail:()=>reject(error('download_storage_failed','报告文件无法读取。'))})}catch{reject(error('download_storage_failed','报告文件无法读取。'))}})
@@ -112,8 +114,44 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   activeTask=wx.request(requestOptions)
  })
 
+ const durableWrite=async(filePath,data,append=false)=>{
+  ensureCurrent()
+  try{return await writeFile(filePath,data,append)}catch(failure){
+   if(failure?.code!=='download_storage_full')throw failure
+   await reclaimCompletedPublicPdfs(wx,identityCurrent);ensureCurrent()
+   return writeFile(filePath,data,append)
+  }
+ }
+ let verifiedProbe=null
+ const temporaryPreview=async()=>{
+  ensureCurrent()
+  if(typeof wx.downloadFile!=='function'||!/^"[a-f0-9]{64}"$/i.test(verifiedProbe?.etag||''))throw error('download_storage_failed','本机空间不足，请释放空间后重试；云端报告仍保留，无需重新批改。')
+  try{options.onTemporary?.()}catch{}
+  const response=await new Promise((resolve,reject)=>{
+   activeTask=wx.downloadFile({url:targetUrl,timeout:180000,header:{Authorization:'Bearer '+token},success:value=>{activeTask=null;resolve(value)},fail:()=>{activeTask=null;reject(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告预览已暂停，云端报告已保留。':'临时预览下载中断，请重试；云端报告已保留，无需重新批改。'))}})
+   activeTask?.onProgressUpdate?.(p=>{if(isCurrent())publish(Number(p.totalBytesWritten)||0,verifiedProbe.total,false)})
+  })
+  ensureCurrent()
+  if(Number(response.statusCode)===401)throw error('download_unauthorized','报告下载需要重新登录。',401)
+  const filePath=String(response.tempFilePath||'')
+  if(Number(response.statusCode)!==200||!filePath)throw error('download_response_invalid','临时报告下载响应无效，请重试。')
+  const info=await fileInfo(filePath)
+  if(!info||Number(info.size)!==verifiedProbe.total)throw error('download_pdf_invalid','临时报告完整性校验失败，请重试。')
+  const hash=createSha256()
+  for(let at=0;at<verifiedProbe.total;at+=CHUNK_BYTES){
+   ensureCurrent()
+   const part=await new Promise((resolve,reject)=>wx.getFileSystemManager().readFile({filePath,position:at,length:Math.min(CHUNK_BYTES,verifiedProbe.total-at),success:r=>resolve(bytes(r.data)),fail:()=>reject(error('download_storage_failed','临时报告文件无法读取。'))}))
+   if(!part||part.length!==Math.min(CHUNK_BYTES,verifiedProbe.total-at)||at===0&&String.fromCharCode(...part.slice(0,5))!=='%PDF-')throw error('download_pdf_invalid','临时报告完整性校验失败，请重试。')
+   hash.update(part)
+  }
+  if(hash.digest()!==verifiedProbe.etag.slice(1,-1).toLowerCase())throw error('download_pdf_invalid','临时报告完整性校验失败，请重试。')
+  ensureCurrent();publish(verifiedProbe.total,verifiedProbe.total,true);return filePath
+ }
+
+ try{
  ensureCurrent();try{wx.getFileSystemManager().mkdirSync(folder,true)}catch{wx.getFileSystemManager().accessSync(folder)}
  const probe=validateRange(await requestRange(0,0),{start:0,end:0})
+ verifiedProbe=probe
  ensureCurrent()
  let meta=readMetadata(scope)
  if(meta&&meta.jobId===jobId&&meta.kind===kind&&meta.etag===probe.etag&&meta.total!==probe.total)throw error('download_response_invalid','报告版本与文件长度不一致。')
@@ -125,7 +163,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
  ensureCurrent()
  if(!meta){
   const filePath=newPath(jobId,kind,label)
-  await writeFile(filePath,probe.data,false);if(!identityCurrent()){await unlink(filePath);ensureCurrent()}
+  await durableWrite(filePath,probe.data,false);if(!identityCurrent()){await unlink(filePath);ensureCurrent()}
   meta={schemaVersion:META_SCHEMA,owner:scope.owner,epoch:scope.epoch,jobId,kind,etag:probe.etag,total:probe.total,filePath,bytes:1,complete:false}
   let registered=false
   try{
@@ -139,7 +177,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   let part
   try{part=validateRange(await requestRange(start,end,meta.etag),{start,end,total:meta.total,etag:meta.etag})}
   catch(failure){if(failure?.code==='download_changed')await discardPartial(scope,meta);throw failure}
-  ensureCurrent();await writeFile(meta.filePath,part.data,true)
+  ensureCurrent();await durableWrite(meta.filePath,part.data,true)
   if(!identityCurrent()){await discardPartial(scope,meta);ensureCurrent()}
   const info=await fileInfo(meta.filePath);if(!info||Number(info.size)!==end+1){await discardPartial(scope,meta);throw error('download_checkpoint_invalid','报告断点与本机文件长度不一致，请重试。')}
   if(!identityCurrent()){await discardPartial(scope,meta);ensureCurrent()}
@@ -150,6 +188,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
  const next=[...reports().filter(item=>item!==meta.filePath),meta.filePath],evicted=next.slice(0,-MAX_COMPLETED_FILES)
  saveReports(next.slice(-MAX_COMPLETED_FILES));for(const filePath of evicted)await unlink(filePath)
  ensureCurrent();publish(meta.total,meta.total,true);return meta.filePath
+ }catch(failure){if(['download_storage_full','download_storage_failed','download_file_limit'].includes(failure?.code)&&verifiedProbe)return temporaryPreview();throw failure}
 }
 
 async function downloadWholePaperPdf(options={}){

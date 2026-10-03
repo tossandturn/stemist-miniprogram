@@ -54,3 +54,14 @@ test('native viewer hide after completion cannot start a download loop',async()=
  assert.equal(f.calls.filter(c=>!c.opened).length,1)
  f.p.onUnload()
 })
+
+test('temporary preview is labeled without claiming a persisted local report',async()=>{
+ const f=fixture(),pending=f.p.document(event);await settle()
+ f.calls[0].options.onTemporary()
+ assert.match(f.p.data.documentStatus,/临时.*云端报告/)
+ f.calls[0].options.onProgress({downloadedBytes:1000,totalBytes:2000,percent:50})
+ assert.match(f.p.data.documentStatus,/临时预览下载.*50%/)
+ f.calls[0].resolve('/tmp/temporary-report.pdf');await pending
+ assert.match(f.p.data.documentStatus,/临时 PDF.*云端报告/)
+ f.p.onUnload()
+})

@@ -241,15 +241,15 @@ Page({
   const control=this.__document={scope:s,jobId:id,kind,phase:'downloading',task:null}
   this.setData({documentBusy:true,documentStatus:'正在连接并确认 PDF 下载进度…',error:''})
   const alive=()=>this.accept(s)&&id===this.data.jobId&&g===this.__documentGeneration
-  const options={cancelled:()=>!alive(),onTask:task=>{if(alive())control.task=task;else task?.abort?.()},onProgress:progress=>{
+  const options={cancelled:()=>!alive(),onTask:task=>{if(alive())control.task=task;else task?.abort?.()},onTemporary:()=>{if(alive()){control.temporary=true;this.setData({documentStatus:'本机空间不足，正在准备临时 PDF 预览；云端报告仍保留。'})}},onProgress:progress=>{
    if(!alive())return
    const downloaded=Math.max(0,Number(progress.downloadedBytes)||0),total=Math.max(0,Number(progress.totalBytes)||0)
    const percent=total>0?Math.max(0,Math.min(99,Math.floor(downloaded/total*100))):null
-   this.setData({documentStatus:'正在下载 '+(downloaded?fileSizeLabel(downloaded):'0 KB')+(total?' / '+fileSizeLabel(total)+' · '+percent+'%':'')})
+   this.setData({documentStatus:(control.temporary?'临时预览下载 ':'正在下载 ')+(downloaded?fileSizeLabel(downloaded):'0 KB')+(total?' / '+fileSizeLabel(total)+' · '+percent+'%':'')})
   }}
   try{
    const filePath=await api.download(id,kind,s,this.__job?.title||this.__draft.title||routes[this.data.routeIndex]?.label,options)
-   if(alive()&&this.__visible){control.phase='opening';this.setData({documentStatus:'下载完成，正在打开 PDF…'});wx.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(alive())this.setData({documentStatus:'PDF 已打开。'})},fail:()=>{if(alive())this.setData({error:'PDF 已下载，但未能打开，请重试。',documentStatus:'文件已保留，重新点击下载按钮可再次打开。'})}})}
+   if(alive()&&this.__visible){control.phase='opening';this.setData({documentStatus:'下载完成，正在打开 PDF…'});wx.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(alive())this.setData({documentStatus:control.temporary?'临时 PDF 已打开；云端报告仍保留。':'PDF 已打开。'})},fail:()=>{if(alive())this.setData({error:'PDF 已下载，但未能打开，请重试。',documentStatus:control.temporary?'云端报告保留，重试下载不会重新批改。':'文件已保留，重新点击下载按钮可再次打开。'})}})}
   }catch(e){if(alive())this.setData({error:e.message,documentStatus:'下载未完成，点击下载按钮重试；不会重新批改。'})}
   finally{if(alive())this.setData({documentBusy:false});if(this.__document===control)this.__document=null}
  },

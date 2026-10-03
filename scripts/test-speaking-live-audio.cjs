@@ -3,12 +3,13 @@
 // the existing authenticated Mini Program runtime and never enter this process.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict')
 const {call,evaluate,until}=require('./helpers/wechat-cli.cjs')
+const account=require('./helpers/native-qa-account.cjs')
 const directory=process.argv[process.argv.indexOf('--audio')+1]
 const noisy=process.argv.includes('--room-noise')
 const longTurn=process.argv.includes('--long-turn')
 if(!process.argv.includes('--run-production')||!directory)throw Error('Use --run-production --audio <synthetic wav directory>')
 function pcm(file){const b=fs.readFileSync(file);assert.equal(b.toString('ascii',0,4),'RIFF');let offset=12;while(offset+8<=b.length){const size=b.readUInt32LE(offset+4);if(b.toString('ascii',offset,offset+4)==='data')return b.subarray(offset+8,offset+8+size).toString('base64');offset+=8+size+(size%2)}throw Error('Missing PCM')}
-async function main(){
+async function runTest(){
  const status=await call('automation_runtime_info',{action:'currentPage'})
  assert.equal(status.currentPage?.path,'pages/index/index','Return to Home before controlled QA')
  const clips=(noisy||longTurn?[0]:[0,1,2]).map(i=>pcm(path.join(directory,'answer-'+i+'.wav')))
@@ -64,5 +65,16 @@ async function main(){
  for(const turn of answers)assert.ok((turn.text.match(/\?/g)||[]).length<=1,'One examiner question at a time')
  if(longTurn)assert.ok(result.commitSeconds>=119&&result.commitSeconds<125,'real 120-second buffer must not commit at an ordinary pause')
  if(!noisy&&!longTurn)for(const turn of answers.slice(-2))assert.doesNotMatch(turn.text,/thank you|meant by|are you asking/i,'Unclear audio gets one neutral restatement, not a guessed interpretation')
+ const outputIndex=process.argv.indexOf('--output')
+ if(outputIndex>=0){const output=path.resolve(process.argv[outputIndex+1]);fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify({status:'pass',kind:'synthetic-pcm-real-qwen-asr-audio',...result},null,2),'utf8')}
+}
+async function main(){
+ const isolated=process.argv.includes('--isolated-qa-account')
+ try{
+  if(isolated)await account.begin()
+  await runTest()
+ }finally{
+  if(isolated)await account.end()
+ }
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1})

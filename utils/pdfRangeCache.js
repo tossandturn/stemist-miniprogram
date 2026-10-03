@@ -1,5 +1,6 @@
 const {createSha256}=require('./sha256')
 const REGISTRY='stemistPdfRanges',CHUNK=128*1024,MAX_FILE=32*1024*1024,MAX_FILES=4,MAX_BYTES=8*1024*1024
+const activePdfFiles=new WeakMap()
 const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/file-[a-f0-9]{32}|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
 const header=(h,n)=>{const k=Object.keys(h||{}).find(k=>k.toLowerCase()===n.toLowerCase());return k===undefined?'':String(h[k]).trim()}
 const bytes=d=>Object.prototype.toString.call(d)==='[object ArrayBuffer]'?new Uint8Array(d):ArrayBuffer.isView(d)?new Uint8Array(d.buffer,d.byteOffset,d.byteLength):null
@@ -7,6 +8,25 @@ const binary=d=>d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)
 const problem=(code,message)=>Object.assign(Error(message),{code})
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
 const contentRange=s=>{const m=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(s);if(!m)return null;const n=m.slice(1).map(Number);return n.every(Number.isSafeInteger)?{start:n[0],end:n[1],total:n[2]}:null}
+
+async function reclaimCompletedPublicPdfs(wxApi,isCurrent=()=>true){
+ const root=String(wxApi?.env?.USER_DATA_PATH||''),fs=wxApi?.getFileSystemManager?.(),folder=root+'/pdf-cache/'
+ if(!root||!fs||typeof fs.unlink!=='function')return 0
+ const list=()=>{const r=wxApi.getStorageSync?.(REGISTRY);return Array.isArray(r)?r:[]}
+ const active=activePdfFiles.get(wxApi)||new Map()
+ const owned=p=>typeof p==='string'&&p.startsWith(folder)&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length))
+ let removed=0
+ for(const r of list().slice(-8)){
+  if(!isCurrent())break
+  if(r?.schema!==1||!owned(r.path)||!URL_OK.test(r.url||'')||typeof r.owner!=='string'||!etag(r.etag)||!Number.isSafeInteger(r.total)||r.total<5||r.total>MAX_FILE||r.offset!==r.total||active.has(r.path))continue
+  // Remove the exact registry path before unlink so a new transfer creates a
+  // new path instead of concurrently opening the file selected for eviction.
+  try{const kept=list().filter(x=>x?.path!==r.path);if(kept.length)wxApi.setStorageSync(REGISTRY,kept);else wxApi.removeStorageSync(REGISTRY)}catch{continue}
+  const ok=await new Promise(resolve=>{try{fs.unlink({filePath:r.path,success:()=>resolve(true),fail:()=>resolve(false)})}catch{resolve(false)}})
+  if(ok)removed++
+ }
+ return removed
+}
 
 function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expectedSha256='',onProgress=()=>{},onTemporary=()=>{}}){
  const root=String(wxApi.env?.USER_DATA_PATH||''),fs=wxApi.getFileSystemManager?.()
@@ -79,6 +99,9 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
   check();onProgress(record.total,record.total);return p
  }
  let record=registry().find(x=>x.key===key),restarts=0
+ let active=activePdfFiles.get(wxApi);if(!active){active=new Map();activePdfFiles.set(wxApi,active)}
+ const reservations=new Set(),reserve=p=>{if(p&&!reservations.has(p)){reservations.add(p);active.set(p,(active.get(p)||0)+1)}}
+ reserve(record?.path)
  async function run(){
   try{
    check()
@@ -91,6 +114,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
     const dir=folder+'/pdf-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9)
     try{fs.mkdirSync(dir,true)}catch{fs.accessSync(dir)}
     record={schema:1,key,url,owner,version,path:dir+'/'+fileName,offset:0,total:probe.total,etag:probe.etag,used:Date.now()}
+    reserve(record.path)
     await releaseSpace();await call('writeFile',{filePath:record.path,data:binary(probe.data)});record.offset=5;put(record)
    }
    onProgress(record.offset,record.total)
@@ -110,7 +134,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
   }
  }
  hard=setTimeout(()=>{stopped=true;rejectRequest?.(problem('pdf_timeout','下载等待超时，已保存的分段可继续下载。'));task?.abort?.()},300000)
- const promise=run().finally(()=>clearTimeout(hard))
+ const promise=run().finally(()=>{clearTimeout(hard);for(const p of reservations){const count=(active.get(p)||1)-1;if(count)active.set(p,count);else active.delete(p)}})
  return{promise,release(){if(stopped)return;stopped=true;const active=task;rejectRequest?.(problem('pdf_cancelled','已暂停下载。'));active?.abort?.()},invalidate(){forget(record)}}
 }
-module.exports={acquirePdf,REGISTRY}
+module.exports={acquirePdf,reclaimCompletedPublicPdfs,REGISTRY}
