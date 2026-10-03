@@ -58,7 +58,7 @@ await assert.rejects(
   () => module.exports.ensureWeChatSession({ silent: false }),
   (error) => error.code === 'wechat_identity_conflict'
     && error.statusCode === 409
-    && /主体信息正在更新/.test(error.message)
+    && /微信账号关联需要确认/.test(error.message)
     && /原有学习记录已保留/.test(error.message),
   'an identity conflict during a subject change must present a safe recovery message',
 )

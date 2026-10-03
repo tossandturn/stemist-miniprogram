@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "stemist-development-releases-v1",
+  "highestAssignedVersion": "1.0.25",
+  "baselineEvidence": {
+    "lastVerifiedHistoricalUpload": "1.0.24",
+    "lastVerifiedHistoricalUploadReceipt": "D:/CodexWork/stemist-release-coordination/wechat-profile-20260928/upload-1.0.24.json",
+    "preparedFinalVersion": "1.0.25",
+    "preparedFinalCommit": "ca1ca120d11c00786186c45d295e8985400ccb49",
+    "preparedFinalManifest": "D:/CodexWork/stemist-miniprogram-review-1.0.25-final-20260928-manifest.json",
+    "incorrectLowerUpload": "1.0.2",
+    "incorrectLowerUploadReceipt": "D:/CodexWork/stemist-release-coordination/wechat-upload-20261001-1.0.2-info.json"
+  },
+  "uploads": []
+}
