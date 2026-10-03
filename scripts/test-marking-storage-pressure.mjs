@@ -82,4 +82,10 @@ for(let index=0;index<21;index++){const name='/app/marking-reports/整卷批改_
 manyReports.storage.set('stemistPaperReports',registered)
 assert.equal(await manyReports.download(),'/tmp/temporary-report.pdf','Reaching the local report count does not prevent a verified preview')
 assert.deepEqual(manyReports.storage.get('stemistPaperReports'),registered,'A new preview cannot evict older private reports')
+
+const encoded=fixture({quota:500000,completed:false}),encodedPath='/app/pdf-cache/pdf-forged-001/%2e%2e%2fprivate.pdf'
+encoded.files.set(encodedPath,Buffer.alloc(20000))
+encoded.storage.set('stemistPdfRanges',[encoded.record(encodedPath,20000,20000)])
+await encoded.load('utils/pdfRangeCache').reclaimCompletedPublicPdfs(encoded.wx)
+assert.ok(encoded.files.has(encodedPath),'Encoded traversal cannot be passed to the native filesystem cleanup')
 console.log('Marking storage: completed-public reclamation, private/partial/active preservation, verified temporary report and corruption rejection passed.')

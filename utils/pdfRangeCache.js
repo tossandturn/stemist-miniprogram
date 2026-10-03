@@ -14,11 +14,11 @@ async function reclaimCompletedPublicPdfs(wxApi,isCurrent=()=>true){
  if(!root||!fs||typeof fs.unlink!=='function')return 0
  const list=()=>{const r=wxApi.getStorageSync?.(REGISTRY);return Array.isArray(r)?r:[]}
  const active=activePdfFiles.get(wxApi)||new Map()
- const owned=p=>typeof p==='string'&&p.startsWith(folder)&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length))
+ const owned=p=>typeof p==='string'&&p.startsWith(folder)&&!(/\.\.|%2e|%2f|%5c/i.test(p.slice(folder.length)))&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length))
  let removed=0
  for(const r of list().slice(-8)){
   if(!isCurrent())break
-  if(r?.schema!==1||!owned(r.path)||!URL_OK.test(r.url||'')||typeof r.owner!=='string'||!etag(r.etag)||!Number.isSafeInteger(r.total)||r.total<5||r.total>MAX_FILE||r.offset!==r.total||active.has(r.path))continue
+  if(r?.schema!==1||!owned(r.path)||!URL_OK.test(r.url||'')||/\.\.|%2e|%2f|%5c/i.test(r.url||'')||typeof r.owner!=='string'||!etag(r.etag)||!Number.isSafeInteger(r.total)||r.total<5||r.total>MAX_FILE||r.offset!==r.total||active.has(r.path))continue
   // Remove the exact registry path before unlink so a new transfer creates a
   // new path instead of concurrently opening the file selected for eviction.
   try{const kept=list().filter(x=>x?.path!==r.path);if(kept.length)wxApi.setStorageSync(REGISTRY,kept);else wxApi.removeStorageSync(REGISTRY)}catch{continue}
@@ -30,8 +30,8 @@ async function reclaimCompletedPublicPdfs(wxApi,isCurrent=()=>true){
 
 function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expectedSha256='',onProgress=()=>{},onTemporary=()=>{}}){
  const root=String(wxApi.env?.USER_DATA_PATH||''),fs=wxApi.getFileSystemManager?.()
- if(!URL_OK.test(url)||/\.\.|%2e|%2f|%5c/i.test(url)||!root||!fs||!/^[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(fileName)||typeof wxApi.request!=='function'||!['writeFile','appendFile','readFile','statSync','mkdirSync','accessSync','unlink'].every(k=>typeof fs[k]==='function'))return null
- const folder=root+'/pdf-cache',owned=p=>typeof p==='string'&&p.startsWith(folder+'/')&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length+1))
+ if(!URL_OK.test(url)||/\.\.|%2e|%2f|%5c/i.test(url)||!root||!fs||/\.\.|%2e|%2f|%5c/i.test(fileName)||!/^[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(fileName)||typeof wxApi.request!=='function'||!['writeFile','appendFile','readFile','statSync','mkdirSync','accessSync','unlink'].every(k=>typeof fs[k]==='function'))return null
+ const folder=root+'/pdf-cache',owned=p=>typeof p==='string'&&p.startsWith(folder+'/')&&!(/\.\.|%2e|%2f|%5c/i.test(p.slice(folder.length+1)))&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length+1))
  const key=owner+'|'+url+'|'+version
  let task=null,stopped=false,rejectRequest=null,hard=null,chunkBytes=CHUNK
  const check=()=>{if(stopped)throw problem('pdf_cancelled','已暂停下载。')}

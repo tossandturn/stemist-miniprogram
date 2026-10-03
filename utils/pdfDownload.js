@@ -11,7 +11,7 @@ if(!m)return url.split('/').slice(-2).join('_').replace(/%[a-f0-9]{2}/gi,'_')
 const [subject,season,kind,paper]=url.split('/').pop().toLowerCase().replace('.pdf','').split('_')
 return subject+'_20'+season.slice(1)+'_'+({m:'春季',s:'夏季',w:'秋冬季'}[season[0]])+'_P'+paper+'_'+(kind==='ms'?'参考答案':'原卷')+'.pdf'
 }
-function safePdfFileName(value){const name=String(value||'').trim();return name&&name.length<=160&&/\.pdf$/i.test(name)&&!/[\\/:*?"<>|\u0000-\u001f]|\.\./.test(name)?name:''}
+function safePdfFileName(value){const name=String(value||'').trim();return name&&name.length<=160&&/\.pdf$/i.test(name)&&!/[\\/:*?"<>|\u0000-\u001f]|\.\.|%2e|%2f|%5c/i.test(name)?name:''}
 
 function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,canCancel:false,canRetry:false,collapsed:false}}
 

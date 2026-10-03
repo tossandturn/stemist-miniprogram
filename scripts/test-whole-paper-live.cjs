@@ -48,11 +48,16 @@ async function main(){
   materials.splice(0,2,{id:'answer-pdf-0001',role:'answer',kind:'pdf',name:'synthetic-answers.pdf',bytes:Buffer.from(await document.save())})
  }
  try{
+  // Warm the newly compiled native view before the automator's navigation
+  // command: otherwise a cold Developer Tools window can have no page meta.
+  await evaluate(function(){return new Promise((resolve,reject)=>wx.reLaunch({url:'/pages/index/index',success:()=>resolve(true),fail:()=>reject(Error('Native Home initialization failed'))}))})
   await account.begin()
+  console.log(JSON.stringify({phase:'isolated-account-ready'}))
   // The marking service lives in a WeChat subpackage; loading Home alone does
   // not register it in the native runtime, even though Node fixtures can load it.
   await call('automation_navigate',{action:'navigateTo',url:'/bundles/marking/index'})
   await until(function(){return getCurrentPages().at(-1)?.route==='bundles/marking/index'},'marking subpackage')
+  console.log(JSON.stringify({phase:'marking-subpackage-ready'}))
   await evaluate(function(){const app=getApp();if(app.__wholePaperLive)throw Error('Another whole-paper QA is active');app.__wholePaperLive={inputs:[],ownedPaths:[],reports:[],states:[],phase:'prepare'};return true})
   for(const material of materials){
    const inputFile=path.join(output,'synthetic-input.json')
