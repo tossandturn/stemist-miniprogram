@@ -29,3 +29,20 @@ upload receipt are recorded separately after the frozen candidate is tested.
 As with 1.0.27, development upload is not WeChat review submission or online
 publication. Physical Android/iOS/iPad permission, microphone, viewer, network
 and account-platform approval states are not inferred from fixtures or simulator.
+
+## Final frozen acceptance and upload
+
+Final runtime commit: `08ff5d02900e3ac1e7b366b7214cd1c7577d22df`.
+The exact frozen project passed full maintained regression/native compilation,
+then real native PDF-input marking and source/report downloads: two results,
+3/4 AI estimate, 21,308-byte source PDF and 225,184-byte report. Real native
+AP/IB QP/MS representative downloads all reached 100% with expected bytes and
+hashes. Only their document-viewer callback was a declared simulator fixture.
+
+Official WeChat development upload succeeded at 2026-10-03 17:09:48 +08:00.
+Official total size: 2,072,709 bytes; main package: 1,915,488 bytes. Receipt:
+`D:/CodexWork/stemist-release-coordination/release-1.0.28-20261003/upload-receipt.json`.
+The complete scoped verification and remaining physical/platform checks are in
+that directory's `RESULT.md`. Test-harness/documentation commits after the upload
+do not change its frozen runtime bytes. Review submission/publication remain
+false, and the original IDE configuration remains unmodified and uncommitted.

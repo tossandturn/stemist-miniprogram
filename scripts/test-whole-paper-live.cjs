@@ -63,16 +63,20 @@ async function main(){
    const inputFile=path.join(output,'synthetic-input.json')
    fs.writeFileSync(inputFile,JSON.stringify([{id:material.id,role:material.role,kind:material.kind,name:material.name},material.bytes.toString('base64')]),'utf8')
    await call('automation_evaluate',{'args-file':inputFile,'fn-source':function(file,base64){
-    return new Promise((resolve,reject)=>{
      const q=getApp().__wholePaperLive,manager=wx.getFileSystemManager()
+     q.inputWrite='pending';q.inputError=''
      if(!q.folder){q.folder=wx.env.USER_DATA_PATH+'/qa-paper-'+Date.now();manager.mkdirSync(q.folder)}
      const destination=q.folder+'/'+file.name
-     manager.writeFile({filePath:destination,data:wx.base64ToArrayBuffer(base64),success:()=>{q.inputs.push({...file,path:destination});q.ownedPaths.push(destination);resolve({saved:true})},fail:()=>reject(Error('Synthetic input write failed'))})
-    })
+     manager.writeFile({filePath:destination,data:wx.base64ToArrayBuffer(base64),success:()=>{q.inputs.push({...file,path:destination});q.ownedPaths.push(destination);q.inputWrite='complete'},fail:e=>{q.inputWrite='failed';q.inputError=String(e?.errMsg||'write_failed').slice(0,180)}})
+     return {scheduled:true}
    }.toString()})
+   const inputState=await until(function(){const q=getApp().__wholePaperLive;return q&&q.inputWrite!=='pending'?{status:q.inputWrite,error:q.inputError}:null},'synthetic native input write',70000)
+   assert.equal(inputState.status,'complete',inputState.error)
   }
+  console.log(JSON.stringify({phase:'synthetic-inputs-ready',files:materials.length}))
   await evaluate(function(){
    const q=getApp().__wholePaperLive,service=require('bundles/marking/service.js'),s=service.scope()
+   if(s.owner!==getApp().__nativeQa?.id)throw Error('Synthetic QA identity changed before file submission')
    q.scope=s;q.service=service
    q.draft={clientRequestId:'synthetic-native-paper-'+Date.now(),title:'Synthetic release acceptance',routeId:'cie-9709-as-p1-p2',files:[]}
    return true
