@@ -8,7 +8,8 @@ async function main(){
  const canvas=createCanvas(600,400),ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,600,400);ctx.fillStyle='black';ctx.font='34px sans-serif';ctx.fillText('Solve the equation:',35,100);ctx.fillText('2x + 3 = 11',35,185)
  const picture='data:image/jpeg;base64,'+canvas.toBuffer('image/jpeg').toString('base64')
  try{
-  await evaluate(function(){return new Promise((resolve,reject)=>wx.reLaunch({url:'/pages/index/index',success:()=>resolve(true),fail:()=>reject(Error('Native Home unavailable'))}))})
+  await evaluate(function(){wx.reLaunch({url:'/pages/index/index'});return true})
+  await until(function(){return getCurrentPages().at(-1)?.route==='pages/index/index'},'Home initialized')
   await account.begin()
   if(out)fs.mkdirSync(path.dirname(out),{recursive:true})
   const args=path.join(out?path.dirname(out):'D:/CodexWork/stemist-release-coordination/release-1.0.29-20261003','synthetic-photo-input.json')
