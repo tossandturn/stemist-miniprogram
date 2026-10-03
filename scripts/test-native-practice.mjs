@@ -38,6 +38,19 @@ function chapterInventory(){return{routeId,paperComponents:[1,2],practicePolicy:
  {id:originalTopicId,name:'Motion',chapterStudy:{mode:'chapter-study',available:1,officialAvailable:0,originalAvailable:1,startable:true,fallbackKind:'original-foundation'},componentCounts:{1:{chapterStudy:{mode:'chapter-study',available:1,officialAvailable:0,originalAvailable:1,startable:true,fallbackKind:'original-foundation'}},2:{chapterStudy:{mode:'chapter-study',available:1,officialAvailable:0,originalAvailable:1,startable:true,fallbackKind:'original-foundation'}}},questionIdsByComponent:{}}
 ]}}
 const originalResult=(selectedOptionId='B')=>({schemaVersion:'stem-original-foundation-result-v1',routeId,syllabusTopicId:originalTopicId,questionId:originalId,selectedOptionId,correct:selectedOptionId==='B',score:selectedOptionId==='B'?1:0,maxScore:1,scoreScope:'original-learning-only',formalProgressEligible:false,countsTowardFormalGrade:false,correctOptionId:'B',solution:{summary:'Velocity includes direction.',markPoints:[{id:'direction',awarded:selectedOptionId==='B',marks:selectedOptionId==='B'?1:0,maxMarks:1,reason:'Identifies velocity as a vector.'}]},ownerId:'student-a'})
+const v2Kinds=[['concept','retrieve'],['application','apply'],['transfer','transfer']]
+const chapterSpecV2={...chapterSpec,questionCount:3,foundationCatalog:'v2'}
+function originalPayloadV2(){
+ const groups=v2Kinds.map(([itemKind,skillFocus],index)=>{
+  const id=`original-foundation:${routeId}:${originalTopicId}:v2:${itemKind}`,partId=id+':part-1',answer={schemaVersion:'stem-original-foundation-answer-contract-v2',id:id+':answer:v2',responseType:'single-choice',submissionEndpoint:'/api/stem/original-foundation/submit',maxScore:1,scoreScope:'original-learning-only',reveal:'after-submission',foundationCatalog:'v2'},options=['A','B','C','D'].map((id,n)=>({id,text:`${itemKind} option ${n+1}`}))
+  const misconceptionId=itemKind==='transfer'?'vector-scalar':null
+  return{id,questionGroupId:id,routeId,sourceKind:'original-foundation',sourceAuthority:'original-foundation-catalog',displaySourceLabel:'原创基础练习',studentStudyEligible:true,studyOnly:true,formalProgressEligible:false,foundationCatalog:'v2',itemKind,skillFocus,
+   originalQuestion:{schemaVersion:'stem-original-foundation-question-v2',catalogVersion:'v2',foundationCatalog:'v2',id,routeId,stage:'AS',subject:'Physics',subjectCode:'9702',topicId:originalTopicId,topicName:'Motion',sourceKind:'original-foundation',sourceAuthority:'original-foundation-catalog',displaySourceLabel:'原创基础练习',foundationBasis:'curated-foundation',itemKind,skillFocus,misconceptionId,prompt:`${itemKind} prompt`,answerType:'single-choice',options,responseContract:{kind:'single-choice',optionIds:['A','B','C','D']},answerContract:answer,formalProgressEligible:false,countsTowardFormalGrade:false},answerContract:answer,
+   parts:[{partId,label:'main',marks:1,sourceQuestionId:id,questionGroupId:id,sourceKind:'original-foundation',sourceAuthority:'original-foundation-catalog',displaySourceLabel:'原创基础练习',originalQuestionId:id,originalCatalogVersion:'v2',foundationCatalog:'v2',itemKind,skillFocus,sourceBindingProvenance:{schemaVersion:'stem-original-foundation-binding-v2',sourceQuestionId:id,questionPartId:partId,bindingSignature:'original:'+String(index+1).repeat(64),reviewVersion:'v2'}}]}
+ })
+ return{schemaVersion:'syllabus-practice-set-v1',routeId,stage:'AS',subjectCode:'9702',studyMode:'chapter-study',sourcePreference:'official-first',foundationCatalog:'v2',practiceMode:'study-only',formalProgressEligible:false,selectedSyllabusTopicIds:[originalTopicId],available:3,count:3,limited:false,sourceAvailability:{official:0,originalFoundation:3,total:3,selectedPool:3},sourceMix:{official:0,originalFoundation:3},questionGroupIds:groups.map(g=>g.id),questionGroups:groups}
+}
+const originalResultV2=(question,selectedOptionId='B')=>({schemaVersion:'stem-original-foundation-result-v2',foundationCatalog:'v2',catalogVersion:'v2',routeId,syllabusTopicId:originalTopicId,questionId:question.id,itemKind:question.itemKind,skillFocus:question.skillFocus,selectedOptionId,correct:selectedOptionId==='B',score:selectedOptionId==='B'?1:0,maxScore:1,scoreScope:'original-learning-only',formalProgressEligible:false,countsTowardFormalGrade:false,correctOptionId:'B',solution:{summary:'Learning summary.',explanation:'Concept explanation.',nextStep:'Try the next item.',markPoints:[{id:'learning-point',awarded:selectedOptionId==='B',marks:selectedOptionId==='B'?1:0,maxMarks:1,reason:'Server-checked response.'}]},feedback:{schemaVersion:'stem-original-foundation-feedback-v2',outcome:selectedOptionId==='B'?'correct':'incorrect',misconceptionId:question.misconceptionId,summary:'Learning feedback.',explanation:'Why the choice works.',nextStep:'Continue the chapter.'},ownerId:'student-a'})
 let passed = 0
 async function check(name, fn) { await fn(); passed++; console.log(`PASS ${name}`) }
 
@@ -84,6 +97,15 @@ await check('original foundation schema is strict and renders prompt/options wit
  const three=originalPayload();three.questionGroups[0].originalQuestion.options.pop();three.questionGroups[0].originalQuestion.responseContract.optionIds.pop();assert.equal(native.createSession(three,chapterSpec).questions[0].choiceOptions.length,3)
  const limited=originalPayload();limited.limited=true;limited.partial=true;assert.equal(native.validatePracticeSet(limited,{...chapterSpec,questionCount:3}).questions.length,1)
 })
+await check('v2 foundation capability admits three strictly bound learning items while v1 remains unchanged',()=>{
+ const native=miniRuntime().load('utils/nativePractice'),session=native.createSession(originalPayloadV2(),chapterSpecV2)
+ assert.equal(session.foundationCatalog,'v2');assert.equal(session.questions.length,3);assert.deepEqual(session.questions.map(q=>q.itemKind),['concept','application','transfer']);assert.deepEqual(session.questions.map(q=>q.skillFocus),['retrieve','apply','transfer'])
+ assert.deepEqual(session.questions.map(q=>native.questionView(session,session.questions.indexOf(q)).question.kindLabel),['概念理解','应用练习','迁移练习'])
+ assert.ok(session.questions.every(q=>q.images.length===0&&q.studyOnly&&q.originalCatalogVersion==='v2'))
+ const corruptions=[p=>delete p.foundationCatalog,p=>delete p.questionGroups[0].foundationCatalog,p=>p.questionGroups[0].itemKind='transfer',p=>p.questionGroups[0].parts[0].skillFocus='transfer',p=>p.questionGroups[0].id=p.questionGroups[0].id.replace(':concept',':application'),p=>p.questionGroups[0].originalQuestion.foundationCatalog='v1',p=>p.questionGroups[0].originalQuestion.itemKind='transfer',p=>p.questionGroups[0].originalQuestion.skillFocus='apply',p=>p.questionGroups[0].originalQuestion.misconceptionId='invented',p=>p.questionGroups[0].answerContract.foundationCatalog='v1',p=>p.questionGroups[0].parts[0].sourceBindingProvenance.schemaVersion='stem-original-foundation-binding-v1']
+ for(const corrupt of corruptions){const value=originalPayloadV2();corrupt(value);assert.throws(()=>native.validatePracticeSet(value,chapterSpecV2))}
+ assert.equal(native.createSession(originalPayload(),chapterSpec).foundationCatalog,undefined,'saved/default v1 stays capability-free')
+})
 await check('public assembly does not forward stale bearer and timeout is not empty bank', async () => {
   let request
   const runtime = miniRuntime({ wx: { request: options => { request = options; options.fail({ errMsg: 'request:fail timeout' }) } } })
@@ -98,6 +120,14 @@ await check('chapter builder defaults new contracts and clearly labels original 
  assert.equal(requests[0].body.studyMode,'chapter-study');assert.equal(requests[0].body.sourcePreference,'official-first');assert.deepEqual([...requests[0].body.syllabusTopicIds],[originalTopicId])
  page.chooseStudyMode({currentTarget:{dataset:{mode:''}}});await page.refresh();assert.equal(page.data.studyMode,'','an explicit legacy-mode choice survives refresh')
 })
+await check('v2 builder requests capability, defaults to three, and shows actual official/original counts',async()=>{
+ const inventoryV2=chapterInventory();inventoryV2.foundationCatalog='v2';inventoryV2.chapterStudy={...inventoryV2.chapterStudy,catalogVersion:'v2',foundationCatalog:'v2'}
+ const original=inventoryV2.topics.find(t=>t.id===originalTopicId);original.chapterStudy={...original.chapterStudy,available:3,originalAvailable:3};for(const item of Object.values(original.componentCounts))item.chapterStudy={...item.chapterStudy,available:3,originalAvailable:3}
+ const requests=[],runtime=miniRuntime({modules:{'utils/inventory':{fetchRouteInventory:async(route,catalog)=>{requests.push({path:'inventory',route,catalog});return inventoryV2}},'utils/api':{requestJson:async(path,body)=>{requests.push({path,body});return originalPayloadV2()}}}})
+ const page=runtime.page('pages/stem/topics');page.onLoad({routeId});await settle();assert.equal(requests[0].catalog,'v2');page.toggleTopic({currentTarget:{dataset:{id:originalTopicId}}})
+ assert.equal(page.data.questionCount,3);assert.equal(page.data.canStart,true);assert.deepEqual([...page.data.counts.map(item=>item.value)],[1,3]);const topic=page.data.topics.find(item=>item.id===originalTopicId);assert.equal(topic.officialAvailable,0);assert.equal(topic.originalAvailable,3)
+ await page.start();assert.equal(requests[1].body.foundationCatalog,'v2');assert.equal(runtime.storage.get([...runtime.storage.keys()].find(k=>k.startsWith('stemistNativePractice:'))).foundationCatalog,'v2')
+})
 await check('original submit uses stateless scorer then non-formal history with revision guards',async()=>{
  const requests=[];const runtime=miniRuntime({modules:{'utils/api':{requestJson:async(path,body)=>{requests.push({path,body});if(path==='/api/stem/original-foundation/submit')return originalResult(body.response.selectedOptionId);if(path==='/api/stem/attempts')return{attempt:{attemptId:body.attemptId}};throw Error('unexpected '+path)}}}})
  const native=runtime.load('utils/nativePractice'),session=native.createSession(originalPayload(),chapterSpec);native.saveSession(session);native.saveChoice(session.id,originalId,'B')
@@ -108,6 +138,13 @@ await check('original submit uses stateless scorer then non-formal history with 
  const history=requests[1].body;assert.equal(history.mode,'topic');assert.equal(history.paperId,undefined);assert.equal(history.studyMode,'chapter-study');assert.equal(history.sourcePreference,'official-first');assert.equal(history.markingParts.length,1);assert.equal(history.markingParts[0].unitPartId,originalPartId);assert.equal(history.markingParts[0].provenance.bindingSignature,'original:'+'a'.repeat(64));assert.equal(history.attempt.studyMode,'chapter-study');assert.equal(history.attempt.sourcePreference,history.sourcePreference);assert.equal(history.attempt.formalResult,false);assert.equal(history.attempt.scoreResult.scoreScope,'original-learning-only');assert.equal(history.attempt.answers[originalPartId],'B')
  assert.doesNotMatch(JSON.stringify(history),/markingGrant|officialScore|gradeEstimate/)
  const saved=native.readSession(session.id).answers[originalId];assert.equal(saved.objectiveResult.correct,true);assert.equal(saved.objectiveResult.correctOptionId,'B');assert.equal(saved.objectiveHistory[1].scoreScope,'original-learning-only')
+})
+await check('v2 scorer and history carry immutable capability and server-only learning feedback',async()=>{
+ const requests=[],runtime=miniRuntime({modules:{'utils/api':{requestJson:async(path,body)=>{requests.push({path,body});if(path==='/api/stem/original-foundation/submit'){const question=originalPayloadV2().questionGroups.find(g=>g.id===body.questionId).originalQuestion;return originalResultV2(question,body.response.selectedOptionId)}if(path==='/api/stem/attempts')return{attempt:{attemptId:body.attemptId}};throw Error('unexpected '+path)}}}})
+ runtime.storage.set('stemistUser',{id:'student-a'});runtime.storage.set('stemistSessionToken','fixture')
+ const native=runtime.load('utils/nativePractice'),session=native.createSession(originalPayloadV2(),chapterSpecV2),question=session.questions[0];native.saveSession(session);native.saveChoice(session.id,question.id,'B');const result=await native.markChoice(session.id,question.id)
+ assert.equal(requests[0].body.foundationCatalog,'v2');assert.equal(requests[1].body.foundationCatalog,'v2');assert.equal(requests[1].body.attempt.foundationCatalog,'v2');assert.equal(result.feedback.schemaVersion,'stem-original-foundation-feedback-v2');assert.equal(result.solution.explanation,'Concept explanation.');assert.equal(result.formalProgressEligible,false)
+ const bad=originalResultV2(originalPayloadV2().questionGroups[0].originalQuestion);bad.itemKind='transfer';assert.throws(()=>native.validateOriginalResult(bad,{routeId,syllabusTopicId:originalTopicId,questionId:question.id,selectedOptionId:'B',optionIds:['A','B','C','D'],ownerId:'student-a',foundationCatalog:'v2',itemKind:'concept',skillFocus:'retrieve'}))
 })
 await check('malformed or late original score cannot overwrite a newer answer',async()=>{
  const gate=deferred(),requests=[];const runtime=miniRuntime({modules:{'utils/api':{requestJson:async(path,body)=>{requests.push({path,body});if(path==='/api/stem/original-foundation/submit')return gate.promise;return{attempt:{attemptId:body.attemptId}}}}}})
@@ -131,6 +168,17 @@ await check('private session ownership and explicit logout invalidate delayed wr
   runtime.load('utils/session').clearLocalSession()
   assert.equal(native.readSession(session.id), null)
   assert.throws(() => native.saveSession(session), /结束/)
+})
+await check('recent practice pointers are selection-aware and legacy route pointers never cross chapters',()=>{
+ const runtime=miniRuntime(),native=runtime.load('utils/nativePractice'),make=(topic)=>{const body=payload();for(const group of body.questionGroups)group.syllabusMapping.topicIds=[topic];return native.createSession(body,{...spec,syllabusTopicIds:[topic]})}
+ const first=make('t1');native.saveSession(first);const second=make('t2');native.saveSession(second)
+ const scope=topic=>({studyMode:'',foundationCatalog:'',sourcePreference:'',topicIds:[topic],components:[1,2]})
+ assert.equal(native.recentSession(routeId,scope('t1')).id,first.id);assert.equal(native.recentSession(routeId,scope('t2')).id,second.id)
+ for(const key of [...runtime.storage.keys()])if(key.startsWith(`stemistNativeRecent:${routeId}:`))runtime.storage.delete(key)
+ assert.equal(native.recentSession(routeId,scope('t2')).id,second.id,'matching old draft remains resumable');assert.equal(native.recentSession(routeId,scope('t1')),null,'route-only old pointer cannot masquerade as another chapter')
+ runtime.storage.set('stemistNativeRecent:other-route',second.id);assert.equal(native.recentSession('other-route'),null,'a corrupted route pointer cannot expose another route')
+ const legacyRuntime=miniRuntime(),legacyNative=legacyRuntime.load('utils/nativePractice'),legacy=legacyNative.createSession(originalPayload(),chapterSpec);legacyNative.saveSession(legacy)
+ assert.equal(legacyNative.recentSession(routeId,{studyMode:'chapter-study',foundationCatalog:'v2',sourcePreference:'official-first',topicIds:[originalTopicId],components:[1,2]}).id,legacy.id,'a selected v2 chapter still offers its matching saved v1 draft')
 })
 await check('builder routes natively and locks repeated generation', async () => {
   const wait = deferred(); let calls = 0
@@ -238,7 +286,7 @@ await check('late assembly response after logout never creates a new-account ses
   runtime.load('utils/session').clearLocalSession(); pending.resolve(payload())
   await assert.rejects(generation, /账号/)
 })
-const practiceWxml=fs.readFileSync('pages/stem/practice.wxml','utf8'),topicsWxml=fs.readFileSync('pages/stem/topics.wxml','utf8'),topicsWxss=fs.readFileSync('pages/stem/topics.wxss','utf8'),appWxss=fs.readFileSync('app.wxss','utf8')
-assert.match(practiceWxml,/question\.prompt/);assert.match(practiceWxml,/原创基础练习/);assert.match(practiceWxml,/不计正式进度/);assert.match(topicsWxml,/chapter-study/);assert.match(topicsWxml,/原创基础练习/)
-assert.match(topicsWxss,/\.option-chip\s*\{[^}]*min-height:\s*44px/);assert.match(appWxss,/\.mcq-options button\.mcq-option\s*\{[^}]*min-height:\s*52px/)
+const practiceWxml=fs.readFileSync('pages/stem/practice.wxml','utf8'),topicsWxml=fs.readFileSync('pages/stem/topics.wxml','utf8'),topicsWxss=fs.readFileSync('pages/stem/topics.wxss','utf8'),practiceWxss=fs.readFileSync('pages/stem/practice.wxss','utf8'),appWxss=fs.readFileSync('app.wxss','utf8')
+assert.match(practiceWxml,/question\.prompt/);assert.match(practiceWxml,/原创基础练习/);assert.match(practiceWxml,/不计正式进度/);assert.match(practiceWxml,/kindLabel/);assert.match(practiceWxml,/feedback\.nextStep/);assert.match(topicsWxml,/chapter-study/);assert.match(topicsWxml,/真题.*officialAvailable/);assert.match(topicsWxml,/原创.*originalAvailable/)
+assert.match(topicsWxss,/\.option-chip\s*\{[^}]*min-height:\s*44px/);assert.match(topicsWxss,/\.device-tablet\.landscape \.builder-layout\s*\{[^}]*grid-template-columns:/);assert.match(topicsWxss,/\.device-phone \.builder-layout[^}]*flex-direction:\s*column/);assert.match(practiceWxss,/\.device-tablet\.landscape \.native-question-layout\s*\{[^}]*grid-template-columns:/);assert.match(practiceWxss,/\.device-phone \.native-question-layout[^}]*display:\s*block/);assert.match(appWxss,/\.mcq-options button\.mcq-option\s*\{[^}]*min-height:\s*52px/)
 console.log(`Native practice: ${passed} checks passed.`)

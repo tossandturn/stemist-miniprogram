@@ -10,7 +10,7 @@
       <view class="topic-list">
         <button wx:for="{{topics}}" wx:key="id" class="topic-choice {{item.selected ? 'selected' : ''}}" data-id="{{item.id}}" bindtap="toggleTopic" disabled="{{busy || (studyMode === 'chapter-study' && !item.startable)}}" aria-label="{{item.name}}，{{item.count}}题，{{studyMode === 'chapter-study' ? item.sourceLabel : ''}}，{{item.selected ? '已选' : '未选'}}">
           <view class="choice-mark">{{item.selected ? '✓' : ''}}</view>
-          <view class="choice-copy"><text class="topic-name">{{item.code}} {{item.name}}</text><text class="topic-count">{{item.count}} 题</text><text wx:if="{{studyMode === 'chapter-study'}}" class="source-kind {{item.sourceLabel === '原创基础练习' ? 'original' : ''}}">{{item.sourceLabel}}</text></view>
+          <view class="choice-copy"><text class="topic-name">{{item.code}} {{item.name}}</text><text class="topic-count">{{item.count}} 题{{studyMode === 'chapter-study' ? ' · 真题 ' + item.officialAvailable + ' · 原创 ' + item.originalAvailable : ''}}</text><text wx:if="{{studyMode === 'chapter-study'}}" class="source-kind {{item.sourceLabel === '原创基础练习' ? 'original' : ''}}">{{item.sourceLabel}}</text></view>
         </button>
       </view>
       <view wx:if="{{!topics.length && !error}}" class="empty-state">这条路线的章节题目正在整理。</view>
