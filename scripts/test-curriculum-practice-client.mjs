@@ -93,7 +93,10 @@ function pageRuntime({recent=null,questionGate=null,failFirstSubmit=false,failAn
   modules:{'bundles/curricula/practiceService':service,'utils/page':{deviceState:value=>({deviceClass:'device-phone',orientation:'portrait',isTablet:false,...value}),syncDevice(){}}},
  })
  runtime.storage.set('stemistUser',{id:'student-a'});runtime.storage.set('stemistSessionToken','token-a')
- return{...runtime,page:runtime.page('bundles/curricula/practice'),serviceCalls,modalCalls,get saved(){return saved}}
+ const page=runtime.page('bundles/curricula/practice')
+ assert.notEqual(typeof page.route,'function','Application methods must not shadow native Page.route metadata')
+ page.route='bundles/curricula/practice'
+ return{...runtime,page,serviceCalls,modalCalls,get saved(){return saved}}
 }
 
 {

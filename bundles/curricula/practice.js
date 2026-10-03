@@ -14,8 +14,8 @@ Page({
  onShow(){syncDevice(this);const next=api.scope();if(this.__scope&&(next.owner!==this.__scope.owner||next.epoch!==this.__scope.epoch)){this.__scope=next;this.__session=null;this.__draft=null;this.__cache?.clear();this.setData({phase:'setup',sessionId:'',question:null,result:null,error:'账号已变化，请重新选择练习。',authRequired:!api.current(next)});this.syncResume()}},
  onResize(){syncDevice(this)},
  onUnload(){this.__disposed=true;this.__catalogRequest++;this.__questionRequest++;this.__operationRequest++},
- route(){return this.__catalog?.routes.find(item=>item.id===this.data.routeId)},
- topic(){return this.route()?.topics.find(item=>item.id===this.data.topicId)},
+ selectedRoute(){return this.__catalog?.routes.find(item=>item.id===this.data.routeId)},
+ selectedTopic(){return this.selectedRoute()?.topics.find(item=>item.id===this.data.topicId)},
  active(){return!this.__disposed&&api.current(this.__scope)},
  async loadCatalog(){
   const request=++this.__catalogRequest;this.setData({loading:true,error:''})
@@ -38,7 +38,7 @@ Page({
  chooseCount(event){const count=Number(event.currentTarget?.dataset?.count);if(!this.data.busy&&this.data.countOptions.some(item=>item.value===count))this.setData({count,error:''})},
  async start(){
   if(this.data.loading||this.data.busy)return false;if(!this.active()){this.setData({authRequired:true,error:'请登录后开始选择题练习。'});return false}
-  const route=this.route(),topic=this.topic(),scope=this.__scope,generation=++this.__operationRequest;this.setData({busy:true,error:'',status:'正在建立练习…'})
+  const route=this.selectedRoute(),topic=this.selectedTopic(),scope=this.__scope,generation=++this.__operationRequest;this.setData({busy:true,error:'',status:'正在建立练习…'})
   try{const session=await api.createSession({routeId:this.data.routeId,...(this.data.topicId?{topicId:this.data.topicId}:{}),count:this.data.count},scope);if(this.__disposed||generation!==this.__operationRequest||!this.active())return false;const draft=api.createDraft(session,scope,{routeLabel:route?.label||'',topicLabel:topic?.label||''});api.saveDraft(draft,scope);this.enterSession(session,draft);await this.loadQuestion(0);return true}catch(error){if(!this.__disposed&&generation===this.__operationRequest)this.setData({error:errorText(error),authRequired:Number(error?.statusCode)===401,status:''});return false}finally{if(!this.__disposed&&generation===this.__operationRequest)this.setData({busy:false})}
  },
  enterSession(session,draft){this.__session=session;this.__draft=draft;this.__cache.clear();this.setData({phase:session.status==='submitted'?'result':'practice',sessionId:session.id,index:draft.index||0,total:session.questionIds.length,answeredCount:answered(draft),result:session.result||draft.result||null,error:'',status:'',authRequired:false})},
