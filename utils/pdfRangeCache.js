@@ -1,5 +1,5 @@
 const {createSha256}=require('./sha256')
-const REGISTRY='stemistPdfRanges',CHUNK=128*1024,MAX_FILE=32*1024*1024,MAX_FILES=6,MAX_BYTES=64*1024*1024
+const REGISTRY='stemistPdfRanges',CHUNK=128*1024,MAX_FILE=32*1024*1024,MAX_FILES=4,MAX_BYTES=8*1024*1024
 const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/file-[a-f0-9]{32}|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
 const header=(h,n)=>{const k=Object.keys(h||{}).find(k=>k.toLowerCase()===n.toLowerCase());return k===undefined?'':String(h[k]).trim()}
 const bytes=d=>Object.prototype.toString.call(d)==='[object ArrayBuffer]'?new Uint8Array(d):ArrayBuffer.isView(d)?new Uint8Array(d.buffer,d.byteOffset,d.byteLength):null
@@ -18,10 +18,22 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  const size=p=>{try{return Number(fs.statSync(p).size)||0}catch{return 0}}
  const registry=()=>{const r=wxApi.getStorageSync?.(REGISTRY);return Array.isArray(r)?r.filter(x=>x&&x.schema===1&&owned(x.path)&&URL_OK.test(x.url)&&typeof x.owner==='string'&&Number.isSafeInteger(x.offset)&&x.offset>0&&x.offset<=x.total&&x.total<=MAX_FILE&&etag(x.etag)):[]}
  const save=r=>{if(r.length)wxApi.setStorageSync(REGISTRY,r);else wxApi.removeStorageSync(REGISTRY)}
- const unlink=p=>{if(owned(p))try{fs.unlink({filePath:p,fail(){}})}catch{}}
+ const unlink=p=>new Promise(resolve=>{if(!owned(p))return resolve(false);try{fs.unlink({filePath:p,success:()=>resolve(true),fail:()=>resolve(false)})}catch{resolve(false)}})
  function forget(record){if(!record)return;save(registry().filter(x=>x.key!==record.key));unlink(record.path)}
- function put(record){let list=registry().filter(x=>x.key!==record.key);list.push(record);list.sort((a,b)=>a.used-b.used);while(list.length>MAX_FILES||list.reduce((n,x)=>n+x.offset,0)>MAX_BYTES){const first=list.shift();if(first.key!==key)unlink(first.path)}save(list)}
- const call=(method,args)=>new Promise((resolve,reject)=>{try{fs[method]({...args,success:resolve,fail:()=>reject(problem('pdf_storage','文件保存失败，请释放一些小程序存储后重试。'))})}catch{reject(problem('pdf_storage','文件保存失败，请重试。'))}})
+ function put(record){let list=registry().filter(x=>x.key!==record.key);list.push(record);list.sort((a,b)=>a.used-b.used);while(list.length>MAX_FILES||list.reduce((n,x)=>n+x.offset,0)>MAX_BYTES){const index=list.findIndex(x=>x.key!==key);if(index<0)break;const first=list.splice(index,1)[0];unlink(first.path)}save(list)}
+ async function releaseSpace(all=false){
+  let list=registry(),available=Math.max(0,MAX_BYTES-(record?.total||expectedBytes||0)),foreign=list.filter(x=>x.key!==key).sort((a,b)=>a.used-b.used)
+  for(const item of foreign){if(!all&&list.filter(x=>x.key!==key).reduce((n,x)=>n+x.offset,0)<=available)break;list=list.filter(x=>x.path!==item.path);save(list);await unlink(item.path)}
+  if(all&&typeof fs.readdirSync==='function'){
+   let dirs=[];try{dirs=fs.readdirSync(folder).filter(n=>/^pdf-[a-z0-9-]+$/.test(n)).slice(0,60)}catch{}
+   const retained=new Set(registry().map(x=>x.path));if(record?.path)retained.add(record.path)
+   for(const dir of dirs){let names=[];try{names=fs.readdirSync(folder+'/'+dir).slice(0,10)}catch{};for(const name of names){const p=folder+'/'+dir+'/'+name;if(!retained.has(p)&&owned(p))await unlink(p)}}
+  }
+ }
+ const call=async(method,args)=>{
+  const attempt=()=>new Promise((resolve,reject)=>{try{fs[method]({...args,success:resolve,fail:e=>reject(problem(/limit|quota|no space|storage.*full|exceed|空间/i.test(String(e?.errMsg||''))?'pdf_storage_full':'pdf_storage','文件保存失败，请释放一些小程序存储后重试。'))})}catch{reject(problem('pdf_storage','文件保存失败，请重试。'))}})
+  try{return await attempt()}catch(error){if(error.code!=='pdf_storage_full'||!['writeFile','appendFile'].includes(method))throw error;await releaseSpace(true);check();return attempt()}
+ }
  const read=async(p,start,length)=>bytes((await call('readFile',{filePath:p,position:start,length})).data)
  function request(start,end,tag=''){
   return new Promise((resolve,reject)=>{
@@ -67,7 +79,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
     const dir=folder+'/pdf-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9)
     try{fs.mkdirSync(dir,true)}catch{fs.accessSync(dir)}
     record={schema:1,key,url,owner,version,path:dir+'/'+fileName,offset:0,total:probe.total,etag:probe.etag,used:Date.now()}
-    await call('writeFile',{filePath:record.path,data:binary(probe.data)});record.offset=5;put(record)
+    await releaseSpace();await call('writeFile',{filePath:record.path,data:binary(probe.data)});record.offset=5;put(record)
    }
    onProgress(record.offset,record.total)
    while(record.offset<record.total){
@@ -79,6 +91,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
    if(!await verify(record))throw problem('pdf_integrity','PDF 完整性校验失败，请重新下载。')
    check();return record.path
   }catch(error){
+   if(record&&record.offset===0){await unlink(record.path);record=null}
    if(['pdf_source_changed','pdf_invalid_range','pdf_checkpoint','pdf_integrity'].includes(error?.code)){forget(record);record=null;if(error.code==='pdf_source_changed'&&restarts++===0&&!stopped)return run()}
    throw error
   }

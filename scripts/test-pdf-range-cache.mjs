@@ -80,3 +80,13 @@ function harness({data=source,failAt=-1,damage=false}={}){
  refresh.storage.set('stemistSessionToken','renewed-same-owner-token');await wait(100);assert.equal(state.phase,'opened','same-owner session renewal does not abort a public download');controller.dispose()
 }
 console.log('Native PDF: bounded chunks, persisted resume, ETag restart, exact ranges, SHA-256, storage/cancel failures, account isolation and controller opening passed.')
+{
+ const h=harness(),manager=h.wx.getFileSystemManager(),oldPath='/user/pdf-cache/pdf-old/old.pdf',studentPath='/user/native-writing/student.jpg'
+ h.files.set(oldPath,Buffer.from(source));h.files.set(studentPath,Buffer.alloc(100000,8))
+ h.storage.set(h.module.REGISTRY,[{schema:1,key:'older-file',owner:'student-1|1',url:URL,version:'older',path:oldPath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:1}])
+ let quotaErrors=0
+ for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const occupied=[...h.files.values()].reduce((n,b)=>n+b.length,0),extra=o.data.byteLength-(name==='writeFile'?(h.files.get(o.filePath)?.length||0):0);if(occupied+extra>550000){quotaErrors++;queueMicrotask(()=>o.fail({errMsg:'appendFile:fail exceed the maximum size of the file storage limit'}));return}original(o)}}
+ const path=await h.acquire().promise
+ assert.ok(quotaErrors>0);assert.deepEqual(h.files.get(path),source);assert.equal(h.files.has(oldPath),false,'storage pressure evicts only old public PDF cache')
+ assert.deepEqual(h.files.get(studentPath),Buffer.alloc(100000,8),'student photos are never reclaimed as cache')
+}

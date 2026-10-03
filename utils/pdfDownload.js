@@ -161,7 +161,7 @@ if(context.networkSettled||!current(context))return
 context.networkSettled=true
 if(pendingProgress)publish(pendingProgress)
 const saved=state.downloadedBytes,total=state.totalBytes
-const detail=['pdf_domain','pdf_storage','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
+const detail=['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
 resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)
 fail(context,detail||(context.rangeBacked&&saved>0?'下载中断，已保存 '+formatBytes(saved)+(total?' / '+formatBytes(total):'')+'；点击重试继续下载。':'下载未完成，请检查网络后重试。'))
 }
