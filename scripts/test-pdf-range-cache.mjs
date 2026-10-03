@@ -70,4 +70,13 @@ function harness({data=source,failAt=-1,damage=false}={}){
  await d.open(req);d.suspend();assert.equal(state.phase,'paused');d.resume();await wait(100);assert.equal(state.phase,'opened','returning from background resumes the same download');d.dispose()
  const manual=harness(),e=manual.r.load('utils/pdfDownload').createPdfDownloadController({wxApi:manual.wx,onState:s=>state=s});e.setScope('ib');await e.open(req);e.cancel();const count=manual.requests.length;e.resume();await wait(30);assert.equal(manual.requests.length,count,'explicit cancellation is not automatically restarted');e.dispose()
 }
+{
+ const h=harness(),base=h.wx.request;let rejected=0
+ h.wx.request=o=>{const m=/bytes=(\d+)-(\d+)/.exec(o.header.Range);if(Number(m[2])-Number(m[1])+1>32*1024){rejected++;setImmediate(()=>o.fail({errMsg:'timeout'}));return{abort(){}}}return base(o)}
+ const handle=h.acquire(),p=await handle.promise;assert.equal(rejected,2);assert.deepEqual(h.files.get(p),source);assert.ok(h.requests.slice(1).every(r=>r.end-r.start+1<=32*1024),'slow links retain the smaller successful chunk size');handle.release()
+ const refresh=harness(),{createPdfDownloadController}=refresh.r.load('utils/pdfDownload');let state
+ const controller=createPdfDownloadController({wxApi:refresh.wx,onState:s=>state=s});controller.setScope('renew')
+ await controller.open({url:URL,scope:'renew',fileName:'AP_Renew_QP.pdf',expectedBytes:source.length,sha256:digest(source),cacheVersion:'same-source'})
+ refresh.storage.set('stemistSessionToken','renewed-same-owner-token');await wait(100);assert.equal(state.phase,'opened','same-owner session renewal does not abort a public download');controller.dispose()
+}
 console.log('Native PDF: bounded chunks, persisted resume, ETag restart, exact ranges, SHA-256, storage/cancel failures, account isolation and controller opening passed.')

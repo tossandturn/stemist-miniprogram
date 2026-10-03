@@ -29,7 +29,7 @@ return{owner:String(user.id||user.username||'guest'),epoch:Number(wxApi.getStora
 
 function sameIdentity(wxApi,expected){
 const current=identitySnapshot(wxApi)
-return current.owner===expected.owner&&current.epoch===expected.epoch&&current.token===expected.token
+return current.owner===expected.owner&&current.epoch===expected.epoch
 }
 
 function createPdfDownloadController(options={}){

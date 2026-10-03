@@ -13,7 +13,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  if(!URL_OK.test(url)||/\.\.|%2e|%2f|%5c/i.test(url)||!root||!fs||!/^[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(fileName)||typeof wxApi.request!=='function'||!['writeFile','appendFile','readFile','statSync','mkdirSync','accessSync','unlink'].every(k=>typeof fs[k]==='function'))return null
  const folder=root+'/pdf-cache',owned=p=>typeof p==='string'&&p.startsWith(folder+'/')&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length+1))
  const key=owner+'|'+url+'|'+version
- let task=null,stopped=false,rejectRequest=null,hard=null
+ let task=null,stopped=false,rejectRequest=null,hard=null,chunkBytes=CHUNK
  const check=()=>{if(stopped)throw problem('pdf_cancelled','已暂停下载。')}
  const size=p=>{try{return Number(fs.statSync(p).size)||0}catch{return 0}}
  const registry=()=>{const r=wxApi.getStorageSync?.(REGISTRY);return Array.isArray(r)?r.filter(x=>x&&x.schema===1&&owned(x.path)&&URL_OK.test(x.url)&&typeof x.owner==='string'&&Number.isSafeInteger(x.offset)&&x.offset>0&&x.offset<=x.total&&x.total<=MAX_FILE&&etag(x.etag)):[]}
@@ -43,6 +43,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
    check()
    try{return checked(await request(start,end,tag),start,end,total,tag)}catch(error){
     if(!['pdf_network','pdf_timeout'].includes(error?.code)||attempt>=2)throw error
+    if(end-start+1>32*1024){chunkBytes=Math.max(32*1024,Math.floor((end-start+1)/2));end=start+chunkBytes-1}
     await new Promise(resolve=>setTimeout(resolve,[350,900][attempt]));check()
    }
   }
@@ -70,8 +71,8 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
    }
    onProgress(record.offset,record.total)
    while(record.offset<record.total){
-    check();const start=record.offset,end=Math.min(start+CHUNK-1,record.total-1),part=await segment(start,end,record.total,record.etag);check()
-    await call('appendFile',{filePath:record.path,data:binary(part.data)});record.offset=end+1
+    check();const start=record.offset,end=Math.min(start+chunkBytes-1,record.total-1),part=await segment(start,end,record.total,record.etag);check()
+    await call('appendFile',{filePath:record.path,data:binary(part.data)});record.offset=start+part.data.length
     if(size(record.path)!==record.offset)throw problem('pdf_checkpoint','已保存的文件进度无效，请重新下载。')
     put({...record,used:Date.now()});check();onProgress(record.offset,record.total)
    }
