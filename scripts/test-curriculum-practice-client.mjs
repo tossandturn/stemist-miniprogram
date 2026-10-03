@@ -121,6 +121,16 @@ function pageRuntime({recent=null,questionGate=null,failFirstSubmit=false,failAn
  const gate=deferred(),h=pageRuntime({questionGate:gate}),loaded=h.page.onLoad({routeId});await loaded;const pending=h.page.start();await settle();h.page.onUnload();gate.resolve(clone(questionPayload.question));await pending;assert.equal(h.page.data.question,null,'late question data cannot render after unload')
 }
 {
+ const h=pageRuntime();await h.page.onLoad({routeId});await h.page.start()
+ h.page.imageLoaded({currentTarget:{dataset:{id:'asset_ap1_q1'}}})
+ assert.equal(h.page.data.question.source.regions[0].loaded,true)
+ h.page.toggleOption({currentTarget:{dataset:{option:'A'}}});await h.page.submit()
+ assert.equal(h.page.data.question.source.regions[0].loaded,true,'result re-render must preserve a real onLoad state for the same immutable image')
+ const changed={...h.page.data.question,options:h.page.data.question.options.map(item=>item.value),source:{...h.page.data.question.source,regions:h.page.data.question.source.regions.map(region=>({...region,imageUrl:region.imageUrl+'?fixture=changed'}))}}
+ h.page.renderQuestion(changed,0)
+ assert.equal(h.page.data.question.source.regions[0].loaded,false,'a changed image URL still requires a real image load event')
+}
+{
  const h=pageRuntime({failAnswerSave:true});await h.page.onLoad({routeId});await h.page.start();h.page.toggleOption({currentTarget:{dataset:{option:'A'}}});assert.deepEqual([...h.page.data.selectedOptions],[],'an unsaved answer cannot masquerade as durable');assert.match(h.page.data.error,/本机空间/)
 }
 {
