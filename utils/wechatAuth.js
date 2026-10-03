@@ -38,11 +38,23 @@ fail: (error) => reject(Object.assign(new Error('微信登录暂时失败，请�
 })
 }
 
+function presentWeChatIdentityError(error) {
+if (String(error && error.code || '') !== 'wechat_identity_conflict') return error
+return Object.assign(new Error('微信主体信息正在更新，原有学习记录已保留。请稍后重试；如持续出现，请使用已有账号登录后联系管理员。'), {
+statusCode: 409,
+code: 'wechat_identity_conflict',
+})
+}
+
 async function exchangeCode(code,check=authGuard()) {
 check()
+try {
 const payload=await requestJson('/api/auth/wechat', { code }, { method: 'POST', timeout: 10000, stemAuth:false, authCheck:check })
 const verified=check(payload)
 return { status: 'authenticated', user: storeIdentity(payload,verified), payload }
+} catch (error) {
+throw presentWeChatIdentityError(error)
+}
 }
 
 async function ensureWeChatSession({ silent = true } = {}) {

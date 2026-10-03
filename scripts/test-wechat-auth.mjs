@@ -7,6 +7,7 @@ const source = fs.readFileSync(path.resolve(import.meta.dirname, '..', 'utils/we
 const storage = {}
 let requestCount = 0
 let requestPayload
+let requestFailure = null
 const module = { exports: {} }
 vm.runInNewContext(source, {
   module,
@@ -28,6 +29,7 @@ vm.runInNewContext(source, {
     return { requestJson: async (url, payload, options) => {
       requestCount += 1
       requestPayload = { url, payload, options }
+      if (requestFailure) throw requestFailure
       return { accessToken: 'short-lived-token', identity: { id: 'ielts:42', username: '微信用户', displayName:'微信昵称', avatarDataUrl:'data:image/png;base64,fixture', roles: ['student'] } }
     } }
   },
@@ -50,4 +52,14 @@ assert.equal(storage.stemistUser.avatarDataUrl,'data:image/png;base64,fixture')
 const reused = await module.exports.ensureWeChatSession({ silent: false })
 assert.equal(reused.reused, true)
 assert.equal(requestCount, 1)
+delete storage.stemistSessionToken
+requestFailure = Object.assign(new Error('This WeChat identity is linked to conflicting accounts.'), { statusCode: 409, code: 'wechat_identity_conflict' })
+await assert.rejects(
+  () => module.exports.ensureWeChatSession({ silent: false }),
+  (error) => error.code === 'wechat_identity_conflict'
+    && error.statusCode === 409
+    && /主体信息正在更新/.test(error.message)
+    && /原有学习记录已保留/.test(error.message),
+  'an identity conflict during a subject change must present a safe recovery message',
+)
 console.log('WeChat silent login exchange contract passed.')
