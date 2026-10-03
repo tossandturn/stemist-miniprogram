@@ -31,6 +31,16 @@ Validation:
   source hashes and loopback/public native configuration, catalog and AP
   availability checks passed.
 
+Official development upload succeeded on 2026-10-03 at 12:50 +08:00. The frozen
+runtime commit is `a6103b2f91523805bb5268aaf579cc3cd6d9fad3`; official total size
+is 2,049,687 bytes and main-package size is 1,896,592 bytes. The receipt is
+`D:/CodexWork/stemist-release-coordination/release-1.0.26-20261003/upload-receipt.json`.
+Native simulator acceptance passed for live catalogs, AP/IB licensed download
+buttons, announcements, profile controls, chapter generation, camera recovery,
+whole-paper entry and a native canvas crop retaining all four synthetic colours.
+Public HTTPS checks passed for 14 paper catalogs and a complete synthetic native
+login/session/source-image journey.
+
 The development upload is distinct from WeChat review submission or publication.
 Device-only camera/microphone permissions and physical mainland-network latency
 remain physical-device checks. Subject qualifications and re-filing remain
