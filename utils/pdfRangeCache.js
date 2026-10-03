@@ -33,6 +33,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  if(!URL_OK.test(url)||/\.\.|%2e|%2f|%5c/i.test(url)||!root||!fs||/\.\.|%2e|%2f|%5c/i.test(fileName)||!/^[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(fileName)||typeof wxApi.request!=='function'||!['writeFile','appendFile','readFile','statSync','mkdirSync','accessSync','unlink'].every(k=>typeof fs[k]==='function'))return null
  const folder=root+'/pdf-cache',owned=p=>typeof p==='string'&&p.startsWith(folder+'/')&&!(/\.\.|%2e|%2f|%5c/i.test(p.slice(folder.length+1)))&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length+1))
  const key=owner+'|'+url+'|'+version
+ let active=activePdfFiles.get(wxApi);if(!active){active=new Map();activePdfFiles.set(wxApi,active)}
  let task=null,stopped=false,rejectRequest=null,hard=null,chunkBytes=CHUNK
  const check=()=>{if(stopped)throw problem('pdf_cancelled','已暂停下载。')}
  const progress=(saved,total)=>{try{onProgress(saved,total)}catch{}}
@@ -42,15 +43,11 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  const save=r=>{if(r.length)wxApi.setStorageSync(REGISTRY,r);else wxApi.removeStorageSync(REGISTRY)}
  const unlink=p=>new Promise(resolve=>{if(!owned(p))return resolve(false);try{fs.unlink({filePath:p,success:()=>resolve(true),fail:()=>resolve(false)})}catch{resolve(false)}})
  function forget(record){if(!record)return;save(registry().filter(x=>x.key!==record.key));unlink(record.path)}
- function put(record){let list=registry().filter(x=>x.key!==record.key);list.push(record);list.sort((a,b)=>a.used-b.used);while(list.length>MAX_FILES||list.reduce((n,x)=>n+x.offset,0)>MAX_BYTES){const index=list.findIndex(x=>x.key!==key);if(index<0)break;const first=list.splice(index,1)[0];unlink(first.path)}save(list)}
+ const reclaimable=x=>x.key!==key&&x.offset===x.total&&!active.has(x.path)
+ function put(record){let list=registry().filter(x=>x.key!==record.key);list.push(record);list.sort((a,b)=>a.used-b.used);while(list.length>MAX_FILES||list.reduce((n,x)=>n+x.offset,0)>MAX_BYTES){const index=list.findIndex(reclaimable);if(index<0)break;const first=list.splice(index,1)[0];unlink(first.path)}save(list)}
  async function releaseSpace(all=false){
-  let list=registry(),available=Math.max(0,MAX_BYTES-(record?.total||expectedBytes||0)),foreign=list.filter(x=>x.key!==key).sort((a,b)=>a.used-b.used)
-  for(const item of foreign){if(!all&&list.filter(x=>x.key!==key).reduce((n,x)=>n+x.offset,0)<=available)break;list=list.filter(x=>x.path!==item.path);save(list);await unlink(item.path)}
-  if(all&&typeof fs.readdirSync==='function'){
-   let dirs=[];try{dirs=fs.readdirSync(folder).filter(n=>/^pdf-[a-z0-9-]+$/.test(n)).slice(0,60)}catch{}
-   const retained=new Set(registry().map(x=>x.path));if(record?.path)retained.add(record.path)
-   for(const dir of dirs){let names=[];try{names=fs.readdirSync(folder+'/'+dir).slice(0,10)}catch{};for(const name of names){const p=folder+'/'+dir+'/'+name;if(!retained.has(p)&&owned(p))await unlink(p)}}
-  }
+  let list=registry(),available=Math.max(0,MAX_BYTES-(record?.total||expectedBytes||0)),foreign=list.filter(reclaimable).sort((a,b)=>a.used-b.used)
+  for(const item of foreign){if(active.has(item.path))continue;if(!all&&list.filter(x=>x.key!==key).reduce((n,x)=>n+x.offset,0)<=available)break;list=list.filter(x=>x.path!==item.path);save(list);await unlink(item.path)}
  }
  const call=async(method,args)=>{
   const attempt=()=>new Promise((resolve,reject)=>{try{fs[method]({...args,success:resolve,fail:e=>reject(problem(/limit|quota|no space|storage.*full|exceed|空间/i.test(String(e?.errMsg||''))?'pdf_storage_full':'pdf_storage','文件保存失败，请释放一些小程序存储后重试。'))})}catch{reject(problem('pdf_storage','文件保存失败，请重试。'))}})
@@ -103,7 +100,6 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
   check();progress(record.total,record.total);return p
  }
  let record=registry().find(x=>x.key===key),restarts=0
- let active=activePdfFiles.get(wxApi);if(!active){active=new Map();activePdfFiles.set(wxApi,active)}
  const reservations=new Set(),reserve=p=>{if(p&&!reservations.has(p)){reservations.add(p);active.set(p,(active.get(p)||0)+1)}}
  reserve(record?.path)
  async function run(){

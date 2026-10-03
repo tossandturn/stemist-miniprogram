@@ -102,8 +102,10 @@ async function main(){
    if(q.progress.at(-1)?.stage!==p.stage)q.progress.push({stage:p.stage,phase:p.phase,elapsedSeconds:p.elapsedSeconds,isEstimate:p.isEstimate,estimatedRemainingSeconds:p.estimatedRemainingSeconds,completedPages:p.completedPages,totalPages:p.totalPages})
    if(!['completed','failed'].includes(value.status))return null
    q.job=value
-   return {status:value.status,failureCode:value.failureCode||'',states:q.states,progress:q.progress,mode:value.result?.assessmentMode,score:value.result?.provisionalScore,maxScore:value.result?.maxScore,questionCount:value.result?.questionResults?.length||0,scoreReady:value.result?.scoreReady,missingPages:value.result?.missingPages||[],missingQuestions:value.result?.missingQuestions||[]}
+   const questionEvidence=(value.result?.questionResults||[]).map(r=>({questionId:r.questionId,score:r.score,maxScore:r.maxScore,scoreReady:r.scoreReady,feedback:r.feedback,sourceEvidence:r.sourceEvidence,markingCriteria:r.markingCriteria,criteria:r.criteria}))
+   return {status:value.status,failureCode:value.failureCode||'',states:q.states,progress:q.progress,mode:value.result?.assessmentMode,score:value.result?.provisionalScore,maxScore:value.result?.maxScore,questionCount:value.result?.questionResults?.length||0,scoreReady:value.result?.scoreReady,missingPages:value.result?.missingPages||[],missingQuestions:value.result?.missingQuestions||[],questionEvidence}
   },'live whole-paper report',220000)
+  fs.writeFileSync(path.join(output,'whole-paper-observed.json'),JSON.stringify(job,null,2),'utf8')
   assert.equal(job.status,'completed',JSON.stringify(job))
   assert.equal(job.questionCount,2)
   assert.equal(job.score,3,'Two synthetic answers should receive 2/2 and 1/2 under the supplied mark scheme')

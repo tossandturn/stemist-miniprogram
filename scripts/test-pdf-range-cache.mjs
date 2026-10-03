@@ -6,15 +6,17 @@ const source=Buffer.concat([Buffer.from('%PDF-1.7\n'),Buffer.alloc(390000,42),Bu
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex')
 const URL='https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'a'.repeat(32)
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))
+const waitFor=async predicate=>{for(let i=0;i<100&&!predicate();i++)await wait(5);assert.ok(predicate(),'timed out waiting for in-memory filesystem event')}
 
 function harness({data=source,failAt=-1,damage=false}={}){
  const files=new Map(),storage=new Map(),requests=[],opens=[],states=[],phases=[]
- let calls=0,errorAt=failAt,changedData=data,badRange=false,badEtag=false,writesFail=false
+ let calls=0,errorAt=failAt,changedData=data,badRange=false,badEtag=false,writesFail=false,holdReadPath='',heldRead=null
  const manager={
   mkdirSync(){},accessSync(p){if(!files.has(p))throw Error('not found')},statSync(p){if(!files.has(p))throw Error('not found');return{size:files.get(p).length}},
+  readdirSync(directory){const prefix=directory.replace(/\/$/,'')+'/';return[...new Set([...files.keys()].filter(file=>file.startsWith(prefix)).map(file=>file.slice(prefix.length).split('/')[0]).filter(Boolean))]},
   writeFile(o){if(writesFail)return queueMicrotask(()=>o.fail());files.set(o.filePath,Buffer.from(o.data));queueMicrotask(()=>o.success())},
   appendFile(o){if(writesFail)return queueMicrotask(()=>o.fail());files.set(o.filePath,Buffer.concat([files.get(o.filePath),Buffer.from(o.data)]));queueMicrotask(()=>o.success())},
-  readFile(o){const b=files.get(o.filePath);if(!b)return queueMicrotask(()=>o.fail());let part=b.subarray(o.position||0,(o.position||0)+(o.length||b.length));if(damage&&o.position>5)part=Buffer.alloc(part.length,9);queueMicrotask(()=>o.success({data:part.buffer.slice(part.byteOffset,part.byteOffset+part.length)}))},
+  readFile(o){const read=()=>{const b=files.get(o.filePath);if(!b)return queueMicrotask(()=>o.fail());let part=b.subarray(o.position||0,(o.position||0)+(o.length||b.length));if(damage&&o.position>5)part=Buffer.alloc(part.length,9);queueMicrotask(()=>o.success({data:part.buffer.slice(part.byteOffset,part.byteOffset+part.length)}))};if(o.filePath===holdReadPath&&!heldRead){heldRead=read;return}read()},
   unlink(o){files.delete(o.filePath);o.success?.()},
  }
  const wx={env:{USER_DATA_PATH:'/user'},getFileSystemManager:()=>manager,getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),request(o){
@@ -25,7 +27,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
  storage.set('stemistUser',{id:'student-1'});storage.set('stemistPrivacyEpoch',1)
  const r=miniRuntime({wx,globals:{setTimeout:(fn,ms)=>setTimeout(fn,ms===350||ms===900?0:ms)}}),module=r.load('utils/pdfRangeCache')
  const acquire=(extra={})=>module.acquirePdf({wxApi:wx,url:URL,owner:'student-1|1',version:'v1',fileName:'IB_Math_AA_2025_QP.pdf',expectedBytes:changedData.length,expectedSha256:digest(changedData),onProgress:(n,total)=>states.push({n,total}),onPhase:(phase,n,total)=>phases.push({phase,n,total}),...extra})
- return{acquire,module,wx,files,storage,requests,states,phases,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v}
+ return{acquire,module,wx,files,storage,requests,states,phases,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v,holdReadFor:p=>holdReadPath=p,releaseRead(){const read=heldRead;heldRead=null;holdReadPath='';read?.()},get readHeld(){return Boolean(heldRead)}}
 }
 
 {
@@ -81,7 +83,6 @@ function harness({data=source,failAt=-1,damage=false}={}){
  await controller.open({url:URL,scope:'renew',fileName:'AP_Renew_QP.pdf',expectedBytes:source.length,sha256:digest(source),cacheVersion:'same-source'})
  refresh.storage.set('stemistSessionToken','renewed-same-owner-token');await wait(100);assert.equal(state.phase,'opened','same-owner session renewal does not abort a public download');controller.dispose()
 }
-console.log('Native PDF: bounded chunks, persisted resume, ETag restart, exact ranges, SHA-256, storage/cancel failures, account isolation and controller opening passed.')
 {
  const h=harness(),manager=h.wx.getFileSystemManager(),oldPath='/user/pdf-cache/pdf-old/old.pdf',studentPath='/user/native-writing/student.jpg'
  h.files.set(oldPath,Buffer.from(source));h.files.set(studentPath,Buffer.alloc(100000,8))
@@ -93,10 +94,61 @@ console.log('Native PDF: bounded chunks, persisted resume, ETag restart, exact r
  assert.deepEqual(h.files.get(studentPath),Buffer.alloc(100000,8),'student photos are never reclaimed as cache')
 }
 {
+ const h=harness(),privatePath='/user/native-writing/private-answer.jpg',partials=[]
+ h.files.set(privatePath,Buffer.alloc(64,9))
+ for(let i=0;i<4;i++){const path=`/user/pdf-cache/pdf-count-${i}/paused-${i}.pdf`,record={schema:1,key:`foreign-count-${i}`,owner:`other-${i}|1`,url:URL,version:`partial-${i}`,path,total:source.length,offset:100+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,i+1))}
+ h.storage.set(h.module.REGISTRY,partials)
+ await h.acquire({owner:'current-owner|1',version:'count-pressure',fileName:'count-pressure.pdf'}).promise
+ const saved=h.storage.get(h.module.REGISTRY)
+ for(const record of partials){assert.equal(h.files.has(record.path),true,'record-count pressure must preserve every foreign partial file');assert.ok(saved.some(item=>item.key===record.key&&item.offset===record.offset),'record-count pressure must preserve every resumable checkpoint')}
+ assert.equal(h.files.has(privatePath),true,'record-count pressure never touches private files')
+}
+{
+ const h=harness(),partials=[],completedPath='/user/pdf-cache/pdf-complete/completed.pdf'
+ for(let i=0;i<3;i++){const path=`/user/pdf-cache/pdf-safe-partial-${i}/paused-${i}.pdf`,record={schema:1,key:`safe-partial-${i}`,owner:`paused-${i}|1`,url:URL,version:`partial-${i}`,path,total:source.length,offset:200+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,4))}
+ const completed={schema:1,key:'safe-completed',owner:'completed-owner|1',url:URL,version:'complete',path:completedPath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:99}
+ h.files.set(completedPath,Buffer.from(source));h.storage.set(h.module.REGISTRY,[...partials,completed])
+ await h.acquire({owner:'current-owner|1',version:'safe-reclaim',fileName:'safe-reclaim.pdf'}).promise
+ assert.equal(h.files.has(completedPath),false,'record-count pressure evicts a nonactive completed cache even when partials are older')
+ for(const record of partials)assert.equal(h.files.has(record.path),true,'bounded completed-cache reclamation never substitutes an older partial')
+ assert.equal(h.storage.get(h.module.REGISTRY).length,4,'completed-only reclamation keeps the record limit when a safe candidate exists')
+}
+{
+ const h=harness(),partials=[],partialSize=2200000,total=3000000
+ for(let i=0;i<4;i++){const path=`/user/pdf-cache/pdf-budget-${i}/paused-${i}.pdf`,record={schema:1,key:`foreign-budget-${i}`,owner:`budget-owner-${i}|1`,url:URL,version:`budget-${i}`,path,total,offset:partialSize,etag:'"budget-'+i+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(partialSize,i+1))}
+ h.storage.set(h.module.REGISTRY,partials)
+ await h.acquire({owner:'current-owner|1',version:'budget-pressure',fileName:'budget-pressure.pdf'}).promise
+ const saved=h.storage.get(h.module.REGISTRY)
+ for(const record of partials){assert.equal(h.files.has(record.path),true,'8 MiB soft-budget pressure must not delete paused foreign bytes');assert.ok(saved.some(item=>item.key===record.key),'soft-budget overflow keeps resumable foreign metadata')}
+}
+{
+ const h=harness(),activePath='/user/pdf-cache/pdf-active/active.pdf',activeRecord={schema:1,key:'active-owner|1|'+URL+'|active',owner:'active-owner|1',url:URL,version:'active',path:activePath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:0},partials=[]
+ h.files.set(activePath,Buffer.from(source))
+ for(let i=0;i<3;i++){const path=`/user/pdf-cache/pdf-active-partial-${i}/paused-${i}.pdf`,record={schema:1,key:`active-partial-${i}`,owner:`paused-owner-${i}|1`,url:URL,version:`p-${i}`,path,total:source.length,offset:100+i,etag:'"'+digest(source)+'"',used:i+1};partials.push(record);h.files.set(path,Buffer.alloc(record.offset,3))}
+ h.storage.set(h.module.REGISTRY,[activeRecord,...partials]);h.holdReadFor(activePath)
+ const active=h.acquire({owner:'active-owner|1',version:'active',fileName:'active.pdf'});await waitFor(()=>h.readHeld)
+ const incoming=h.acquire({owner:'incoming-owner|1',version:'incoming',fileName:'incoming.pdf'});await incoming.promise
+ const preserved=h.files.has(activePath);h.releaseRead();const activeResult=await active.promise.catch(error=>error)
+ assert.equal(preserved,true,'a completed record being actively verified cannot be evicted for a new record');assert.equal(activeResult,activePath)
+ for(const record of partials)assert.equal(h.files.has(record.path),true,'active-record pressure also preserves paused foreign downloads')
+}
+{
  const h=harness(),manager=h.wx.getFileSystemManager(),student='/user/native-writing/student.jpg';h.files.set(student,Buffer.alloc(400000,7));let temporary=0
- for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const used=[...h.files].filter(([p])=>p.startsWith('/user/')).reduce((n,[,b])=>n+b.length,0);if(used+o.data.byteLength>550000){queueMicrotask(()=>o.fail({errMsg:'file storage limit exceeded'}));return}original(o)}}
+ const pausedPath='/user/pdf-cache/pdf-paused/paused.pdf',orphanPath='/user/pdf-cache/pdf-unregistered/unknown-partial.pdf',paused={schema:1,key:'paused-foreign',owner:'student-2|7',url:URL,version:'paused',path:pausedPath,total:source.length,offset:150000,etag:'"'+digest(source)+'"',used:1}
+ h.files.set(pausedPath,Buffer.alloc(paused.offset,6));h.files.set(orphanPath,Buffer.alloc(17,5));h.storage.set(h.module.REGISTRY,[paused])
+ for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const used=[...h.files].filter(([p])=>p.startsWith('/user/')).reduce((n,[,b])=>n+b.length,0),before=name==='writeFile'?(h.files.get(o.filePath)?.length||0):0;if(used+o.data.byteLength-before>550000){queueMicrotask(()=>o.fail({errMsg:'file storage limit exceeded'}));return}original(o)}}
  h.wx.downloadFile=o=>{temporary++;setImmediate(()=>{h.files.set('/tmp/native-pdf.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/native-pdf.pdf'})});return{abort(){},onProgressUpdate(){}}}
  const p=await h.acquire().promise;assert.equal(p,'/tmp/native-pdf.pdf');assert.equal(temporary,1);assert.deepEqual(h.files.get(p),source)
  assert.ok(h.phases.some(item=>item.phase==='verifying'),'temporary previews are validated before completion')
- assert.deepEqual(h.files.get(student),Buffer.alloc(400000,7));assert.ok(h.storage.get(h.module.REGISTRY)[0].offset<source.length,'temporary preview never claims a durable complete checkpoint')
+ assert.deepEqual(h.files.get(student),Buffer.alloc(400000,7));assert.equal(h.files.has(pausedPath),true,'insufficient safe reclamation keeps a foreign paused download and falls back to temporary preview')
+ assert.equal(h.files.has(orphanPath),true,'unknown unregistered PDF bytes are not assumed complete or safe to delete')
+ assert.ok(h.storage.get(h.module.REGISTRY).some(item=>item.key===paused.key&&item.offset<item.total),'temporary preview never claims or deletes a durable partial checkpoint')
 }
+{
+ const h=harness(),manager=h.wx.getFileSystemManager(),privatePath='/user/native-writing/private-no-fallback.jpg',pausedPath='/user/pdf-cache/pdf-no-fallback/paused.pdf',paused={schema:1,key:'paused-no-fallback',owner:'student-3|2',url:URL,version:'paused',path:pausedPath,total:source.length,offset:120000,etag:'"'+digest(source)+'"',used:1}
+ h.files.set(privatePath,Buffer.alloc(10,8));h.files.set(pausedPath,Buffer.alloc(paused.offset,7));h.storage.set(h.module.REGISTRY,[paused])
+ for(const name of ['writeFile','appendFile'])manager[name]=o=>queueMicrotask(()=>o.fail({errMsg:'storage full'}))
+ await assert.rejects(h.acquire({owner:'current-owner|1',version:'no-temporary',fileName:'no-temporary.pdf'}).promise,error=>error.code==='pdf_storage_full')
+ assert.equal(h.files.has(pausedPath),true,'storage failure without temporary preview preserves paused public bytes');assert.equal(h.files.has(privatePath),true,'storage failure without temporary preview preserves private files')
+}
+console.log('Native PDF: bounded chunks, persisted resume, completed-only reclamation, active/partial/private preservation, verified temporary fallback, ETag, SHA-256 and controller lifecycle passed.')
