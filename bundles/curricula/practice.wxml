@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} curriculum-practice-page">
  <stemist-header title="AP 选择题练习" subtitle="AI 核对学习题库" />
- <app-nav active="practice" source="curriculum-practice" is-tablet="{{isTablet}}" />
+ <app-nav id="practice-app-nav" active="practice" source="curriculum-practice" is-tablet="{{isTablet}}" />
  <view wx:if="{{loading}}" class="loading-state" role="status">正在读取已开放的选择题练习…</view>
  <view wx:elif="{{phase === 'setup'}}" class="setup-layout">
   <view class="practice-intro"><text class="practice-title">选择题练习</text><text class="practice-copy">题目文字与选项保留在原卷图片中。根据双模型核验的答案核对结果，仅用于学习，不计正式进度或官方成绩。</text><text class="authority-badge">AI 核对 · 非正式学习结果</text></view>

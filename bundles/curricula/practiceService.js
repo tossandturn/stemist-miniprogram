@@ -45,10 +45,10 @@ function normalizeQuestion(payload,expectedId=''){
  const pages=q.source.pages.map(value=>integer(value,1,1000));if(pages.some(value=>value===null)||new Set(pages).size!==pages.length||pages.join('|')!==[...pages].sort((a,b)=>a-b).join('|'))throw fail('选择题原图页码无效。')
  const assets=new Set(),regions=q.source.regions.map(region=>{
   if(!exact(region,['assetId','url','sha256','bytes','width','height','page','region']))throw fail('选择题原图信息不完整。')
-  const assetId=identifier(region.assetId),page=integer(region.page,1,1000),bytes=integer(region.bytes,1,10*1024*1024),width=integer(region.width,1,20000),height=integer(region.height,1,20000),xyxy=region.region
-  const url=`${ROOT}/source/${encodeURIComponent(id)}/${encodeURIComponent(assetId)}`
-  if(!assetId||assets.has(assetId)||region.url!==url||!sha(region.sha256)||bytes===null||width===null||height===null||page===null||!pages.includes(page)||!Array.isArray(xyxy)||xyxy.length!==4||xyxy.some(value=>typeof value!=='number'||!Number.isFinite(value)||value<0)||xyxy[2]<=xyxy[0]||xyxy[3]<=xyxy[1])throw fail('选择题原图来源无效。')
-  assets.add(assetId);return{assetId,url,imageUrl:origin()+url,sha256:region.sha256,bytes,width,height,page,region:xyxy.slice()}
+  const assetId=identifier(region.assetId),digest=sha(region.sha256),page=integer(region.page,1,1000),bytes=integer(region.bytes,1,10*1024*1024),width=integer(region.width,1,20000),height=integer(region.height,1,20000),xyxy=region.region
+  const url=`${ROOT}/source/${encodeURIComponent(id)}/${encodeURIComponent(assetId)}/${digest}.png`
+  if(!assetId||!digest||assets.has(assetId)||region.url!==url||bytes===null||width===null||height===null||page===null||!pages.includes(page)||!Array.isArray(xyxy)||xyxy.length!==4||xyxy.some(value=>typeof value!=='number'||!Number.isFinite(value)||value<0)||xyxy[2]<=xyxy[0]||xyxy[3]<=xyxy[1])throw fail('选择题原图来源无效。')
+  assets.add(assetId);return{assetId,url,imageUrl:origin()+url,sha256:digest,bytes,width,height,page,region:xyxy.slice()}
  })
  if(!pages.every(page=>regions.some(region=>region.page===page)))throw fail('选择题原图页码不完整。')
  if(!exact(q.quality,['label','authority','formalProgressEligible'])||q.quality.label!=='AI checked'||q.quality.authority!=='ai-provisional'||q.quality.formalProgressEligible!==false)throw fail('选择题练习质量标记无效。')

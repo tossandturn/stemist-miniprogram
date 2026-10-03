@@ -7,8 +7,8 @@ const catalogPayload={schemaVersion:'curriculum-practice-catalog.v1',releaseId:'
  {id:routeId,board:'ap',course:'physics-1',label:'AP Physics 1 MCQ',authority:'ai-provisional',formalProgressEligible:false,questionCount:40,topics:[{id:topicId,label:'Essential Knowledge 1.A',sourceId:'1.A',dimension:'official-essential-knowledge',routeId,questionCount:12}]},
  {id:'ap-physics-c-em-mcq-study',board:'ap',course:'physics-c-em',label:'AP Physics C: Electricity and Magnetism MCQ',authority:'ai-provisional',formalProgressEligible:false,questionCount:105,topics:[{id:'ap-c-em-topic-electrostatics',label:'Electrostatics',sourceId:'Electrostatics',dimension:'official-topic',routeId:'ap-physics-c-em-mcq-study',questionCount:20}]},
 ]}
-const regionUrl=`/api/stem/curriculum-practice/source/${encodeURIComponent(questionId)}/asset_ap1_q1`
-const questionPayload={question:{id:questionId,paperId:'ap-physics-1-2017',questionNumber:1,routeId,topicIds:[topicId],answerMode:'single',options:['A','B','C','D'],source:{questionPdfSha256:'a'.repeat(64),pages:[1],regions:[{assetId:'asset_ap1_q1',url:regionUrl,sha256:'b'.repeat(64),bytes:2048,width:1200,height:800,page:1,region:[0,0,1200,800]}]},quality:{label:'AI checked',authority:'ai-provisional',formalProgressEligible:false}}}
+const regionSha='b'.repeat(64),regionUrl=`/api/stem/curriculum-practice/source/${encodeURIComponent(questionId)}/asset_ap1_q1/${regionSha}.png`
+const questionPayload={question:{id:questionId,paperId:'ap-physics-1-2017',questionNumber:1,routeId,topicIds:[topicId],answerMode:'single',options:['A','B','C','D'],source:{questionPdfSha256:'a'.repeat(64),pages:[1],regions:[{assetId:'asset_ap1_q1',url:regionUrl,sha256:regionSha,bytes:2048,width:1200,height:800,page:1,region:[0,0,1200,800]}]},quality:{label:'AI checked',authority:'ai-provisional',formalProgressEligible:false}}}
 const draftSession={id:sessionId,routeId,topicId,status:'draft',questionIds:[questionId,'ap1-2017-q2'],questionCount:2,createdAt:'2026-10-04T00:00:00.000Z',updatedAt:'2026-10-04T00:00:00.000Z'}
 const submittedSession={...draftSession,status:'submitted',answers:[{questionId,selectedOptions:['A'],unanswered:false},{questionId:'ap1-2017-q2',selectedOptions:[],unanswered:true}],result:{score:1,maxScore:2,items:[{questionId,correct:true,unanswered:false},{questionId:'ap1-2017-q2',correct:false,unanswered:true}]},submittedAt:'2026-10-04T00:05:00.000Z',updatedAt:'2026-10-04T00:05:00.000Z'}
 const clone=value=>JSON.parse(JSON.stringify(value))
@@ -36,7 +36,7 @@ function serviceRuntime({getJson,requestJson}={}){
   value=>{value.routes[0].authority='official'},value=>{value.routes[0].formalProgressEligible=true},value=>{value.routes[0].id='other-route'},value=>{value.routes[0].topics[0].routeId='other-route'},value=>{value.routes[0].topics[0].questionCount=-1},
  ]){const value=clone(catalogPayload);edit(value);assert.throws(()=>h.service.normalizeCatalog(value),/题库|练习|目录/)}
  for(const edit of [
-  value=>{value.question.answerKey='A'},value=>{value.question.options=['B','A']},value=>{value.question.quality.authority='official'},value=>{value.question.quality.formalProgressEligible=true},value=>{value.question.source.questionPdfSha256='bad'},value=>{value.question.source.regions[0].url='/api/stem/curriculum-practice/source/other/asset_ap1_q1'},value=>{value.question.source.regions[0].region=[0,0,0,1]},
+  value=>{value.question.answerKey='A'},value=>{value.question.options=['B','A']},value=>{value.question.quality.authority='official'},value=>{value.question.quality.formalProgressEligible=true},value=>{value.question.source.questionPdfSha256='bad'},value=>{value.question.source.regions[0].url=`/api/stem/curriculum-practice/source/${questionId}/asset_ap1_q1`},value=>{value.question.source.regions[0].url=`/api/stem/curriculum-practice/source/other/asset_ap1_q1/${regionSha}.png`},value=>{value.question.source.regions[0].sha256='c'.repeat(64)},value=>{value.question.source.regions[0].url=`/api/stem/curriculum-practice/source/${questionId}/asset_ap1_q1/${'c'.repeat(64)}.png`},value=>{value.question.source.regions[0].url=`/api/stem/curriculum-practice/source/${questionId}/other_asset/${regionSha}.png`},value=>{value.question.source.regions[0].region=[0,0,0,1]},
  ]){const value=clone(questionPayload);edit(value);assert.throws(()=>h.service.normalizeQuestion(value,questionId),/题目|原图|来源|练习/)}
 }
 
@@ -74,7 +74,7 @@ function serviceRuntime({getJson,requestJson}={}){
 
 console.log('Curriculum practice service contract passed.')
 
-const secondQuestion={...clone(questionPayload.question),id:'ap1-2017-q2',questionNumber:2,answerMode:'multiple',options:['A','B','C','D','E'],source:{...clone(questionPayload.question.source),regions:[{...clone(questionPayload.question.source.regions[0]),assetId:'asset_ap1_q2',url:'/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2',imageUrl:'https://stem.ieltsist.com/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2'}]}}
+const secondQuestion={...clone(questionPayload.question),id:'ap1-2017-q2',questionNumber:2,answerMode:'multiple',options:['A','B','C','D','E'],source:{...clone(questionPayload.question.source),regions:[{...clone(questionPayload.question.source.regions[0]),assetId:'asset_ap1_q2',url:`/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2/${regionSha}.png`,imageUrl:`https://stem.ieltsist.com/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2/${regionSha}.png`}]}}
 function pageRuntime({recent=null,questionGate=null,failFirstSubmit=false,failAnswerSave=false,submitError=null}={}){
  const serviceCalls=[],modalCalls=[];let saved=recent?clone(recent):null,submissionCalls=0
  const session={...clone(draftSession),questionIds:[questionId,secondQuestion.id],questionCount:2}
@@ -150,3 +150,5 @@ function indexRuntime({board='ap',practiceCatalog=catalogPayload,practiceError=n
 const indexWxml=fs.readFileSync(new URL('bundles/curricula/index.wxml',root),'utf8'),indexWxss=fs.readFileSync(new URL('bundles/curricula/index.wxss',root),'utf8')
 assert.match(indexWxml,/选择题练习/);assert.match(indexWxml,/practiceRoutes/);assert.match(indexWxml,/不计正式/);assert.match(indexWxss,/\.practice-entry/)
 console.log('Curriculum index exposes practice only for real AP catalog counts without changing the PDF library contract.')
+const nativeQaSource=fs.readFileSync(new URL('scripts/test-curriculum-practice-native-live.cjs',root),'utf8')
+assert.match(nativeQaSource,/--expected-device/);assert.match(nativeQaSource,/--expected-orientation/);assert.match(nativeQaSource,/\.practice-progress/);assert.match(nativeQaSource,/\.submit-practice/);assert.match(nativeQaSource,/windowWidth/);assert.match(nativeQaSource,/tabletNativeVerified/);assert.doesNotMatch(nativeQaSource,/automation_page_action[^\n]*setData|deviceClass:\s*['"]device-tablet/)

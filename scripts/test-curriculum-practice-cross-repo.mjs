@@ -7,12 +7,13 @@ import {pathToFileURL} from 'node:url'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 
 const arg=name=>{const index=process.argv.indexOf(name);return index>=0?process.argv[index+1]:''}
-const backend=path.resolve(arg('--backend')||''),workRoot=path.resolve(arg('--work-root')||'')
-if(!arg('--backend')||!arg('--work-root'))throw Error('Use --backend <STEM worktree> --work-root <reviewed AP/IB artifact workspace>.')
+const backend=path.resolve(arg('--backend')||''),workRoot=arg('--work-root')?path.resolve(arg('--work-root')):'',explicitPaths=[arg('--handoff'),arg('--source-assets'),arg('--source-asset-root')],explicit=explicitPaths.every(Boolean)
+if(!arg('--backend')||!workRoot&&!explicit||explicitPaths.some(Boolean)&&!explicit)throw Error('Use --backend plus --work-root, or explicit --handoff --source-assets --source-asset-root paths.')
+const handoffPath=explicit?path.resolve(explicitPaths[0]):path.join(workRoot,'reports','2026-10-04','apib-question-review-handoff-v2.json'),sourceAssetsPath=explicit?path.resolve(explicitPaths[1]):path.join(workRoot,'runtime-candidate','2026-10-04','source-assets.json'),sourceAssetRoot=explicit?path.resolve(explicitPaths[2]):path.join(workRoot,'runtime-candidate','2026-10-04','assets')
 const scratchParent='D:\\CodexWork',scratch=await fs.mkdtemp(path.join(scratchParent,'stemist-ap-mcq-cross-'))
 if(path.dirname(scratch)!==scratchParent)throw Error('Cross-repo scratch escaped D:\\CodexWork.')
 const build=await import(pathToFileURL(path.join(backend,'scripts/build-apib-runtime-artifact.mjs')).href),validate=await import(pathToFileURL(path.join(backend,'scripts/validate-apib-runtime-release.mjs')).href),apiModule=await import(pathToFileURL(path.join(backend,'server/curriculumPracticeApi.js')).href)
-const handoffPath=path.join(workRoot,'reports','2026-10-04','apib-question-review-handoff-v2.json'),sourceAssetsPath=path.join(workRoot,'runtime-candidate','2026-10-04','source-assets.json'),sourceAssetRoot=path.join(workRoot,'runtime-candidate','2026-10-04','assets'),database=new DatabaseSync(':memory:')
+const database=new DatabaseSync(':memory:')
 let uuid=0
 function call(api,{method='GET',url,body,user=''}){return new Promise((resolve,reject)=>{
  const request=Readable.from(body===undefined?[]:[Buffer.from(JSON.stringify(body),'utf8')]);request.method=method;request.url=url;request.headers={...(body===undefined?{}:{'content-type':'application/json'}),...(user?{authorization:`Bearer ${user}`}:{})}
