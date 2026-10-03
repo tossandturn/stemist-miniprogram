@@ -25,6 +25,7 @@ summary: { completedThisWeek: 0, draftCount: 0, submissionCount: 0 },
 announcement: null,
 announcementUnread: false,
 announcementLoading: false,
+announcementError: false,
 }),
 onShow() {
 this.__disposed = false
@@ -61,7 +62,7 @@ onResize() { syncDevice(this) },
 async loadAnnouncementPreview() {
 const request = (this.__announcementRequest || 0) + 1
 this.__announcementRequest = request
-this.setData({ announcementLoading: true })
+this.setData({ announcementLoading: true, announcementError: false })
 try {
 const result = await fetchAnnouncements({ limit: 2 })
 if (this.__disposed || request !== this.__announcementRequest) return
@@ -69,7 +70,7 @@ const currentOwner = ownerId()
 const items = announcementViews(result.items, currentOwner)
 this.setData({ announcement: items[0] || null, announcementUnread: items.some((item) => item.unread) })
 } catch {
-if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcement: null, announcementUnread: false })
+if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcement: null, announcementUnread: false, announcementError: true })
 } finally { if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcementLoading: false }) }
 },
 async loginWechat() {

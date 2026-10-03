@@ -8,8 +8,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const source = fs.readFileSync(path.join(root, 'utils/coach.js'), 'utf8')
 const calls = []
 const module = { exports: {} }
+let failPhoto=false
 const fakeApi = {
-  askCoach: async (payload) => { calls.push({ endpoint: 'stem', ...payload }); return { mode: 'ai', providerStatus: 'connected', message: 'feedback' } },
+  askCoach: async (payload) => { calls.push({ endpoint: 'stem', ...payload }); return failPhoto?{mode:'offline',providerStatus:'error',answer:'先选择一道具体题目',warning:'Qwen request timed out. Check the server network and retry.',retryable:true}:{ mode: 'ai', providerStatus: 'connected', message: 'feedback' } },
   askIeltsCoach: async (payload) => { calls.push({ endpoint: 'ielts', ...payload }); return { mode: 'ai', providerStatus: 'connected', message: 'ielts feedback' } },
 }
 const fakeRequire = (name) => name === './api' ? fakeApi : (() => { throw new Error(`unexpected module ${name}`) })()
@@ -24,6 +25,8 @@ assert.equal(coachState({ mode: 'local', providerStatus: 'skipped' }).isConnecte
 assert.equal(safeCoachWarning('provider failed at https://secret.example/status'), 'provider failed at [链接已隐藏]')
 assert.equal(safeCoachWarning('api key sk-123'), '')
 assert.equal(safeCoachWarning('try again later').length, 15)
+assert.match(safeCoachWarning('Qwen request timed out. Check the server network and retry.'),/超时.*保留.*重试/)
+assert.doesNotMatch(safeCoachWarning('Qwen request timed out. Check the server network and retry.'),/Qwen|server network/)
 await assert.rejects(() => runCoach({}), /请先输入内容/)
 const result = await runCoach({ message: 'check this', context: { skill: 'reading' }, imageDataUrls: [] })
 assert.equal(result.answer, 'feedback')
@@ -32,4 +35,9 @@ assert.deepEqual(JSON.parse(JSON.stringify(calls[0].context)), { skill: 'reading
 const ieltsResult = await runCoach({ message: 'check my reading evidence', context: { product: 'IELTSist', skill: 'reading' } })
 assert.equal(ieltsResult.answer, 'ielts feedback')
 assert.equal(calls[1].endpoint, 'ielts')
+failPhoto=true
+const failedPhoto=await runCoach({context:{skill:'stem-photo'},imageDataUrls:['data:image/jpeg;base64,synthetic-fixture']})
+assert.match(failedPhoto.answer,/图片.*保留.*重试/)
+assert.equal(failedPhoto.coachState.isConnected,false)
+assert.doesNotMatch(failedPhoto.answer,/先选择一道/)
 console.log('AI Coach service contract passed.')

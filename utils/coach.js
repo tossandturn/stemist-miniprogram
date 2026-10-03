@@ -16,6 +16,7 @@ function coachAnswer(result) {
 function safeCoachWarning(value, fallback = '') {
   const text = String(value || '').replace(/https?:\/\/\S+/gi, '[链接已隐藏]').trim()
   if (!text || /(?:api[_ -]?key|secret|authorization|bearer\s+|sk-[a-z0-9])/i.test(text)) return fallback
+  if(/timeout|timed out|abort|超时/i.test(text))return 'AI 请求超时，当前内容已保留，请直接重试。'
   return text.slice(0, 320)
 }
 
@@ -53,7 +54,9 @@ async function runCoach({ message = '', context = {}, imageDataUrls = [], histor
   const result = isIelts
     ? await askIeltsCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history })
     : await askCoach({ message: cleanMessage, context: normalizedContext, imageDataUrls: images,history })
-  return { ...result, answer: coachAnswer(result), coachState: coachState(result) }
+  const state=coachState(result)
+  const photoFailed=images.length>0&&(String(result.mode||'').toLowerCase()==='offline'||['error','not_configured'].includes(String(result.providerStatus||'').toLowerCase()))
+  return { ...result, answer: photoFailed?'这次图片答疑尚未完成，图片和补充说明已保留，直接重试即可，无需重新拍照。':coachAnswer(result), coachState: state }
 }
 
 module.exports = { normalizeCoachContext, coachAnswer, coachState, safeCoachWarning, runCoach }

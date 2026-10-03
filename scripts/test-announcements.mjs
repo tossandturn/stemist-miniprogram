@@ -104,8 +104,20 @@ const app = JSON.parse(fs.readFileSync(new URL('../app.json', import.meta.url), 
 const announcementPackage = app.subPackages.find((item) => item.root === 'bundles/announcements')
 assert.deepEqual(announcementPackage?.pages, ['index', 'manage'])
 const homeMarkup = fs.readFileSync(new URL('../pages/index/index.wxml', import.meta.url), 'utf8')
-assert.match(homeMarkup, /公告与更新/)
+assert.match(homeMarkup, /公告中心/)
 assert.match(homeMarkup, /openAnnouncements/)
+assert.ok(homeMarkup.indexOf('class="home-announcement"')<homeMarkup.indexOf('class="home-heading"'),'The announcement center precedes learning entries on the first screen')
+assert.doesNotMatch(homeMarkup,/<view wx:if="{{announcement \|\| announcementLoading}}" class="home-announcement"/,'The announcement entry remains available with no published notice or an offline preview')
+for(const [mode,failed] of [['empty',false],['offline',true]]){
+ const isolated=miniRuntime({modules:{'utils/announcements':{announcementViews:()=>[],ownerId:()=> 'guest',fetchAnnouncements:async()=>{if(failed)throw Error('fixture network unavailable');return {items:[]}}}}})
+ const page=isolated.page('pages/index/index');page.__disposed=false
+ await page.loadAnnouncementPreview()
+ assert.equal(page.data.announcement,null)
+ assert.equal(page.data.announcementLoading,false)
+ assert.equal(page.data.announcementError,failed)
+ page.openAnnouncements()
+ assert.equal(isolated.calls.at(-1)?.url,'/bundles/announcements/index',mode+' still opens the board')
+}
 const boardCss = fs.readFileSync(new URL('../bundles/announcements/index.wxss', import.meta.url), 'utf8')
 const managerCss = fs.readFileSync(new URL('../bundles/announcements/manage.wxss', import.meta.url), 'utf8')
 assert.match(boardCss, /announcement-filters button\{[^}]*min-height:44px/)

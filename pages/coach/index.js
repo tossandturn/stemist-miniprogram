@@ -1,4 +1,4 @@
-const { deviceState, syncDevice, readDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
+const { deviceState, syncDevice, readDraft, writeDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
 const { runCoach } = require('../../utils/coach')
 const { isAuthError } = require('../../utils/api')
 const {requestIeltsLearning}=require('../../utils/ieltsLearning')
@@ -174,6 +174,12 @@ Page({
       if (!this.current()) return
       const coachState = result.coachState || {}
       this.setData({ answer: result.answer || 'AI 返回了空结果，请重试。', warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
+      if(result.mode!=='ai'||result.providerStatus!=='connected'){
+        cancelDraft(this)
+        writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey})
+        this.setData({canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
+        return
+      }
       if(result.mode==='ai'&&result.providerStatus==='connected'){
         this.__history=[...this.__history,{role:'user',content:message},{role:'assistant',content:result.answer}].slice(-12)
         try{wx.setStorageSync(this.__historyKey,this.__history)}catch{this.setData({draftStatus:'对话暂未保存，请检查本机空间'})}
@@ -184,7 +190,7 @@ Page({
       if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })
     } finally { if (this.current()) this.setData({ loading: false }) }
   },
-  retry() { if (!this.data.loading) this.submit() },
+  retry() { if (!this.data.loading) return this.submit() },
   openContext(event) {
     const selected = CONTEXTS.find((item) => item.id === String(event.currentTarget.dataset.context || ''))
     if (selected) wx.navigateTo({ url: selected.page })
