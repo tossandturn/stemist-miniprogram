@@ -103,8 +103,12 @@ await check('v2 foundation capability admits three strictly bound learning items
  assert.deepEqual(session.questions.map(q=>native.questionView(session,session.questions.indexOf(q)).question.kindLabel),['概念理解','应用练习','迁移练习'])
  assert.ok(session.questions.every(q=>q.images.length===0&&q.studyOnly&&q.originalCatalogVersion==='v2'))
  const corruptions=[p=>delete p.foundationCatalog,p=>delete p.questionGroups[0].foundationCatalog,p=>p.questionGroups[0].itemKind='transfer',p=>p.questionGroups[0].parts[0].skillFocus='transfer',p=>p.questionGroups[0].id=p.questionGroups[0].id.replace(':concept',':application'),p=>p.questionGroups[0].originalQuestion.foundationCatalog='v1',p=>p.questionGroups[0].originalQuestion.itemKind='transfer',p=>p.questionGroups[0].originalQuestion.skillFocus='apply',p=>p.questionGroups[0].originalQuestion.misconceptionId='invented',p=>p.questionGroups[0].answerContract.foundationCatalog='v1',p=>p.questionGroups[0].parts[0].sourceBindingProvenance.schemaVersion='stem-original-foundation-binding-v1']
- for(const corrupt of corruptions){const value=originalPayloadV2();corrupt(value);assert.throws(()=>native.validatePracticeSet(value,chapterSpecV2))}
- assert.equal(native.createSession(originalPayload(),chapterSpec).foundationCatalog,undefined,'saved/default v1 stays capability-free')
+  for(const corrupt of corruptions){const value=originalPayloadV2();corrupt(value);assert.throws(()=>native.validatePracticeSet(value,chapterSpecV2))}
+  const short=originalPayloadV2();short.questionGroups.pop();short.questionGroupIds.pop();short.count=2;short.limited=true;short.partial=true;short.sourceMix.originalFoundation=2
+  assert.throws(()=>native.validatePracticeSet(short,chapterSpecV2),/章节学习组卷响应不完整/,'the returned count must equal the cap of the requested count and reviewed selected pool')
+  const genuinelyLimited=structuredClone(short);genuinelyLimited.available=2;genuinelyLimited.sourceAvailability={official:0,originalFoundation:2,total:2,selectedPool:2}
+  assert.equal(native.validatePracticeSet(genuinelyLimited,chapterSpecV2).questions.length,2,'a reviewed selected pool below the request remains an explicit limited response')
+  assert.equal(native.createSession(originalPayload(),chapterSpec).foundationCatalog,undefined,'saved/default v1 stays capability-free')
 })
 await check('public assembly does not forward stale bearer and timeout is not empty bank', async () => {
   let request
@@ -215,6 +219,16 @@ await check('marking requires authentic identity and keeps grants/images off per
   assert.doesNotMatch(JSON.stringify(requests[0].body), /base64|markingGrant|wxfile/)
   assert.doesNotMatch(JSON.stringify([...runtime.storage.values()].filter(v => typeof v === 'object')), /test-grant|base64/)
   assert.equal(native.readSession(session.id).answers.q0.results['q0:a'].score, 1)
+})
+await check('official chapter-study MCQ and written attempts retain immutable mode capability',async()=>{
+ const requests=[];const runtime=miniRuntime({modules:{'utils/image':{readAsJpegDataUrl:async()=> 'data:image/jpeg;base64,cGhvdG8='},'utils/nativeObjectiveAnswer':{gradeObjectiveAnswer:async()=>({available:true,score:1,maxScore:1,correctOption:'A'})},'utils/api':{requestJson:async(path,body)=>{requests.push({path,body});if(path==='/api/stem/attempts')return{attempt:{attemptId:body.attemptId}};if(path==='/api/stem/marking/capabilities')return{capabilities:[{questionPartId:'q0:a',markingGrant:'test-grant'}]};if(path==='/api/ai/mark-handwriting')return{mode:'vision',providerStatus:'connected',score:1,maxScore:2,confidence:.8,summary:'Checked.',reviewRequired:true};throw Error('unexpected '+path)}}}})
+ runtime.storage.set('stemistUser',{id:'student-a'});runtime.storage.set('stemistSessionToken','fixture')
+ const native=runtime.load('utils/nativePractice'),asChapter=(session,catalog)=>Object.assign(session,{studyMode:'chapter-study',sourcePreference:'official-first',formalProgressEligible:false,practiceMode:'study-only',...(catalog?{foundationCatalog:catalog}:{})})
+ const mcq=asChapter(native.createSession(payload(),spec),'v2');mcq.questions[0].answerFormat='single-choice';mcq.questions[0].studyOnly=true;native.saveSession(mcq);native.saveChoice(mcq.id,'q0','A');await native.markChoice(mcq.id,'q0')
+ const mcqAttempt=requests.find(item=>item.path==='/api/stem/attempts');assert.equal(mcqAttempt.body.studyMode,'chapter-study');assert.equal(mcqAttempt.body.sourcePreference,'official-first');assert.equal(mcqAttempt.body.foundationCatalog,'v2');assert.equal(mcqAttempt.body.attempt.studyMode,'chapter-study');assert.equal(mcqAttempt.body.attempt.sourcePreference,'official-first');assert.equal(mcqAttempt.body.attempt.foundationCatalog,'v2')
+ requests.length=0
+ const written=asChapter(native.createSession(payload(),spec));written.questions[0].studyOnly=true;written.answers.q0={photo:'wxfile://usr/native-practice/chapter.jpg',revision:1,results:{},attemptId:'chapter-written-v1'};native.saveSession(written);await native.markQuestion(written.id,'q0')
+ const writtenAttempt=requests.find(item=>item.path==='/api/stem/attempts');assert.equal(writtenAttempt.body.studyMode,'chapter-study');assert.equal(writtenAttempt.body.sourcePreference,'official-first');assert.equal(writtenAttempt.body.attempt.studyMode,'chapter-study');assert.equal(writtenAttempt.body.attempt.sourcePreference,'official-first');assert.equal(Object.hasOwn(writtenAttempt.body,'foundationCatalog'),false,'v1 stays capability-free');assert.equal(Object.hasOwn(writtenAttempt.body.attempt,'foundationCatalog'),false,'nested v1 stays capability-free')
 })
 await check('parallel marking reports pending instead of a false second success', async () => {
   const imageGate = deferred()
