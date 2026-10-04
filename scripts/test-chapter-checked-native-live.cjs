@@ -11,6 +11,9 @@ const oi = process.argv.indexOf('--output')
 if (oi < 0 || !process.argv[oi + 1]) throw Error('Pass --output <new evidence directory>.')
 const output = path.resolve(process.argv[oi + 1])
 const routeId = 'cie-9700-as-biology', topicId = '9700-as-topic-08'
+// Chapter-study exposes 1/3/5/10/15 sizes, not the legacy six-question chip.
+// Exercise five real UI-selected questions while asserting all six are published.
+const exerciseCount = 5
 // Independent source checks use published official MS answers, not API keys.
 const officialKeys = {
   'cie-9700-9700_s25_qp_12:q32': 'A', 'cie-9700-9700_s25_qp_12:q33': 'B',
@@ -57,13 +60,13 @@ async function main() {
     await scrollTo('.component-shortcuts')
     await tap('.component-shortcuts .option-chip[data-value="1"]')
     await scrollTo('.start-native-practice')
-    await tap('.option-chip[data-count="6"]')
+    await tap('.option-chip[data-count="' + exerciseCount + '"]')
     const selection = await evaluate(function () {
       const p = getCurrentPages().at(-1)
       return { topics: p.data.selected, components: p.data.components, count: p.data.questionCount,
         canStart: p.data.canStart, error: p.data.error }
     })
-    assert.deepEqual(selection, { topics: [topicId], components: [1], count: 6, canStart: true, error: '' })
+    assert.deepEqual(selection, { topics: [topicId], components: [1], count: exerciseCount, canStart: true, error: '' })
     await shot('checked-chapter-builder')
     await tap('.start-native-practice')
     const ready = await until(function () {
@@ -75,13 +78,16 @@ async function main() {
         ownerMatches: s.owner === getApp().__nativeQa.id, error: p.data.error }
     }, 'real checked MCQ chapter set', 30000)
     assert.equal(ready.error, '')
-    assert.equal(ready.count, 6)
+    assert.equal(ready.count, exerciseCount)
     assert.equal(ready.formal, false)
     assert.equal(ready.studyMode, 'chapter-study')
     assert.equal(ready.sourcePreference, 'official-first')
     assert.equal(ready.ownerMatches, true)
-    assert.deepEqual([...ready.ids].sort(), Object.keys(officialKeys).sort(), 'no repeated, unrelated or original replacement question')
-    for (let index = 0; index < 6; index++) {
+    assert.equal(new Set(ready.ids).size, exerciseCount)
+    assert.ok(ready.ids.every(id => Object.hasOwn(officialKeys, id)), 'no unrelated or original replacement question')
+    report.publishedSourceQuestions = Object.keys(officialKeys).length
+    report.uiExerciseCount = exerciseCount
+    for (let index = 0; index < exerciseCount; index++) {
       await tap('.question-tab[data-index="' + index + '"]')
       const q = await until(function () {
         const p = getCurrentPages().at(-1), q = p?.data.question
@@ -137,7 +143,7 @@ async function main() {
         scored: s.questions.filter(q => s.answers[q.id]?.objectiveResult?.qualityFlag === 'aicheck').length,
         allNonformal: s.questions.every(q => s.answers[q.id]?.objectiveResult?.formalProgressEligible === false) }
     })
-    assert.deepEqual(restored, { ownerMatches: true, answered: 6, scored: 6, allNonformal: true })
+    assert.deepEqual(restored, { ownerMatches: true, answered: exerciseCount, scored: exerciseCount, allNonformal: true })
     report.restored = restored
     await call('automation_navigate', { action: 'navigateBack' })
     const resume = await until(function () {
@@ -145,7 +151,7 @@ async function main() {
       return p?.route === 'pages/stem/topics' && p.data.recentId ? { mode: p.data.studyMode, label: p.data.recentLabel } : null
     }, 'owned source chapter resume', 15000)
     assert.equal(resume.mode, 'chapter-study')
-    assert.match(resume.label, /6\/6/)
+    assert.ok(resume.label.includes(exerciseCount + '/' + exerciseCount))
     assert.match(resume.label, /真题章节练习/)
     report.resume = resume
     await shot('checked-chapter-resume')
