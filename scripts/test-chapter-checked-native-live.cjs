@@ -10,16 +10,26 @@ if (!process.argv.includes('--run-production')) throw Error('Explicit --run-prod
 const oi = process.argv.indexOf('--output')
 if (oi < 0 || !process.argv[oi + 1]) throw Error('Pass --output <new evidence directory>.')
 const output = path.resolve(process.argv[oi + 1])
-const routeId = 'cie-9700-as-biology', topicId = '9700-as-topic-08'
+const routeId = 'cie-9700-as-biology'
+const topicId = process.env.STEMIST_QA_CHAPTER_TOPIC || '9700-as-topic-08'
 // Chapter-study exposes 1/3/5/10/15 sizes, not the legacy six-question chip.
 // Exercise five real UI-selected questions while asserting all six are published.
 const exerciseCount = 5
 // Independent source checks use published official MS answers, not API keys.
-const officialKeys = {
+const keysByTopic = {
+  '9700-as-topic-02': {
+    'cie-9700-9700_s25_qp_11:q8': 'A', 'cie-9700-9700_s25_qp_11:q9': 'A',
+    'cie-9700-9700_s25_qp_12:q10': 'A', 'cie-9700-9700_s25_qp_13:q9': 'C',
+    'cie-9700-9700_s25_qp_13:q14': 'B', 'cie-9700-9700_s25_qp_14:q13': 'A',
+  },
+  '9700-as-topic-08': {
   'cie-9700-9700_s25_qp_12:q32': 'A', 'cie-9700-9700_s25_qp_12:q33': 'B',
   'cie-9700-9700_s25_qp_12:q34': 'C', 'cie-9700-9700_s25_qp_13:q32': 'B',
   'cie-9700-9700_s25_qp_14:q32': 'D', 'cie-9700-9700_s25_qp_14:q33': 'B',
+  },
 }
+const officialKeys = keysByTopic[topicId]
+assert.ok(officialKeys, 'Select an independently source-reviewed QA chapter.')
 const tap = selector => call('automation_element_action', { action: 'tap', selector, 'wait-for-selector': selector })
 async function scrollTo(selector, datasetId = '') {
   const source = `function(){return new Promise(resolve=>{const p=getCurrentPages().at(-1),q=wx.createSelectorQuery().in(p);q.selectAll(${JSON.stringify(selector)}).boundingClientRect();q.selectViewport().scrollOffset();q.exec(r=>{const rows=r[0]||[],hit=${JSON.stringify(datasetId)}?rows.find(x=>x.dataset?.id===${JSON.stringify(datasetId)}):rows[0];resolve(Math.max(0,(hit?.top||0)+(r[1]?.scrollTop||0)-120))})})}`
