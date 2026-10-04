@@ -53,6 +53,15 @@ function harness({data=source,failAt=-1,damage=false}={}){
  assert.ok(!h.phases.slice(phaseStart).some(item=>['connecting','downloading'].includes(item.phase)),'opening a complete cache file does not claim an HTTP connection or a new transfer')
 }
 {
+ const h=harness(),first=h.acquire({version:'catalog-before-2026',expectedSha256:''}),path=await first.promise;first.release()
+ const requests=h.requests.length,changed=h.acquire({version:digest(source)})
+ assert.equal(await changed.promise,path,'adding a catalog year must not discard an unchanged authoritative PDF cache')
+ assert.equal(h.requests.length,requests,'catalog-version migration verifies the existing file digest locally instead of probing the network');changed.release()
+ const records=h.storage.get(h.module.REGISTRY).filter(record=>record.path===path)
+ assert.equal(records.length,1,'rekeying a verified file must not double-count its storage')
+ assert.equal(records[0].version,digest(source))
+}
+{
  const h=harness(),handle=h.acquire({expectedSha256:''}),path=await handle.promise;handle.release()
  const saved=h.storage.get(h.module.REGISTRY)[0]
  assert.equal(saved.sha256,digest(source),'public CIE PDFs also retain their verified local content digest')
@@ -126,7 +135,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
 {
  const h=harness(),manager=h.wx.getFileSystemManager(),oldPath='/user/pdf-cache/pdf-old/old.pdf',studentPath='/user/native-writing/student.jpg'
  h.files.set(oldPath,Buffer.from(source));h.files.set(studentPath,Buffer.alloc(100000,8))
- h.storage.set(h.module.REGISTRY,[{schema:1,key:'older-file',owner:'student-1|1',url:URL,version:'older',path:oldPath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:1}])
+ h.storage.set(h.module.REGISTRY,[{schema:1,key:'older-file',owner:'student-1|1',url:'https://stem.ieltsist.com/local-pdf/9702/older.pdf',version:'older',path:oldPath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:1}])
  let quotaErrors=0
  for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const occupied=[...h.files.values()].reduce((n,b)=>n+b.length,0),extra=o.data.byteLength-(name==='writeFile'?(h.files.get(o.filePath)?.length||0):0);if(occupied+extra>550000){quotaErrors++;queueMicrotask(()=>o.fail({errMsg:'appendFile:fail exceed the maximum size of the file storage limit'}));return}original(o)}}
  const path=await h.acquire().promise

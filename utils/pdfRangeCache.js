@@ -45,7 +45,7 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
  const unlink=p=>new Promise(resolve=>{if(!owned(p))return resolve(false);try{fs.unlink({filePath:p,success:()=>resolve(true),fail:()=>resolve(false)})}catch{resolve(false)}})
  function forget(record){if(!record)return;save(registry().filter(x=>x.key!==record.key));unlink(record.path)}
  const reclaimable=x=>x.key!==key&&x.offset===x.total&&!active.has(x.path)
- function put(record){let list=registry().filter(x=>x.key!==record.key);list.push(record);list.sort((a,b)=>a.used-b.used);while(list.length>MAX_FILES||list.reduce((n,x)=>n+x.offset,0)>MAX_BYTES){const index=list.findIndex(reclaimable);if(index<0)break;const first=list.splice(index,1)[0];unlink(first.path)}save(list)}
+ function put(record){let list=registry().filter(x=>x.key!==record.key&&x.path!==record.path);list.push(record);list.sort((a,b)=>a.used-b.used);while(list.length>MAX_FILES||list.reduce((n,x)=>n+x.offset,0)>MAX_BYTES){const index=list.findIndex(reclaimable);if(index<0)break;const first=list.splice(index,1)[0];unlink(first.path)}save(list)}
  async function releaseSpace(all=false){
   let list=registry(),available=Math.max(0,MAX_BYTES-(record?.total||expectedBytes||0)),foreign=list.filter(reclaimable).sort((a,b)=>a.used-b.used)
   for(const item of foreign){if(active.has(item.path))continue;if(!all&&list.filter(x=>x.key!==key).reduce((n,x)=>n+x.offset,0)<=available)break;list=list.filter(x=>x.path!==item.path);save(list);await unlink(item.path)}
@@ -103,14 +103,16 @@ function acquirePdf({wxApi,url,owner,version='',fileName,expectedBytes=0,expecte
   if(!await verify({path:p,total:record.total}))throw problem('pdf_integrity','临时 PDF 校验失败，请重新下载。')
   check();progress(record.total,record.total);return p
  }
- let record=registry().find(x=>x.key===key),restarts=0
+ // An authoritative content digest permits local verification across catalog
+ // revisions. Owner/privacy and URL remain exact; partials never cross versions.
+ let record=registry().find(x=>x.key===key)||(expectedSha256?registry().find(x=>x.url===url&&x.owner===owner&&x.offset===x.total&&(!expectedBytes||x.total===expectedBytes)):null),restarts=0
  const reservations=new Set(),reserve=p=>{if(p&&!reservations.has(p)){reservations.add(p);active.set(p,(active.get(p)||0)+1)}}
  reserve(record?.path)
  async function run(){
   try{
    check()
    if(record&&size(record.path)!==record.offset){forget(record);record=null}
-   if(record?.offset===record?.total&&record){phase('checking-cache',record.total,record.total);if(await verify(record)){check();put({...record,used:Date.now()});phase('cached',record.total,record.total);progress(record.total,record.total);return record.path}forget(record);record=null}
+   if(record?.offset===record?.total&&record){phase('checking-cache',record.total,record.total);if(await verify(record)){check();record={...record,key,version,used:Date.now()};put(record);phase('cached',record.total,record.total);progress(record.total,record.total);return record.path}forget(record);record=null}
    phase('connecting',record?.offset||0,record?.total||expectedBytes||0)
    const probe=await segment(0,4);check()
    if(String.fromCharCode(...probe.data)!=='%PDF-')throw problem('pdf_integrity','下载内容不是完整 PDF。')
