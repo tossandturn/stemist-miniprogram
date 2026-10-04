@@ -5,7 +5,9 @@ const {call,evaluate,until}=require('./helpers/wechat-cli.cjs')
 const outputIndex=process.argv.indexOf('--output'),output=path.resolve(process.argv[outputIndex+1]||'')
 const root=path.resolve('D:/CodexWork'),relative=path.relative(root,output)
 if(outputIndex<0||!relative||relative.startsWith('..')||path.isAbsolute(relative)||fs.existsSync(output))throw Error('Pass --output <new directory under D:\\CodexWork>')
-const fixtures=[...['ap','ib'].flatMap(board=>['qp','ms'].map(kind=>({board,kind,url:'/bundles/curricula/index?board='+board,route:'bundles/curricula/index',selector:'.document-action'}))),...['qp','ms'].map(kind=>({board:'alevel',kind,url:'/pages/papers/index?category=alevel&subject=9709&stage=AS&routeId=cie-9709-as-p1-p2&year=2025',route:'pages/papers/index',selector:'.paper-pdf'}))]
+const yearIndex=process.argv.indexOf('--cie-year'),cieYear=yearIndex>=0?Number(process.argv[yearIndex+1]):2025
+if(!Number.isInteger(cieYear)||cieYear<2025||cieYear>2026)throw Error('Use --cie-year 2025 or 2026')
+const fixtures=[...['ap','ib'].flatMap(board=>['qp','ms'].map(kind=>({board,kind,url:'/bundles/curricula/index?board='+board,route:'bundles/curricula/index',selector:'.document-action'}))),...['qp','ms'].map(kind=>({board:'alevel',kind,url:'/pages/papers/index?category=alevel&subject=9709&stage=AS&routeId=cie-9709-as-p1-p2&year='+cieYear,route:'pages/papers/index',selector:'.paper-pdf'}))]
 async function main(){
  fs.mkdirSync(output,{recursive:true});const results=[];let stage='setup'
  try{
@@ -16,6 +18,7 @@ async function main(){
     stage=(cacheOnly?'cached':'first')+'-'+item.board+'-'+item.kind
     await call('automation_navigate',{action:'reLaunch',url:item.url})
     await until('function(){const p=getCurrentPages().at(-1);return p?.route==='+JSON.stringify(item.route)+'&&!p.data.loading&&p.data.items?.length}',item.board+' public catalog',30000)
+    if(item.board==='alevel'){const identity=await evaluate(function(){const p=getCurrentPages().at(-1);return{years:p.__pageItems?.map(item=>item.year)||[],sha:p.__pageItems?.[0]?.sha256,msSha:p.__pageItems?.[0]?.markScheme?.sha256}});assert.ok(identity.years.length&&identity.years.every(year=>year===cieYear),'native CIE page must show the requested source year');assert.match(identity.sha,/^[a-f0-9]{64}$/);assert.match(identity.msSha,/^[a-f0-9]{64}$/)}
     await evaluate(function(){getApp().__pdfCacheQa.opened=null;getApp().__pdfCacheQa.scroll=null;return true})
     const selector=item.selector+'[data-kind="'+item.kind+'"]'+(cacheOnly?'[data-id="'+results[index].id+'"]':'')
     const desiredId=cacheOnly?results[index].id:''
