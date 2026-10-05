@@ -10,7 +10,7 @@ let pageConfig
 const fakeRequire = (name) => {
   if (name === '../../utils/operationProgress') return miniRuntime().load('utils/operationProgress')
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {}, readDraft: () => null, scheduleDraft: () => {}, clearDraft: () => {}, cancelDraft: () => {} }
-  if (name === '../../utils/coach') return { coachHelpPolicy:()=>({solutionDisabled:false}),normalizeHelpIntent:value=>String(value||''),runCoach: async () => ({ answer: 'ok', mode: 'ai', providerStatus: 'connected', coachState: { label: 'AI 已连接' } }) }
+  if (name === '../../utils/coach') return { coachHelpPolicy:()=>({solutionDisabled:false}),normalizeCoachFeature:value=>['steps','answers'].includes(String(value||''))?String(value):'',normalizeHelpIntent:value=>String(value||''),runCoach: async () => ({ answer: 'ok', mode: 'ai', providerStatus: 'connected', coachState: { label: 'AI 已连接' } }) }
   if (name === '../../utils/api') return { isAuthError: () => false }
   if (name === '../../utils/ieltsLearning') return { requestIeltsLearning: async () => ({}) }
   if (name === '../../utils/coachEntry') return { takeCoachEntry: () => null, focusPassage: value => value }

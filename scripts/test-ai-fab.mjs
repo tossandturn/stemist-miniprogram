@@ -14,7 +14,7 @@ const wx = {
 vm.runInNewContext(source, { Component: (config) => { componentConfig = config }, wx, require:()=>({stageCoachEntry:()=>''}), encodeURIComponent, String, Error })
 const instance = { data: { source: 'competition', routeId: 'bpho-admissions-physics', stage: 'Competition', subjectCode: 'bpho', category: 'competition', family: 'competition' } }
 componentConfig.methods.openCoach.call(instance)
-assert.match(navigated, /^\/pages\/coach\/index\?/)
+assert.match(navigated, /^\/bundles\/coach\/index\?/)
 assert.match(navigated, /source=competition/)
 assert.match(navigated, /routeId=bpho-admissions-physics/)
 assert.match(navigated, /category=competition/)

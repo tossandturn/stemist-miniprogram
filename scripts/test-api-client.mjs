@@ -51,6 +51,12 @@ await askCoach({ message: 'text', context: {}, imageDataUrls: [] })
 assert.equal(requestOptions.timeout, 55000)
 await askCoach({ message: 'photo', context: {}, imageDataUrls: ['data:image/jpeg;base64,ZmFrZQ=='] })
 assert.equal(requestOptions.timeout, 60000)
+await askCoach({message:'rest',feature:'tavern',persona:'keeper',attemptId:'opaque-attempt',context:{skill:'tavern'},imageDataUrls:[]})
+assert.equal(requestOptions.data.feature,'tavern')
+assert.equal(requestOptions.data.persona,'keeper')
+assert.equal(requestOptions.data.attemptId,'opaque-attempt')
+assert.equal(requestOptions.data.context.attemptId,undefined)
+assert.equal(requestOptions.data.imageDataUrls.length,0)
 
 response = { statusCode: 200, data: { mode: 'ai', answer: 'IELTS feedback' } }
 await askIeltsCoach({ message: 'check my reading answer', context: { product: 'IELTSist', skill: 'reading' } })

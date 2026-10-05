@@ -102,7 +102,7 @@ openStem() { wx.navigateTo({ url: '/pages/stem/capture' }) },
 openPractice() { wx.navigateTo({ url: '/pages/practice/index' }) },
 openPapers() { wx.navigateTo({ url: '/pages/papers/index' }) },
 openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
-openCoach() { wx.navigateTo({ url: '/pages/coach/index' }) },
+openCoach() { wx.navigateTo({ url: '/bundles/coach/index' }) },
 openAnnouncements() { wx.navigateTo({ url: '/bundles/announcements/index' }) },
 openIelts(event) {
 const id = event.currentTarget.dataset.id

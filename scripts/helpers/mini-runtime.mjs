@@ -24,6 +24,7 @@ export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
       HELP_INTENTS: { HINT: 'hint', WORKED_SOLUTION: 'worked-solution', CHECK_WORK: 'check-work' },
       coachHelpPolicy: () => ({ solutionDisabled: false, solutionDisabledReason: '' }),
       helpIntentLabel: intent => ({ hint: '给我提示', 'worked-solution': '完整解答', 'check-work': '检查作答' })[intent] || '',
+      normalizeCoachFeature: value => ['steps','answers'].includes(String(value||''))?String(value):'',
       normalizeHelpIntent: value => ['hint', 'worked-solution', 'check-work'].includes(String(value || '')) ? String(value) : '',
       ...modules[normalized],
     } : modules[normalized]

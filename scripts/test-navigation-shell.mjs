@@ -15,4 +15,5 @@ for(const entry of home.data.entryPoints) {
 const template=fs.readFileSync(path.join(root,'components/app-nav/index.wxml'),'utf8')
 assert.doesNotMatch(template,/<block wx:if/,'active item must still allow returning from child pages')
 assert.match(template,/pages\/papers\/index\?category=competition/)
+assert.match(template,/bundles\/coach\/index/,'default navigation must open the four-function Coach hub')
 console.log('Six home entry clicks and child-to-workspace navigation passed.')

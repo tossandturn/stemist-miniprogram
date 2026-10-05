@@ -39,7 +39,7 @@ if (!preserveDrafts) {
 const keys = wx.getStorageInfoSync ? (wx.getStorageInfoSync().keys || []) : []
 const privatePhotos = keys.filter(key => /^stemistNative(?:Practice|Paper):/.test(key)).flatMap(key => Object.values(wx.getStorageSync(key)?.answers || {}).map(answer => answer.photo).filter(Boolean))
 const writingPhotos=keys.filter(key=>/^stemistDraft:/.test(key)).flatMap(key=>{const draft=wx.getStorageSync(key)||{};return [draft.photoPath,...(draft.items||[]).map(item=>item.photo)].filter(Boolean)}).concat(pendingWritingPhoto||[],pendingStemPhoto||[])
-keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|NativeRecent|NativePaper|IeltsObjective|IeltsSpeaking|IeltsExam|VocabProgress|SavedWord|RecordIndex|Goal|CoachTurns):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
+keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|NativeRecent|NativePaper|IeltsObjective|IeltsSpeaking|IeltsExam|VocabProgress|SavedWord|RecordIndex|Goal|CoachTurns|Tavern):/.test(String(key))).forEach((key) => wx.removeStorageSync(key))
 if (wx.env?.USER_DATA_PATH && wx.getFileSystemManager) {
 try {
 const fs = wx.getFileSystemManager()

@@ -83,9 +83,9 @@ return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false }
 function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
 return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
-function askCoach({ message, helpIntent = '', context = {}, imageDataUrls = [], history = [], onStage = null }) {
+function askCoach({ message, helpIntent = '', feature = '', persona = '', attemptId = '', context = {}, imageDataUrls = [], history = [], onStage = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
-return requestJson('/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}), context, imageDataUrls: images,history:history.slice(-10) }, {
+return requestJson('/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}),...(feature?{feature}:{}),...(persona?{persona}:{}),...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
 timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
 onDispatched:()=>{if(typeof onStage==='function')onStage('analysis')},
 })

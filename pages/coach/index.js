@@ -1,11 +1,11 @@
 const { deviceState, syncDevice, readDraft, writeDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
-const {coachHelpPolicy,normalizeHelpIntent,runCoach}=require('../../utils/coach')
+const {coachHelpPolicy,normalizeCoachFeature,normalizeHelpIntent,runCoach}=require('../../utils/coach')
 const { isAuthError } = require('../../utils/api')
 const {requestIeltsLearning}=require('../../utils/ieltsLearning')
 const {takeCoachEntry,focusPassage}=require('../../utils/coachEntry')
 const {loadCaptions}=require('../../utils/nativeCaptions')
 const {readAsJpegDataUrl}=require('../../utils/image')
-const {readCoachPhoto,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
+const {readCoachPhoto,consumeCoachPhotoAutoSubmit,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 const {createOperationTracker}=require('../../utils/operationProgress')
 
 const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
@@ -42,10 +42,12 @@ entryHasImage: false,
 mediaBusy: false,
 progress: {},
 helpIntent: '',
+feature:'',
 solutionDisabled: false,
 }),
 onLoad(options) {
 this.__disposed = false;this.__mediaRequest=0
+this.__mode=normalizeCoachFeature(options?.feature)
 this.__owner=String(wx.getStorageSync('stemistUser')?.id||'guest');this.__epoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 this.__entry=takeCoachEntry(String(options?.entry||''));this.__entryKey=String(options?.entry||'');this.__history=[]
 const draft = readDraft('coach')
@@ -70,6 +72,7 @@ next.contextIndex = Math.max(0, CONTEXTS.findIndex(item => item.id === (next.con
 const selectedContext=CONTEXTS[next.contextIndex]||CONTEXTS[0]
 const policy=coachHelpPolicy({product:selectedContext.product,skill:selectedContext.id,...(next.routeContext||{}),...(this.__entry||{})})
 next.solutionDisabled=policy.solutionDisabled
+if(this.__mode){next.feature=policy.solutionDisabled&&this.__mode==='answers'?'steps':this.__mode;next.helpIntent=next.feature==='steps'?'hint':'worked-solution'}
 if (draft && (draft.entryKey||'')===this.__entryKey && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
 if (Object.keys(next).length) this.setData(next)
 this.__historyKey='stemistCoachTurns:'+this.__owner+':'+(this.__entryKey||this.data.contextId)
@@ -79,7 +82,7 @@ current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stem
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
 resetIdentity(){
 this.__coachProgress?.dispose();this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
-this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false,helpIntent:'',solutionDisabled:false})
+this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false,helpIntent:'',feature:'',solutionDisabled:false})
 },
 async prepareEntry(){
 const entry=this.__entry;if(!entry)return {}
@@ -98,7 +101,8 @@ onResize() { syncDevice(this) },
 onUnload() { this.__disposed = true;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
 restorePhoto(){
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId)
-if(imagePath!==this.data.imagePath)this.setData({imagePath,imageSource:imagePath?'已裁剪':''})
+const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers')
+this.setData({imagePath,imageSource:imagePath?'已裁剪':''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
 },
 discardAttachedPhoto(){
 clearCoachPhoto(this.identity())
@@ -108,7 +112,7 @@ photoContext(){
 const selected=CONTEXTS.find(item=>item.id===this.data.contextId)||CONTEXTS[0]
 const routeContext={...this.data.routeContext}
 if(selected.product==='IELTSist')routeContext.category='ielts'
-return {contextId:selected.id,product:selected.product,routeContext}
+return {contextId:selected.id,product:selected.product,routeContext,feature:this.__mode?this.data.feature:''}
 },
 openCrop(path){
 if(!this.current()||!path)return
@@ -147,7 +151,8 @@ if (!CONTEXTS.some((item) => item.id === contextId)) return
 if(contextId!==this.data.contextId)this.discardAttachedPhoto()
 if(this.__entry?.skill!==contextId){this.__entry=null;this.__entryKey='';this.__historyKey='stemistCoachTurns:'+this.__owner+':'+contextId;const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]}
 const selected=CONTEXTS.find(item=>item.id===contextId)||CONTEXTS[0],policy=coachHelpPolicy({product:selected.product,skill:selected.id,...(contextId==='stem-photo'?this.data.routeContext:{})})
-this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false,entryHasImage:false,helpIntent:'',solutionDisabled:policy.solutionDisabled })
+const feature=this.__mode?(policy.solutionDisabled&&this.data.feature==='answers'?'steps':this.data.feature):'',helpIntent=feature==='steps'?'hint':feature==='answers'?'worked-solution':''
+this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false,entryHasImage:false,helpIntent,feature,solutionDisabled:policy.solutionDisabled })
 },
 chooseContextPicker(event) {
 const selected = CONTEXTS[Number(event.detail.value)]
@@ -163,7 +168,7 @@ chooseHelpIntent(event) {
 if (!this.current() || this.data.loading) return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
 if(!intent||(intent==='worked-solution'&&this.data.solutionDisabled))return
-this.setData({helpIntent:intent,error:'',authRequired:false})
+this.setData({helpIntent:intent,feature:this.__mode?(intent==='hint'?'steps':'answers'):'',error:'',authRequired:false})
 },
 async submit() {
 const typedMessage = this.data.message.trim()
@@ -187,6 +192,7 @@ if(policy.solutionDisabled!==this.data.solutionDisabled||helpIntent!==this.data.
 const result = await runCoach({
 message:typedMessage,
 helpIntent,
+feature:this.__mode?this.data.feature:'',
 imageDataUrls,
 context: coachContext,
 history:this.__history.slice(-10),
@@ -226,6 +232,6 @@ clearDraft('coach')
 this.discardAttachedPhoto()
 this.__history=[]
 wx.removeStorageSync(this.__historyKey)
-this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空',imagePath:'',imageSource:'',helpIntent:'' })
+this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空',imagePath:'',imageSource:'',helpIntent:this.data.feature==='steps'?'hint':this.data.feature==='answers'?'worked-solution':'' })
 },
 })
