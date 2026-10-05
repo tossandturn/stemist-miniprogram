@@ -42,7 +42,7 @@ assert.equal(requests.length, 1, 'an image alone is a complete Coach question')
 assert.equal(requests[0].context.product, 'IELTSist')
 assert.equal(requests[0].context.inputMode, 'photo')
 assert.deepEqual(Array.from(requests[0].imageDataUrls), ['data:image/jpeg;base64,/owned/native-coach/coach-existing.jpg'])
-assert.match(requests[0].message, /图片/)
+assert.equal(requests[0].message, '', 'photo-only wording and worked-solution intent are resolved by the shared Coach orchestrator')
 
 page.chooseContext({ currentTarget: { dataset: { context: 'stem-photo' } } })
 assert.equal(page.data.imagePath, '', 'switching products must not carry an IELTS image into STEM')

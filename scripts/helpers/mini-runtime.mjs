@@ -20,7 +20,13 @@ export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
   const cache = new Map()
   function load(relative) {
     const normalized = relative.replace(/\\/g, '/').replace(/\.js$/, '')
-    if (modules[normalized]) return modules[normalized]
+    if (modules[normalized]) return normalized === 'utils/coach' ? {
+      HELP_INTENTS: { HINT: 'hint', WORKED_SOLUTION: 'worked-solution', CHECK_WORK: 'check-work' },
+      coachHelpPolicy: () => ({ solutionDisabled: false, solutionDisabledReason: '' }),
+      helpIntentLabel: intent => ({ hint: '给我提示', 'worked-solution': '完整解答', 'check-work': '检查作答' })[intent] || '',
+      normalizeHelpIntent: value => ['hint', 'worked-solution', 'check-work'].includes(String(value || '')) ? String(value) : '',
+      ...modules[normalized],
+    } : modules[normalized]
     if (cache.has(normalized)) return cache.get(normalized)
     const filename = path.join(root, `${normalized}.js`)
     const module = { exports: {} }

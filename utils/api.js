@@ -83,19 +83,20 @@ return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false }
 function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
 return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
-function askCoach({ message, context = {}, imageDataUrls = [], history = [], onStage = null }) {
+function askCoach({ message, helpIntent = '', context = {}, imageDataUrls = [], history = [], onStage = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
-return requestJson('/api/ai/coach', { message, context, imageDataUrls: images,history:history.slice(-10) }, {
+return requestJson('/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}), context, imageDataUrls: images,history:history.slice(-10) }, {
 timeout: images.length ? COACH_IMAGE_TIMEOUT_MS : COACH_TEXT_TIMEOUT_MS,
 onDispatched:()=>{if(typeof onStage==='function')onStage('analysis')},
 })
 }
-function askIeltsCoach({ message, context = {}, imageDataUrls = [], history = [], onStage = null }) {
+function askIeltsCoach({ message, helpIntent = '', context = {}, imageDataUrls = [], history = [], onStage = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls.filter(Boolean) : []
 const payload = {
 message,
+...(helpIntent ? { helpIntent } : {}),
 contextText: String(context && (context.contextText || context.sourceQuestionExtract) || ''),
-helpContext: { ...context, activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice',...(context.surface||{}) } },
+helpContext: { ...context, ...(helpIntent ? { helpIntent } : {}), activeModule: context.skill || '', surface: { viewId: 'mini-practice', module: context.skill || '', title: `IELTS ${context.skill || 'Coach'}`, mode: context.inputMode || context.mode || 'practice',...(context.surface||{}) } },
 history: Array.isArray(history) ? history.slice(-8) : [],
 }
 if (images[0]) payload.imageDataUrl = images[0]

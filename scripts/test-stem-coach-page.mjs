@@ -18,7 +18,7 @@ let syncShouldFail = false
 const progressModule=miniRuntime({wx:{getStorageSync:key=>storage[key],setStorageSync:(key,value)=>{storage[key]=value}}}).load('utils/operationProgress')
 const fakeRequire = (name) => {
   if (name === '../../utils/image') return { readAsJpegDataUrl: async () => 'data:image/jpeg;base64,ZmFrZQ==' }
-  if (name === '../../utils/coach') return { runCoach: async ({onStage}) => {onStage?.('calling');onStage?.('analysis');onStage?.('arranging');return { mode: 'ai', providerStatus: 'connected', answer: 'feedback', coachState: { label: 'AI 已连接', warning: '' } }} }
+  if (name === '../../utils/coach') return { HELP_INTENTS:{HINT:'hint',WORKED_SOLUTION:'worked-solution',CHECK_WORK:'check-work'},coachHelpPolicy:()=>({solutionDisabled:false}),normalizeHelpIntent:value=>String(value||''),runCoach: async ({onStage}) => {onStage?.('calling');onStage?.('analysis');onStage?.('arranging');return { mode: 'ai', providerStatus: 'connected', answer: 'feedback', coachState: { label: 'AI 已连接', warning: '' } }} }
   if (name === '../../utils/operationProgress') return progressModule
   if (name === '../../utils/attemptSync') return { nextAttemptId: () => 'mini-photo-test', syncStemPhotoAttempt: async (payload) => { syncedPayload = payload; if (syncShouldFail) throw new Error('offline'); return { ok: true, clientAttemptId: payload.attemptId, attempt: { attemptId: payload.attemptId } } } }
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {} }
