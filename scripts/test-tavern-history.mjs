@@ -40,24 +40,31 @@ const injected=boundedTavernHistory([
 assert.deepEqual(JSON.parse(JSON.stringify(injected)),[{role:'user',content:'paired user'},{role:'assistant',content:'paired assistant'}])
 assert.doesNotMatch(JSON.stringify(injected),/system prompt|draw metadata|current unsent/)
 
-let requestOptions
-const transport=miniRuntime({wx:{request:options=>{requestOptions=options;options.success({statusCode:200,data:{mode:'ai',providerStatus:'connected',answer:'transport ok'}})}}})
+let requestOptions,transportRequests=0
+const transport=miniRuntime({wx:{request:options=>{transportRequests++;requestOptions=options;options.success({statusCode:200,data:{mode:'ai',providerStatus:'connected',answer:'transport ok'}})}}})
 transport.storage.set('stemistUser',{id:'history-owner'});transport.storage.set('stemistSessionToken','fixture-session')
 transport.storage.set('stemistTavern:history-owner:0:selected','keeper')
 transport.storage.set('stemistTavern:history-owner:0:keeper',{owner:'history-owner',epoch:0,persona:'keeper',draft:'',turns:twentyFive})
 const historyPage=transport.page('bundles/coach/tavern');historyPage.onLoad()
 assert.equal(historyPage.data.turns.length,40)
+const restoredAnchor=historyPage.data.historyAnchor
+assert.match(restoredAnchor,/^tavern-tail-\d+$/,'restored history gets a real local end anchor')
 historyPage.onMessage({detail:{value:'current request outside history'}});await historyPage.submit()
 assert.equal(requestOptions.url,'https://stem.ieltsist.com/api/ai/coach')
 assert.equal(requestOptions.data.history.length,40,'Tavern child transport reaches the real wx.request with 20 completed rounds')
 assert.equal(requestOptions.data.history[0].content,'user-6')
 assert.equal(requestOptions.data.history.at(-1).content,'assistant-25')
 assert.doesNotMatch(JSON.stringify(requestOptions.data.history),/current request outside history/)
+assert.equal(historyPage.data.turns.length,40,'the 21st completed round evicts the oldest whole pair')
+assert.equal(historyPage.data.turns.at(-1).content,'transport ok')
+assert.notEqual(historyPage.data.historyAnchor,restoredAnchor,'tail anchor changes even when the history remains capped at 40 messages')
+assert.equal(transportRequests,1,'auto-scroll state makes no extra provider request')
 
 requestOptions=null
 await transport.load('utils/api').askCoach({message:'academic unchanged',context:{product:'STEM Studio'},history:twentyFive})
 assert.equal(requestOptions.data.history.length,10,'ordinary academic askCoach remains on its existing 10-message bound')
 assert.equal(requestOptions.data.history[0].content,'user-21')
+assert.equal(transportRequests,2,'the only second transport belongs to the explicit academic regression call')
 
 for(const directory of ['pages','components','utils']){
  const pending=[new URL(`../${directory}/`,import.meta.url)]
