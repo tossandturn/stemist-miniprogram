@@ -11,6 +11,7 @@ const values = {
   'stemistDraft:listening': { text: 'private' }, 'stemistSubmission:writing': { text: 'private' }, stemistCroppedImage: '/tmp/private.jpg', stemistCoachContext: { routeId: 'private' }, stemistWritingPhoto: '/tmp/private.jpg', stemistCoachPhoto: '/tmp/coach-private.jpg', stemistCoachPhotoMeta: { owner: 'ielts:1', epoch: 0 }, stemistCropReturn: { route: 'stem' },
   'stemistNotebook:cie-9702-as-physics': { body: 'private notebook' }, stemistPendingAttemptSync: { routeId: 'private' },
   'stemistTavern:ielts:1:0:keeper': {draft:'private tavern',turns:[]},
+  'stemistTavern:ielts:1:0:selected': 'keeper',
 }
 const wx = { getStorageSync: key => values[key], setStorageSync: (key, value) => { values[key] = value }, removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
 const module = { exports: {} }
@@ -56,6 +57,7 @@ assert.equal(values.stemistCoachPhotoMeta, undefined)
 assert.equal(values['stemistNotebook:cie-9702-as-physics'], undefined)
 assert.equal(values.stemistPendingAttemptSync, undefined)
 assert.equal(values['stemistTavern:ielts:1:0:keeper'],undefined)
+assert.equal(values['stemistTavern:ielts:1:0:selected'],undefined)
 console.log('Session-local privacy cleanup passed.')
 
 const removed=[]

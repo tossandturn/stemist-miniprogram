@@ -1,1 +1,30 @@
-<view class="page {{deviceClass}} {{orientation}} tavern-page"><stemist-header eyebrow="AI 休闲酒馆" title="星光酒馆" /><app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" /><view class="tavern-note">这里的角色都是 AI，只做轻松文字聊天；不会读取题目照片、成绩或学术对话。</view><view class="persona-list" role="group" aria-label="选择聊天角色"><button wx:for="{{personas}}" wx:key="id" class="persona {{persona === item.id ? 'active' : ''}}" data-persona="{{item.id}}" bindtap="choosePersona" disabled="{{loading || examBlocked}}" aria-label="{{item.name}}：{{item.detail}}"><view class="persona-avatar" aria-hidden="true"><view></view></view><text class="persona-name">{{item.name}}</text><text class="persona-detail">{{item.detail}}</text></button></view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" enhanced="true" show-scrollbar="false" aria-label="当前角色聊天记录"><view wx:for="{{turns}}" wx:key="index" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view></scroll-view><view wx:else class="tavern-empty">选一句开场，或直接写下你想聊的内容。</view><view class="starter-list" aria-label="开场话题"><button wx:for="{{starters}}" wx:key="*this" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view><textarea value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="只发送当前这段文字…" cursor-spacing="24" adjust-position="true" bindinput="onMessage" aria-label="休闲聊天输入" /><button class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked}}">{{loading ? 'AI 正在回应…' : '发送给当前角色'}}</button><view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view><button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录 / 注册后重试</button><button wx:if="{{canRetry}}" class="secondary" bindtap="retry">重试 AI</button><button class="text-button tavern-clear" bindtap="clear" disabled="{{loading}}">清空当前角色对话</button></view>
+<view class="page {{deviceClass}} {{orientation}} tavern-page">
+  <stemist-header eyebrow="AI 休闲酒馆" title="星光酒馆" />
+  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
+  <view class="tavern-note">这里的角色都是 AI，只做轻松文字聊天；不会读取题目照片、成绩或学术对话。</view>
+  <view class="preset-head">
+    <view><text class="preset-title">休闲精选</text><text class="preset-subtitle">选择一种聊天气氛，随时可以更换。</text></view>
+    <button wx:if="{{presetChosen && !selectorOpen}}" class="preset-change" bindtap="openSelector" disabled="{{loading || examBlocked}}">更换预设</button>
+  </view>
+  <view wx:if="{{selectorOpen}}" class="persona-list" role="group" aria-label="选择休闲聊天预设">
+    <button wx:for="{{personas}}" wx:key="id" class="persona {{persona === item.id && presetChosen ? 'active' : ''}}" data-persona="{{item.id}}" bindtap="choosePersona" disabled="{{loading || examBlocked}}" aria-label="{{item.name}}，{{item.tag}}：{{item.detail}}">
+      <view class="persona-avatar avatar-{{item.id}}" aria-hidden="true"><view class="avatar-core"></view><view class="avatar-mark"></view></view>
+      <text class="persona-tag">{{item.tag}}</text><text class="persona-name">{{item.name}}</text><text class="persona-detail">{{item.detail}}</text>
+    </button>
+  </view>
+  <view wx:elif="{{presetChosen}}" class="selected-preset">
+    <view class="persona-avatar avatar-{{selected.id}}" aria-hidden="true"><view class="avatar-core"></view><view class="avatar-mark"></view></view>
+    <view class="selected-copy"><text class="persona-tag">{{selected.tag}}</text><text class="selected-name">{{selected.name}}</text><text class="selected-detail">{{selected.detail}}</text></view>
+  </view>
+  <block wx:if="{{presetChosen}}">
+    <scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" enhanced="true" show-scrollbar="false" aria-label="当前预设聊天记录"><view wx:for="{{turns}}" wx:key="index" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view></scroll-view>
+    <view wx:else class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 预设开场</text><text class="preset-opening-text">{{greeting}}</text></view>
+    <view class="starter-list" aria-label="当前预设开场话题"><button wx:for="{{starters}}" wx:key="*this" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
+    <textarea value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="{{placeholder}}" cursor-spacing="24" adjust-position="true" bindinput="onMessage" aria-label="休闲聊天输入" />
+    <button class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked}}">{{loading ? 'AI 正在回应…' : '发送给' + selected.name}}</button>
+  </block>
+  <view wx:else class="choose-preset">先选择一个休闲预设，再开始文字聊天。</view>
+  <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
+  <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录 / 注册后重试</button><button wx:if="{{canRetry}}" class="secondary" bindtap="retry">重试 AI</button>
+  <button wx:if="{{presetChosen}}" class="text-button tavern-clear" bindtap="clear" disabled="{{loading}}">清空当前预设对话</button>
+</view>
