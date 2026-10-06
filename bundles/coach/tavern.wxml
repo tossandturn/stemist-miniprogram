@@ -24,7 +24,7 @@
       <button wx:else class="primary fortune-primary" bindtap="retryInterpretation" loading="{{interpretLoading || drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在重新抽取…' : interpretLoading ? '正在解读…' : canRetry ? '重试解读' : selected.divinationKind === 'hexagram' ? '解读当前卦签' : '解读当前牌面'}}</button>
       <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
     </view>
-    <view wx:if="{{turns.length}}" class="chat-history-label">历史对话</view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前预设聊天记录"><view wx:for="{{turns}}" wx:key="index" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
+    <view wx:if="{{turns.length}}" class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的云端对话' : '云端对话 · 当前页'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">回到最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button></view></view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前预设聊天记录；每次只显示一页"><view wx:for="{{turns}}" wx:key="id" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
     <view wx:elif="{{!selected.divinationKind || draw}}" class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 预设开场</text><text class="preset-opening-text">{{greeting}}</text></view>
     <view wx:if="{{(!selected.divinationKind || draw) && !turns.length}}" class="starter-list" aria-label="当前预设开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
     <block wx:if="{{selected.divinationKind}}">
@@ -43,7 +43,7 @@
     </block>
     <view wx:if="{{status && (!selected.divinationKind || !draw)}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error && (!selected.divinationKind || !draw)}}" class="error">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
     <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录 / 注册后重试</button>
-    <button class="text-button tavern-clear" bindtap="clear" disabled="{{loading}}">清空当前预设对话</button>
+    <button class="text-button tavern-clear" bindtap="clear" disabled="{{loading || historyLoading}}">{{clearPending ? '重试清空云端对话' : '清空当前预设对话'}}</button>
   </view>
   <view wx:if="{{!presetChosen && error}}" class="error">{{error}}</view>
 </view>

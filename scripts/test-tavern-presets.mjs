@@ -18,7 +18,18 @@ const SAFE_METADATA=[
  ['tarot-reader','西方塔罗','塔罗娱乐','牌面只是休闲联想的镜子，不是预言。你想抽单张提示，还是三张看看过去主题、当下主题和可能的方向？',['抽一张当下提示','抽三张主题牌','解读我刚抽到的牌']],
 ]
 const plain=value=>JSON.parse(JSON.stringify(value))
-const apiModule=(handler,isAuthError=()=>false)=>({isAuthError,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(_path,body)=>handler(body)})
+const apiModule=(handler,isAuthError=()=>false)=>{
+ const states=new Map(),state=persona=>{if(!states.has(persona))states.set(persona,{revision:0,messages:[]});return states.get(persona)},record=persona=>{const value=state(persona);return{id:`conversation-${persona}`,persona,revision:value.revision,turnCount:value.messages.length/2}},envelope=persona=>({conversation:record(persona),messages:state(persona).messages.slice(-40),nextBefore:''})
+ return{isAuthError,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(path,body,options={})=>{
+  if(path==='/api/ai/tavern/conversations/resume'){const value=state(body.persona);if(body.legacyImport&&!value.messages.length){value.messages=body.legacyImport.messages.map((item,index)=>({id:`legacy-${body.persona}-${index+1}`,role:item.role,content:item.content,sequence:index+1,status:'complete'}));value.revision++}return envelope(body.persona)}
+  if(path.includes('/messages?')){const persona=new URL(`https://fixture.invalid${path}`).searchParams.get('persona');return envelope(persona)}
+  if(options.method==='DELETE'){const persona=new URL(`https://fixture.invalid${path}`).searchParams.get('persona');states.set(persona,{revision:state(persona).revision+1,messages:[]});return{deleted:true,conversationId:`conversation-${persona}`}}
+  const result=await handler(body)
+  if(path!=='/api/ai/coach'||result?.mode!=='ai'||result?.providerStatus!=='connected')return result
+  const value=state(body.persona),start=value.messages.at(-1)?.sequence||0,turns=[{id:`turn-${body.persona}-${start+1}`,role:'user',content:body.message,sequence:start+1,status:'complete'},{id:`turn-${body.persona}-${start+2}`,role:'assistant',content:result.answer,sequence:start+2,status:'complete'}];value.messages.push(...turns);value.revision++
+  return{...result,clientTurnId:body.clientTurnId,conversation:record(body.persona),turns,memory:{contextWindowTokens:1_000_000,estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:start,retrievedSegments:0}}
+ }}
+}
 const catalogRuntime=miniRuntime()
 const {TAVERN_PRESETS,tavernPreset}=catalogRuntime.load('bundles/coach/tavernPresets')
 assert.deepEqual(plain(TAVERN_PRESETS.map(item=>item.id)),IDS)
@@ -83,9 +94,11 @@ for(const preset of TAVERN_PRESETS){
    assert.equal(calls.length,before+1)
    assert.equal(calls.at(-1).feature,'tavern')
    assert.equal(calls.at(-1).persona,preset.id)
-   assert.equal(calls.at(-1).history.length,0,'static greeting is never sent as provider history')
+   assert.equal(calls.at(-1).history,undefined,'stateful Tavern never sends the visible page as provider history')
+   assert.match(calls.at(-1).conversationId,/^conversation-/)
+   assert.match(calls.at(-1).clientTurnId,/^turn:/)
    assert.doesNotMatch(JSON.stringify(calls.at(-1)),new RegExp(preset.greeting.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')))
-   assert.deepEqual(Array.from(calls.at(-1).imageDataUrls),[])
+   assert.equal(calls.at(-1).imageDataUrls,undefined)
    assert.doesNotMatch(JSON.stringify(calls.at(-1)),/private source|academic\.jpg/)
   }
 }
@@ -93,34 +106,11 @@ for(const preset of TAVERN_PRESETS){page.choosePersona({currentTarget:{dataset:{
 
 const clearRuntime=miniRuntime({modules:{'utils/api':apiModule(async request=>({mode:'ai',providerStatus:'connected',answer:`${request.persona} reply`}))}})
 clearRuntime.storage.set('stemistUser',{id:'clear-owner'})
-const clearPage=clearRuntime.page('bundles/coach/tavern');clearPage.onLoad();clearPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});clearPage.onMessage({detail:{value:'normal clear'}});await clearPage.submit();clearPage.clear()
+const clearPage=clearRuntime.page('bundles/coach/tavern');clearPage.onLoad();clearPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});clearPage.onMessage({detail:{value:'normal clear'}});await clearPage.submit();clearRuntime.storage.set('stemistSessionToken','fixture-session');await clearPage.clear()
 assert.equal(clearPage.data.turns.length,0)
 assert.equal(clearPage.data.status,'已清空当前角色对话')
 clearPage.choosePersona({currentTarget:{dataset:{persona:'cat-companion'}}});clearPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
 assert.equal(clearPage.data.turns.length,0,'a normally cleared role cannot resurrect after switching')
-
-let repairRuntime
-repairRuntime=miniRuntime({wx:{setStorageSync:(key,value)=>repairRuntime.storage.set(key,value),removeStorageSync:key=>{if(String(key).includes(':keeper'))throw new Error('remove failed');repairRuntime.storage.delete(key)}},modules:{'utils/api':apiModule(async()=>({mode:'ai',providerStatus:'connected',answer:'saved reply'}))}})
-repairRuntime.storage.set('stemistUser',{id:'repair-owner'})
-const repairPage=repairRuntime.page('bundles/coach/tavern');repairPage.onLoad();repairPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});repairPage.onMessage({detail:{value:'repair clear'}});await repairPage.submit();repairPage.clear()
-assert.equal(repairPage.data.turns.length,0)
-assert.equal(repairPage.data.status,'已清空当前角色对话','an empty owned-state overwrite is a durable clear fallback')
-assert.equal(repairPage.data.warning,'')
-assert.equal(repairRuntime.storage.get(repairPage.key()).turns.length,0)
-
-let blockedRuntime,blockWrites=false
-blockedRuntime=miniRuntime({wx:{setStorageSync:(key,value)=>{if(blockWrites&&String(key).includes(':keeper'))throw new Error('quota');blockedRuntime.storage.set(key,value)},removeStorageSync:key=>{if(String(key).includes(':keeper'))throw new Error('remove failed');blockedRuntime.storage.delete(key)}},modules:{'utils/api':apiModule(async()=>({mode:'ai',providerStatus:'connected',answer:'blocked reply'}))}})
-blockedRuntime.storage.set('stemistUser',{id:'blocked-clear-owner'})
-const blockedPage=blockedRuntime.page('bundles/coach/tavern');blockedPage.onLoad();blockedPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});blockedPage.onMessage({detail:{value:'cannot persist clear'}});await blockedPage.submit();blockWrites=true;blockedPage.clear()
-assert.equal(blockedPage.data.turns.length,0,'failed persistent cleanup still hides the current in-memory conversation')
-assert.doesNotMatch(blockedPage.data.status,/已清空当前角色对话/,'double storage failure cannot claim durable deletion')
-assert.match(blockedPage.data.warning,/未能清除|重试清空/)
-assert.equal(blockedRuntime.storage.get(blockedPage.key()).turns.length,2,'failed delete and overwrite leave the old persistent record untouched')
-assert.equal(blockedPage.read('keeper').turns.length,0,'an in-memory empty tombstone prevents same-page resurrection')
-blockWrites=false;blockedPage.clear()
-assert.equal(blockedRuntime.storage.get(blockedPage.key()).turns.length,0,'retry can durably replace the stale record with an empty owned state')
-assert.equal(blockedPage.data.status,'已清空当前角色对话')
-assert.equal(blockedPage.data.warning,'')
 
 const legacy=miniRuntime({modules:{'utils/api':apiModule(async()=>({mode:'ai',providerStatus:'connected',answer:'ok'}))}})
 legacy.storage.set('stemistUser',{id:'legacy-owner'})
@@ -171,9 +161,13 @@ assert.match(template,/category-filter/)
 assert.match(template,/wx:if="{{\(!selected\.divinationKind \|\| draw\) && !turns\.length}}" class="starter-list"/,'starter chips appear only before the first completed turn and never push an active composer under navigation')
 assert.match(template,/fortune-panel/)
 assert.match(template,/draw-card/)
-assert.match(template,/历史对话/)
+assert.match(template,/云端对话/)
+assert.match(template,/本机旧对话 · 待同步/)
 assert.match(template,/scroll-into-view="{{historyAnchor}}"/)
 assert.match(template,/id="{{historyAnchor}}"/)
+assert.match(template,/bindtap="loadOlderHistory"/)
+assert.match(template,/bindtap="returnLatestHistory"/)
+assert.match(template,/wx:key="id"/)
 assert.match(template,/解读当前卦签/)
 assert.match(template,/解读当前牌面/)
 assert.match(template,/canRetry \? '重试 AI' : '发送给'/,'ordinary failure reuses the visible primary send action')
@@ -194,7 +188,8 @@ assert.match(styles,/\.persona\{[^}]*min-width:0/)
 assert.match(styles,/\.starter-list\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
 assert.match(styles,/\.starter-list button\.starter-chip\{[^}]*min-height:44px/)
 assert.match(styles,/\.tavern-page textarea\.tavern-input\{[^}]*height:84px;min-height:84px;max-height:84px/)
-assert.match(styles,/\.chat-list\{height:168px/,'20 rounds stay inside a compact bounded scroll region with clearance above bottom navigation')
+assert.match(styles,/\.chat-list\{height:136px/,'one bounded display page stays compact above the bottom navigation')
+assert.match(styles,/\.history-action\{[^}]*min-height:44px/,'history paging remains touch accessible')
 assert.doesNotMatch(styles,/\.avatar-(?:core|mark)/,'licensed Lucide assets replace handcrafted avatar paths')
 assert.doesNotMatch(styles,/overflow-x:\s*(?:auto|scroll)/)
 assert.doesNotMatch(hub,/三位 AI 角色/)

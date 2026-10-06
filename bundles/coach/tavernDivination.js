@@ -1,5 +1,5 @@
-const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
-const {boundedTavernHistory}=require('./tavernHistory')
+const {requestJson}=require('../../utils/api')
+const {sendTavernTurn}=require('./tavernConversation')
 
 const DIVINATION_PRESETS=Object.freeze({
  'eastern-oracle':Object.freeze({id:'eastern-oracle',kind:'hexagram',spreads:Object.freeze(['single'])}),
@@ -40,9 +40,9 @@ async function requestTavernDraw({persona,spread,drawNonce,attemptId='',now=Date
  let result;try{result=await requestJson('/api/ai/tavern/draw',{feature:'tavern',persona,drawNonce:nonce,spread,...(attempt?{attemptId:attempt}:{})},{method:'POST'})}catch(error){throw classifyDrawError(error)}
  return normalizeTavernDraw(result,{persona,spread,now})
 }
-async function interpretTavernDraw({persona,drawId,question='',attemptId='',history=[]}={}){
+async function interpretTavernDraw({persona,drawId,question='',attemptId='',conversationId='',clientTurnId='',expectedRevision}={}){
  if(!divinationPreset(persona))fail('占卜预设无效');const id=requiredId(drawId,'drawId'),attempt=optionalId(attemptId,'attemptId'),questionText=String(question||'').trim();if(Array.from(questionText).length>600)fail('娱乐问题过长');const message=questionText||DEFAULT_INTERPRETATION[persona]
- try{return await requestJson('/api/ai/coach',{message,feature:'tavern',persona,drawId:id,...(attempt?{attemptId:attempt}:{}),context:{product:'STEM Studio',skill:'tavern',stage:'practice',source:'stemist-miniprogram'},imageDataUrls:[],history:boundedTavernHistory(history)},{method:'POST',timeout:COACH_TEXT_TIMEOUT_MS||55_000})}catch(error){throw classifyDrawError(error)}
+ try{return await sendTavernTurn({message,persona,drawId:id,attemptId:attempt,conversationId,clientTurnId,expectedRevision})}catch(error){throw classifyDrawError(error)}
 }
 function classifyDrawError(error){const code=String(error?.code||''),status=Number(error?.statusCode);if(REDRAW_STATUS[code]===status&&!error.action)error.action='draw_required';return error}
 function redrawRequired(error){const code=String(error?.code||'');return REDRAW_STATUS[code]===Number(error?.statusCode)&&error?.action==='draw_required'}

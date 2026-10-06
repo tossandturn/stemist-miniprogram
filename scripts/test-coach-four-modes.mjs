@@ -124,7 +124,18 @@ assert.deepEqual(steps.requests.map(item=>item.feature),['steps','answers'])
 assert.deepEqual(Array.from(steps.requests[1].imageDataUrls),Array.from(steps.requests[0].imageDataUrls))
 assert.equal(steps.requests[1].history.length,2,'hint to answer must keep the successful academic turn')
 
-const tavernApi=(handler,isAuthError=()=>false)=>({isAuthError,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(_path,body)=>handler(body)})
+const tavernApi=(handler,isAuthError=()=>false)=>{
+ const states=new Map(),state=persona=>{if(!states.has(persona))states.set(persona,{revision:0,messages:[]});return states.get(persona)},record=persona=>({id:`conversation-${persona}`,persona,revision:state(persona).revision,turnCount:state(persona).messages.length/2}),envelope=persona=>({conversation:record(persona),messages:state(persona).messages.slice(-40),nextBefore:''})
+ return{isAuthError,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(path,body,options={})=>{
+  if(path==='/api/ai/tavern/conversations/resume')return envelope(body.persona)
+  if(path.includes('/messages?'))return envelope(new URL(`https://fixture.invalid${path}`).searchParams.get('persona'))
+  if(options.method==='DELETE'){const persona=new URL(`https://fixture.invalid${path}`).searchParams.get('persona');states.set(persona,{revision:state(persona).revision+1,messages:[]});return{deleted:true,conversationId:`conversation-${persona}`}}
+  const result=await handler(body)
+  if(path!=='/api/ai/coach'||result?.mode!=='ai'||result?.providerStatus!=='connected')return result
+  const value=state(body.persona),start=value.messages.at(-1)?.sequence||0,turns=[{id:`turn-${body.persona}-${start+1}`,role:'user',content:body.message,sequence:start+1,status:'complete'},{id:`turn-${body.persona}-${start+2}`,role:'assistant',content:result.answer,sequence:start+2,status:'complete'}];value.messages.push(...turns);value.revision++
+  return{...result,clientTurnId:body.clientTurnId,conversation:record(body.persona),turns,memory:{contextWindowTokens:1_000_000,estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:start,retrievedSegments:0}}
+ }}
+}
 const tavernRequests=[]
 let tavernResult={mode:'ai',providerStatus:'connected',answer:'今天想聊点什么？'}
 const tavernRuntime=miniRuntime({modules:{'utils/api':tavernApi(async request=>{tavernRequests.push(request);return tavernResult})}})
@@ -143,8 +154,10 @@ await tavern.submit()
 assert.equal(tavernRequests.length,1)
 assert.equal(tavernRequests[0].feature,'tavern')
 assert.equal(tavernRequests[0].persona,'keeper')
-assert.deepEqual(Array.from(tavernRequests[0].imageDataUrls),[])
-assert.equal(JSON.stringify(tavernRequests[0].context),JSON.stringify({product:'STEM Studio',skill:'tavern',stage:'practice',source:'stemist-miniprogram'}))
+assert.equal(tavernRequests[0].imageDataUrls,undefined)
+assert.equal(tavernRequests[0].context,undefined)
+assert.equal(tavernRequests[0].history,undefined)
+assert.match(tavernRequests[0].conversationId,/^conversation-/)
 assert.doesNotMatch(JSON.stringify(tavernRequests[0]),/private source|academic\.jpg/)
 
 tavern.onMessage({detail:{value:'掌柜草稿'}})
@@ -195,7 +208,7 @@ const bindingRequests=[],bindingRuntime=miniRuntime({modules:{'utils/api':tavern
 bindingRuntime.storage.set('stemistUser',{id:'binding-owner'})
 bindingRuntime.storage.set('stemistCoachEntry',{owner:'binding-owner',epoch:0,at:Date.now(),key:'binding-entry',context:{paperAttemptId:'opaque-attempt',studyMode:'practice',sourceQuestionExtract:'must-not-leak',imagePaths:['/private/source.png']}})
 const bindingPage=bindingRuntime.page('bundles/coach/tavern');bindingPage.onLoad({entry:'binding-entry'});bindingPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});bindingPage.onMessage({detail:{value:'换个轻松话题'}});await bindingPage.submit()
-assert.equal(JSON.stringify(bindingRequests[0].context),JSON.stringify({product:'STEM Studio',skill:'tavern',stage:'practice',source:'stemist-miniprogram'}),'Tavern context stays exactly four non-academic fields')
+assert.equal(bindingRequests[0].context,undefined,'stateful Tavern sends only the incremental contract, not a client-authored context object')
 assert.equal(bindingRequests[0].attemptId,'opaque-attempt','known entry carries canonical opaque attemptId only at request top level')
 assert.doesNotMatch(JSON.stringify(bindingRequests[0]),/sourceQuestionExtract|private\/source|paperAttemptId/)
 

@@ -8,12 +8,23 @@ const tarotDraw=(id='tarot-1')=>({draw:{id,kind:'tarot',spread:'three',deckVersi
  {id:'cups-02',name:'圣杯二 Two of Cups',position:'当下主题',orientation:'reversed'},
  {id:'wands-03',name:'权杖三 Three of Wands',position:'可能的方向',orientation:'upright'},
 ]}})
-const drawQueue=[],coachQueue=[],calls=[]
+const drawQueue=[],coachQueue=[],calls=[],conversationStates=new Map()
 const take=async queue=>{const value=queue.shift();if(value instanceof Error)throw value;return await value}
+const conversationState=persona=>{if(!conversationStates.has(persona))conversationStates.set(persona,{revision:0,messages:[]});return conversationStates.get(persona)}
+const conversationRecord=persona=>({id:`conversation-${persona}`,persona,revision:conversationState(persona).revision,turnCount:conversationState(persona).messages.length/2})
+const conversationEnvelope=persona=>({conversation:conversationRecord(persona),messages:conversationState(persona).messages.slice(-40),nextBefore:''})
 const runtime=miniRuntime({modules:{'utils/api':{
  isAuthError:error=>error?.code==='auth_required',
  askCoach:async()=>({mode:'ai',providerStatus:'connected',answer:'ordinary'}),
- requestJson:async(path,body,options)=>{calls.push({path,body,options});return path==='/api/ai/tavern/draw'?take(drawQueue):take(coachQueue)},
+ requestJson:async(path,body,options={})=>{
+  calls.push({path,body,options})
+  if(path==='/api/ai/tavern/conversations/resume')return conversationEnvelope(body.persona)
+  if(path.includes('/messages?'))return conversationEnvelope(new URL(`https://fixture.invalid${path}`).searchParams.get('persona'))
+  if(options.method==='DELETE'){const persona=new URL(`https://fixture.invalid${path}`).searchParams.get('persona');conversationStates.set(persona,{revision:conversationState(persona).revision+1,messages:[]});return{deleted:true,conversationId:`conversation-${persona}`}}
+  if(path==='/api/ai/tavern/draw')return take(drawQueue)
+  const result=await take(coachQueue),value=conversationState(body.persona),start=value.messages.at(-1)?.sequence||0,turns=[{id:`fortune-${body.persona}-${start+1}`,role:'user',content:body.message,sequence:start+1,status:'complete'},{id:`fortune-${body.persona}-${start+2}`,role:'assistant',content:result.answer,sequence:start+2,status:'complete'}];value.messages.push(...turns);value.revision++
+  return{...result,clientTurnId:body.clientTurnId,conversation:conversationRecord(body.persona),turns,memory:{contextWindowTokens:1_000_000,estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:start,retrievedSegments:0}}
+ },
  COACH_TEXT_TIMEOUT_MS:55_000,
 }}})
 runtime.storage.set('stemistUser',{id:'fortune-owner'})
@@ -45,10 +56,12 @@ assert.equal(page.data.turns.length,2)
 assert.equal(page.data.turns[1].content,'乾卦娱乐解读')
 assert.equal(runtime.storage.get(page.key()).draw.id,'east-1','role-owned state persists the safe receipt')
 const easternDrawCalls=calls.filter(call=>call.path==='/api/ai/tavern/draw').length,easternCoachCalls=calls.filter(call=>call.path==='/api/ai/coach').length
+const firstInterpretationId=calls.filter(call=>call.path==='/api/ai/coach').at(-1).body.clientTurnId
 page.onFortuneQuestion({detail:{value:'换个角度再解读同一卦签'}});coachQueue.push({mode:'ai',providerStatus:'connected',answer:'同卦新问题解读',draw:easternDraw().draw});await page.retryInterpretation()
 assert.equal(calls.filter(call=>call.path==='/api/ai/tavern/draw').length,easternDrawCalls,'a new optional question reuses the current draw')
 assert.equal(calls.filter(call=>call.path==='/api/ai/coach').length,easternCoachCalls+1)
 assert.equal(calls.at(-1).body.drawId,'east-1')
+assert.notEqual(calls.at(-1).body.clientTurnId,firstInterpretationId,'an explicit new interpretation after success is a new logical turn')
 assert.equal(page.data.turns.at(-1).content,'同卦新问题解读')
 page.openSelector();page.choosePersona({currentTarget:{dataset:{persona:'tarot-reader'}}});page.openSelector();page.choosePersona({currentTarget:{dataset:{persona:'eastern-oracle'}}})
 assert.equal(page.data.draw.id,'east-1','switching roles restores only that role owned draw')
@@ -64,11 +77,13 @@ assert.equal(page.data.question,'这周怎样安排休息？')
 assert.equal(page.data.canRetry,true)
 assert.match(page.data.error,/保留|重试/)
 const drawCallsBeforeRetry=calls.filter(call=>call.path==='/api/ai/tavern/draw').length,coachCallsBeforeRetry=calls.filter(call=>call.path==='/api/ai/coach').length
+const failedInterpretationId=calls.filter(call=>call.path==='/api/ai/coach').at(-1).body.clientTurnId
 coachQueue.push({mode:'ai',providerStatus:'connected',answer:'三张牌娱乐解读',draw:tarotDraw().draw})
 await page.retryInterpretation()
 assert.equal(calls.filter(call=>call.path==='/api/ai/tavern/draw').length,drawCallsBeforeRetry,'retry interpretation never redraws')
 assert.equal(calls.filter(call=>call.path==='/api/ai/coach').length,coachCallsBeforeRetry+1)
 assert.equal(calls.at(-1).body.drawId,'tarot-1')
+assert.equal(calls.at(-1).body.clientTurnId,failedInterpretationId,'retrying an incomplete interpretation reuses the same idempotency identity and draw')
 
 const previousNonce=calls.findLast(call=>call.path==='/api/ai/tavern/draw').body.drawNonce
 drawQueue.push(tarotDraw('tarot-2'));coachQueue.push({mode:'ai',providerStatus:'connected',answer:'新牌解读',draw:tarotDraw('tarot-2').draw})
@@ -87,7 +102,7 @@ assert.match(page.data.error,/重新抽取/)
 assert.equal(calls.filter(call=>call.path==='/api/ai/tavern/draw').length,3,'expiry never silently redraws')
 await page.retry();assert.equal(calls.length,callsBeforeExpiry+1,'generic retry cannot bypass a redraw-required state')
 
-page.clear()
+runtime.storage.set('stemistSessionToken','fixture-session');await page.clear()
 assert.equal(page.data.draw,null)
 assert.equal(page.data.question,'')
 assert.equal(runtime.storage.get(page.key())?.draw??null,null)
@@ -136,8 +151,8 @@ assert.equal(authSamePage.data.authRequired,true)
 assert.equal(authSamePage.data.question,'保留这个问题','auth failure without an identity change preserves current evidence')
 assert.equal(authSamePage.data.loading,false)
 
-const redrawGate=deferred(),redrawCalls=[]
-const redrawRuntime=miniRuntime({modules:{'utils/api':{isAuthError:()=>false,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(path,body)=>{redrawCalls.push({path,body});if(path==='/api/ai/tavern/draw')return redrawCalls.filter(call=>call.path===path).length===1?tarotDraw('redraw-old'):redrawGate.promise;return{mode:'ai',providerStatus:'connected',answer:'old interpretation'}}}}})
+const redrawGate=deferred(),redrawCalls=[];let redrawRevision=0,redrawMessages=[]
+const redrawRuntime=miniRuntime({modules:{'utils/api':{isAuthError:()=>false,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(path,body)=>{redrawCalls.push({path,body});if(path==='/api/ai/tavern/draw')return redrawCalls.filter(call=>call.path===path).length===1?tarotDraw('redraw-old'):redrawGate.promise;if(path==='/api/ai/tavern/conversations/resume')return{conversation:{id:'conversation-tarot-reader',persona:'tarot-reader',revision:redrawRevision,turnCount:redrawMessages.length/2},messages:redrawMessages,nextBefore:''};redrawRevision++;const start=redrawMessages.length,turns=[{id:`redraw-${start+1}`,role:'user',content:body.message,sequence:start+1,status:'complete'},{id:`redraw-${start+2}`,role:'assistant',content:'old interpretation',sequence:start+2,status:'complete'}];redrawMessages=[...redrawMessages,...turns];return{mode:'ai',providerStatus:'connected',answer:'old interpretation',clientTurnId:body.clientTurnId,conversation:{id:body.conversationId,persona:body.persona,revision:redrawRevision,turnCount:redrawMessages.length/2},turns,memory:{contextWindowTokens:1_000_000,estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:start,retrievedSegments:0}}}}}})
 redrawRuntime.storage.set('stemistUser',{id:'redraw-owner'})
 const redrawPage=redrawRuntime.page('bundles/coach/tavern');redrawPage.onLoad();redrawPage.chooseCategory({currentTarget:{dataset:{category:'fortune'}}});redrawPage.choosePersona({currentTarget:{dataset:{persona:'tarot-reader'}}});redrawPage.chooseSpread({currentTarget:{dataset:{spread:'three'}}});await redrawPage.drawFortune()
 assert.equal(redrawPage.data.answer,'old interpretation')

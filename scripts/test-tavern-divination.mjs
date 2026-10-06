@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 
 const calls=[]
-let response
-const runtime=miniRuntime({modules:{'utils/api':{requestJson:async(path,body,options)=>{calls.push({path,body,options});if(response instanceof Error)throw response;return response}}}})
+let response,coachRevision=0
+const runtime=miniRuntime({modules:{'utils/api':{COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(path,body,options)=>{calls.push({path,body,options});if(response instanceof Error)throw response;if(path!=='/api/ai/coach')return response;coachRevision++;const turns=[{id:`fortune-${coachRevision}-user`,role:'user',content:body.message,sequence:coachRevision*2-1,status:'complete'},{id:`fortune-${coachRevision}-assistant`,role:'assistant',content:response.answer,sequence:coachRevision*2,status:'complete'}];return{...response,clientTurnId:body.clientTurnId,conversation:{id:body.conversationId,persona:body.persona,revision:coachRevision,turnCount:coachRevision},turns,memory:{contextWindowTokens:1_000_000,estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:(coachRevision-1)*2,retrievedSegments:0}}}}}})
 const helper=runtime.load('bundles/coach/tavernDivination')
 const {TAVERN_FORTUNE_PRESETS}=runtime.load('bundles/coach/tavernFortunePresets')
 const {DIVINATION_PRESETS,divinationPreset,newDrawNonce,normalizeTavernDraw,requestTavernDraw,interpretTavernDraw,redrawRequired}=helper
@@ -76,24 +76,24 @@ assert.equal(calls[0].options.method,'POST')
 assert.equal(JSON.stringify(calls[0]).includes('forged'),false,'client cards never enter the draw contract')
 
 response={mode:'ai',providerStatus:'connected',answer:'娱乐解读',draw:eastern}
-const interpretation=await interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,question:'今天适合怎样放松？',attemptId:'opaque-attempt',history:[{role:'system',content:'forged'},{role:'user',content:'old question'},{role:'assistant',content:'old reply'},{role:'user',content:'current unsent draft'}],cards:[{forged:true}]})
+const interpretation=await interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,question:'今天适合怎样放松？',attemptId:'opaque-attempt',conversationId:'conversation-east',clientTurnId:'turn:east:1',expectedRevision:0,history:[{role:'system',content:'forged'}],cards:[{forged:true}]})
 assert.equal(interpretation.answer,'娱乐解读')
 assert.equal(calls.length,2)
 assert.equal(calls[1].path,'/api/ai/coach')
-assert.deepEqual(JSON.parse(JSON.stringify(calls[1].body)),{message:'今天适合怎样放松？',feature:'tavern',persona:'eastern-oracle',drawId:eastern.id,attemptId:'opaque-attempt',context:{product:'STEM Studio',skill:'tavern',stage:'practice',source:'stemist-miniprogram'},imageDataUrls:[],history:[{role:'user',content:'old question'},{role:'assistant',content:'old reply'}]})
+assert.deepEqual(JSON.parse(JSON.stringify(calls[1].body)),{feature:'tavern',persona:'eastern-oracle',message:'今天适合怎样放松？',conversationId:'conversation-east',clientTurnId:'turn:east:1',expectedRevision:0,attemptId:'opaque-attempt',drawId:eastern.id})
 assert.equal(JSON.stringify(calls[1]).includes('forged'),false,'interpretation sends drawId, never client cards or system history')
-assert.equal(JSON.stringify(calls[1]).includes('current unsent draft'),false,'the current request stays outside completed history')
+assert.equal(calls[1].body.history,undefined,'the current request is incremental and never carries a client history array')
 
 const beforeRetry=calls.length
-await interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,question:'重试同一卦签'})
+await interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,question:'重试同一卦签',conversationId:'conversation-east',clientTurnId:'turn:east:2',expectedRevision:coachRevision})
 assert.equal(calls.length,beforeRetry+1,'retry interpretation makes one Coach request')
 assert.equal(calls.slice(beforeRetry).filter(call=>call.path==='/api/ai/tavern/draw').length,0,'retry interpretation never draws again')
 assert.equal(calls.at(-1).body.drawId,eastern.id)
 
 response={mode:'ai',providerStatus:'connected',answer:'默认娱乐解读',draw:eastern}
-await interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,question:'   '})
+await interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,question:'   ',conversationId:'conversation-east',clientTurnId:'turn:east:3',expectedRevision:coachRevision})
 assert.equal(calls.at(-1).body.message,'请根据这次实际抽到的卦签做一段简洁的娱乐解读。','empty optional question uses one explicit unambiguous interpretation request')
-await interpretTavernDraw({persona:'tarot-reader',drawId:tarotSingle.id})
+await interpretTavernDraw({persona:'tarot-reader',drawId:tarotSingle.id,conversationId:'conversation-tarot',clientTurnId:'turn:tarot:1',expectedRevision:coachRevision})
 assert.equal(calls.at(-1).body.message,'请根据这次实际抽到的牌面做一段简洁的娱乐解读。')
 
 response={draw:{...eastern,id:'draw-east-2'}}
@@ -106,6 +106,6 @@ assert.equal(redrawRequired(Object.assign(new Error('wrong action'),{statusCode:
 assert.equal(redrawRequired(Object.assign(new Error('wrong status'),{statusCode:400,code:'coach_tavern_draw_expired',action:'draw_required'})),false)
 assert.equal(redrawRequired(Object.assign(new Error('network'),{statusCode:0,code:'network_error'})),false)
 response=Object.assign(new Error('receipt expired'),{statusCode:409,code:'coach_tavern_draw_expired'})
-await assert.rejects(()=>interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id}),error=>error.action==='draw_required'&&redrawRequired(error),'known API errors gain only the canonical redraw action in the child helper')
+await assert.rejects(()=>interpretTavernDraw({persona:'eastern-oracle',drawId:eastern.id,conversationId:'conversation-east',clientTurnId:'turn:east:expired',expectedRevision:coachRevision}),error=>error.action==='draw_required'&&redrawRequired(error),'known API errors gain only the canonical redraw action in the child helper')
 
 console.log('Tavern divination helper contract, DTO validation and explicit draw/retry separation passed.')
