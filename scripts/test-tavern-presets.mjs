@@ -80,6 +80,37 @@ for(const preset of TAVERN_PRESETS){
 }
 for(const preset of TAVERN_PRESETS){page.choosePersona({currentTarget:{dataset:{persona:preset.id}}});assert.equal(page.data.turns.length,2,`${preset.id} history must restore independently`);assert.equal(page.data.turns[0].content,preset.starters[0])}
 
+const clearRuntime=miniRuntime({modules:{'utils/api':{isAuthError:()=>false,askCoach:async request=>({mode:'ai',providerStatus:'connected',answer:`${request.persona} reply`})}}})
+clearRuntime.storage.set('stemistUser',{id:'clear-owner'})
+const clearPage=clearRuntime.page('bundles/coach/tavern');clearPage.onLoad();clearPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});clearPage.onMessage({detail:{value:'normal clear'}});await clearPage.submit();clearPage.clear()
+assert.equal(clearPage.data.turns.length,0)
+assert.equal(clearPage.data.status,'已清空当前角色对话')
+clearPage.choosePersona({currentTarget:{dataset:{persona:'cat-companion'}}});clearPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
+assert.equal(clearPage.data.turns.length,0,'a normally cleared role cannot resurrect after switching')
+
+let repairRuntime
+repairRuntime=miniRuntime({wx:{setStorageSync:(key,value)=>repairRuntime.storage.set(key,value),removeStorageSync:key=>{if(String(key).includes(':keeper'))throw new Error('remove failed');repairRuntime.storage.delete(key)}},modules:{'utils/api':{isAuthError:()=>false,askCoach:async()=>({mode:'ai',providerStatus:'connected',answer:'saved reply'})}}})
+repairRuntime.storage.set('stemistUser',{id:'repair-owner'})
+const repairPage=repairRuntime.page('bundles/coach/tavern');repairPage.onLoad();repairPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});repairPage.onMessage({detail:{value:'repair clear'}});await repairPage.submit();repairPage.clear()
+assert.equal(repairPage.data.turns.length,0)
+assert.equal(repairPage.data.status,'已清空当前角色对话','an empty owned-state overwrite is a durable clear fallback')
+assert.equal(repairPage.data.warning,'')
+assert.equal(repairRuntime.storage.get(repairPage.key()).turns.length,0)
+
+let blockedRuntime,blockWrites=false
+blockedRuntime=miniRuntime({wx:{setStorageSync:(key,value)=>{if(blockWrites&&String(key).includes(':keeper'))throw new Error('quota');blockedRuntime.storage.set(key,value)},removeStorageSync:key=>{if(String(key).includes(':keeper'))throw new Error('remove failed');blockedRuntime.storage.delete(key)}},modules:{'utils/api':{isAuthError:()=>false,askCoach:async()=>({mode:'ai',providerStatus:'connected',answer:'blocked reply'})}}})
+blockedRuntime.storage.set('stemistUser',{id:'blocked-clear-owner'})
+const blockedPage=blockedRuntime.page('bundles/coach/tavern');blockedPage.onLoad();blockedPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});blockedPage.onMessage({detail:{value:'cannot persist clear'}});await blockedPage.submit();blockWrites=true;blockedPage.clear()
+assert.equal(blockedPage.data.turns.length,0,'failed persistent cleanup still hides the current in-memory conversation')
+assert.doesNotMatch(blockedPage.data.status,/已清空当前角色对话/,'double storage failure cannot claim durable deletion')
+assert.match(blockedPage.data.warning,/未能清除|重试清空/)
+assert.equal(blockedRuntime.storage.get(blockedPage.key()).turns.length,2,'failed delete and overwrite leave the old persistent record untouched')
+assert.equal(blockedPage.read('keeper').turns.length,0,'an in-memory empty tombstone prevents same-page resurrection')
+blockWrites=false;blockedPage.clear()
+assert.equal(blockedRuntime.storage.get(blockedPage.key()).turns.length,0,'retry can durably replace the stale record with an empty owned state')
+assert.equal(blockedPage.data.status,'已清空当前角色对话')
+assert.equal(blockedPage.data.warning,'')
+
 const legacy=miniRuntime({modules:{'utils/api':{isAuthError:()=>false,askCoach:async()=>({mode:'ai',providerStatus:'connected',answer:'ok'})}}})
 legacy.storage.set('stemistUser',{id:'legacy-owner'})
 legacy.storage.set('stemistTavern:legacy-owner:0:study-buddy',{owner:'legacy-owner',epoch:0,persona:'study-buddy',draft:'旧损友草稿',turns:[{role:'assistant',content:'旧损友历史'}]})
