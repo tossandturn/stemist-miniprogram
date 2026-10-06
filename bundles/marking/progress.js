@@ -27,7 +27,7 @@ function markingProgress(job){
   phaseLabel:labels[phase]||'',
   phaseElapsedLabel:Number.isFinite(phaseElapsed)&&phaseElapsed>=0&&phase&&phase!==stage?(job.status==='failed'?'失败前阶段用时 ':'最后阶段用时 ')+duration(phaseElapsed):Number.isFinite(phaseElapsed)&&phaseElapsed>=0&&active?'本阶段已用时 '+duration(phaseElapsed):'',
   etaLabel:Number.isFinite(eta)&&eta>0?'预计还需约 '+duration(Math.ceil(eta)):job.status==='queued'?'正在排队':job.status==='processing'?'暂没有可靠的预计完成时间':'',
-  etaSourceLabel:Number.isFinite(eta)&&eta>0?'根据同页数历史任务估算':'',
+  etaSourceLabel:Number.isFinite(eta)&&eta>0?'根据历史任务耗时与页数估算':'',
   pageLabel,
   pagePercent:valid&&preparing?Math.floor(done/total*100):null,
   preparing,
