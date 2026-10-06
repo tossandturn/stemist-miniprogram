@@ -9,6 +9,9 @@ assert.doesNotMatch(markingTemplate,/需要人工复核|需人工复核|标注�
 assert.match(markingTemplate,/AI 自动完成批改/)
 assert.match(markingTemplate,/wx:if="{{selectionError}}"[^>]*role="alert"/,'File-selection failures must be announced beside the picker')
 for(const id of ['marking-flow','marking-picker','marking-primary-action','marking-submit-primary','marking-optional-toggle','marking-optional-fields','marking-job-state','marking-report','marking-history'])assert.match(markingTemplate,new RegExp(`id="${id}"`),`Stable UI QA hook ${id} must remain available`)
+assert.match(markingTemplate,/id="marking-picker"\s+wx:if="{{!jobId \|\| jobStatus === 'draft'}}"/,'Upload inputs render only before a job or while an upload draft is recoverable')
+assert.match(markingTemplate,/wx:if="{{failureAction === 'retry'}}"[^>]*class="text-button replace-files-action"[^>]*bindtap="newTask"[^>]*>换文件重新批改<\/button>/,'Retryable failure keeps one low-emphasis path to replace the files')
+assert.equal((markingTemplate.match(/换文件重新批改/g)||[]).length,1,'Non-retryable failure must not duplicate its primary new-task action')
 const pickerPosition=markingTemplate.indexOf('id="marking-picker"'),actionPosition=markingTemplate.indexOf('id="marking-primary-action"'),optionalPosition=markingTemplate.indexOf('id="marking-optional-toggle"')
 assert.ok(pickerPosition<actionPosition&&actionPosition<optionalPosition,'Selection summary and primary submit must precede optional reference fields')
 assert.match(markingTemplate,/请先选择 1 份作答 PDF 或 1–20 张图片/,'Disabled submit explains exactly what is missing')
@@ -388,6 +391,16 @@ assert.equal(stateView.p.data.flowStep,3);assert.match(stateView.p.data.jobState
 assert.equal(stateView.p.data.jobLabel,'批改已完成','Completed label must not claim a PDF exists before reportPdfPath does')
 stateView.p.setJob({jobId,status:'failed',retryable:true,progress:{}})
 assert.equal(stateView.p.data.flowStep,2);assert.match(stateView.p.data.jobStateHint,/未完成/)
+
+const failedNewTask=pageRuntime({}, {showModal:options=>options.success({confirm:true})})
+failedNewTask.p.__draft.jobId=jobId
+failedNewTask.p.setJob({jobId,status:'failed',failureCode:'marking_timeout',retryable:true,processingAttempt:1,progress:{stage:'failed'}})
+assert.equal(failedNewTask.p.data.failureAction,'retry')
+failedNewTask.p.newTask();await settle()
+assert.equal(failedNewTask.p.data.jobId,'')
+assert.equal(failedNewTask.p.data.jobStatus,'')
+assert.equal(failedNewTask.p.data.actionVisible,true,'Starting over restores the upload workspace')
+assert.equal(failedNewTask.p.data.failureAction,'')
 
 const recoveryClock=fakeTimers()
 let recoveryChooser

@@ -43,6 +43,7 @@
 .failure-copy .job-state-hint{margin-bottom:0}
 .failure-recovery{margin-top:14px;padding-top:14px;border-top:1px solid #f0d5dc}
 .failure-recovery .recovery-action{margin:0;min-height:46px}
+.failure-recovery .replace-files-action{margin:8px auto 0;color:#66708a}
 .failure-recovery .source-link{margin:8px auto 0}
 .recovery-error{display:block;margin-bottom:10px;color:#8a2940;font-size:13px;line-height:1.55}
 .retention-copy{display:block;margin-top:12px;padding-top:10px;border-top:1px solid #e4e7f0;color:#66708a;font-size:13px;line-height:1.55}
@@ -72,6 +73,7 @@
 .marking-page.device-phone .refresh-error{grid-template-columns:minmax(0,1fr)}
 .marking-page.device-phone .refresh-error button{width:100%}
 .device-tablet.landscape .marking-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.device-tablet.landscape.job-readonly .marking-output{grid-column:1/-1}
 .device-tablet .marking-primary-action{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,36%);gap:16px;align-items:center}
 .device-tablet .marking-primary-action button{margin:0}
 .marking-page.device-tablet.portrait.has-primary-action{padding-bottom:calc(156px + env(safe-area-inset-bottom))}

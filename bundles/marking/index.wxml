@@ -1,4 +1,4 @@
-<view id="marking-page" class="page {{deviceClass}} {{orientation}} marking-page {{optionalOpen ? 'optional-open' : ''}} {{actionVisible ? 'has-primary-action' : ''}} {{jobId ? 'has-job' : ''}}">
+<view id="marking-page" class="page {{deviceClass}} {{orientation}} marking-page {{optionalOpen ? 'optional-open' : ''}} {{actionVisible ? 'has-primary-action' : ''}} {{jobId ? 'has-job' : ''}} {{jobId && jobStatus !== 'draft' ? 'job-readonly' : ''}}">
  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
  <stemist-header wx:if="{{false}}" />
  <view wx:if="{{!authenticated}}" class="panel"><text>登录后可上传作答、查看批改进度和历史报告。</text><button class="primary" bindtap="login">登录后开始</button></view>
@@ -10,7 +10,7 @@
    <view class="marking-step {{flowStep === 3 ? (jobStatus === 'failed' ? 'active failed' : 'active done') : ''}}"><text class="step-index">3</text><text class="step-label">查看报告</text></view>
   </view>
   <view class="marking-grid">
-   <view id="marking-picker" class="panel marking-inputs">
+   <view id="marking-picker" wx:if="{{!jobId || jobStatus === 'draft'}}" class="panel marking-inputs">
     <view class="card-title">第 1 步 · 上传作答</view>
     <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || creating || jobId}}"><view class="input">{{archivedRoute || routes[routeIndex].label}}</view></picker>
     <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="answer" bindtap="pickPdf" disabled="{{busy || creating || picking}}">选择作答 PDF</button><button class="secondary" bindtap="pickImages" disabled="{{busy || creating || picking}}">选择多张图片</button></view>
@@ -62,6 +62,7 @@
       <button wx:if="{{failureAction === 'retry' && !refreshError}}" class="primary recovery-action" bindtap="retryJob" loading="{{retrying}}" disabled="{{busy || refreshing}}">{{failureActionLabel}}</button>
       <button wx:elif="{{failureAction === 'refresh' && !refreshError}}" class="primary recovery-action" bindtap="refreshJob" loading="{{refreshing}}" disabled="{{busy || refreshing}}">{{failureActionLabel}}</button>
       <button wx:elif="{{failureAction === 'new' && !refreshError}}" class="primary recovery-action" bindtap="newTask" disabled="{{busy || picking || documentBusy}}">{{failureActionLabel}}</button>
+      <button wx:if="{{failureAction === 'retry'}}" class="text-button replace-files-action" bindtap="newTask" disabled="{{busy || picking || documentBusy}}">换文件重新批改</button>
       <button wx:if="{{sourceAvailable && !result}}" class="text-button source-link" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看保留的作答 PDF</button>
      </view>
      <view wx:else class="job-actions"><button wx:if="{{!refreshError}}" class="text-button" bindtap="refreshJob" loading="{{refreshing}}" disabled="{{busy || refreshing}}">刷新状态</button><button wx:if="{{reportAvailable}}" class="secondary" data-kind="report" bindtap="document" loading="{{documentBusy}}" disabled="{{documentBusy}}">下载批改报告</button><button wx:if="{{sourceAvailable && !result}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看已合成的作答 PDF</button></view>
