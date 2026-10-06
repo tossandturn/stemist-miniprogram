@@ -32,7 +32,8 @@ test('empty completed records never advertise a usable report', () => {
     assert.equal(p.data.result, null)
     assert.notEqual(p.data.flowStep, 3)
     assert.doesNotMatch(p.data.jobLabel, /已完成/)
-    assert.match(p.data.error, /报告|批改/)
+    assert.match(p.data.jobStateHint, /报告|批改|AI/)
+    assert.equal(p.data.error, '', 'Invalid completed state is rendered once in the status card, not repeated as a page alert')
     p.onUnload()
   }
 })

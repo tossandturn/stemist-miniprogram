@@ -2,8 +2,10 @@ const {deviceState,syncDevice}=require('../../utils/page')
 const {STEM_ROUTES}=require('../../utils/stemRoutes')
 const api=require('./service')
 const {reportState}=require('./reportState')
+const {markingJobDisplay,retryRequestId}=require('./display')
 const message=e=>api.errorMessage?api.errorMessage(e):e.message||'请求未完成，请重试。'
 const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)
+const RECOVERY_DELAYS=[4000,8000,16000,30000]
 const fileSizeLabel=bytes=>bytes>=1024*1024?(bytes/(1024*1024)).toFixed(bytes<10*1024*1024?1:0)+' MB':Math.max(1,Math.ceil(bytes/1024))+' KB'
 const routes=STEM_ROUTES.filter(r=>['IGCSE','AS','A2'].includes(r.stage)).map(r=>({id:r.routeId,label:r.stage+' · '+r.subjectCode+' · '+r.subjectLabel+' · '+r.components}))
 const roles={answer:'学生作答','question-paper':'原卷','mark-scheme':'评分标准'}
@@ -26,20 +28,21 @@ const pickerFailure=error=>{
 }
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,creating:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false}),
- onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__creating=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.bindOwner()},
+ data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,creating:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false,refreshing:false,refreshError:'',retrying:false,recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',expiresAtLabel:'',sourceAvailable:false,reportAvailable:false,markingProgress:{}}),
+ onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__creating=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false;this.bindOwner()},
  bindOwner(){
   const s=api.scope();if(this.__scope&&s.owner===this.__scope.owner&&s.epoch===this.__scope.epoch)return false
   this.pauseDocument();this.pause();this.__creating=null;this.__upload=null;this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
   this.setData({documentStatus:''})
   this.__privacyCheck++;this.__privacyKnown=typeof wx.getPrivacySetting!=='function';this.__privacyNeeded=false
-  this.__job=null;this.__questions=[];this.__pickAction=null;this.__pickerDiagnostic=null
+  this.__job=null;this.__questions=[];this.__pickAction=null;this.__pickerDiagnostic=null;this.__statusRecoveryFailures=0
   const old=wx.getStorageSync(this.__key)
   this.__draft=old?.epoch===s.epoch&&Array.isArray(old.files)?old:{clientRequestId:'paper-'+uid(),files:[],routeId:routes[0]?.id||'',title:'',instructions:'',epoch:s.epoch}
+  this.__retryNeedsConfirmation=Boolean(this.__draft.retryRequestId)
   const staleRoute=!routes.some(r=>r.id===this.__draft.routeId)
   if(staleRoute&&!this.__draft.jobId)this.__draft.routeId=routes[0]?.id||''
   const hasOptional=Boolean(this.__draft.title||this.__draft.instructions||this.__draft.files.some(f=>f.role!=='answer'))
-  this.setData({authenticated:s.owner!=='guest'&&Boolean(wx.getStorageSync('stemistSessionToken')),title:this.__draft.title||'',instructions:this.__draft.instructions||'',routeIndex:Math.max(0,routes.findIndex(r=>r.id===this.__draft.routeId)),archivedRoute:staleRoute&&this.__draft.jobId?'历史学科：'+this.__draft.routeId:'',jobId:this.__draft.jobId||'',jobStatus:'',jobLabel:'',jobStateHint:this.__draft.jobId?'正在读取任务状态…':'选择作答后即可提交。',flowStep:1,actionVisible:!this.__draft.jobId,optionalOpen:!this.__draft.jobId&&hasOptional,result:null,questions:[],history:[],selectionError:'',selectionCode:'',selectionNotice:'',error:staleRoute&&!this.__draft.jobId?'原学科已更新，请确认当前学科后再提交。':'',status:'',privacy:false,documentBusy:false,creating:false});this.renderFiles();this.refreshPrivacy();return true
+  this.setData({authenticated:s.owner!=='guest'&&Boolean(wx.getStorageSync('stemistSessionToken')),title:this.__draft.title||'',instructions:this.__draft.instructions||'',routeIndex:Math.max(0,routes.findIndex(r=>r.id===this.__draft.routeId)),archivedRoute:staleRoute&&this.__draft.jobId?'历史学科：'+this.__draft.routeId:'',jobId:this.__draft.jobId||'',jobStatus:'',jobLabel:'',jobStateHint:this.__draft.jobId?'正在读取任务状态…':'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:!this.__draft.jobId,optionalOpen:!this.__draft.jobId&&hasOptional,result:null,questions:[],history:[],selectionError:'',selectionCode:'',selectionNotice:'',error:staleRoute&&!this.__draft.jobId?'原学科已更新，请确认当前学科后再提交。':'',status:'',privacy:false,documentBusy:false,creating:false,refreshing:false,refreshError:'',retrying:false,recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',expiresAtLabel:'',sourceAvailable:false,reportAvailable:false,markingProgress:{}});this.renderFiles();this.refreshPrivacy();return true
  },
  current(){return !this.__disposed&&api.current(this.__scope)},
  accept(s){if(this.__disposed||s!==this.__scope)return false;if(!api.current(s)){this.bindOwner();return false}return true},
@@ -175,20 +178,44 @@ Page({
   }
   finally{if(this.__creating===creating){this.__creating=null;if(this.accept(s)&&d===this.__draft)this.setData({creating:false})}if(this.accept(s)&&g===this.__generation&&owns()){this.setData({busy:false,status:''});this.__upload=null;if(this.__draft.jobId&&this.__visible)this.schedulePoll()}}
  },
- setJob(job){
+ pendingRetryId(){
+  const attempt=Number.isSafeInteger(Number(this.__job?.processingAttempt))&&Number(this.__job.processingAttempt)>=0?Number(this.__job.processingAttempt):0
+  if(this.__draft.retryRequestId&&this.__draft.retryJobId===this.__job?.jobId&&Number(this.__draft.retryAttempt)===attempt)return this.__draft.retryRequestId
+  this.__draft.retryRequestId=retryRequestId(this.__job)
+  this.__draft.retryJobId=this.__job?.jobId||''
+  this.__draft.retryAttempt=attempt
+  this.save()
+  return this.__draft.retryRequestId
+ },
+ reconcileRetry(job,canonicalGet){
+  if(!this.__draft?.retryRequestId)return
+  if(canonicalGet)this.__retryNeedsConfirmation=false
+  const pendingAttempt=Number(this.__draft.retryAttempt)||0,currentAttempt=Number(job.processingAttempt)||0
+  if(canonicalGet&&(['queued','processing','completed'].includes(job.status)||currentAttempt>pendingAttempt)){
+   delete this.__draft.retryRequestId;delete this.__draft.retryJobId;delete this.__draft.retryAttempt;this.save()
+  }
+ },
+ setJob(job,options={}){
   this.__job=job
-  this.setData({markingProgress:require('./progress').markingProgress(job)})
+  this.reconcileRetry(job,options.canonicalGet===true)
+  const progressView=require('./progress').markingProgress(job)
   if(job.routeId){const index=routes.findIndex(r=>r.id===job.routeId);this.setData({routeIndex:Math.max(0,index),archivedRoute:index<0?'历史学科：'+job.routeId:''})}
   if(typeof job.title==='string')this.setData({title:job.title})
-  const display=reportState(job.result),result=display.result,invalidCompleted=job.status==='completed'&&!display.valid
-  this.__questions=display.questions
-  const displayStatus=invalidCompleted?'failed':job.status
-  const cancelled=job.failureCode==='cancelled',uploadTotal=this.__draft?.files?.length||0,uploadCompleted=(this.__draft?.files||[]).filter(f=>f.uploaded).length
-  const flowStep=displayStatus==='completed'?3:['queued','processing','failed'].includes(displayStatus)?2:1
-  const invalidMessage='报告数据不完整，暂不能视为批改完成。请刷新状态；若仍无内容，可新建任务重新提交。'
-  const jobStateHint=invalidCompleted?invalidMessage:job.status==='draft'?(uploadTotal?'已上传 '+uploadCompleted+' / '+uploadTotal+' 份文件，完成后提交 AI 批改。':'正在准备上传文件。'):job.status==='queued'?'文件已提交，正在等待 AI 批改。':job.status==='processing'?'完成后可在这里查看逐题反馈和 PDF 报告。':job.status==='completed'?(job.reportPdfPath?'批改完成，PDF 报告已可下载。':'批改完成，可查看本页反馈；PDF 尚未生成。'):cancelled?'任务已取消。':job.status==='failed'?'批改未完成。'+(job.retryable?'原文件已保留，可重试。':'请检查文件后新建任务。'):'正在读取任务状态…'
-  this.setData({reportTextSelectable:job.reportTextSelectable!==false,reportAvailable:display.valid&&Boolean(job.reportPdfPath)})
-  this.setData({jobId:job.jobId,jobStatus:displayStatus,jobLabel:invalidCompleted?'报告暂不可用':cancelled?'已取消':states[job.status]||'',jobStateHint,flowStep,actionVisible:job.status==='draft',progress:job.progress||{},result,error:invalidCompleted?invalidMessage:job.status==='failed'&&!cancelled?'批改暂未完成。'+(job.retryable?'原文件已保留，可点击重试。':'请检查文件后新建任务。'):'',retryable:!invalidCompleted&&job.retryable===true,reportPages:Math.ceil(this.__questions.length/10),sourceAvailable:Boolean(job.sourcePdfPath),expiresAt:job.expiresAt?String(job.expiresAt).replace('T',' ').replace(/\.\d{3}Z$/,' UTC'):''})
+  const report=reportState(job.result),result=report.result,invalidCompleted=job.status==='completed'&&!report.valid
+  this.__questions=report.questions
+  const reportAvailable=report.valid&&Boolean(job.reportPdfPath)
+  const display=markingJobDisplay(job,{invalidCompleted,resultValid:report.valid,reportAvailable,retryConfirmationPending:this.__retryNeedsConfirmation})
+  const uploadTotal=this.__draft?.files?.length||0,uploadCompleted=(this.__draft?.files||[]).filter(f=>f.uploaded).length
+  const jobStateHint=job.status==='draft'&&uploadTotal?'已上传 '+uploadCompleted+' / '+uploadTotal+' 份文件，完成后提交 AI 批改。':display.jobStateHint
+  this.setData({
+   jobId:job.jobId,jobStatus:display.displayStatus,jobLabel:display.jobLabel,jobStateHint,
+   flowStep:display.flowStep,currentStepLabel:display.currentStepLabel,actionVisible:job.status==='draft',
+   progress:job.progress||{},markingProgress:progressView,result,retryable:!invalidCompleted&&job.retryable===true,
+   failureKind:display.failureKind,failureAction:display.failureAction,failureActionLabel:display.failureActionLabel,
+   retentionLabel:display.retentionLabel,expiresAtLabel:display.expiresAtLabel,
+   reportTextSelectable:job.reportTextSelectable!==false,reportAvailable,
+   sourceAvailable:Boolean(job.sourcePdfPath),reportPages:Math.ceil(this.__questions.length/10),
+  })
   this.renderReport(0)
   if(['queued','processing','completed','failed'].includes(job.status))this.releaseSubmittedFiles()
  },
@@ -201,13 +228,63 @@ Page({
  },
  renderReport(page){this.setData({reportPage:page,questions:(this.__questions||[]).slice(page*10,page*10+10)})},
  reportPage(event){const page=this.data.reportPage+Number(event.currentTarget.dataset.delta);if(page>=0&&page<this.data.reportPages)this.renderReport(page)},
- schedulePoll(){clearTimeout(this.__poll);if(this.current()&&this.__visible&&['queued','processing'].includes(this.data.jobStatus))this.__poll=setTimeout(()=>this.refreshJob(),4000)},
- async refreshJob(){
-  const s=this.__scope,id=this.__draft.jobId,n=this.__refresh=(this.__refresh||0)+1;if(!id||!this.current())return
-  try{const job=await api.get(id,s);if(this.accept(s)&&id===this.__draft.jobId&&n===this.__refresh){this.setJob(job);this.schedulePoll()}}
-  catch(e){if(this.accept(s)&&id===this.__draft.jobId&&n===this.__refresh){this.setData({error:e.message||'状态暂时无法读取，稍后点击刷新。'});this.schedulePoll()}}
+ schedulePoll(){
+  clearTimeout(this.__poll);this.__poll=null
+  if(!this.current()||!this.__visible||!this.__draft?.jobId)return 0
+  const active=['queued','processing'].includes(this.data.jobStatus)
+  let delay=active?4000:0
+  if(!active&&(!this.data.jobStatus||this.__retryNeedsConfirmation)){
+   const index=Math.max(0,this.__statusRecoveryFailures-1)
+   if(index<RECOVERY_DELAYS.length)delay=RECOVERY_DELAYS[index]
+  }
+  if(!delay)return 0
+  this.__poll=setTimeout(()=>this.refreshJob({auto:true}),delay)
+  return delay
  },
- async retryJob(){if(!this.current()||this.data.busy||!this.__job?.retryable)return;const s=this.__scope;this.setData({busy:true,error:''});try{await api.retry(this.data.jobId,'retry-'+uid(),s);if(this.accept(s))await this.refreshJob()}catch(e){if(this.accept(s))this.setData({error:e.message})}finally{if(this.accept(s))this.setData({busy:false})}},
+ async refreshJob(options={}){
+  const manual=Boolean(options?.currentTarget)
+  if(manual)this.__statusRecoveryFailures=0
+  clearTimeout(this.__poll);this.__poll=null
+  const s=this.__scope,g=this.__generation,id=this.__draft.jobId,n=this.__refresh=(this.__refresh||0)+1;if(!id||!this.current())return false
+  this.setData({refreshing:true})
+  try{
+   const job=await api.get(id,s)
+   if(!this.accept(s)||g!==this.__generation||id!==this.__draft.jobId||n!==this.__refresh)return false
+   this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false
+   this.setData({refreshError:'',recoveryError:''})
+   this.setJob(job,{canonicalGet:true});this.schedulePoll();return true
+  }
+  catch{
+   if(this.accept(s)&&g===this.__generation&&id===this.__draft.jobId&&n===this.__refresh){
+    this.__statusRecoveryFailures++
+    if(this.__job&&this.__retryNeedsConfirmation)this.setJob(this.__job)
+    const delay=this.schedulePoll(),known=Boolean(this.data.jobStatus)
+    this.setData({refreshError:known?'状态更新暂时失败，仍显示上次确认状态。'+(delay?'系统将自动重试；也可重新读取状态。':'请点击重新读取状态。'):'状态更新暂时失败，尚未确认任务状态。'+(delay?'系统将自动重试；也可重新读取状态。':'请点击重新读取状态。')})
+   }
+   return false
+  }
+  finally{if(this.accept(s)&&g===this.__generation&&id===this.__draft.jobId&&n===this.__refresh)this.setData({refreshing:false})}
+ },
+ async retryJob(){
+  if(!this.current()||this.data.busy||this.data.failureAction!=='retry'||!this.__job?.retryable)return
+  const s=this.__scope,g=this.__generation,requestId=this.pendingRetryId();this.__retryNeedsConfirmation=true;this.setJob(this.__job)
+  this.setData({busy:true,retrying:true,recoveryError:'',refreshError:'',error:''})
+  try{
+   const job=await api.retry(this.data.jobId,requestId,s)
+   if(this.accept(s)&&g===this.__generation){
+    if(job?.jobId===this.data.jobId&&states[job.status]){this.setJob(job);this.schedulePoll()}
+    else await this.refreshJob({auto:true,afterRetry:true})
+   }
+  }
+  catch{
+   if(this.accept(s)&&g===this.__generation){
+    this.setJob(this.__job)
+    const reconciled=await this.refreshJob({auto:true,afterRetry:true})
+    if(reconciled&&this.accept(s)&&g===this.__generation&&this.data.jobStatus==='failed')this.setData({recoveryError:'上次重试尚未开始，可再次点击重试；系统会复用同一次重试请求。'})
+   }
+  }
+  finally{if(this.accept(s)&&g===this.__generation)this.setData({busy:false,retrying:false})}
+ },
  async cancelDraft(){
   if(!this.current()||this.data.busy||this.data.jobStatus!=='draft')return
   const s=this.__scope,id=this.data.jobId
@@ -224,7 +301,7 @@ Page({
   const jobId=String(event.currentTarget.dataset.id);if(!this.data.history.some(j=>j.jobId===jobId))return
   this.pause();this.__creating=null;this.__upload=null;const saved=wx.getStorageSync(this.__key+':'+jobId)
   this.__draft=saved?.epoch===this.__scope.epoch&&saved.jobId===jobId&&Array.isArray(saved.files)?saved:{clientRequestId:'paper-'+uid(),files:[],jobId,epoch:this.__scope.epoch,routeId:routes[0]?.id||''}
-  this.__job=null;this.__questions=[];this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:'',creating:false});this.refreshJob()
+  this.__job=null;this.__questions=[];this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=Boolean(this.__draft.retryRequestId);this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,currentStepLabel:'上传作答',actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:'',refreshError:'',recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',reportAvailable:false,sourceAvailable:false,creating:false});this.refreshJob()
  },
  pauseDocument(resume=false){
   const control=this.__document
@@ -253,7 +330,7 @@ Page({
   }catch(e){if(alive())this.setData({error:e.message,documentStatus:'下载未完成，点击下载按钮重试；不会重新批改。'})}
   finally{if(alive())this.setData({documentBusy:false});if(this.__document===control)this.__document=null}
  },
- newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__creating=null;this.__upload=null;const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAt:'',sourceAvailable:false,creating:false});this.loadHistory()}})},
+ newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__creating=null;this.__upload=null;const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAtLabel:'',retentionLabel:'',sourceAvailable:false,reportAvailable:false,refreshError:'',recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',creating:false});this.loadHistory()}})},
  login(){wx.navigateTo({url:'/pages/account/auth'})},
  back(){wx.navigateBack()},
 })

@@ -1,5 +1,5 @@
-.marking-intro{margin-top:12px;color:#66708a;line-height:1.6}
-.marking-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0}
+.marking-intro{margin-top:4px;color:#66708a;line-height:1.6}
+.marking-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
 .marking-step{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;padding:10px 8px;border:1px solid #e4e7f0;border-radius:12px;background:#fff;color:#66708a}
 .marking-step.active{border-color:#7357e8;background:#f2effc;color:#5638c3}
 .marking-step.done{border-color:#b9addf;color:#5638c3}
@@ -37,8 +37,21 @@
 .job-state.job-failed{border-left-color:#a22e48}
 .job-state.job-completed{border-left-color:#3a9d85}
 .job-state-hint{display:block;color:#18213d;font-size:14px;line-height:1.6;margin:8px 0}
+.job-failure{display:flex;align-items:flex-start;gap:12px}
+.failure-mark{display:flex;align-items:center;justify-content:center;width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:#a22e48;color:#fff;font-size:18px;font-weight:800;line-height:1}
+.failure-copy{min-width:0;flex:1}
+.failure-copy .job-state-hint{margin-bottom:0}
+.failure-recovery{margin-top:14px;padding-top:14px;border-top:1px solid #f0d5dc}
+.failure-recovery .recovery-action{margin:0;min-height:46px}
+.failure-recovery .source-link{margin:8px auto 0}
+.recovery-error{display:block;margin-bottom:10px;color:#8a2940;font-size:13px;line-height:1.55}
+.retention-copy{display:block;margin-top:12px;padding-top:10px;border-top:1px solid #e4e7f0;color:#66708a;font-size:13px;line-height:1.55}
 .job-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
 .job-actions button{margin:0;min-height:44px}
+.terminal-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;padding:10px 12px;border-radius:10px;background:#f5f6fb;color:#66708a;font-size:13px;line-height:1.5}
+.progress-source{display:block;margin-top:5px;color:#66708a;font-size:12px;line-height:1.5}
+.refresh-error{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.marking-page .refresh-error button{width:auto;min-width:116px;margin:0;min-height:44px}
 .marking-report{border-top:4px solid #3a9d85}
 .new-task{margin:4px 0 16px}
 .history-item{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;margin-top:12px;text-align:left;background:#f5f6fb}
@@ -55,6 +68,9 @@
 .marking-page.device-phone.optional-open .marking-primary-action button{margin-top:12px}
 .marking-page.device-phone.has-job .marking-output{grid-row:1}
 .marking-page.device-phone.has-job .marking-inputs{grid-row:2}
+.marking-page.device-phone .job-state{padding:16px}
+.marking-page.device-phone .refresh-error{grid-template-columns:minmax(0,1fr)}
+.marking-page.device-phone .refresh-error button{width:100%}
 .device-tablet.landscape .marking-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .device-tablet .marking-primary-action{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,36%);gap:16px;align-items:center}
 .device-tablet .marking-primary-action button{margin:0}
