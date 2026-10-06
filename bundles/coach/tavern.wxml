@@ -6,14 +6,14 @@
     <view class="preset-head"><view><text class="preset-title">休闲精选</text><text class="preset-subtitle">按气氛筛选，选择后直接进入。</text></view></view>
     <view class="category-filter" role="group" aria-label="筛选休闲预设"><button wx:for="{{categories}}" wx:key="id" class="{{category === item.id ? 'active' : ''}}" data-category="{{item.id}}" bindtap="chooseCategory" disabled="{{loading || examBlocked}}">{{item.label}}</button></view>
     <view class="persona-list" role="group" aria-label="选择休闲聊天预设">
-      <button wx:for="{{visiblePersonas}}" wx:key="id" class="persona {{persona === item.id && presetChosen ? 'active' : ''}}" data-persona="{{item.id}}" bindtap="choosePersona" disabled="{{loading || examBlocked}}" aria-label="{{item.name}}，{{item.tag}}：{{item.detail}}">
-        <view class="persona-avatar tone-{{item.category}}" aria-hidden="true"><image class="persona-icon" src="/bundles/coach/icons/{{item.icon}}" mode="aspectFit" /></view>
-        <text class="persona-tag">{{item.tag}}</text><text class="persona-name">{{item.name}}</text><text class="persona-detail">{{item.detail}}</text>
+      <button wx:for="{{visiblePersonas}}" wx:key="id" class="persona role-{{item.id}} {{persona === item.id && presetChosen ? 'active' : ''}}" data-persona="{{item.id}}" bindtap="choosePersona" disabled="{{loading || examBlocked}}" aria-label="{{item.name}}，{{item.tag}}：{{item.detail}}">
+        <view class="persona-top"><view class="persona-avatar tone-{{item.category}}" aria-hidden="true"><image class="persona-icon" src="/bundles/coach/icons/{{item.icon}}" mode="aspectFit" /></view><text class="persona-tag">{{item.tag}}</text></view>
+        <text class="persona-name">{{item.name}}</text><text class="persona-detail">{{item.detail}}</text>
       </button>
     </view>
   </view>
   <view wx:else class="selected-workspace">
-    <view class="selected-preset">
+    <view class="selected-preset role-{{selected.id}}">
       <view class="persona-avatar tone-{{selected.category}}" aria-hidden="true"><image class="persona-icon" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" /></view>
       <view class="selected-copy"><text class="persona-tag">{{selected.tag}}</text><text class="selected-name">{{selected.name}}</text><text class="selected-detail">{{selected.detail}}</text></view>
       <button class="preset-change" bindtap="openSelector" disabled="{{loading || examBlocked}}">更换预设</button>

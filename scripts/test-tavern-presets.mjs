@@ -6,7 +6,7 @@ import {deferred,miniRuntime,settle} from './helpers/mini-runtime.mjs'
 const IDS=['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide','eastern-oracle','tarot-reader']
 const TITLES=['温柔树洞','嘴替损友','傲娇猫猫','奇幻冒险','江湖剑客','侦探茶室','东方玄学','西方塔罗']
 const CONVERSATION_IDS=IDS.slice(0,6)
-const ICONS=['message-circle.svg','messages-square.svg','cat.svg','compass.svg','swords.svg','search.svg','sparkles.svg','layers.svg']
+const ICONS=['keeper-tree-lantern.svg','study-buddy-banter.svg','cat-companion-face.svg','story-traveler-map.svg','xianxia-sword-bamboo.svg','mystery-tea-lens.svg','eastern-oracle-lots.svg','tarot-moon-cards.svg']
 const SAFE_METADATA=[
  ['keeper','温柔树洞','倾听陪伴','今晚的树洞给你留着。想讲点什么，或者只想有人陪你待一会儿？',['今天有件事想说说','陪我安静聊一会儿','给我一个轻松的小问题']],
  ['study-buddy','嘴替损友','轻松吐槽','来了？先把今天最想吐槽的一件事放桌上，我保证只损事情，不损你。',['替我吐槽一下今天','来个不伤人的损友点评','陪我聊点没用但好玩的']],
@@ -177,6 +177,8 @@ assert.ok(selectedOrder<drawOrder&&drawOrder<interpretOrder&&interpretOrder<hist
 assert.equal((template.match(/class="draw-grid/g)||[]).length,1)
 assert.equal((template.match(/bindtap="retryInterpretation"/g)||[]).length,1)
 assert.match(template,/<image[^>]*persona-icon/)
+assert.match(template,/class="persona-top"/)
+assert.match(template,/class="persona[^"{]*role-{{item\.id}}/,'role cards expose stable visual identity classes without changing IDs')
 assert.match(styles,/\.persona-list\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/)
 assert.match(styles,/\.device-tablet \.persona-list\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
 assert.match(styles,/@media\(max-width:330px\)[\s\S]*\.persona-list\{grid-template-columns:1fr\}/)
@@ -185,22 +187,32 @@ assert.match(styles,/\.preset-change\{[^}]*width:84px;min-width:84px;max-width:8
 assert.match(styles,/\.category-filter button\{[^}]*min-height:44px/)
 assert.match(styles,/\.category-filter\{[^}]*gap:8px/)
 assert.match(styles,/\.persona\{[^}]*min-width:0/)
+assert.match(styles,/\.persona-avatar\{[^}]*width:52px[^}]*height:52px/)
+assert.match(styles,/\.persona-icon\{[^}]*width:48px[^}]*height:48px/)
+assert.match(styles,/\.role-keeper \.persona-avatar/)
+assert.match(styles,/\.role-tarot-reader \.persona-avatar/)
+assert.match(styles,/\.device-tablet\.landscape \.persona-list\{[^}]*repeat\(4/,'tablet landscape uses a compact four-column role grid')
 assert.match(styles,/\.starter-list\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
 assert.match(styles,/\.starter-list button\.starter-chip\{[^}]*min-height:44px/)
 assert.match(styles,/\.tavern-page textarea\.tavern-input\{[^}]*height:84px;min-height:84px;max-height:84px/)
 assert.match(styles,/\.chat-list\{height:136px/,'one bounded display page stays compact above the bottom navigation')
 assert.match(styles,/\.history-action\{[^}]*min-height:44px/,'history paging remains touch accessible')
-assert.doesNotMatch(styles,/\.avatar-(?:core|mark)/,'licensed Lucide assets replace handcrafted avatar paths')
+assert.doesNotMatch(styles,/\.avatar-(?:core|mark)/)
 assert.doesNotMatch(styles,/overflow-x:\s*(?:auto|scroll)/)
 assert.doesNotMatch(hub,/三位 AI 角色/)
 assert.match(hub,/八种休闲预设/)
 
 const iconRoot=new URL('../bundles/coach/icons/',import.meta.url),provenance=JSON.parse(fs.readFileSync(new URL('provenance.json',iconRoot),'utf8')),license=JSON.parse(fs.readFileSync(new URL('license.json',iconRoot),'utf8'))
-for(const name of ICONS){const record=provenance.files.find(item=>item.name===name);assert.equal(record.modified,true,`${name} must declare the explicit WeChat stroke modification`);assert.match(record.sha256,/^[a-f0-9]{64}$/,'upstream hash is preserved');const bytes=fs.readFileSync(new URL(name,iconRoot)),packaged=crypto.createHash('sha256').update(bytes).digest('hex');assert.equal(packaged,record.packagedSha256);assert.match(bytes.toString('utf8'),/stroke="#6848d7"/)}
-assert.match(license.notice,/ISC License/);assert.match(license.additionalNotice,/MIT License/)
+assert.equal(provenance.schema,'stemist-original-tavern-icons-v2')
+assert.equal(provenance.designReferences.every(item=>item.copiedAssets===false),true)
+const iconHashes=[]
+for(const name of ICONS){const record=provenance.files.find(item=>item.name===name);assert.equal(record.original,true,`${name} must be project-original`);assert.equal(record.source,'project-original');const bytes=fs.readFileSync(new URL(name,iconRoot)),packaged=crypto.createHash('sha256').update(bytes).digest('hex'),source=bytes.toString('utf8');iconHashes.push(packaged);assert.equal(packaged,record.packagedSha256);assert.equal(packaged,record.sha256);assert.equal(bytes.length,record.packagedBytes);assert.match(source,/viewBox="0 0 48 48"/);assert.match(source,/stroke-linecap="round"/);assert.match(source,/stroke-linejoin="round"/);assert.match(source,/<(?:path|circle|rect|line|polyline|ellipse)[^>]*fill="#[A-Fa-f0-9]{6}"/);assert.doesNotMatch(source,/<text|currentColor|lucide/i)}
+assert.equal(new Set(iconHashes).size,8,'every role illustration has distinct original geometry')
+for(const retired of ['message-circle.svg','messages-square.svg','cat.svg','compass.svg','swords.svg','search.svg','sparkles.svg','layers.svg'])assert.equal(fs.existsSync(new URL(retired,iconRoot)),false,`${retired} is retired rather than shipped unused`)
+assert.match(license.notice,/ISC License/);assert.match(license.additionalNotice,/MIT License/,'historical third-party attribution remains intact')
 
 const luminance=hex=>[1,3,5].map(index=>Number.parseInt(hex.slice(index,index+2),16)/255).map(value=>value<=.03928?value/12.92:((value+.055)/1.055)**2.4).reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0)
 const contrast=(left,right)=>(Math.max(luminance(left),luminance(right))+.05)/(Math.min(luminance(left),luminance(right))+.05)
 for(const [foreground,background] of [['#6848d7','#e9e4fc'],['#9b4f70','#fae8f0'],['#9a6328','#fff1dc'],['#356f9d','#e5f3ff'],['#34775f','#e5f5ed'],['#5d5a73','#edeef4'],['#5638b8','#f0ecfb'],['#66708a','#ffffff']])assert.ok(contrast(foreground,background)>=4.5,`${foreground} on ${background} must remain readable`)
 
-console.log('Tavern eight-preset catalog, discovery, licensed icons, request identity and isolation passed.')
+console.log('Tavern eight-preset catalog, original role illustrations, discovery, request identity and isolation passed.')

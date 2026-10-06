@@ -1,88 +1,108 @@
 {
-  "schema": "stemist-licensed-icons-v1",
-  "capturedAt": "2026-10-06T16:50:46.9884915+08:00",
-  "repository": "https://github.com/lucide-icons/lucide",
-  "tag": "0.468.0",
+  "schema": "stemist-original-tavern-icons-v2",
+  "createdAt": "2026-10-07T00:26:34.0146954+08:00",
+  "authorship": "Original 48x48 SVG role illustrations authored for STEMist. No third-party icon path or artwork was copied.",
+  "designReferences": [
+    {
+      "source": "https://github.com/lucide-icons/lucide/blob/main/docs/how-to/icon-guide.md",
+      "principles": ["one consistent visual language", "distinct symbols for distinct meanings", "icons remain paired with text labels"],
+      "copiedAssets": false
+    },
+    {
+      "source": "https://github.com/lucide-icons/lucide/blob/main/docs/index.md",
+      "principles": ["scalable SVG", "clean readable geometry", "rounded stroke caps and joins"],
+      "copiedAssets": false
+    }
+  ],
+  "retainedThirdPartyNotice": "license.json retains the prior Lucide and Feather notices for repository attribution history; none of the persona illustrations listed here derives from those paths.",
   "files": [
     {
-      "name": "message-circle.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/message-circle.svg",
-      "sha256": "a9bd7a3e24bf81c598974bda992d0d363dd0996d0f14ecbe9986e03a07068884",
-      "bytes": 254,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "e61b962a75fb2e3bba0422806f5369fe826c38156f09fc44033c2a52fd243cb1",
-      "packagedBytes": 249
+      "name": "keeper-tree-lantern.svg",
+      "roleId": "keeper",
+      "concept": "tree hollow, crescent moon and warm lantern glow",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "56515e7e6bb8a36907f6461b2c23f0784cfc2e92745037ba3b200807ba5a648b",
+      "packagedSha256": "56515e7e6bb8a36907f6461b2c23f0784cfc2e92745037ba3b200807ba5a648b",
+      "packagedBytes": 792
     },
     {
-      "name": "messages-square.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/messages-square.svg",
-      "sha256": "eecf35710e7a26095c49f0e8261452f92a3909b4f9e2020ef242211285f7e922",
-      "bytes": 348,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "6f30baefe6a79f13e649490b2a584193f23beb622de4215a39b83f769bd3bb64",
-      "packagedBytes": 343
+      "name": "study-buddy-banter.svg",
+      "roleId": "study-buddy",
+      "concept": "two playful overlapping dialogue bubbles",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "f2f835b7ed0623f6e10dc9562f9b5377de275db3edbfb2a4aa00d77ca98da5ee",
+      "packagedSha256": "f2f835b7ed0623f6e10dc9562f9b5377de275db3edbfb2a4aa00d77ca98da5ee",
+      "packagedBytes": 748
     },
     {
-      "name": "cat.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/cat.svg",
-      "sha256": "aa8dacc2b7db300a4137da7a7b0e2b4983061d45ef8bfff2c8078796b97e7518",
-      "bytes": 537,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "ebaf9cee9bbd8d8b9fd4fdb5f90dde73276449a34ac783e1d0cc6a77a820599b",
-      "packagedBytes": 532
+      "name": "cat-companion-face.svg",
+      "roleId": "cat-companion",
+      "concept": "original proud cat face with whiskers",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "16f35dd2317e7278418472754acacc7ff1ab02be88af7cee8c861b77e6b93aaf",
+      "packagedSha256": "16f35dd2317e7278418472754acacc7ff1ab02be88af7cee8c861b77e6b93aaf",
+      "packagedBytes": 745
     },
     {
-      "name": "compass.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/compass.svg",
-      "sha256": "554b51f38db4af3c7a3a603ce9fc3786d32fe20eb9e3226ec41e7b5fdcbb2b68",
-      "bytes": 351,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "1c1a34abbe235feb62d763985319a9768fb4df645eec3df7716dbcfd07fd348c",
-      "packagedBytes": 346
+      "name": "story-traveler-map.svg",
+      "roleId": "story-traveler",
+      "concept": "folded map, star path and destination marker",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "766cf7f26c5a2f6dc32c7f083512278babcce39c6e72775c469f82c422fab029",
+      "packagedSha256": "766cf7f26c5a2f6dc32c7f083512278babcce39c6e72775c469f82c422fab029",
+      "packagedBytes": 649
     },
     {
-      "name": "swords.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/swords.svg",
-      "sha256": "6aad3bab627f5badf888461004aa9b5d2cdcde127a5791d21b96d729e16668d0",
-      "bytes": 573,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "dc30c8e0e5ecfb48bef95dad0311d9503c4aacdefbeaa2ebd32cc2fe2cf07084",
-      "packagedBytes": 568
+      "name": "xianxia-sword-bamboo.svg",
+      "roleId": "xianxia-guide",
+      "concept": "diagonal sword beside bamboo leaves",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "e791f0ff18ddd8ad2b4215ff2f95c97d27a451eea829e90f5d959e52a072bbfb",
+      "packagedSha256": "e791f0ff18ddd8ad2b4215ff2f95c97d27a451eea829e90f5d959e52a072bbfb",
+      "packagedBytes": 625
     },
     {
-      "name": "search.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/search.svg",
-      "sha256": "9322d964b61cf729b3a81210568d5a97eaf4a1f3239f25a056fda3013bf35611",
-      "bytes": 273,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "f98143aa4a607655944ae07acb2665151f0de63450a0ecf2d722fa0fe9fea0e9",
-      "packagedBytes": 268
+      "name": "mystery-tea-lens.svg",
+      "roleId": "mystery-guide",
+      "concept": "tea cup, steam and magnifying lens",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "f97a5e4a4f853ec1a38a81bdf6a6495af4c21d510ff597057eda39295520864a",
+      "packagedSha256": "f97a5e4a4f853ec1a38a81bdf6a6495af4c21d510ff597057eda39295520864a",
+      "packagedBytes": 664
     },
     {
-      "name": "sparkles.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/sparkles.svg",
-      "sha256": "cc8061ee31c43138e081522260d2ddd35465dfb2a4435fddd3d9857952d7231e",
-      "bytes": 568,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "9f1a52aba50a68b583dd24c12529f176668d58f4a25554ac726629c08acf611d",
-      "packagedBytes": 563
+      "name": "eastern-oracle-lots.svg",
+      "roleId": "eastern-oracle",
+      "concept": "fortune sticks with a small yin-yang seal",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "48b1a467bdc38918eb6646557bf0ac713f174b845f1dd3c70c34d757a1963b1c",
+      "packagedSha256": "48b1a467bdc38918eb6646557bf0ac713f174b845f1dd3c70c34d757a1963b1c",
+      "packagedBytes": 771
     },
     {
-      "name": "layers.svg",
-      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/layers.svg",
-      "sha256": "ce16d0a955e3581cda17f6b2fd5c5bc2034b405f9cecc31c8ebb8495b4afc1bb",
-      "bytes": 510,
-      "modified": true,
-      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
-      "packagedSha256": "d544b51327c8bb5e417f144de38eb0b99c41478c578eda5324eb5f47ea7854b0",
-      "packagedBytes": 505
+      "name": "tarot-moon-cards.svg",
+      "roleId": "tarot-reader",
+      "concept": "three layered cards with crescent and stars",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "c5443e3b9beea124140ec7be8db80febfd0fcd668e5e5930a93ded40dbb7df17",
+      "packagedSha256": "c5443e3b9beea124140ec7be8db80febfd0fcd668e5e5930a93ded40dbb7df17",
+      "packagedBytes": 717
     }
   ]
 }

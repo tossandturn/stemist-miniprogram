@@ -5,7 +5,7 @@ import path from 'node:path'
 import {execFileSync} from 'node:child_process'
 
 const root=path.resolve(import.meta.dirname,'..'),attributePath=path.join(root,'.gitattributes')
-assert.equal(fs.existsSync(attributePath),true,'licensed SVG checkout needs a targeted LF attribute')
+assert.equal(fs.existsSync(attributePath),true,'reviewed SVG checkout needs a targeted LF attribute')
 const attributes=fs.readFileSync(attributePath,'utf8')
 assert.match(attributes,/^bundles\/coach\/icons\/\*\.svg text eol=lf$/m)
 assert.doesNotMatch(attributes,/^(?:\*|bundles\/coach\/\*)\s/m,'the fix must not rewrite unrelated repository files')
@@ -26,4 +26,4 @@ try{
  fs.rmSync(resolved,{recursive:true,force:true})
 }
 
-console.log('Licensed Tavern SVGs retain reviewed LF hashes in an autocrlf checkout.')
+console.log('Original Tavern SVGs retain reviewed LF hashes in an autocrlf checkout.')
