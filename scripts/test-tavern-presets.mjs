@@ -199,7 +199,7 @@ assert.match(styles,/\.chat-list\{height:136px/,'one bounded display page stays 
 assert.match(styles,/\.history-action\{[^}]*min-height:44px/,'history paging remains touch accessible')
 assert.match(styles,/\.chat-history-label\{[^}]*flex:0 0 auto;white-space:nowrap/,'history labels must not collapse into a vertical column on phones')
 assert.match(styles,/\.chat-history-actions\{[^}]*flex:0 0 auto/,'history actions must keep a bounded intrinsic width')
-assert.match(styles,/\.history-action\{[^}]*width:auto/,'history buttons override the global full-width button style')
+assert.match(styles,/\.tavern-page \.chat-history-actions button\.history-action\{flex:0 0 72px;width:72px;min-width:72px;max-width:72px/,'native history buttons need explicit bounded width, not intrinsic auto width')
 assert.doesNotMatch(styles,/\.avatar-(?:core|mark)/)
 assert.doesNotMatch(styles,/overflow-x:\s*(?:auto|scroll)/)
 assert.doesNotMatch(hub,/三位 AI 角色/)
