@@ -175,4 +175,5 @@ await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'submitted r
 const strictMemoryRuntime=miniRuntime({modules:{'utils/api':{COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async()=>canonicalResult({memory:{contextWindowTokens:'1000',estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:2,retrievedSegments:0}})}}})
 await assert.rejects(()=>strictMemoryRuntime.load('bundles/coach/tavernConversation').sendTavernTurn({persona:'keeper',message:'submitted request',conversationId:'conversation-canonical',clientTurnId:'turn:canonical',expectedRevision:1}),/contextWindowTokens|无效/i)
 
+assert.equal(requests.find(item=>item.path==='/api/ai/coach').options.timeout,60_000,'Tavern transport leaves five seconds beyond the server maximum deadline')
 console.log('Tavern conversation service: legacy preservation, Proxy-safe DTOs, bounded display pages and incremental transport contract passed.')

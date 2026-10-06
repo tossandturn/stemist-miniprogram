@@ -1,4 +1,4 @@
-const {requestJson:requestApiJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
+const {requestJson:requestApiJson}=require('../../utils/api')
 
 async function requestJson(...args){
  try{return await requestApiJson(...args)}catch(error){
@@ -144,7 +144,7 @@ async function sendTavernTurn({persona,message,conversationId,clientTurnId,expec
  const role=scalar(persona,'persona',80),id=scalar(conversationId,'conversationId'),turnId=scalar(clientTurnId,'clientTurnId'),revision=integer(expectedRevision,'expectedRevision'),attempt=optionalScalar(attemptId,'attemptId'),draw=optionalScalar(drawId,'drawId'),text=boundedContent(message,'message')
  if(!text)fail('消息不能为空')
  const body={feature:'tavern',persona:role,message:text,conversationId:id,clientTurnId:turnId,expectedRevision:revision,...(attempt?{attemptId:attempt}:{}),...(draw?{drawId:draw}:{})}
- const result=await requestJson('/api/ai/coach',body,{method:'POST',timeout:COACH_TEXT_TIMEOUT_MS||55_000})
+ const result=await requestJson('/api/ai/coach',body,{method:'POST',timeout:60_000})
  if(!result||result.mode!=='ai'||result.providerStatus!=='connected')return result
  const returnedTurn=scalar(result.clientTurnId,'clientTurnId')
  if(returnedTurn!==turnId)fail('AI 回应与当前请求不匹配','tavern_conversation_turn_mismatch')
