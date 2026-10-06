@@ -59,6 +59,14 @@ Page({
  onResize(){syncDevice(this)},
  onUnload(){this.__fortuneRevision++;this.__conversationGeneration++;if(this.current())this.save(false);this.__disposed=true},
  current(){return!this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
+ quiesceIdentityFailure(error,{status='对话未完成',clearPending=this.data.clearPending===true}={}){
+  const auth=isAuthError(error),changed=!this.current()
+  if(!auth&&!changed)return false
+  if(this.__disposed)return true
+  const sameEpoch=epoch()===this.__epoch,currentOwner=owner(),authRecovery=auth&&sameEpoch&&(currentOwner==='guest'||currentOwner===this.__owner)
+  this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:authRecovery,clearPending:Boolean(clearPending),warning:'',error:authRecovery?(clearPending?'登录已过期，云端对话尚未清除；请登录后重试。':'登录已过期，请登录后继续。'):(clearPending?'账号状态已变化，旧账号的云端对话尚未清除。':'账号状态已变化，请重新进入酒馆。'),status})
+  return true
+ },
  key(persona=this.data.persona){return`stemistTavern:${this.__owner}:${this.__epoch}:${persona}`},
  selectionKey(){return`stemistTavern:${this.__owner}:${this.__epoch}:selected`},
  read(persona){let state=this.__states[persona];if(!state)try{state=storedState(wx.getStorageSync(this.key(persona)),this.__owner,this.__epoch,persona)}catch{state=emptyState(this.__owner,this.__epoch,persona)}this.__states[persona]=state;return state},
@@ -79,7 +87,7 @@ Page({
   if(fortune&&state.draw)try{draw=normalizeTavernDraw({draw:state.draw},{persona:selected.id,spread,now:0});if(draw.expiresAt<=Date.now()){drawNeedsRedraw=true;drawError='本次娱乐抽取已过期，请重新抽取。'}}catch{drawNeedsRedraw=true;drawError='本机抽取记录无效，请重新抽取。'}
   const turns=state.turns
   this.setData({selected,persona:selected.id,starters:selected.starters,greeting:selected.greeting,placeholder:selected.placeholder,selectorOpen:open,presetChosen:chosen,message:fortune?'':String(state.draft||''),question:fortune?clip(state.question,600):'',spread,draw,drawLoading:false,interpretLoading:false,drawNeedsRedraw,turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:this.data.examBlocked?this.data.error:drawError,warning:'',canRetry:false,authRequired:false,clearPending:state.clearPending,status:''})
-  if(chosen&&hasSession()&&!state.clearPending)Promise.resolve().then(()=>this.resumeConversation(false,generation)).catch(error=>{if(this.current()&&generation===this.__conversationGeneration&&!isAuthError(error))this.setData({warning:'云端历史暂未同步；本机草稿仍保留。'})})
+  if(chosen&&hasSession()&&!state.clearPending)Promise.resolve().then(()=>this.resumeConversation(false,generation)).catch(error=>{if(generation!==this.__conversationGeneration)return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({warning:'云端历史暂未同步；本机草稿仍保留。'})})
  },
  applyEnvelope(state,envelope,{legacyConfirmed=false,render=true}={}){
   if(state.conversation&&state.conversation.id!==envelope.conversation.id)throw Object.assign(Error('云端对话标识已变化，请重新进入。'),{code:'tavern_conversation_changed'})
@@ -136,17 +144,18 @@ Page({
   const generation=this.__conversationGeneration,pending=this.preparePending(message)
   this.setData({loading:true,error:'',answer:'',canRetry:false,authRequired:false,status:'AI 正在回应…'})
   try{
-   const state=await this.ensureConversation(true,generation);if(!this.current()||generation!==this.__conversationGeneration)return
+   const state=await this.ensureConversation(true,generation);if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}
    const result=await sendTavernTurn({persona:this.data.persona,message,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision,attemptId:this.__attemptId})
-   if(!this.current()||generation!==this.__conversationGeneration)return
+   if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}
    const answer=String(result?.answer||result?.message||'').trim(),completed=result?.mode==='ai'&&result?.providerStatus==='connected'&&Boolean(answer)
    if(!completed)throw Error(result?.failureMessage||'AI 本次没有完成回应，文字已保留，请重试。')
    if(!this.applyCompletion(result,pending,{answer,status:'AI 已回应'}))this.setData({error:'云端已有更新；旧回应未覆盖当前历史。',canRetry:true,status:'对话未完成'})
   }catch(error){
+   if(generation!==this.__conversationGeneration)return
    const auth=isAuthError(error)
-   if(revisionConflict(error)&&this.current()&&generation===this.__conversationGeneration)try{await this.resumeConversation(false,generation);this.setData({error:'云端对话已更新，请重试发送。',canRetry:true,status:'对话未完成'})}catch(refreshError){if(this.current())this.setData({error:refreshError.message||'云端历史刷新失败，请稍后重试。',canRetry:true,status:'对话未完成'})}
-   else if(auth&&epoch()===this.__epoch&&owner()==='guest')this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',answer:'',error:'登录已过期，请登录后继续。',canRetry:false,authRequired:true,status:'对话未完成',loading:false})
-   else if(this.current()&&generation===this.__conversationGeneration){this.setData({answer:'',error:error.message||'AI 暂时不可用，文字已保留。',canRetry:!auth,authRequired:auth,status:'对话未完成'});this.save()}
+   if(revisionConflict(error)&&this.current())try{await this.resumeConversation(false,generation);this.setData({error:'云端对话已更新，请重试发送。',canRetry:true,status:'对话未完成'})}catch(refreshError){if(generation!==this.__conversationGeneration)return;if(this.quiesceIdentityFailure(refreshError,{status:'对话未完成'}))return;if(this.current())this.setData({error:refreshError.message||'云端历史刷新失败，请稍后重试。',canRetry:true,status:'对话未完成'})}
+   else if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return
+   else if(this.current()){this.setData({answer:'',error:error.message||'AI 暂时不可用，文字已保留。',canRetry:!auth,authRequired:auth,status:'对话未完成'});this.save()}
   }finally{if(this.current()||this.data.authRequired)this.setData({loading:false})}
  },
  async loadOlderHistory(){
@@ -154,7 +163,7 @@ Page({
   const generation=this.__conversationGeneration,state=this.read(this.data.persona),before=this.__browseNextBefore||state.nextBefore
   if(!state.conversation||!before)return
   this.setData({historyLoading:true,error:''})
-  try{const envelope=await fetchTavernMessages({conversationId:state.conversation.id,persona:this.data.persona,before,attemptId:this.__attemptId});if(!this.current()||generation!==this.__conversationGeneration)return;if(envelope.conversation.id!==state.conversation.id||envelope.conversation.revision<state.conversation.revision)throw Error('历史分页已过期，请回到最新对话。');state.conversation=envelope.conversation;this.__browseNextBefore=envelope.nextBefore;this.setData({turns:envelope.messages,historyAnchor:'',historySource:'cloud',historyBrowsing:true,hasOlderHistory:Boolean(envelope.nextBefore),historyLoading:false,status:'正在查看较早对话'});this.save(false)}catch(error){if(this.current()&&generation===this.__conversationGeneration)this.setData({historyLoading:false,error:error.message||'较早对话读取失败，请重试。'})}
+  try{const envelope=await fetchTavernMessages({conversationId:state.conversation.id,persona:this.data.persona,before,attemptId:this.__attemptId});if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}if(envelope.conversation.id!==state.conversation.id||envelope.conversation.revision<state.conversation.revision)throw Error('历史分页已过期，请回到最新对话。');state.conversation=envelope.conversation;this.__browseNextBefore=envelope.nextBefore;this.setData({turns:envelope.messages,historyAnchor:'',historySource:'cloud',historyBrowsing:true,hasOlderHistory:Boolean(envelope.nextBefore),historyLoading:false,status:'正在查看较早对话'});this.save(false)}catch(error){if(generation!==this.__conversationGeneration)return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({historyLoading:false,error:error.message||'较早对话读取失败，请重试。'})}
  },
  returnLatestHistory(){if(!this.current())return;const state=this.read(this.data.persona);this.renderLatest(state,{status:''})},
  async drawFortune(){return this.startFortuneDraw(false)},
@@ -163,24 +172,25 @@ Page({
   if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.selected.divinationKind)return
   const revision=++this.__fortuneRevision;if(fresh||!this.__pendingDrawNonce)this.__pendingDrawNonce=newDrawNonce();const nonce=this.__pendingDrawNonce;this.read(this.data.persona).pendingTurn=null
   this.setData({loading:true,drawLoading:true,interpretLoading:false,answer:'',error:'',canRetry:false,authRequired:false,drawNeedsRedraw:false,status:'正在随机抽取…'});let draw
-  try{draw=await requestTavernDraw({persona:this.data.persona,spread:this.data.spread,drawNonce:nonce,attemptId:this.__attemptId})}catch(error){const auth=isAuthError(error);if(auth&&epoch()===this.__epoch&&owner()==='guest'){this.__pendingDrawNonce='';this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:true,error:'登录已过期，请登录后继续。',status:'抽取未完成'})}else if(this.current()&&revision===this.__fortuneRevision){const needs=redrawRequired(error);if(needs)this.__pendingDrawNonce='';this.setData({loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:needs,canRetry:false,authRequired:auth,error:auth?'登录已过期，请登录后继续。':needs?'抽取记录无效，请点击重新抽取。':error.message||'抽取未完成，请重试。',status:'抽取未完成'})}return}
-  if(!this.current()||revision!==this.__fortuneRevision)return;this.__pendingDrawNonce='';this.setData({draw,drawLoading:false,interpretLoading:true,drawNeedsRedraw:false,error:'',status:'已抽取 · AI 正在解读…'});this.save();return this.interpretCurrent(revision)
+  try{draw=await requestTavernDraw({persona:this.data.persona,spread:this.data.spread,drawNonce:nonce,attemptId:this.__attemptId})}catch(error){if(revision!==this.__fortuneRevision)return;if(this.quiesceIdentityFailure(error,{status:'抽取未完成'})){this.__pendingDrawNonce='';return}if(this.current()){const auth=isAuthError(error),needs=redrawRequired(error);if(needs)this.__pendingDrawNonce='';this.setData({loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:needs,canRetry:false,authRequired:auth,error:auth?'登录已过期，请登录后继续。':needs?'抽取记录无效，请点击重新抽取。':error.message||'抽取未完成，请重试。',status:'抽取未完成'})}return}
+  if(revision!==this.__fortuneRevision)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'抽取未完成'});return}this.__pendingDrawNonce='';this.setData({draw,drawLoading:false,interpretLoading:true,drawNeedsRedraw:false,error:'',status:'已抽取 · AI 正在解读…'});this.save();return this.interpretCurrent(revision)
  },
  async retryInterpretation(){if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.draw||this.data.drawNeedsRedraw)return;const revision=++this.__fortuneRevision;this.setData({loading:true,drawLoading:false,interpretLoading:true,error:'',canRetry:false,authRequired:false,status:'正在重新解读…'});return this.interpretCurrent(revision)},
  async interpretCurrent(revision){
   const draw=this.data.draw,persona=this.data.persona,question=this.data.question;if(!draw)return
   const generation=this.__conversationGeneration,requestText=question.trim()||(persona==='eastern-oracle'?'请根据这次实际抽到的卦签做一段简洁的娱乐解读。':'请根据这次实际抽到的牌面做一段简洁的娱乐解读。'),pending=this.preparePending(requestText,draw.id)
   try{
-   const state=await this.ensureConversation(true,generation)
+   const state=await this.ensureConversation(true,generation);if(generation!==this.__conversationGeneration||revision!==this.__fortuneRevision)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'解读未完成'});return}
    const result=await interpretTavernDraw({persona,drawId:draw.id,question,attemptId:this.__attemptId,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision})
-   if(!this.current()||generation!==this.__conversationGeneration||revision!==this.__fortuneRevision||this.data.draw?.id!==draw.id)return
+   if(generation!==this.__conversationGeneration||revision!==this.__fortuneRevision||this.data.draw?.id!==draw.id)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'解读未完成'});return}
    const answer=String(result?.answer||result?.message||'').trim(),completed=result?.mode==='ai'&&result?.providerStatus==='connected'&&Boolean(answer);if(!completed)throw Error(result?.failureMessage||'AI 解读未完成，牌面和问题已保留，请重试解读。')
    if(!this.applyCompletion(result,pending,{answer,status:'娱乐解读已完成'}))this.setData({error:'云端已有更新；旧解读未覆盖当前历史。',canRetry:true,status:'解读未完成'})
   }catch(error){
-   if(!this.current()||generation!==this.__conversationGeneration||revision!==this.__fortuneRevision)return
+   if(generation!==this.__conversationGeneration||revision!==this.__fortuneRevision)return
+   if(this.quiesceIdentityFailure(error,{status:'解读未完成'}))return
+   if(!this.current())return
    const auth=isAuthError(error),needs=redrawRequired(error)
-   if(auth&&epoch()===this.__epoch&&owner()==='guest')this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',answer:'',loading:false,interpretLoading:false,error:'登录已过期，请登录后继续。',canRetry:false,authRequired:true,status:'解读未完成'})
-   else{if(needs){this.__pendingDrawNonce='';this.read(this.data.persona).pendingTurn=null}this.setData({loading:false,interpretLoading:false,drawNeedsRedraw:needs,error:needs?'本次抽取已失效，请点击重新抽取。':'AI 解读未完成，牌面和问题已保留，请重试解读。',canRetry:!needs&&!auth,authRequired:auth,status:'解读未完成'});this.save()}
+   if(needs){this.__pendingDrawNonce='';this.read(this.data.persona).pendingTurn=null}this.setData({loading:false,interpretLoading:false,drawNeedsRedraw:needs,error:needs?'本次抽取已失效，请点击重新抽取。':'AI 解读未完成，牌面和问题已保留，请重试解读。',canRetry:!needs&&!auth,authRequired:auth,status:'解读未完成'});this.save()
   }
  },
  retry(){if(this.data.loading)return;if(this.data.selected.divinationKind){if(this.data.drawNeedsRedraw)return;if(this.data.draw)return this.retryInterpretation();return this.drawFortune()}return this.submit()},
@@ -192,13 +202,13 @@ Page({
   this.setData({loading:true,clearPending:true,error:'',warning:'',status:'正在清除云端对话…'});state.clearPending=true;this.save(false)
   try{
    if(!state.conversation&&hasSession()){
-    state.clearPending=false;this.setData({clearPending:false});const envelope=await resumeTavernConversation({persona:this.data.persona,attemptId:this.__attemptId});if(!this.current()||generation!==this.__conversationGeneration)return;state=this.applyEnvelope(state,envelope,{render:false});state.clearPending=true;this.setData({clearPending:true});this.save(false)
+    state.clearPending=false;this.setData({clearPending:false});const envelope=await resumeTavernConversation({persona:this.data.persona,attemptId:this.__attemptId});if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'清除未完成',clearPending:true});return}state=this.applyEnvelope(state,envelope,{render:false});state.clearPending=true;this.setData({clearPending:true});this.save(false)
    }
    if(state.conversation)await deleteTavernConversation({conversationId:state.conversation.id,persona:this.data.persona,attemptId:this.__attemptId})
-   if(!this.current()||generation!==this.__conversationGeneration)return
+   if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'清除未完成',clearPending:true});return}
    const persona=this.data.persona,fresh=emptyState(this.__owner,this.__epoch,persona),fortune=Boolean(this.data.selected.divinationKind);fresh.spread=fortune?this.data.selected.supportedSpreads[0]:'single';this.__states[persona]=fresh
    let persisted=true;try{wx.setStorageSync(this.key(),fresh)}catch{persisted=false}
    this.setData({message:'',question:'',spread:fresh.spread,draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,error:'',warning:persisted?'':'云端已清除，但本机空状态未能保存；重新进入时会再次从云端核对。',canRetry:false,authRequired:false,clearPending:false,status:'已清空当前角色对话'})
-  }catch(error){if(!this.current()||generation!==this.__conversationGeneration)return;state.clearPending=true;this.setData({loading:false,clearPending:true,error:'云端对话尚未清除，请重试。',warning:error.message||'',status:'清除未完成'});this.save(false)}
+  }catch(error){if(generation!==this.__conversationGeneration)return;if(this.quiesceIdentityFailure(error,{status:'清除未完成',clearPending:true}))return;if(!this.current())return;state.clearPending=true;this.setData({loading:false,clearPending:true,error:'云端对话尚未清除，请重试。',warning:error.message||'',status:'清除未完成'});this.save(false)}
  },
 })

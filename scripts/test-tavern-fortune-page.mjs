@@ -148,7 +148,9 @@ const authSameRuntime=miniRuntime({modules:{'utils/api':{isAuthError:error=>erro
 authSameRuntime.storage.set('stemistUser',{id:'same-owner'})
 const authSamePage=authSameRuntime.page('bundles/coach/tavern');authSamePage.onLoad();authSamePage.chooseCategory({currentTarget:{dataset:{category:'fortune'}}});authSamePage.choosePersona({currentTarget:{dataset:{persona:'tarot-reader'}}});authSamePage.onFortuneQuestion({detail:{value:'保留这个问题'}});await authSamePage.drawFortune()
 assert.equal(authSamePage.data.authRequired,true)
-assert.equal(authSamePage.data.question,'保留这个问题','auth failure without an identity change preserves current evidence')
+assert.equal(authSamePage.data.question,'','any authoritative 401 immediately hides private question text even before the shared client removes the cached user object')
+assert.equal(authSamePage.data.draw,null)
+assert.equal(authSamePage.data.turns.length,0)
 assert.equal(authSamePage.data.loading,false)
 
 const redrawGate=deferred(),redrawCalls=[];let redrawRevision=0,redrawMessages=[]

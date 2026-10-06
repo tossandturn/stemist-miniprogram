@@ -218,6 +218,59 @@ assert.equal(signedOutClearPage.data.clearPending, true)
 assert.doesNotMatch(signedOutClearPage.data.status, /已清空/)
 assert.equal(signedOutClearBackend.requests.some(item => item.options.method === 'DELETE'), false)
 
+const clearAuthEnvelope={conversation:{id:'conversation-clear-auth',persona:'keeper',revision:2,turnCount:1},messages:[completeMessage(1,'user','private clear user'),completeMessage(2,'assistant','private clear assistant')],nextBefore:''}
+const clearAuthBase=miniRuntime().load('bundles/coach/tavernConversation');let clearAuthRuntime,expireClearAuth=true
+clearAuthRuntime=miniRuntime({wx:{request:()=>{throw Error('network forbidden in clear auth race')}},modules:{'bundles/coach/tavernConversation':{...clearAuthBase,resumeTavernConversation:async()=>clearAuthEnvelope,deleteTavernConversation:async()=>{if(expireClearAuth){clearAuthRuntime.storage.delete('stemistUser');clearAuthRuntime.storage.delete('stemistSessionToken');throw Object.assign(Error('synthetic expired auth'),{statusCode:401,code:'coach_auth_required'})}return{deleted:true,conversationId:'conversation-clear-auth'}}}}})
+clearAuthRuntime.storage.set('stemistUser',{id:'clear-auth-owner'});clearAuthRuntime.storage.set('stemistSessionToken','fixture-session');clearAuthRuntime.storage.set('stemistTavern:clear-auth-owner:0:selected','keeper')
+const clearAuthPage=clearAuthRuntime.page('bundles/coach/tavern');clearAuthPage.onLoad();await settle();await clearAuthPage.clear()
+assert.equal(clearAuthPage.data.loading,false,'expired auth during DELETE cannot strand loading')
+assert.equal(clearAuthPage.data.turns.length,0,'expired auth during DELETE immediately hides old-owner dialogue')
+assert.equal(clearAuthPage.data.authRequired,true)
+assert.equal(clearAuthPage.data.clearPending,true)
+assert.equal(clearAuthRuntime.storage.get('stemistTavern:clear-auth-owner:0:keeper').clearPending,true,'unconfirmed remote clear stays with the old owner')
+assert.equal([...clearAuthRuntime.storage.keys()].some(key=>String(key).startsWith('stemistTavern:guest:')),false,'auth expiry never writes the old-owner tombstone into guest storage')
+clearAuthPage.openAccount();clearAuthRuntime.storage.set('stemistUser',{id:'clear-auth-owner'});clearAuthRuntime.storage.set('stemistSessionToken','restored-session');expireClearAuth=false;clearAuthPage.onShow();await clearAuthPage.clear()
+assert.equal(clearAuthPage.data.status,'已清空当前角色对话','same owner can retry the pending remote clear after authentication')
+
+let switchRuntime
+switchRuntime=miniRuntime({wx:{request:()=>{throw Error('network forbidden in owner switch race')}},modules:{'bundles/coach/tavernConversation':{...clearAuthBase,resumeTavernConversation:async()=>clearAuthEnvelope,deleteTavernConversation:async()=>{switchRuntime.storage.set('stemistUser',{id:'different-owner'});throw Object.assign(Error('synthetic owner changed'),{statusCode:409,code:'account_changed'})}}}})
+switchRuntime.storage.set('stemistUser',{id:'switch-clear-owner'});switchRuntime.storage.set('stemistSessionToken','fixture-session');switchRuntime.storage.set('stemistTavern:switch-clear-owner:0:selected','keeper')
+const switchPage=switchRuntime.page('bundles/coach/tavern');switchPage.onLoad();await settle();await switchPage.clear()
+assert.equal(switchPage.data.loading,false)
+assert.equal(switchPage.data.turns.length,0,'owner switch during DELETE hides the previous owner dialogue')
+assert.equal(switchPage.data.authRequired,false)
+assert.match(switchPage.data.error,/账号状态/)
+assert.equal([...switchRuntime.storage.keys()].some(key=>String(key).startsWith('stemistTavern:different-owner:')),false,'owner switch never copies the pending clear into the new owner namespace')
+
+let autoResumeRuntime
+autoResumeRuntime=miniRuntime({wx:{request:()=>{throw Error('network forbidden in autoresume auth race')}},modules:{'bundles/coach/tavernConversation':{...clearAuthBase,resumeTavernConversation:async()=>{autoResumeRuntime.storage.delete('stemistUser');autoResumeRuntime.storage.delete('stemistSessionToken');throw Object.assign(Error('synthetic autoresume auth expiry'),{statusCode:401,code:'coach_auth_required'})}}}})
+autoResumeRuntime.storage.set('stemistUser',{id:'autoresume-owner'});autoResumeRuntime.storage.set('stemistSessionToken','fixture-session');autoResumeRuntime.storage.set('stemistTavern:autoresume-owner:0:selected','keeper');autoResumeRuntime.storage.set('stemistTavern:autoresume-owner:0:keeper',{owner:'autoresume-owner',epoch:0,persona:'keeper',draft:'private autoresume draft',turns:legacyRounds(1)})
+const autoResumePage=autoResumeRuntime.page('bundles/coach/tavern');autoResumePage.onLoad();await settle();await settle()
+assert.equal(autoResumePage.data.loading,false)
+assert.equal(autoResumePage.data.turns.length,0,'401 during background resume hides the old-owner cached page')
+assert.equal(autoResumePage.data.message,'')
+assert.equal(autoResumePage.data.authRequired,true)
+assert.equal([...autoResumeRuntime.storage.keys()].some(key=>String(key).startsWith('stemistTavern:guest:')),false)
+
+let olderAuthRuntime
+olderAuthRuntime=miniRuntime({wx:{request:()=>{throw Error('network forbidden in older-page auth race')}},modules:{'bundles/coach/tavernConversation':{...clearAuthBase,fetchTavernMessages:async()=>{olderAuthRuntime.storage.delete('stemistUser');olderAuthRuntime.storage.delete('stemistSessionToken');throw Object.assign(Error('synthetic older-page auth expiry'),{statusCode:401,code:'coach_auth_required'})}}}})
+olderAuthRuntime.storage.set('stemistUser',{id:'older-auth-owner'});olderAuthRuntime.storage.set('stemistTavern:older-auth-owner:0:selected','keeper');olderAuthRuntime.storage.set('stemistTavern:older-auth-owner:0:keeper',{schemaVersion:2,owner:'older-auth-owner',epoch:0,persona:'keeper',draft:'',turns:clearAuthEnvelope.messages,nextBefore:'before:1',historySource:'cloud',conversation:clearAuthEnvelope.conversation})
+const olderAuthPage=olderAuthRuntime.page('bundles/coach/tavern');olderAuthPage.onLoad();await olderAuthPage.loadOlderHistory()
+assert.equal(olderAuthPage.data.historyLoading,false)
+assert.equal(olderAuthPage.data.turns.length,0,'401 during pagination hides the old-owner page')
+assert.equal(olderAuthPage.data.authRequired,true)
+
+const divinationBase=miniRuntime().load('bundles/coach/tavernDivination');let interpretAuthRuntime
+interpretAuthRuntime=miniRuntime({wx:{request:()=>{throw Error('network forbidden in interpretation auth race')}},modules:{'bundles/coach/tavernConversation':clearAuthBase,'bundles/coach/tavernDivination':{...divinationBase,interpretTavernDraw:async()=>{interpretAuthRuntime.storage.delete('stemistUser');interpretAuthRuntime.storage.delete('stemistSessionToken');throw Object.assign(Error('synthetic interpretation auth expiry'),{statusCode:401,code:'coach_auth_required'})}}}})
+interpretAuthRuntime.storage.set('stemistUser',{id:'interpret-auth-owner'})
+const interpretAuthPage=interpretAuthRuntime.page('bundles/coach/tavern');interpretAuthPage.onLoad();interpretAuthPage.choosePersona({currentTarget:{dataset:{persona:'eastern-oracle'}}});const interpretState=interpretAuthPage.read('eastern-oracle');interpretState.conversation={id:'conversation-interpret-auth',persona:'eastern-oracle',revision:1,turnCount:1};interpretState.turns=[completeMessage(1,'user','private fortune user'),completeMessage(2,'assistant','private fortune assistant')];interpretState.historySource='cloud';interpretAuthPage.setData({draw:{id:'draw-interpret-auth'},question:'private fortune question',turns:interpretState.turns});await interpretAuthPage.retryInterpretation()
+assert.equal(interpretAuthPage.data.loading,false)
+assert.equal(interpretAuthPage.data.interpretLoading,false)
+assert.equal(interpretAuthPage.data.turns.length,0,'401 during interpretation hides old-owner dialogue')
+assert.equal(interpretAuthPage.data.question,'')
+assert.equal(interpretAuthPage.data.draw,null)
+assert.equal(interpretAuthPage.data.authRequired,true)
+
 // Explicit logout only isolates local identity; it never deletes the account-owned cloud conversation.
 const logoutBackend = fakeBackend({ messages: completedRounds(3), revision: 3 })
 const logoutRuntime = miniRuntime({ modules: { 'utils/api': logoutBackend.api } })
