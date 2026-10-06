@@ -35,6 +35,22 @@ const runtime = miniRuntime({ modules: { 'utils/api': {
 } } })
 
 const service = runtime.load('bundles/coach/tavernConversation')
+for (const [code, statusCode, expected] of [
+ ['tavern_turn_in_progress', 409, '上一条消息'],
+ ['tavern_conversation_revision_conflict', 409, '其他设备'],
+ ['tavern_storage_quota_exceeded', 413, '存储上限'],
+ ['synthetic_unknown_failure', 400, '本次对话未完成'],
+]) {
+ const failing = miniRuntime({ modules: { 'utils/api': {
+  requestJson: async () => { throw Object.assign(new Error('Internal conversation state rejected'), { code, statusCode }) },
+ } } }).load('bundles/coach/tavernConversation')
+ await assert.rejects(failing.resumeTavernConversation({ persona: 'keeper' }), error => {
+  assert.equal(error.code, code)
+  assert.equal(error.statusCode, statusCode)
+  assert.ok(error.message.includes(expected), 'Student sees a localized recovery message, not an internal English failure')
+  return true
+ })
+}
 const {
   TAVERN_PAGE_LIMIT,
   TAVERN_MESSAGE_MAX_BYTES,

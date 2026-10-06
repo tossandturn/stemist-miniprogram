@@ -1,4 +1,14 @@
-const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
+const {requestJson:requestApiJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
+
+async function requestJson(...args){
+ try{return await requestApiJson(...args)}catch(error){
+  const code=String(error?.code||''),statusCode=Number(error?.statusCode)||0
+  const messages={tavern_turn_in_progress:'上一条消息仍在处理中，请稍后重试，输入已保留。',tavern_conversation_revision_conflict:'对话已在其他设备更新，请重新打开当前角色后重试。',tavern_storage_quota_exceeded:'对话已达到存储上限，已有记录仍保留。',tavern_physical_quota_exceeded:'对话存储空间暂时不足，已有记录仍保留。',tavern_storage_headroom_insufficient:'对话存储空间暂时不足，请稍后重试，已有记录仍保留。'}
+  const original=String(error?.message||'')
+  const message=messages[code]||(statusCode===401?'登录已过期，请登录后继续，输入已保留。':statusCode===429?'请求较多，请稍后再试，输入已保留。':/[\u4e00-\u9fff]/.test(original)?original:'本次对话未完成，输入已保留，请稍后重试。')
+  throw Object.assign(Error(message),{code,statusCode})
+ }
+}
 
 const TAVERN_PAGE_LIMIT=40
 const TAVERN_MESSAGE_MAX_BYTES=64*1024
