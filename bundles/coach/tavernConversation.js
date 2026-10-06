@@ -1,25 +1,31 @@
 const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
 
 const TAVERN_PAGE_LIMIT=40
+const TAVERN_MESSAGE_MAX_BYTES=64*1024
+const TAVERN_PAGE_MAX_BYTES=512*1024
+const TAVERN_LEGACY_IMPORT_MAX_BYTES=1024*1024
 const ID_PATTERN=/^[A-Za-z0-9:_-]+$/
 const fail=(message,code='invalid_tavern_conversation')=>{const error=Error(message);error.code=code;throw error}
 const scalar=(value,label,max=180)=>{if(typeof value!=='string')fail(`${label}无效`);const clean=value.trim();if(!clean||clean.length>max||!ID_PATTERN.test(clean))fail(`${label}无效`);return clean}
 const optionalScalar=(value,label,max=180)=>value===undefined||value===null||value===''?'':scalar(value,label,max)
 const cursor=value=>{if(value===undefined||value===null||value==='')return'';if(typeof value!=='string')fail('历史游标无效');const clean=value.trim();if(!clean||clean.length>240||/[\u0000-\u001f\u007f]/.test(clean))fail('历史游标无效');return clean}
-const integer=(value,label)=>{const number=Number(value);if(!Number.isSafeInteger(number)||number<0)fail(`${label}无效`);return number}
+const integer=(value,label)=>{if(typeof value!=='number'||!Number.isSafeInteger(value)||value<0)fail(`${label}无效`);return value}
 const cleanContent=value=>{if(typeof value!=='string')return'';return value.replaceAll(String.fromCharCode(0),'').trim()}
+function utf8Bytes(value,limit=Number.MAX_SAFE_INTEGER){let bytes=0;for(const symbol of String(value||'')){const point=symbol.codePointAt(0);bytes+=point<=0x7f?1:point<=0x7ff?2:point<=0xffff?3:4;if(bytes>limit)return bytes}return bytes}
+function boundedContent(value,label,maxBytes=TAVERN_MESSAGE_MAX_BYTES){const content=cleanContent(value);if(!content)fail(`${label}无效`);if(utf8Bytes(content,maxBytes)>maxBytes)fail(`${label} UTF-8 bytes 过大`,'tavern_message_bytes_exceeded');return content}
+const serializedMessageBytes=item=>utf8Bytes(item.id||'')+utf8Bytes(item.role||'')+utf8Bytes(item.status||'')+utf8Bytes(item.content||'')+96
 function randomId(prefix,{now=Date.now(),random=Math.random}={}){const time=Number(now),value=Number(random());if(!Number.isFinite(time)||time<0||!Number.isFinite(value)||value<0||value>=1)fail('本机请求标识无效');return`${prefix}:${Math.trunc(time).toString(36)}:${Math.floor(value*Number.MAX_SAFE_INTEGER).toString(36)}`}
 const newClientTurnId=options=>randomId('turn',options)
 
 function legacyTavernMessages(value){
- const rounds=[];let pending=''
+ const rounds=[];let pending='',totalBytes=2
  const source=Array.isArray(value)?value:[]
  for(let index=0;index<source.length;index++){
   const item=source[index],role=item&&typeof item==='object'?String(item.role||''):''
-  const content=cleanContent(item?.content)
+  const content=item&&typeof item.content==='string'?boundedContent(item.content,'旧对话消息'):''
   if(!content||!['user','assistant'].includes(role))continue
   if(role==='user'){pending=content;continue}
-  if(pending){rounds.push({role:'user',content:pending},{role:'assistant',content});pending=''}
+  if(pending){const pair=[{role:'user',content:pending},{role:'assistant',content}];for(const message of pair){totalBytes+=utf8Bytes(message.role)+utf8Bytes(message.content)+32;if(totalBytes>TAVERN_LEGACY_IMPORT_MAX_BYTES)fail('旧对话同步 UTF-8 bytes 过大','tavern_legacy_import_bytes_exceeded')}rounds.push(...pair);pending=''}
  }
  return rounds
 }
@@ -36,21 +42,24 @@ function legacyImportIdFor(persona,value){
 function legacyDisplayTavernMessages(value){
  const legacy=legacyTavernMessages(value).slice(-TAVERN_PAGE_LIMIT),messages=[]
  for(let index=0;index<legacy.length;index++){const item=legacy[index];messages.push({id:`legacy-local:${index+1}:${item.role}`,role:item.role,content:item.content,sequence:index+1,status:'complete'})}
- return messages
+ return displayTavernMessages(messages)
 }
 
 function canonicalMessage(value){
  if(!value||typeof value!=='object'||Array.isArray(value))fail('历史消息无效')
- const id=scalar(value.id,'message.id',180),role=String(value.role||''),content=cleanContent(value.content),sequence=integer(value.sequence,'message.sequence'),status=scalar(value.status,'message.status',40)
- if(!['user','assistant'].includes(role)||!content)fail('历史消息无效')
+ const id=scalar(value.id,'message.id',180),role=String(value.role||''),content=boundedContent(value.content,'message.content'),sequence=integer(value.sequence,'message.sequence'),status=scalar(value.status,'message.status',40)
+ if(!['user','assistant'].includes(role)||status!=='complete')fail('历史消息状态无效','tavern_conversation_message_status_invalid')
  return{id,role,content,sequence,status}
 }
 
 function displayTavernMessages(value){
  const source=Array.isArray(value)?value:[],local=[],seen=new Set()
+ if(source.length>TAVERN_PAGE_LIMIT)fail('历史 page 消息超过 40 条','tavern_conversation_page_too_large')
+ let totalBytes=2
  for(let index=0;index<source.length;index++){
   const item=canonicalMessage(source[index])
   if(seen.has(item.id))fail('历史消息重复')
+  totalBytes+=serializedMessageBytes(item);if(totalBytes>TAVERN_PAGE_MAX_BYTES)fail('历史 page UTF-8 bytes 过大','tavern_conversation_page_bytes_exceeded')
   seen.add(item.id);local.push(item)
  }
  local.sort((left,right)=>left.sequence-right.sequence||left.id.localeCompare(right.id))
@@ -67,7 +76,8 @@ function mergeTavernMessages(...lists){
    if(!previous)merged.set(item.id,item)
   }
  }
- return displayTavernMessages([...merged.values()])
+ const local=[...merged.values()].sort((left,right)=>left.sequence-right.sequence||left.id.localeCompare(right.id)).slice(-TAVERN_PAGE_LIMIT)
+ return displayTavernMessages(local)
 }
 
 function conversationRecord(value,expectedPersona=''){
@@ -116,11 +126,12 @@ async function deleteTavernConversation({conversationId,persona,attemptId=''}={}
 
 function memoryRecord(value){
  if(!value||typeof value!=='object'||Array.isArray(value))fail('长期记忆状态无效')
- return{contextWindowTokens:integer(value.contextWindowTokens,'memory.contextWindowTokens'),estimatedInputUpperBoundTokens:integer(value.estimatedInputUpperBoundTokens,'memory.estimatedInputUpperBoundTokens'),countingMethod:String(value.countingMethod||'').trim().slice(0,80),historyTruncated:Boolean(value.historyTruncated),usedHistoryMessages:integer(value.usedHistoryMessages,'memory.usedHistoryMessages'),retrievedSegments:integer(value.retrievedSegments,'memory.retrievedSegments')}
+ const countingMethod=typeof value.countingMethod==='string'?value.countingMethod.trim():'';if(!countingMethod||countingMethod.length>80||typeof value.historyTruncated!=='boolean')fail('长期记忆状态无效')
+ return{contextWindowTokens:integer(value.contextWindowTokens,'memory.contextWindowTokens'),estimatedInputUpperBoundTokens:integer(value.estimatedInputUpperBoundTokens,'memory.estimatedInputUpperBoundTokens'),countingMethod,historyTruncated:value.historyTruncated,usedHistoryMessages:integer(value.usedHistoryMessages,'memory.usedHistoryMessages'),retrievedSegments:integer(value.retrievedSegments,'memory.retrievedSegments')}
 }
 
 async function sendTavernTurn({persona,message,conversationId,clientTurnId,expectedRevision,attemptId='',drawId=''}={}){
- const role=scalar(persona,'persona',80),id=scalar(conversationId,'conversationId'),turnId=scalar(clientTurnId,'clientTurnId'),revision=integer(expectedRevision,'expectedRevision'),attempt=optionalScalar(attemptId,'attemptId'),draw=optionalScalar(drawId,'drawId'),text=cleanContent(message)
+ const role=scalar(persona,'persona',80),id=scalar(conversationId,'conversationId'),turnId=scalar(clientTurnId,'clientTurnId'),revision=integer(expectedRevision,'expectedRevision'),attempt=optionalScalar(attemptId,'attemptId'),draw=optionalScalar(drawId,'drawId'),text=boundedContent(message,'message')
  if(!text)fail('消息不能为空')
  const body={feature:'tavern',persona:role,message:text,conversationId:id,clientTurnId:turnId,expectedRevision:revision,...(attempt?{attemptId:attempt}:{}),...(draw?{drawId:draw}:{})}
  const result=await requestJson('/api/ai/coach',body,{method:'POST',timeout:COACH_TEXT_TIMEOUT_MS||55_000})
@@ -130,10 +141,12 @@ async function sendTavernTurn({persona,message,conversationId,clientTurnId,expec
  const normalized=normalizeTavernEnvelope({conversation:result.conversation,messages:result.turns,nextBefore:''},role)
  if(normalized.conversation.id!==id||normalized.conversation.revision<revision)fail('AI 回应版本已过期','tavern_conversation_revision_stale')
  if(normalized.messages.length!==2||normalized.messages[0].role!=='user'||normalized.messages[1].role!=='assistant')fail('AI 回应缺少完整问答','tavern_conversation_turn_incomplete')
+ const answer=boundedContent(result.answer,'answer')
+ if(normalized.messages[0].content!==text||normalized.messages[1].content!==answer)fail('AI canonical 问答与本次请求不匹配','tavern_conversation_canonical_mismatch')
  const local={}
  for(const key of Object.keys(result))local[key]=result[key]
- local.conversation=normalized.conversation;local.clientTurnId=returnedTurn;local.turns=normalized.messages;local.memory=memoryRecord(result.memory)
+ local.answer=answer;local.conversation=normalized.conversation;local.clientTurnId=returnedTurn;local.turns=normalized.messages;local.memory=memoryRecord(result.memory)
  return local
 }
 
-module.exports={TAVERN_PAGE_LIMIT,displayTavernMessages,legacyDisplayTavernMessages,legacyImportIdFor,legacyTavernMessages,mergeTavernMessages,newClientTurnId,normalizeTavernEnvelope,resumeTavernConversation,fetchTavernMessages,deleteTavernConversation,sendTavernTurn}
+module.exports={TAVERN_PAGE_LIMIT,TAVERN_MESSAGE_MAX_BYTES,TAVERN_PAGE_MAX_BYTES,TAVERN_LEGACY_IMPORT_MAX_BYTES,displayTavernMessages,legacyDisplayTavernMessages,legacyImportIdFor,legacyTavernMessages,mergeTavernMessages,newClientTurnId,normalizeTavernEnvelope,resumeTavernConversation,fetchTavernMessages,deleteTavernConversation,sendTavernTurn}

@@ -37,6 +37,9 @@ const runtime = miniRuntime({ modules: { 'utils/api': {
 const service = runtime.load('bundles/coach/tavernConversation')
 const {
   TAVERN_PAGE_LIMIT,
+  TAVERN_MESSAGE_MAX_BYTES,
+  TAVERN_PAGE_MAX_BYTES,
+  TAVERN_LEGACY_IMPORT_MAX_BYTES,
   displayTavernMessages,
   legacyDisplayTavernMessages,
   legacyTavernMessages,
@@ -50,6 +53,7 @@ const {
 } = service
 
 assert.equal(TAVERN_PAGE_LIMIT, 40)
+assert.ok(TAVERN_MESSAGE_MAX_BYTES>0&&TAVERN_PAGE_MAX_BYTES>=TAVERN_MESSAGE_MAX_BYTES&&TAVERN_LEGACY_IMPORT_MAX_BYTES>=TAVERN_PAGE_MAX_BYTES)
 
 const oldLocal = Array.from({ length: 20 }, (_, index) => [
   { role: 'user', content: `old-user-${index}-${'你'.repeat(1600)}` },
@@ -65,10 +69,9 @@ assert.equal(legacyTavernMessages(fiftyFiveRounds).length,110,'legacy preservati
 assert.equal(legacyDisplayTavernMessages(fiftyFiveRounds).length,40,'only the rendered local page is bounded to 40 messages')
 
 const twoHundred = Array.from({ length: 220 }, (_, index) => message(index + 1))
-const visible = displayTavernMessages(twoHundred)
-assert.equal(visible.length, 40, 'the phone render page stays bounded without defining cloud retention')
-assert.equal(visible[0].id, 'message-181')
-assert.equal(visible.at(-1).id, 'message-220')
+assert.throws(()=>displayTavernMessages(twoHundred),/page|40|过大|消息/i,'an oversized canonical collection is rejected rather than silently cropped')
+const visible=displayTavernMessages(twoHundred.slice(-40))
+assert.equal(visible.length,40);assert.equal(visible[0].id,'message-181');assert.equal(visible.at(-1).id,'message-220')
 
 const proxiedMessages = new Proxy([message(1), message(2)], {
   preventExtensions() { throw new Error('SDK proxy cannot be frozen') },
@@ -128,5 +131,32 @@ assert.equal(wire[1].url,'https://stem.ieltsist.com/api/ai/coach')
 assert.equal(wire[1].data.message,'wire current only')
 assert.equal(wire[1].data.history,undefined)
 assert.equal(wire[1].data.context,undefined)
+
+for(const malformed of [
+ {conversation:{id:'conversation-strict',persona:'keeper',revision:false,turnCount:1},messages:[]},
+ {conversation:{id:'conversation-strict',persona:'keeper',revision:1,turnCount:'1'},messages:[]},
+ {conversation:{id:'conversation-strict',persona:'keeper',revision:1,turnCount:1},messages:[{id:'strict-u',role:'user',content:'x',sequence:null,status:'complete'}]},
+ {conversation:{id:'conversation-strict',persona:'keeper',revision:1,turnCount:1},messages:[{id:'strict-u',role:'user',content:'x',sequence:'1',status:'complete'}]},
+])assert.throws(()=>normalizeTavernEnvelope({...malformed,nextBefore:''},'keeper'),/revision|turnCount|sequence|无效/i,'network canonical integers must reject coercible non-number values')
+
+const hugePage=Array.from({length:40},(_,index)=>({id:`huge-${index}`,role:index%2?'assistant':'user',content:`sentinel-${index}-`+'界'.repeat(128*1024),sequence:index+1,status:'complete'}))
+assert.throws(()=>normalizeTavernEnvelope({conversation:{id:'conversation-huge',persona:'keeper',revision:1,turnCount:20},messages:hugePage,nextBefore:''},'keeper'),/bytes|过大|page|消息/i,'bounded count cannot admit an unbounded UTF-8 page')
+const hugeLegacy=Array.from({length:110},(_,index)=>({role:index%2?'assistant':'user',content:'界'.repeat(16*1024)}))
+assert.throws(()=>legacyTavernMessages(hugeLegacy),/bytes|过大|旧对话/i,'legacy outbound payload is rejected before request construction')
+const displayHeavyLegacy=Array.from({length:40},(_,index)=>({role:index%2?'assistant':'user',content:'界'.repeat(5*1024)}))
+assert.throws(()=>legacyDisplayTavernMessages(displayHeavyLegacy),/bytes|过大|page|消息/i,'legacy display page obeys the same setData byte budget')
+assert.equal(legacyTavernMessages(fiftyFiveRounds).length,110,'110 short legacy messages remain valid')
+
+const canonicalResult=overrides=>({mode:'ai',providerStatus:'connected',answer:'canonical answer',clientTurnId:'turn:canonical',conversation:{id:'conversation-canonical',persona:'keeper',revision:2,turnCount:2},turns:[{id:'canonical-u',role:'user',content:'submitted request',sequence:3,status:'complete'},{id:'canonical-a',role:'assistant',content:'canonical answer',sequence:4,status:'complete'}],memory:{contextWindowTokens:1000,estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:2,retrievedSegments:0},...overrides})
+const rejectCanonical=async overrides=>{const testRuntime=miniRuntime({modules:{'utils/api':{COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async()=>canonicalResult(overrides)}}});return assert.rejects(()=>testRuntime.load('bundles/coach/tavernConversation').sendTavernTurn({persona:'keeper',message:'submitted request',conversationId:'conversation-canonical',clientTurnId:'turn:canonical',expectedRevision:1}),/canonical|关联|不匹配|完整|状态/i)}
+await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'different request',sequence:3,status:'complete'},{id:'canonical-a',role:'assistant',content:'canonical answer',sequence:4,status:'complete'}]})
+await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'submitted request',sequence:3,status:'complete'},{id:'canonical-a',role:'assistant',content:'different answer',sequence:4,status:'complete'}]})
+await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'submitted request',sequence:3,status:'pending'},{id:'canonical-a',role:'assistant',content:'canonical answer',sequence:4,status:'complete'}]})
+await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'submitted request',sequence:3,status:'complete'},{id:'canonical-a',role:'assistant',content:'canonical answer',sequence:4,status:'failed'}]})
+await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'submitted request',sequence:3,status:'complete'}]})
+await rejectCanonical({turns:[{id:'canonical-u',role:'user',content:'submitted request',sequence:3,status:'complete'},{id:'canonical-a',role:'assistant',content:'canonical answer',sequence:4,status:'complete'},{id:'extra',role:'assistant',content:'extra',sequence:5,status:'complete'}]})
+
+const strictMemoryRuntime=miniRuntime({modules:{'utils/api':{COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async()=>canonicalResult({memory:{contextWindowTokens:'1000',estimatedInputUpperBoundTokens:100,countingMethod:'fixture',historyTruncated:false,usedHistoryMessages:2,retrievedSegments:0}})}}})
+await assert.rejects(()=>strictMemoryRuntime.load('bundles/coach/tavernConversation').sendTavernTurn({persona:'keeper',message:'submitted request',conversationId:'conversation-canonical',clientTurnId:'turn:canonical',expectedRevision:1}),/contextWindowTokens|无效/i)
 
 console.log('Tavern conversation service: legacy preservation, Proxy-safe DTOs, bounded display pages and incremental transport contract passed.')

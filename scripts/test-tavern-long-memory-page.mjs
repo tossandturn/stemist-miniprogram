@@ -190,6 +190,13 @@ await conflictPage.retry()
 assert.equal(conflictBackend.providerRequests[1].clientTurnId, conflictTurnId)
 assert.equal(conflictBackend.providerRequests[1].expectedRevision, conflictBackend.revision() - 1)
 
+const lateSession=deferred(),lateTokenApi={COACH_TEXT_TIMEOUT_MS:55_000,isAuthError:error=>error?.statusCode===401,requestJson:async path=>{if(path==='/api/ai/tavern/conversations/resume')return{conversation:{id:'conversation-late-token',persona:'keeper',revision:0,turnCount:0},messages:[],nextBefore:''};if(path==='/api/ai/coach')return lateSession.promise;throw Error(`unexpected late token ${path}`)}}
+const lateTokenRuntime=miniRuntime({modules:{'utils/api':lateTokenApi}});lateTokenRuntime.storage.set('stemistUser',{id:'late-token-owner'});lateTokenRuntime.storage.set('stemistSessionToken','old-synthetic-token')
+const lateTokenPage=lateTokenRuntime.page('bundles/coach/tavern');lateTokenPage.onLoad();lateTokenPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});await settle();lateTokenPage.onMessage({detail:{value:'pending old session'}});const oldSessionRequest=lateTokenPage.submit();await settle();lateTokenRuntime.storage.set('stemistSessionToken','new-synthetic-token');lateSession.reject(Object.assign(Error('old token expired'),{statusCode:401,code:'auth_required'}));await oldSessionRequest
+assert.equal(lateTokenPage.data.authRequired,false,'late 401 from an old same-owner token cannot invalidate the newer session')
+assert.doesNotMatch(lateTokenPage.data.error,/登录|auth/i)
+assert.equal(lateTokenPage.data.message,'pending old session')
+
 // Remote clear is truthful: failure keeps content and a retry tombstone; success alone confirms deletion.
 const clearBackend = fakeBackend({ messages: completedRounds(2), revision: 2, failDelete: 1 })
 const clearRuntime = miniRuntime({ modules: { 'utils/api': clearBackend.api } })
@@ -206,6 +213,21 @@ assert.equal(clearBackend.deleted(), true)
 assert.equal(clearPage.data.turns.length, 0)
 assert.equal(clearPage.data.clearPending, false)
 assert.equal(clearPage.data.status, '已清空当前角色对话')
+
+const staleBacking=new Map();let staleCloudDeleted=false
+const staleCloud=[completeMessage(1,'user','private stale cache'),completeMessage(2,'assistant','private stale answer')]
+const staleWx={getStorageSync:key=>staleBacking.has(key)?staleBacking.get(key):'',setStorageSync:(key,value)=>{if(staleCloudDeleted&&key.endsWith(':keeper')&&value?.schemaVersion===2&&!value.conversation&&value.turns?.length===0)throw Error('synthetic quota write failure');staleBacking.set(key,value)},removeStorageSync:key=>staleBacking.delete(key),getStorageInfoSync:()=>({keys:[...staleBacking.keys()]})}
+const staleApi={isAuthError:()=>false,requestJson:async(path,body,options={})=>{if(path==='/api/ai/tavern/conversations/resume'){if(staleCloudDeleted)throw Object.assign(Error('offline after delete'),{code:'network_error'});return{conversation:{id:'conversation-stale-clear',persona:'keeper',revision:1,turnCount:1},messages:staleCloud,nextBefore:''}}if(options.method==='DELETE'){staleCloudDeleted=true;return{deleted:true,conversationId:'conversation-stale-clear'}}throw Error(`unexpected stale clear ${path}`)}}
+staleBacking.set('stemistUser',{id:'stale-clear-owner'});staleBacking.set('stemistSessionToken','fixture-token');staleBacking.set('stemistPrivacyEpoch',0);staleBacking.set('stemistTavern:stale-clear-owner:0:selected','keeper');staleBacking.set('stemistTavern:stale-clear-owner:0:keeper',{schemaVersion:2,owner:'stale-clear-owner',epoch:0,persona:'keeper',turns:[],historySource:'cloud'})
+const staleRuntime=miniRuntime({wx:staleWx,modules:{'utils/api':staleApi}}),stalePage=staleRuntime.page('bundles/coach/tavern');stalePage.onLoad();await settle();assert.equal(stalePage.data.turns.length,2);await stalePage.clear();assert.equal(stalePage.data.turns.length,0)
+const staleReopened=staleRuntime.page('bundles/coach/tavern');staleReopened.onLoad();await settle();assert.equal(staleReopened.data.turns.length,0,'confirmed remote clear cannot redisplay stale local cache when fresh-state persistence fails')
+
+const totalFailureBacking=new Map();let totalFailureDeleted=false
+const totalFailureWx={getStorageSync:key=>totalFailureBacking.has(key)?totalFailureBacking.get(key):'',setStorageSync:(key,value)=>{if(totalFailureDeleted&&String(key).startsWith('stemistTavern:'))throw Error('all tombstone writes fail');totalFailureBacking.set(key,value)},removeStorageSync:key=>{if(totalFailureDeleted&&String(key).includes(':keeper'))throw Error('old cache removal fails');totalFailureBacking.delete(key)},getStorageInfoSync:()=>({keys:[...totalFailureBacking.keys()]})}
+const totalFailureApi={isAuthError:()=>false,requestJson:async(path,body,options={})=>{if(path==='/api/ai/tavern/conversations/resume')return{conversation:{id:'conversation-total-failure',persona:'keeper',revision:1,turnCount:1},messages:staleCloud,nextBefore:''};if(options.method==='DELETE'){totalFailureDeleted=true;return{deleted:true,conversationId:'conversation-total-failure'}}throw Error(`unexpected total failure ${path}`)}}
+totalFailureBacking.set('stemistUser',{id:'total-failure-owner'});totalFailureBacking.set('stemistSessionToken','fixture-token');totalFailureBacking.set('stemistTavern:total-failure-owner:0:selected','keeper');totalFailureBacking.set('stemistTavern:total-failure-owner:0:keeper',{schemaVersion:2,owner:'total-failure-owner',epoch:0,persona:'keeper',conversation:{id:'conversation-total-failure',persona:'keeper',revision:1,turnCount:1},turns:staleCloud,historySource:'cloud'})
+const totalFailureRuntime=miniRuntime({wx:totalFailureWx,modules:{'utils/api':totalFailureApi}}),totalFailurePage=totalFailureRuntime.page('bundles/coach/tavern');totalFailurePage.onLoad();await totalFailurePage.clear();assert.equal(totalFailurePage.data.turns.length,0);assert.equal(totalFailurePage.data.status,'云端对话已清除');assert.match(totalFailurePage.data.warning,/本机|缓存|持久/)
+const totalFailureReopen=totalFailureRuntime.page('bundles/coach/tavern');totalFailureReopen.onLoad();await settle();assert.equal(totalFailureReopen.data.turns.length,0,'same-process in-memory fence remains fail closed when every persistent fence operation fails')
 
 const signedOutClearBackend = fakeBackend({ messages: completedRounds(1), revision: 1 })
 const signedOutClearRuntime = miniRuntime({ modules: { 'utils/api': signedOutClearBackend.api } })
