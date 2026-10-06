@@ -25,8 +25,8 @@
       <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
     </view>
     <view wx:if="{{turns.length}}" class="chat-history-label">历史对话</view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前预设聊天记录"><view wx:for="{{turns}}" wx:key="index" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
-    <view wx:else class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 预设开场</text><text class="preset-opening-text">{{greeting}}</text></view>
-    <view class="starter-list" aria-label="当前预设开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
+    <view wx:elif="{{!selected.divinationKind || draw}}" class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 预设开场</text><text class="preset-opening-text">{{greeting}}</text></view>
+    <view wx:if="{{!selected.divinationKind || draw}}" class="starter-list" aria-label="当前预设开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
     <block wx:if="{{selected.divinationKind}}">
       <view class="fortune-panel">
         <view class="fortune-note">随机娱乐提示，不是科学预测，也不替你做决定。</view>
