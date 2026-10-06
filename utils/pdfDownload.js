@@ -113,8 +113,8 @@ wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settle
 }catch(error){evictShared();return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}
 return true
 }
-const progressState=(event,metrics=NO_METRICS)=>{
-const downloadedBytes=Math.max(0,Number(event?.totalBytesWritten)||0),totalBytes=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0),knownTotal=totalBytes>0
+const progressState=(event,metrics=NO_METRICS,floor=0)=>{
+const downloadedBytes=Math.max(0,Number(event?.totalBytesWritten)||0,Number(floor)||0),totalBytes=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0),knownTotal=totalBytes>0
 const calculated=knownTotal?Math.floor(downloadedBytes/totalBytes*100):null
 const percent=knownTotal?Math.max(0,Math.min(99,Number.isFinite(calculated)?calculated:Number(event?.progress)||0)):null
 return{downloadedBytes,totalBytes,downloadedLabel:formatBytes(downloadedBytes),totalLabel:knownTotal?formatBytes(totalBytes):'',knownTotal,percent,...metrics}
@@ -143,7 +143,7 @@ if(context.networkSettled||disposed||context.generation!==generation)return
 if(!current(context)){invalidate(true);state={...initialPdfDownloadState()};return}
 if(state.phase==='verifying')return
 const downloaded=Math.max(0,Number(event?.totalBytesWritten)||0),total=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0)
-const model=progressState(event,context.metrics.observe(downloaded,total)),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
+const model=progressState(event,context.metrics.observe(downloaded,total),state.downloadedBytes),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
 if(elapsed>=throttleMs){emitProgress(context,model);return}
 pendingProgress=model
 if(progressTimer!==null)return

@@ -18,7 +18,7 @@ Page({
   if(requested&&subject.code!==requested||options.routeId&&!incoming||incoming&&(incoming.subjectCode!==subject.code||stage!=='all'&&incoming.stage.toLowerCase()!==stage)){this.setData({error:'课程与阶段不匹配，请返回重新选择。'});return}
   this.setScope(subject.code,stage,incoming?.routeId||'');return this.loadCatalog()
  },
- onShow(){syncDevice(this);this.syncPdfDownloadScope()},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},onUnload(){this.__disposed=true;this.__requestId++;clearTimeout(this.__searchTimer);this.__pdfDownload?.dispose()},
+ onShow(){syncDevice(this);this.syncPdfDownloadScope();this.__pdfDownload?.resume()},onResize(){syncDevice(this)},onHide(){this.__pdfDownload?.suspend()},onUnload(){this.__disposed=true;this.__requestId++;clearTimeout(this.__searchTimer);this.__pdfDownload?.dispose()},
  pdfScope(){return[this.__requestId||0,this.data.category,this.data.subject,this.data.stage,this.data.routeId,this.data.year,this.data.season,this.data.component||'all',this.data.query,this.data.pageNumber].join('|')},
  setupPdfDownload(){
   if(this.__pdfDownload)return

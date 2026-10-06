@@ -100,8 +100,8 @@ function validateRange(response,{start,end,total=null,etag=null}){
 async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',current,options={}}={}){
  if(!JOB_ID.test(String(jobId||''))||!['report','source'].includes(kind))throw error('download_target_invalid','批改报告下载目标无效。')
  const base=validateOrigin(origin),folder=reportFolder(),targetUrl=base+'/api/stem/paper-marking-jobs/'+encodeURIComponent(jobId)+(kind==='source'?'/source.pdf':'/report.pdf')
- let activeTask=null
- const controller={cancelled:false,abort(){this.cancelled=true;activeTask?.abort?.()}}
+ let activeTask=null,rejectActive=null
+ const controller={cancelled:false,abort(){if(this.cancelled)return;this.cancelled=true;const task=activeTask,reject=rejectActive;reject?.(error('download_paused','报告下载已暂停，已下载部分已保留。'));task?.abort?.()}}
  const identityCurrent=()=>typeof current==='function'&&current()
  const externallyCancelled=()=>typeof options.cancelled==='function'&&options.cancelled()
  const cancelled=()=>controller.cancelled||externallyCancelled()
@@ -118,8 +118,11 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
  }
  const requestRange=(start,end,etag='')=>new Promise((resolve,reject)=>{
   ensureCurrent()
-   const requestOptions={url:targetUrl,method:'GET',responseType:'arraybuffer',timeout:REQUEST_TIMEOUT_MS,header:{Authorization:'Bearer '+token,Range:`bytes=${start}-${end}`,...(etag?{'If-Range':etag}:{})},success:value=>{activeTask=null;try{ensureCurrent();resolve(value)}catch(failure){reject(failure)}},fail:()=>{activeTask=null;reject(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告下载已暂停，已下载部分已保留。':'报告下载中断，已下载部分已保留，请重试。'))}}
-  activeTask=wx.request(requestOptions)
+  let settled=false,task
+  const finish=(fn,value)=>{if(settled)return;settled=true;if(rejectActive===stop)rejectActive=null;activeTask=null;fn(value)},stop=value=>finish(reject,value)
+  rejectActive=stop
+  const requestOptions={url:targetUrl,method:'GET',responseType:'arraybuffer',timeout:REQUEST_TIMEOUT_MS,header:{Authorization:'Bearer '+token,Range:`bytes=${start}-${end}`,...(etag?{'If-Range':etag}:{})},success:value=>{try{ensureCurrent();finish(resolve,value)}catch(failure){stop(failure)}},fail:()=>stop(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告下载已暂停，已下载部分已保留。':'报告下载中断，已下载部分已保留，请重试。'))}
+  try{task=wx.request(requestOptions);if(!settled)activeTask=task}catch(failure){stop(failure)}
  })
 
  const durableWrite=async(filePath,data,append=false)=>{
@@ -137,8 +140,10 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   try{options.onTemporary?.()}catch{}
   publish(0,verifiedProbe.total,false,'downloading')
   const response=await new Promise((resolve,reject)=>{
-   activeTask=wx.downloadFile({url:targetUrl,timeout:180000,header:{Authorization:'Bearer '+token},success:value=>{activeTask=null;resolve(value)},fail:()=>{activeTask=null;reject(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告预览已暂停，云端报告已保留。':'临时预览下载中断，请重试；云端报告已保留，无需重新批改。'))}})
-   activeTask?.onProgressUpdate?.(p=>{if(isCurrent())publish(Number(p.totalBytesWritten)||0,verifiedProbe.total,false)})
+   let settled=false,task
+   const finish=(fn,value)=>{if(settled)return;settled=true;if(rejectActive===stop)rejectActive=null;activeTask=null;fn(value)},stop=value=>finish(reject,value)
+   rejectActive=stop
+   try{task=wx.downloadFile({url:targetUrl,timeout:180000,header:{Authorization:'Bearer '+token},success:value=>finish(resolve,value),fail:()=>stop(error(cancelled()?'download_paused':'download_interrupted',cancelled()?'报告预览已暂停，云端报告已保留。':'临时预览下载中断，请重试；云端报告已保留，无需重新批改。'))});if(!settled)activeTask=task;task?.onProgressUpdate?.(p=>{if(!settled&&isCurrent())publish(Number(p.totalBytesWritten)||0,verifiedProbe.total,false)})}catch(failure){stop(failure)}
   })
   ensureCurrent()
   if(Number(response.statusCode)===401)throw error('download_unauthorized','报告下载需要重新登录。',401)

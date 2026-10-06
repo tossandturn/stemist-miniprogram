@@ -137,6 +137,14 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
 }
 
 {
+ const h=controllerHarness();h.setScope('scope-monotonic');await h.controller.open({...request('monotonic'),scope:'scope-monotonic'});const task=h.downloads[0]
+ task.progress({totalBytesWritten:400,totalBytesExpectedToWrite:1000});const before=h.state.downloadedBytes
+ h.clock.tick(200);task.progress({totalBytesWritten:300,totalBytesExpectedToWrite:1000})
+ assert.ok(h.state.downloadedBytes>=before,'out-of-order callbacks within one DownloadTask cannot move visible bytes backwards')
+ h.controller.cancel();h.controller.dispose()
+}
+
+{
  const h=controllerHarness();h.setScope('scope-m');await h.controller.open(request('m'));const task=h.downloads[0]
  task.progress({totalBytesWritten:1*MIB,totalBytesExpectedToWrite:8*MIB})
  h.clock.tick(1000);task.progress({totalBytesWritten:2*MIB,totalBytesExpectedToWrite:8*MIB})
@@ -273,6 +281,7 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8')
 for(const pagePath of ['pages/papers/index','pages/stem/paper']){
  const config=JSON.parse(read(`${pagePath}.json`));assert.equal(config.usingComponents['pdf-download-progress'],'/components/pdf-download-progress/index')
  assert.match(read(`${pagePath}.wxml`),/<pdf-download-progress/)
+ assert.match(read(`${pagePath}.js`),/onShow\(\)\{[^\n]*syncPdfDownloadScope\(\)[^\n]*__pdfDownload\?\.resume\(\)/,'a page that suspends PDF download must explicitly resume its controller on return')
 }
 
 {

@@ -136,7 +136,7 @@ const expired=api.upload(jobId,f,s,control);await settle();r.request.success({st
 await assert.rejects(()=>expired);assert.equal(api.current(s),false)
 
 const arrayBuffer=value=>{const bytes=value instanceof Uint8Array?value:new Uint8Array(value);return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)}
-function reportDownloadRuntime({deferWrite=false,deferAppend=false,deferFileInfo=false,deferRead=false}={}){
+function reportDownloadRuntime({deferWrite=false,deferAppend=false,deferFileInfo=false,deferRead=false,silentAbort=false}={}){
   const files=new Map(),requests=[],removed=[],pendingWrites=[],pendingAppends=[],pendingFileInfo=[],pendingReads=[]
   const r=miniRuntime({
     wx:{env:{USER_DATA_PATH:'/app'},getFileSystemManager:()=>({
@@ -146,7 +146,7 @@ function reportDownloadRuntime({deferWrite=false,deferAppend=false,deferFileInfo
       appendFile:options=>{const append=()=>{const before=files.get(options.filePath)||new Uint8Array();const addition=new Uint8Array(arrayBuffer(options.data));const next=new Uint8Array(before.byteLength+addition.byteLength);next.set(before);next.set(addition,before.byteLength);files.set(options.filePath,next);options.success?.({})};if(deferAppend)pendingAppends.push(append);else append()},
       readFile:options=>{const read=()=>{const value=files.get(options.filePath);if(!value)return options.fail?.({errMsg:'not found'});const start=Number(options.position)||0,end=options.length===undefined?value.byteLength:start+Number(options.length);options.success({data:arrayBuffer(value.slice(start,end))})};if(deferRead)pendingReads.push(read);else read()},
       unlink:options=>{removed.push(options.filePath);files.delete(options.filePath);options.success?.({})},
-    }),request:options=>{const item={options,aborted:false};requests.push(item);return{abort(){if(item.aborted)return;item.aborted=true;options.fail?.({errMsg:'request:fail abort'})}}}},
+    }),request:options=>{const item={options,aborted:false};requests.push(item);return{abort(){if(item.aborted)return;item.aborted=true;if(!silentAbort)options.fail?.({errMsg:'request:fail abort'})}}}},
     modules:{'utils/api':{requestJson:async()=>({}),safeErrorMessage:(_,status)=>'failed '+status},'utils/nativeSession':{refreshNativeSession:async()=>{}},'utils/session':{clearLocalSession:()=>{r.storage.delete('stemistUser');r.storage.delete('stemistSessionToken')}}},
   })
   r.storage.set('stemistUser',{id:'student-a'});r.storage.set('stemistSessionToken','fixture-token')
@@ -167,6 +167,13 @@ assert.equal(ownerGuard.requests.length,1,'Two marking pages for the same owner 
 assert.equal((await ownerGuardSecond)?.code,'download_busy')
 ownerGuardTask.abort();await assert.rejects(()=>ownerGuardFirst,/已暂停/)
 let ownerGuardRetryTask;const ownerGuardRetry=ownerGuard.api.download('job-owner-other','source',ownerGuardScope,'Owner other',{onTask:value=>{ownerGuardRetryTask=value}});await settle();assert.equal(ownerGuard.requests.length,2,'The owner lock is released after the first download settles');ownerGuardRetryTask.abort();await assert.rejects(()=>ownerGuardRetry,/已暂停/)
+
+const silentAbort=reportDownloadRuntime({silentAbort:true}),silentScope=silentAbort.api.scope();let silentFirstTask,silentSecondTask,firstAbortState='pending',secondAbortState='pending'
+const silentFirst=silentAbort.api.download('job-silent-abort-one','report',silentScope,'Silent abort',{onTask:value=>{silentFirstTask=value}}).then(()=>{firstAbortState='resolved'},error=>{firstAbortState=error?.code||'rejected'})
+await settle();silentFirstTask.abort();await settle()
+const silentSecond=silentAbort.api.download('job-silent-abort-two','source',silentScope,'After silent abort',{onTask:value=>{silentSecondTask=value}}).then(()=>{secondAbortState='resolved'},error=>{secondAbortState=error?.code||'rejected'})
+await settle();assert.equal(firstAbortState,'download_paused','controller abort must settle locally even if the native request emits no callback');assert.equal(secondAbortState,'pending','settling abort must release the owner lock for a replacement download')
+silentSecondTask.abort();await Promise.all([silentFirst,silentSecond])
 
 const registryRace=reportDownloadRuntime({deferWrite:true}),registryScopeA=registryRace.api.scope();let registryTaskA
 const registryOld=registryRace.api.download('job-registry-old','report',registryScopeA,'Old owner',{onTask:value=>{registryTaskA=value}});await settle();answerRange(registryRace.requests[0],reportBytes,'"registry-a"');await settle()
