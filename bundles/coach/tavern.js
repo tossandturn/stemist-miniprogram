@@ -29,9 +29,11 @@ function storedState(raw,ownerId,privacyEpoch,persona){
  state.historySource=raw.schemaVersion===2&&raw.historySource==='cloud'?'cloud':state.legacyBackup.length&&!state.legacyImported?'legacy':'cloud'
  return state
 }
-function confirmedLegacyImport(backup,envelope){
+function confirmedLegacyImport(backup,envelope,importId){
  const expected=legacyTavernMessages(backup),actual=envelope.messages
  if(!expected.length)return true
+ const ack=envelope.legacyImport
+ if(ack)return ack.confirmed===true&&ack.importId===importId&&ack.importedMessageCount===expected.length
  if(envelope.conversation.turnCount<expected.length/2||actual.length<Math.min(expected.length,TAVERN_PAGE_LIMIT))return false
  const tail=actual.slice(-expected.length)
  if(tail.length!==expected.length)return false
@@ -96,7 +98,7 @@ Page({
   if(includeLegacy&&state.legacyBackup.length&&!state.legacyImported){if(!state.legacyImportId)state.legacyImportId=legacyImportIdFor(this.data.persona,state.legacyBackup);legacyImport={importId:state.legacyImportId,messages:state.legacyBackup};this.save(false)}
   const envelope=await resumeTavernConversation({persona:this.data.persona,attemptId:this.__attemptId,conversationId:state.conversation?.id||'',legacyImport})
   if(!this.current()||generation!==this.__conversationGeneration||state!==this.read(this.data.persona))throw Object.assign(Error('对话页面已变化'),{code:'tavern_conversation_stale_page'})
-  if(legacyImport&&!confirmedLegacyImport(state.legacyBackup,envelope))throw Object.assign(Error('本机旧对话尚未完整同步，请重试。'),{code:'tavern_legacy_import_unconfirmed'})
+  if(legacyImport&&!confirmedLegacyImport(state.legacyBackup,envelope,state.legacyImportId))throw Object.assign(Error('本机旧对话尚未完整同步，请重试。'),{code:'tavern_legacy_import_unconfirmed'})
   return this.applyEnvelope(state,envelope,{legacyConfirmed:Boolean(legacyImport),render:true})
  },
  async ensureConversation(includeLegacy,generation){const state=this.read(this.data.persona);if(!state.conversation||(includeLegacy&&state.legacyBackup.length&&!state.legacyImported))return this.resumeConversation(includeLegacy,generation);return state},

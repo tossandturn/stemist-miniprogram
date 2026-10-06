@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { miniRuntime } from '../../scripts/helpers/mini-runtime.mjs'
+import { miniRuntime } from './helpers/mini-runtime.mjs'
 
 const plain = value => JSON.parse(JSON.stringify(value))
 const message = (sequence, role = sequence % 2 ? 'user' : 'assistant', content = `${role}-${sequence}`) => ({
@@ -21,7 +21,7 @@ const runtime = miniRuntime({ modules: { 'utils/api': {
   COACH_TEXT_TIMEOUT_MS: 55_000,
   requestJson: async (path, body, options = {}) => {
     requests.push({ path, body, options })
-    if (path === '/api/ai/tavern/conversations/resume') return envelope({ messages: [message(1), message(2)], nextBefore: 'cursor:older' })
+    if (path === '/api/ai/tavern/conversations/resume') return { ...envelope({ messages: [message(1), message(2)], nextBefore: 'cursor:older' }), ...(body.legacyImport ? { legacyImport: { importId: body.legacyImport.importId, confirmed: true, importedMessageCount: body.legacyImport.messages.length } } : {}) }
     if (path.startsWith('/api/ai/tavern/conversations/conversation-keeper/messages?')) return envelope({ messages: [message(3), message(4)], nextBefore: 'cursor:oldest' })
     if (path.startsWith('/api/ai/tavern/conversations/conversation-keeper?')) return { deleted: true, conversationId: 'conversation-keeper' }
     if (path === '/api/ai/coach') return {
@@ -38,6 +38,7 @@ const service = runtime.load('bundles/coach/tavernConversation')
 const {
   TAVERN_PAGE_LIMIT,
   displayTavernMessages,
+  legacyDisplayTavernMessages,
   legacyTavernMessages,
   legacyImportIdFor,
   newClientTurnId,
@@ -58,6 +59,10 @@ const legacy = legacyTavernMessages(oldLocal)
 assert.equal(legacy.length, 40, 'all existing 20 local rounds survive migration despite exceeding the former 24k character budget')
 assert.match(legacy[0].content, /^old-user-0-/)
 assert.match(legacy.at(-1).content, /^old-assistant-19-/)
+
+const fiftyFiveRounds=Array.from({length:55},(_,index)=>[{role:'user',content:`many-user-${index}`},{role:'assistant',content:`many-assistant-${index}`}]).flat()
+assert.equal(legacyTavernMessages(fiftyFiveRounds).length,110,'legacy preservation is independent from the 40-message phone page')
+assert.equal(legacyDisplayTavernMessages(fiftyFiveRounds).length,40,'only the rendered local page is bounded to 40 messages')
 
 const twoHundred = Array.from({ length: 220 }, (_, index) => message(index + 1))
 const visible = displayTavernMessages(twoHundred)
@@ -80,6 +85,7 @@ assert.notEqual(legacyImportIdFor('keeper', legacy), legacyImportIdFor('study-bu
 const imported = legacy.slice(0, 2)
 const resumed = await resumeTavernConversation({ persona: 'keeper', attemptId: 'attempt-opaque', legacyImport: { importId: 'legacy:one', messages: imported } })
 assert.equal(resumed.conversation.id, 'conversation-keeper')
+assert.deepEqual(plain(resumed.legacyImport),{importId:'legacy:one',confirmed:true,importedMessageCount:2})
 assert.deepEqual(plain(requests.at(-1).body), { persona: 'keeper', attemptId: 'attempt-opaque', legacyImport: { importId: 'legacy:one', messages: plain(imported) } })
 
 const page = await fetchTavernMessages({ conversationId: 'conversation-keeper', persona: 'keeper', before: 'cursor:older', attemptId: 'attempt-opaque' })
@@ -102,6 +108,9 @@ const deleted = await deleteTavernConversation({ conversationId: 'conversation-k
 assert.deepEqual(plain(deleted), { deleted: true, conversationId: 'conversation-keeper' })
 assert.equal(requests.at(-1).options.method, 'DELETE')
 assert.match(requests.at(-1).path, /persona=keeper/)
+
+const badAckRuntime=miniRuntime({modules:{'utils/api':{requestJson:async()=>({conversation:conversation('conversation-bad-ack',1,1),messages:[message(1),message(2)],nextBefore:'',legacyImport:{importId:'legacy:wrong',confirmed:true,importedMessageCount:1}})}}})
+await assert.rejects(()=>badAckRuntime.load('bundles/coach/tavernConversation').resumeTavernConversation({persona:'keeper',legacyImport:{importId:'legacy:expected',messages:imported}}),error=>error?.code==='tavern_legacy_import_unconfirmed','mismatched transactional import acknowledgement fails before Coach can run')
 
 const wire=[]
 const transport=miniRuntime({wx:{request:options=>{

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { miniRuntime } from './helpers/mini-runtime.mjs'
 
-await import('../bundles/coach/test-tavern-long-memory.mjs')
-await import('../bundles/coach/test-tavern-long-memory-page.mjs')
+await import('./test-tavern-long-memory.mjs')
+await import('./test-tavern-long-memory-page.mjs')
 
 let requestOptions
 const runtime=miniRuntime({wx:{request:options=>{requestOptions=options;options.success({statusCode:200,data:{mode:'ai',providerStatus:'connected',answer:'academic ok'}})}}})

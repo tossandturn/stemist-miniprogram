@@ -21,7 +21,7 @@ function legacyTavernMessages(value){
   if(role==='user'){pending=content;continue}
   if(pending){rounds.push({role:'user',content:pending},{role:'assistant',content});pending=''}
  }
- return rounds.slice(-TAVERN_PAGE_LIMIT)
+ return rounds
 }
 
 function legacyImportIdFor(persona,value){
@@ -34,7 +34,7 @@ function legacyImportIdFor(persona,value){
 }
 
 function legacyDisplayTavernMessages(value){
- const legacy=legacyTavernMessages(value),messages=[]
+ const legacy=legacyTavernMessages(value).slice(-TAVERN_PAGE_LIMIT),messages=[]
  for(let index=0;index<legacy.length;index++){const item=legacy[index];messages.push({id:`legacy-local:${index+1}:${item.role}`,role:item.role,content:item.content,sequence:index+1,status:'complete'})}
  return messages
 }
@@ -77,9 +77,17 @@ function conversationRecord(value,expectedPersona=''){
  return record
 }
 
+function legacyImportRecord(value){
+ if(value===undefined||value===null)return null
+ if(!value||typeof value!=='object'||Array.isArray(value))fail('旧对话同步确认无效','tavern_legacy_import_unconfirmed')
+ return{importId:scalar(value.importId,'legacyImport.importId'),confirmed:value.confirmed===true,importedMessageCount:integer(value.importedMessageCount,'legacyImport.importedMessageCount')}
+}
+
 function normalizeTavernEnvelope(payload,expectedPersona=''){
  if(!payload||typeof payload!=='object'||Array.isArray(payload))fail('对话响应无效')
- return{conversation:conversationRecord(payload.conversation,expectedPersona),messages:displayTavernMessages(payload.messages),nextBefore:cursor(payload.nextBefore)}
+ const result={conversation:conversationRecord(payload.conversation,expectedPersona),messages:displayTavernMessages(payload.messages),nextBefore:cursor(payload.nextBefore)},legacyImport=legacyImportRecord(payload.legacyImport)
+ if(legacyImport)result.legacyImport=legacyImport
+ return result
 }
 
 function queryString(values){return Object.entries(values).filter(([,value])=>value!=='').map(([key,value])=>`${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&')}
@@ -88,7 +96,9 @@ async function resumeTavernConversation({persona,attemptId='',conversationId='',
  const role=scalar(persona,'persona',80),attempt=optionalScalar(attemptId,'attemptId'),id=optionalScalar(conversationId,'conversationId')
  const body={persona:role,...(attempt?{attemptId:attempt}:{}),...(id?{conversationId:id}:{})}
  if(legacyImport){const importId=scalar(legacyImport.importId,'legacyImport.importId'),messages=legacyTavernMessages(legacyImport.messages);if(messages.length)body.legacyImport={importId,messages}}
- return normalizeTavernEnvelope(await requestJson('/api/ai/tavern/conversations/resume',body,{method:'POST'}),role)
+ const result=normalizeTavernEnvelope(await requestJson('/api/ai/tavern/conversations/resume',body,{method:'POST'}),role)
+ if(body.legacyImport){const ack=result.legacyImport;if(!ack||ack.confirmed!==true||ack.importId!==body.legacyImport.importId||ack.importedMessageCount!==body.legacyImport.messages.length)fail('本机旧对话尚未完整同步，请重试。','tavern_legacy_import_unconfirmed')}
+ return result
 }
 
 async function fetchTavernMessages({conversationId,persona,before='',attemptId=''}={}){

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { deferred, miniRuntime, settle } from '../../scripts/helpers/mini-runtime.mjs'
+import { deferred, miniRuntime, settle } from './helpers/mini-runtime.mjs'
 
 const plain = value => JSON.parse(JSON.stringify(value))
 const completeMessage = (sequence, role, content) => ({ id: `cloud-${sequence}`, role, content, sequence, status: 'complete' })
@@ -28,14 +28,16 @@ function fakeBackend({ messages = [], revision = 0, failDelete = 0, coachPlan = 
     requestJson: async (path, body, options = {}) => {
       requests.push({ path, body: body === undefined ? undefined : plain(body), options: plain(options) })
       if (path === '/api/ai/tavern/conversations/resume') {
+        let legacyImport
         if (body.legacyImport && !importSeen) {
           importSeen = true
           const imported = body.legacyImport.messages
           cloud = imported.map((item, index) => completeMessage(index + 1, item.role, item.content))
           currentRevision += 1
         }
+        if(body.legacyImport)legacyImport={importId:body.legacyImport.importId,confirmed:true,importedMessageCount:body.legacyImport.messages.length}
         deleted = false
-        return page('')
+        return {...page(''),...(legacyImport?{legacyImport}:{})}
       }
       if (path.startsWith('/api/ai/tavern/conversations/conversation-keeper/messages?')) {
         const parsed = new URL(`https://fixture.invalid${path}`)
@@ -90,6 +92,15 @@ assert.equal(migrationPage.read('keeper').legacyBackup.length, 40, 'confirmed mi
 assert.equal(migrationPage.read('keeper').legacyImported, true)
 assert.equal(migrationPage.data.historySource, 'cloud')
 assert.equal(migrationRuntime.storage.get(migrationPage.key()).draft, '', 'a successful send cannot resurrect the submitted draft after reopening')
+
+const largeImportBackend=fakeBackend(),largeImportRuntime=miniRuntime({modules:{'utils/api':largeImportBackend.api}})
+largeImportRuntime.storage.set('stemistUser',{id:'large-import-owner'});largeImportRuntime.storage.set('stemistSessionToken','fixture-token');largeImportRuntime.storage.set('stemistTavern:large-import-owner:0:selected','keeper');largeImportRuntime.storage.set('stemistTavern:large-import-owner:0:keeper',{owner:'large-import-owner',epoch:0,persona:'keeper',draft:'after large import',turns:legacyRounds(55)})
+const largeImportPage=largeImportRuntime.page('bundles/coach/tavern');largeImportPage.onLoad();await settle();assert.equal(largeImportPage.data.turns.length,40);await largeImportPage.submit()
+const largeImportRequest=largeImportBackend.requests.find(item=>item.body?.legacyImport)
+assert.equal(largeImportRequest.body.legacyImport.messages.length,110)
+assert.equal(largeImportPage.read('keeper').legacyImported,true,'matching transactional ack confirms an import larger than the visible phone page')
+assert.equal(largeImportPage.data.turns.length,40)
+assert.equal(largeImportPage.data.historySource,'cloud')
 
 let partialCoachCalls=0
 const partialRuntime=miniRuntime({modules:{'utils/api':{COACH_TEXT_TIMEOUT_MS:55_000,isAuthError:()=>false,requestJson:async(path,body)=>{
