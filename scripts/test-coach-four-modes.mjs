@@ -124,18 +124,16 @@ assert.deepEqual(steps.requests.map(item=>item.feature),['steps','answers'])
 assert.deepEqual(Array.from(steps.requests[1].imageDataUrls),Array.from(steps.requests[0].imageDataUrls))
 assert.equal(steps.requests[1].history.length,2,'hint to answer must keep the successful academic turn')
 
+const tavernApi=(handler,isAuthError=()=>false)=>({isAuthError,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async(_path,body)=>handler(body)})
 const tavernRequests=[]
 let tavernResult={mode:'ai',providerStatus:'connected',answer:'今天想聊点什么？'}
-const tavernRuntime=miniRuntime({modules:{'utils/api':{
-  isAuthError:()=>false,
-  askCoach:async request=>{tavernRequests.push(request);return tavernResult},
-}}})
+const tavernRuntime=miniRuntime({modules:{'utils/api':tavernApi(async request=>{tavernRequests.push(request);return tavernResult})}})
 tavernRuntime.storage.set('stemistUser',{id:'student-tavern'})
 tavernRuntime.storage.set('stemistCoachPhoto','/private/academic.jpg')
 tavernRuntime.storage.set('stemistCoachTurns:student-tavern:stem-photo',[{role:'user',content:'private source'}])
 const tavern=tavernRuntime.page('bundles/coach/tavern')
 tavern.onLoad()
-assert.deepEqual(tavern.data.personas.map(item=>item.id),['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide'])
+assert.deepEqual(tavern.data.personas.map(item=>item.id),['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide','eastern-oracle','tarot-reader'])
 tavern.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
 const keeperStarter=tavern.data.starters[0]
 tavern.useStarter({currentTarget:{dataset:{text:keeperStarter}}})
@@ -172,7 +170,7 @@ assert.equal(share.path,'/pages/index/index')
 assert.doesNotMatch(JSON.stringify(share),/keeper|study-buddy|cat-companion|story-traveler|xianxia-guide|mystery-guide|student-|草稿|message|persona/i,'share data cannot expose persona, draft or account state')
 
 const quotaRequests=[]
-const quotaRuntime=miniRuntime({wx:{setStorageSync:key=>{if(String(key).startsWith('stemistTavern:'))throw new Error('quota')}},modules:{'utils/api':{isAuthError:()=>false,askCoach:async request=>{quotaRequests.push(request);return{mode:'ai',providerStatus:'connected',answer:'已收到你的话。'}}}}})
+const quotaRuntime=miniRuntime({wx:{setStorageSync:key=>{if(String(key).startsWith('stemistTavern:'))throw new Error('quota')}},modules:{'utils/api':tavernApi(async request=>{quotaRequests.push(request);return{mode:'ai',providerStatus:'connected',answer:'已收到你的话。'}})}})
 quotaRuntime.storage.set('stemistUser',{id:'quota-owner'})
 const quotaPage=quotaRuntime.page('bundles/coach/tavern');quotaPage.onLoad();quotaPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});quotaPage.onMessage({detail:{value:'请听我说'}})
 assert.equal(quotaPage.data.message,'请听我说','input remains in memory when local storage is full')
@@ -185,7 +183,7 @@ assert.equal(quotaPage.data.canRetry,false,'storage failure must not offer a bil
 assert.equal(quotaPage.data.error,'')
 assert.doesNotThrow(()=>quotaPage.onUnload())
 
-const examRuntime=miniRuntime({modules:{'utils/api':{isAuthError:()=>false,askCoach:async request=>{throw new Error('must not call '+JSON.stringify(request))}}}})
+const examRuntime=miniRuntime({modules:{'utils/api':tavernApi(async request=>{throw new Error('must not call '+JSON.stringify(request))})}})
 examRuntime.storage.set('stemistUser',{id:'exam-owner'})
 examRuntime.storage.set('stemistCoachEntry',{owner:'exam-owner',epoch:0,at:Date.now(),key:'exam-entry',context:{attemptId:'attempt-1',paperStudyMode:'exam-simulation',submitted:false}})
 const examTavern=examRuntime.page('bundles/coach/tavern');examTavern.onLoad({entry:'exam-entry'})
@@ -193,7 +191,7 @@ assert.equal(examTavern.data.examBlocked,true)
 examTavern.onMessage({detail:{value:'绕过考试'}});await examTavern.submit()
 assert.match(examTavern.data.error,/计时考试/)
 
-const bindingRequests=[],bindingRuntime=miniRuntime({modules:{'utils/api':{isAuthError:()=>false,askCoach:async request=>{bindingRequests.push(request);return{mode:'ai',providerStatus:'connected',answer:'轻松聊聊'}}}}})
+const bindingRequests=[],bindingRuntime=miniRuntime({modules:{'utils/api':tavernApi(async request=>{bindingRequests.push(request);return{mode:'ai',providerStatus:'connected',answer:'轻松聊聊'}})}})
 bindingRuntime.storage.set('stemistUser',{id:'binding-owner'})
 bindingRuntime.storage.set('stemistCoachEntry',{owner:'binding-owner',epoch:0,at:Date.now(),key:'binding-entry',context:{paperAttemptId:'opaque-attempt',studyMode:'practice',sourceQuestionExtract:'must-not-leak',imagePaths:['/private/source.png']}})
 const bindingPage=bindingRuntime.page('bundles/coach/tavern');bindingPage.onLoad({entry:'binding-entry'});bindingPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});bindingPage.onMessage({detail:{value:'换个轻松话题'}});await bindingPage.submit()
@@ -201,7 +199,7 @@ assert.equal(JSON.stringify(bindingRequests[0].context),JSON.stringify({product:
 assert.equal(bindingRequests[0].attemptId,'opaque-attempt','known entry carries canonical opaque attemptId only at request top level')
 assert.doesNotMatch(JSON.stringify(bindingRequests[0]),/sourceQuestionExtract|private\/source|paperAttemptId/)
 
-const authRuntime=miniRuntime({modules:{'utils/api':{isAuthError:error=>error?.code==='auth_required',askCoach:async()=>{authRuntime.storage.delete('stemistUser');const error=new Error('登录已过期');error.code='auth_required';throw error}}}})
+const authRuntime=miniRuntime({modules:{'utils/api':tavernApi(async()=>{authRuntime.storage.delete('stemistUser');const error=new Error('登录已过期');error.code='auth_required';throw error},error=>error?.code==='auth_required')}})
 authRuntime.storage.set('stemistUser',{id:'auth-owner'})
 const authPage=authRuntime.page('bundles/coach/tavern');authPage.onLoad();authPage.choosePersona({currentTarget:{dataset:{persona:'keeper'}}});authPage.onMessage({detail:{value:'登录后继续这段话'}});await authPage.submit()
 assert.equal(authPage.data.loading,false)

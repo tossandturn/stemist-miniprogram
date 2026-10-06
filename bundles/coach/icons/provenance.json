@@ -1,0 +1,88 @@
+{
+  "schema": "stemist-licensed-icons-v1",
+  "capturedAt": "2026-10-06T16:50:46.9884915+08:00",
+  "repository": "https://github.com/lucide-icons/lucide",
+  "tag": "0.468.0",
+  "files": [
+    {
+      "name": "message-circle.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/message-circle.svg",
+      "sha256": "a9bd7a3e24bf81c598974bda992d0d363dd0996d0f14ecbe9986e03a07068884",
+      "bytes": 254,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "e61b962a75fb2e3bba0422806f5369fe826c38156f09fc44033c2a52fd243cb1",
+      "packagedBytes": 249
+    },
+    {
+      "name": "messages-square.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/messages-square.svg",
+      "sha256": "eecf35710e7a26095c49f0e8261452f92a3909b4f9e2020ef242211285f7e922",
+      "bytes": 348,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "6f30baefe6a79f13e649490b2a584193f23beb622de4215a39b83f769bd3bb64",
+      "packagedBytes": 343
+    },
+    {
+      "name": "cat.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/cat.svg",
+      "sha256": "aa8dacc2b7db300a4137da7a7b0e2b4983061d45ef8bfff2c8078796b97e7518",
+      "bytes": 537,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "ebaf9cee9bbd8d8b9fd4fdb5f90dde73276449a34ac783e1d0cc6a77a820599b",
+      "packagedBytes": 532
+    },
+    {
+      "name": "compass.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/compass.svg",
+      "sha256": "554b51f38db4af3c7a3a603ce9fc3786d32fe20eb9e3226ec41e7b5fdcbb2b68",
+      "bytes": 351,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "1c1a34abbe235feb62d763985319a9768fb4df645eec3df7716dbcfd07fd348c",
+      "packagedBytes": 346
+    },
+    {
+      "name": "swords.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/swords.svg",
+      "sha256": "6aad3bab627f5badf888461004aa9b5d2cdcde127a5791d21b96d729e16668d0",
+      "bytes": 573,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "dc30c8e0e5ecfb48bef95dad0311d9503c4aacdefbeaa2ebd32cc2fe2cf07084",
+      "packagedBytes": 568
+    },
+    {
+      "name": "search.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/search.svg",
+      "sha256": "9322d964b61cf729b3a81210568d5a97eaf4a1f3239f25a056fda3013bf35611",
+      "bytes": 273,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "f98143aa4a607655944ae07acb2665151f0de63450a0ecf2d722fa0fe9fea0e9",
+      "packagedBytes": 268
+    },
+    {
+      "name": "sparkles.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/sparkles.svg",
+      "sha256": "cc8061ee31c43138e081522260d2ddd35465dfb2a4435fddd3d9857952d7231e",
+      "bytes": 568,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "9f1a52aba50a68b583dd24c12529f176668d58f4a25554ac726629c08acf611d",
+      "packagedBytes": 563
+    },
+    {
+      "name": "layers.svg",
+      "source": "https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/layers.svg",
+      "sha256": "ce16d0a955e3581cda17f6b2fd5c5bc2034b405f9cecc31c8ebb8495b4afc1bb",
+      "bytes": 510,
+      "modified": true,
+      "modification": "Replaced stroke=currentColor with stroke=#6848d7 for deterministic WeChat image rendering.",
+      "packagedSha256": "d544b51327c8bb5e417f144de38eb0b99c41478c578eda5324eb5f47ea7854b0",
+      "packagedBytes": 505
+    }
+  ]
+}
