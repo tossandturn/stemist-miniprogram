@@ -37,7 +37,13 @@ assert.equal(cleanSingle.createdAt,now-1000)
 assert.equal(cleanSingle.expiresAt,now+60_000)
 const cleanThree=normalizeTavernDraw({draw:tarotThree},{persona:'tarot-reader',spread:'three',now})
 assert.equal(cleanThree.cards.length,3)
-assert.deepEqual(cleanThree.cards.map(card=>card.id),['major-01','cups-02','wands-03'])
+assert.deepEqual(Array.from(cleanThree.cards,card=>card.id),['major-01','cups-02','wands-03'])
+const proxyCards=new Proxy(tarotThree.cards,{get(target,property,receiver){if(property==='map')return callback=>new Proxy(Array.prototype.map.call(target,callback),{preventExtensions(){return true}});return Reflect.get(target,property,receiver)}})
+let proxyNormalized
+assert.doesNotThrow(()=>{proxyNormalized=normalizeTavernDraw({draw:{...tarotThree,cards:proxyCards}},{persona:'tarot-reader',spread:'three',now})},'WeChat API proxy arrays must be copied before local immutability is applied')
+assert.deepEqual(Array.from(proxyNormalized.cards,card=>card.id),['major-01','cups-02','wands-03'])
+assert.equal(Object.isFrozen(proxyNormalized.cards),true)
+assert.notEqual(proxyNormalized.cards,proxyCards)
 
 for(const [label,value,options] of [
  ['unknown persona',{draw:eastern},{persona:'keeper',spread:'single',now}],

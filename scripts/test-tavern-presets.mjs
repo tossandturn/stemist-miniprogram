@@ -179,6 +179,7 @@ assert.match(styles,/\.persona-list\{[^}]*grid-template-columns:repeat\(2,minmax
 assert.match(styles,/\.device-tablet \.persona-list\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
 assert.match(styles,/@media\(max-width:330px\)[\s\S]*\.persona-list\{grid-template-columns:1fr\}/)
 assert.match(styles,/\.preset-change\{[^}]*min-height:44px/)
+assert.match(styles,/\.preset-change\{[^}]*width:84px;min-width:84px;max-width:84px/,'selected role text keeps space beside the change action')
 assert.match(styles,/\.category-filter button\{[^}]*min-height:44px/)
 assert.match(styles,/\.category-filter\{[^}]*gap:8px/)
 assert.match(styles,/\.persona\{[^}]*min-width:0/)

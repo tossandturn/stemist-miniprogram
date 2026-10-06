@@ -25,13 +25,14 @@ function normalizeTavernDraw(payload,{persona,spread,now=Date.now()}={}){
  if(expiresAt<=createdAt||expiresAt<=clock)fail('抽取结果已过期')
  const expected=actualSpread==='three'?3:1,cards=Array.isArray(draw.cards)?draw.cards:[]
  if(cards.length!==expected)fail('卡牌数量与抽取方式不匹配')
- const seen=new Set(),cleanCards=cards.map(card=>{
+ const seen=new Set(),cleanCards=[]
+ for(let index=0;index<cards.length;index++){const card=cards[index]
   if(!card||typeof card!=='object'||Array.isArray(card))fail('卡牌数据无效')
   const clean={id:requiredId(card.id,'cardId'),name:text(card.name,'name',120),position:text(card.position,'position',80)}
   if(seen.has(clean.id))fail('卡牌不能重复');seen.add(clean.id)
   if(kind==='tarot'){const orientation=String(card.orientation||'');if(!['upright','reversed'].includes(orientation))fail('塔罗方向无效');clean.orientation=orientation}
-  return Object.freeze(clean)
- })
+  cleanCards.push(Object.freeze(clean))
+ }
  return Object.freeze({id,kind,spread:actualSpread,deckVersion,createdAt,expiresAt,entertainmentOnly:true,cards:Object.freeze(cleanCards)})
 }
 async function requestTavernDraw({persona,spread,drawNonce,attemptId='',now=Date.now()}={}){
