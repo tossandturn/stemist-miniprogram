@@ -18,6 +18,12 @@
       <view class="selected-copy"><text class="persona-tag">{{selected.tag}}</text><text class="selected-name">{{selected.name}}</text><text class="selected-detail">{{selected.detail}}</text></view>
       <button class="preset-change" bindtap="openSelector" disabled="{{loading || examBlocked}}">更换预设</button>
     </view>
+    <view wx:if="{{selected.divinationKind && draw}}" class="fortune-result-priority">
+      <view class="draw-grid {{draw.spread === 'three' ? 'three' : 'single'}}" aria-label="本次娱乐抽取结果"><view wx:for="{{draw.cards}}" wx:key="id" class="draw-card"><text class="draw-position">{{item.position}}</text><text class="draw-name">{{item.name}}</text><text wx:if="{{item.orientation}}" class="draw-orientation">{{item.orientation === 'upright' ? '正位' : '逆位'}}</text></view></view>
+      <button wx:if="{{drawNeedsRedraw}}" class="primary fortune-primary" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在重新抽取…' : '重新抽取'}}</button>
+      <button wx:else class="primary fortune-primary" bindtap="retryInterpretation" loading="{{interpretLoading || drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在重新抽取…' : interpretLoading ? '正在解读…' : canRetry ? '重试解读' : selected.divinationKind === 'hexagram' ? '解读当前卦签' : '解读当前牌面'}}</button>
+      <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
+    </view>
     <view wx:if="{{turns.length}}" class="chat-history-label">历史对话</view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前预设聊天记录"><view wx:for="{{turns}}" wx:key="index" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
     <view wx:else class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 预设开场</text><text class="preset-opening-text">{{greeting}}</text></view>
     <view class="starter-list" aria-label="当前预设开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
@@ -27,9 +33,7 @@
         <textarea class="tavern-input fortune-question" value="{{question}}" maxlength="600" disabled="{{loading || examBlocked}}" placeholder="{{placeholder}}" cursor-spacing="24" adjust-position="true" bindinput="onFortuneQuestion" aria-label="可选的娱乐问题" />
         <view wx:if="{{selected.divinationKind === 'tarot'}}" class="spread-options" role="group" aria-label="选择塔罗抽取方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">单张提示</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">三张主题</button></view>
         <button wx:if="{{!draw && !drawNeedsRedraw}}" class="primary fortune-primary" bindtap="drawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在随机抽取…' : '抽取并解读'}}</button>
-        <button wx:elif="{{drawNeedsRedraw}}" class="primary fortune-primary" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">重新抽取</button>
-        <view wx:if="{{draw}}" class="draw-grid {{draw.spread === 'three' ? 'three' : 'single'}}" aria-label="本次娱乐抽取结果"><view wx:for="{{draw.cards}}" wx:key="id" class="draw-card"><text class="draw-position">{{item.position}}</text><text class="draw-name">{{item.name}}</text><text wx:if="{{item.orientation}}" class="draw-orientation">{{item.orientation === 'upright' ? '正位' : '逆位'}}</text></view></view>
-        <button wx:if="{{draw && !drawNeedsRedraw}}" class="primary fortune-primary" bindtap="retryInterpretation" loading="{{interpretLoading}}" disabled="{{loading || examBlocked}}">{{interpretLoading ? '正在解读…' : canRetry ? '重试解读' : selected.divinationKind === 'hexagram' ? '解读当前卦签' : '解读当前牌面'}}</button>
+        <button wx:elif="{{!draw && drawNeedsRedraw}}" class="primary fortune-primary" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">重新抽取</button>
         <button wx:if="{{draw && !drawNeedsRedraw && !loading}}" class="secondary fortune-redraw" bindtap="redrawFortune" disabled="{{examBlocked}}">重新抽取</button>
       </view>
     </block>
@@ -37,7 +41,7 @@
       <textarea class="tavern-input" value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="{{placeholder}}" cursor-spacing="24" adjust-position="true" bindinput="onMessage" aria-label="休闲聊天输入" />
       <button class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked}}">{{loading ? 'AI 正在回应…' : '发送给' + selected.name}}</button>
     </block>
-    <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
+    <view wx:if="{{status && (!selected.divinationKind || !draw)}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error && (!selected.divinationKind || !draw)}}" class="error">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
     <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录 / 注册后重试</button><button wx:if="{{canRetry && !selected.divinationKind}}" class="secondary" bindtap="retry">重试 AI</button>
     <button class="text-button tavern-clear" bindtap="clear" disabled="{{loading}}">清空当前预设对话</button>
   </view>
