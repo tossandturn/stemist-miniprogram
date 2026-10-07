@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.39",
+  "highestAssignedVersion": "1.0.40",
   "baselineEvidence": {
     "lastVerifiedHistoricalUpload": "1.0.24",
     "lastVerifiedHistoricalUploadReceipt": "D:/CodexWork/stemist-release-coordination/wechat-profile-20260928/upload-1.0.24.json",
@@ -412,6 +412,50 @@
           {
             "name": "/bundles/marking/",
             "size": 98882
+          }
+        ]
+      },
+      "originalProjectConfigChanged": false,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    },
+    {
+      "version": "1.0.40",
+      "uploadedAt": "2026-10-07T15:20:29.4174772+08:00",
+      "commit": "efb56cd3de310317ddaa9d223aa5cd3ad00232ff",
+      "project": "D:\\CodexWork\\stemist-miniprogram-review-1.0.40-efb56cd",
+      "success": true,
+      "officialInfo": "D:\\CodexWork\\stemist-release-coordination\\release-1.0.40-20261007\\wechat-upload-1.0.40-info.json",
+      "size": {
+        "total": 2228566,
+        "packages": [
+          {
+            "name": "TOTAL",
+            "size": 2228566
+          },
+          {
+            "name": "main",
+            "size": 1920058
+          },
+          {
+            "name": "/bundles/account/",
+            "size": 17848
+          },
+          {
+            "name": "/bundles/announcements/",
+            "size": 24654
+          },
+          {
+            "name": "/bundles/coach/",
+            "size": 88931
+          },
+          {
+            "name": "/bundles/curricula/",
+            "size": 76457
+          },
+          {
+            "name": "/bundles/marking/",
+            "size": 100618
           }
         ]
       },
