@@ -7,6 +7,7 @@ const {readExam,completeExamModule,startExamModuleClock,clockState}=require('../
 const {removeWritingPhoto}=require('../../utils/nativeWritingPhoto')
 const {archiveWritingSource,hasWritingSourceArchives}=require('../../utils/writingSourceArchive')
 const {IELTS_API_BASE}=require('../../utils/api')
+const {createWritingReportDownload}=require('./writingReportDownload')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const CAMBRIDGE_WRITING=/^cam\d+-w-test\d+-task[12]$/
@@ -15,9 +16,9 @@ const hasWork=(draft,jobId='')=>Boolean(String(draft.text||'').trim()||draft.pho
 
 Page({
   onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({text:'',inputMode:'typed',prompt:'',taskId:'',taskTitle:'',taskImages:[],photoPath:'',taskType:'Task 2',loading:false,error:'',canRetry:false,authRequired:false,answer:'',warning:'',coachStatus:'',draftStatus:'自动保存',band:null,criteria:[],reportUrl:'',remaining:'60:00',timeExpired:false,sourceGuarded:false,sourceResolved:true,sourceAvailability:'ready',sourceRevision:'',sourceReviewRequired:false,sourcePreview:false,latestPrompt:'',latestTaskImages:[],latestSourceRevision:'',latestSourceAvailability:'',sourceArchiveNotice:''}),
+ data:deviceState({text:'',inputMode:'typed',prompt:'',taskId:'',taskTitle:'',taskImages:[],photoPath:'',taskType:'Task 2',loading:false,error:'',canRetry:false,authRequired:false,answer:'',warning:'',coachStatus:'',draftStatus:'自动保存',band:null,criteria:[],reportUrl:'',downloading:false,reportDownload:null,remaining:'60:00',timeExpired:false,sourceGuarded:false,sourceResolved:true,sourceAvailability:'ready',sourceRevision:'',sourceReviewRequired:false,sourcePreview:false,latestPrompt:'',latestTaskImages:[],latestSourceRevision:'',latestSourceAvailability:'',sourceArchiveNotice:''}),
  onLoad(options={}){
-  this.__disposed=false;this.__valid=false;this.__generation=0;this.__owner=owner();this.__epoch=epoch()
+  this.__disposed=false;this.__valid=false;this.__generation=0;this.__owner=owner();this.__epoch=epoch();this.__reportDownload=createWritingReportDownload(this,{origin:IELTS_API_BASE,current:()=>this.current(),reportUrl:()=>this.data.reportUrl})
   const taskId=String(options.taskId||'')
   const sourceGuarded=CAMBRIDGE_WRITING.test(taskId);this.__taskResolved=!sourceGuarded;this.__latestTask=null;this.__resumeQueryStarted=false
   this.__examKey=String(options.examKey||'')
@@ -35,23 +36,23 @@ Page({
  onShow(){
   syncDevice(this)
   if(this.__authResumeRequested&&wx.getStorageSync('stemistSessionToken')&&owner()!=='guest'&&(this.__owner==='guest'||this.__owner===owner())){
-   this.__owner=owner();this.__epoch=epoch();this.__generation++;this.__authResumeRequested=false;this.setData({authRequired:false,error:'',canRetry:false});this.saveDraft()
+   this.__reportDownload?.reset();this.__owner=owner();this.__epoch=epoch();this.__generation++;this.__authResumeRequested=false;this.setData({authRequired:false,error:'',canRetry:false,reportDownload:null,downloading:false});this.saveDraft()
   }
-  if(this.__valid&&!this.current()){this.__generation++;this.__jobId='';this.__sourceArchiveRef=null;this.__latestTask=null;this.__taskResolved=false;this.__resumeQueryStarted=true;this.setData({text:'',inputMode:'typed',prompt:'',taskTitle:'',taskImages:[],photoPath:'',answer:'',criteria:[],band:null,warning:'',reportUrl:'',coachStatus:'',draftStatus:'',error:'账号已变化，请重新打开这道题目。',canRetry:false,authRequired:false,sourceResolved:false,sourceAvailability:'pending-review',sourceRevision:'',sourceReviewRequired:false,sourcePreview:false,latestPrompt:'',latestTaskImages:[],latestSourceRevision:'',latestSourceAvailability:'',sourceArchiveNotice:''});return}
+  if(this.__valid&&!this.current()){this.__reportDownload?.reset();this.__generation++;this.__jobId='';this.__sourceArchiveRef=null;this.__latestTask=null;this.__taskResolved=false;this.__resumeQueryStarted=true;this.setData({text:'',inputMode:'typed',prompt:'',taskTitle:'',taskImages:[],photoPath:'',answer:'',criteria:[],band:null,warning:'',reportUrl:'',reportDownload:null,downloading:false,coachStatus:'',draftStatus:'',error:'账号已变化，请重新打开这道题目。',canRetry:false,authRequired:false,sourceResolved:false,sourceAvailability:'pending-review',sourceRevision:'',sourceReviewRequired:false,sourcePreview:false,latestPrompt:'',latestTaskImages:[],latestSourceRevision:'',latestSourceAvailability:'',sourceArchiveNotice:''});return}
   if(this.__examClock){clearInterval(this.__timer);this.updateClock();this.__timer=setInterval(()=>this.updateClock(),1000)}
   const photo=wx.getStorageSync('stemistWritingPhoto')
   const photoMeta=wx.getStorageSync('stemistWritingPhotoMeta')
   if(photo&&this.current()&&!this.data.loading&&((!photoMeta&&this.__owner==='guest')||photoMeta?.owner===this.__owner&&photoMeta.epoch===this.__epoch&&photoMeta.scope===this.__scope)){
    const previous=this.data.photoPath
-   this.__jobId='';this.setData({photoPath:photo,inputMode:'photo',error:'',answer:'',band:null,criteria:[],reportUrl:'',warning:'',coachStatus:'',canRetry:false,authRequired:false,draftStatus:'照片已保存'})
+   this.__reportDownload?.reset();this.__jobId='';this.setData({photoPath:photo,inputMode:'photo',error:'',answer:'',band:null,criteria:[],reportUrl:'',warning:'',coachStatus:'',canRetry:false,authRequired:false,draftStatus:'照片已保存'})
    wx.removeStorageSync('stemistWritingPhoto');wx.removeStorageSync('stemistWritingPhotoMeta');this.saveDraft();cancelDraft(this)
    if(previous&&previous!==photo)removeWritingPhoto(previous)
   }
   this.resumePendingJob()
  },
  onResize(){syncDevice(this)},
- onHide(){cancelDraft(this);clearInterval(this.__timer)},
- onUnload(){this.__disposed=true;this.__generation++;clearInterval(this.__timer);clearTimeout(this.__pollTimer);this.__pollResolve?.();this.__pollResolve=null;cancelDraft(this)},
+ onHide(){this.__reportDownload?.pause();cancelDraft(this);clearInterval(this.__timer)},
+ onUnload(){this.__reportDownload?.dispose();this.__disposed=true;this.__generation++;clearInterval(this.__timer);clearTimeout(this.__pollTimer);this.__pollResolve?.();this.__pollResolve=null;cancelDraft(this)},
  updateClock(){if(!this.current())return;const clock=clockState(this.__examClock);if(clock)this.setData({remaining:clock.label,timeExpired:clock.expired})},
  current(){return !this.__disposed&&this.__valid&&this.__owner===owner()&&this.__epoch===epoch()},
  sourceReady(){return !this.data.sourceGuarded||this.__taskResolved&&this.data.sourceAvailability==='ready'&&SOURCE_REVISION.test(this.data.sourceRevision)&&!this.data.sourceReviewRequired},
@@ -77,10 +78,10 @@ Page({
   const {text,inputMode,prompt,taskImages,photoPath,taskType,taskId,answer,band,criteria,warning,reportUrl,sourceAvailability,sourceRevision}=this.data
   scheduleDraft(this,this.__scope,{owner:this.__owner,epoch:this.__epoch,text,inputMode,prompt,taskImages,photoPath,taskType,taskId,answer,band,criteria,warning,reportUrl,jobId:this.__jobId,sourceAvailability,sourceRevision,sourceArchiveRef:this.__sourceArchiveRef})
  },
-  onInput(event){if(this.data.loading||!this.current()||!this.sourceReady()||clockState(this.__examClock)?.expired)return;this.__jobId='';this.setData({text:String(event.detail.value||''),error:'',draftStatus:'正在保存…',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
-  onPromptInput(event){if(this.data.loading||!this.current()||!this.sourceReady()||clockState(this.__examClock)?.expired)return;this.__jobId='';this.setData({prompt:String(event.detail.value||''),error:'',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
+  onInput(event){if(this.data.loading||!this.current()||!this.sourceReady()||clockState(this.__examClock)?.expired)return;this.__reportDownload?.reset();this.__jobId='';this.setData({text:String(event.detail.value||''),error:'',draftStatus:'正在保存…',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
+  onPromptInput(event){if(this.data.loading||!this.current()||!this.sourceReady()||clockState(this.__examClock)?.expired)return;this.__reportDownload?.reset();this.__jobId='';this.setData({prompt:String(event.detail.value||''),error:'',answer:'',band:null,criteria:[],reportUrl:''});this.saveDraft()},
  chooseTask(event){if(this.data.loading||this.data.taskId)return;this.setData({taskType:event.currentTarget.dataset.task});this.saveDraft()},
- chooseInputMode(event){const inputMode=event.currentTarget.dataset.mode;if(!this.current()||this.data.loading||!this.sourceReady()||clockState(this.__examClock)?.expired||!['typed','photo'].includes(inputMode)||inputMode===this.data.inputMode)return;this.__jobId='';this.setData({inputMode,answer:'',band:null,criteria:[],warning:'',reportUrl:'',error:'',canRetry:false,authRequired:false,coachStatus:''});this.saveDraft()},
+ chooseInputMode(event){const inputMode=event.currentTarget.dataset.mode;if(!this.current()||this.data.loading||!this.sourceReady()||clockState(this.__examClock)?.expired||!['typed','photo'].includes(inputMode)||inputMode===this.data.inputMode)return;this.__reportDownload?.reset();this.__jobId='';this.setData({inputMode,answer:'',band:null,criteria:[],warning:'',reportUrl:'',error:'',canRetry:false,authRequired:false,coachStatus:''});this.saveDraft()},
   takePhoto(){if(this.data.loading||!this.current()||!this.sourceReady()||clockState(this.__examClock)?.expired)return;wx.setStorageSync('stemistCameraReturn',{route:'writing',context:{product:'IELTSist',skill:'writing',writingScope:this.__scope,writingTaskId:this.data.taskId,writingExamKey:this.__examKey},createdAt:Date.now()});wx.navigateTo({url:'/pages/stem/camera',fail:()=>this.setData({error:'相机未能打开，请重试。'})})},
  previewTask(event){const current=this.data.taskImages[Number(event.currentTarget.dataset.index)]?.url;if(current)wx.previewImage({current,urls:this.data.taskImages.map(i=>i.url)})},
  previewLatestSource(event){const current=this.data.latestTaskImages[Number(event.currentTarget.dataset.index)]?.url;if(current)wx.previewImage({current,urls:this.data.latestTaskImages.map(i=>i.url)})},
@@ -90,7 +91,7 @@ Page({
   if(!this.sourceReady())return this.setData({error:this.data.sourceReviewRequired?'请先查看新题并确认，再提交批改。':this.data.sourceResolved?'这道题正在核验，作文已保留，暂不提交批改。':'题目来源尚未确认，请检查网络后重试。',canRetry:false,coachStatus:'作文和照片已保留'})
   const photoMode=this.data.inputMode==='photo',text=photoMode?'':this.data.text.trim(),prompt=this.data.prompt.trim()
   if(photoMode?!this.data.photoPath:!text)return this.setData({error:photoMode?'请先拍摄作文。':'请先输入作文。'})
-  this.setData({loading:true,error:'',canRetry:false,answer:'',band:null,criteria:[],warning:'',coachStatus:photoMode?'正在提交照片批改…':'正在提交作文…'})
+  this.__reportDownload?.reset();this.setData({loading:true,error:'',canRetry:false,answer:'',band:null,criteria:[],warning:'',coachStatus:photoMode?'正在提交照片批改…':'正在提交作文…'})
   const generation=++this.__generation
   try{
    if(!prompt)throw new Error('请先选择题目或填写写作要求。')
@@ -116,9 +117,9 @@ Page({
   const previousData={...this.data},previousJob=this.__jobId,previousRef=this.__sourceArchiveRef
   let archiveRef
   try{archiveRef=archiveWritingSource(this.__scope,this.__owner,this.__epoch,{sourceRevision:this.data.sourceRevision,prompt:this.data.prompt,taskImages:this.data.taskImages,text:this.data.text,inputMode:this.data.inputMode,photoPath:this.data.photoPath,feedback:this.data.answer,band:this.data.band,criteria:this.data.criteria,warning:this.data.warning,reportUrl:this.data.reportUrl,jobId:this.__jobId})}catch(error){this.setData({error:error.message||'旧稿保存失败，题目尚未切换。'});return}
-  this.__sourceArchiveRef=archiveRef;this.__jobId='';this.__resumeQueryStarted=false
+  this.__reportDownload?.reset();this.__sourceArchiveRef=archiveRef;this.__jobId='';this.__resumeQueryStarted=false
   this.setData({prompt:this.__latestTask.prompt||this.__latestTask.data||'',taskImages:(this.__latestTask.images||[]).slice(0,4),sourceAvailability:'ready',sourceRevision:this.__latestTask.sourceRevision,sourceReviewRequired:false,sourcePreview:false,latestPrompt:'',latestTaskImages:[],latestSourceRevision:'',latestSourceAvailability:'',answer:'',band:null,criteria:[],warning:'',reportUrl:'',canRetry:false,authRequired:false,error:'',coachStatus:'已改用新题，旧题批改记录已保留',draftStatus:'作文与照片已保留',sourceArchiveNotice:'旧题批改记录已保留。'})
-  try{this.saveDraft();cancelDraft(this)}catch(error){this.__sourceArchiveRef=previousRef;this.__jobId=previousJob;this.__resumeQueryStarted=false;this.setData({...previousData,error:'旧稿虽已归档，但当前题目状态保存失败；题目尚未切换，请释放存储空间后重试。'});return}
+  try{this.saveDraft();cancelDraft(this)}catch(error){this.__sourceArchiveRef=previousRef;this.__jobId=previousJob;this.__resumeQueryStarted=false;this.setData({...previousData,reportDownload:null,downloading:false,error:'旧稿虽已归档，但当前题目状态保存失败；题目尚未切换，请释放存储空间后重试。'});return}
   this.ensureExamClock()
  },
  async pollFeedback(generation,started){
@@ -127,7 +128,7 @@ Page({
    if(!this.current()||generation!==this.__generation)return
    if(job.status==='done'){
     const result=job.result,jobId=this.__jobId
-    this.__jobId=''
+    this.__jobId='';this.__reportDownload?.reset()
     this.setData({answer:result.feedback,band:result.band,criteria:result.criteria,warning:result.warning,reportUrl:result.reportUrl||'',canRetry:!result.ai||result.gradeReady===false,coachStatus:!result.ai?'基础建议':result.gradeReady===false?'反馈待复核':'AI 批改完成',draftStatus:'作文与反馈已保存'})
     this.saveDraft()
     const record={id:'writing-'+jobId,category:'ielts',skill:'writing',taskId:this.data.taskId,title:this.data.taskTitle||this.data.taskType,inputMode:this.data.inputMode,text:this.data.inputMode==='photo'?'':this.data.text,prompt:this.data.prompt,answer:result.feedback,band:result.band,coachMode:result.ai?'ai':'local',submittedAt:Date.now()}
@@ -139,15 +140,9 @@ Page({
   }
  },
  retry(){return this.submit()},
- downloadReport(){
-  if(!/^\/api\/report\/pdf\/[a-zA-Z0-9_-]+$/.test(this.data.reportUrl)||this.data.downloading||!this.current())return
-  this.setData({downloading:true,error:''})
-  wx.downloadFile({url:IELTS_API_BASE+this.data.reportUrl,timeout:20000,success:result=>{
-   if(!this.current())return
-   if(result.statusCode!==200)return this.setData({error:'报告下载链接已失效，作文与反馈仍保留。',downloading:false})
-   wx.openDocument({filePath:result.tempFilePath,fileType:'pdf',showMenu:true,fail:()=>{if(this.current())this.setData({error:'当前设备无法打开 PDF 报告。'})},complete:()=>{if(this.current())this.setData({downloading:false})}})
-  },fail:()=>{if(this.current())this.setData({downloading:false,error:'下载未完成，请检查网络后重试。'})}})
- },
+ downloadReport(){return this.__reportDownload?.start()},
+ cancelReportDownload(){return this.__reportDownload?.cancel()},
+ retryReportDownload(){return this.__reportDownload?.retry()},
  openAccount(){this.__authResumeRequested=true;wx.navigateTo({url:'/pages/account/auth'})},
  openFullWorkspace(){wx.navigateTo({url:'/pages/ielts/library?module=writing'})},
  clear(){
@@ -155,7 +150,7 @@ Page({
   wx.showModal({title:'清空当前作文？',confirmText:'清空',success:({confirm})=>{
    if(!confirm||!this.current())return
    const photo=this.data.photoPath
-   clearDraft(this.__scope);this.__jobId=''
+   this.__reportDownload?.reset();clearDraft(this.__scope);this.__jobId=''
    this.setData({text:'',inputMode:'typed',photoPath:'',answer:'',band:null,criteria:[],reportUrl:'',warning:'',error:'',canRetry:false,coachStatus:'',draftStatus:'已清空'})
    if(photo)removeWritingPhoto(photo)
   }})

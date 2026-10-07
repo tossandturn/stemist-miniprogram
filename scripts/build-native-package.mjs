@@ -16,7 +16,7 @@ if(!checkOnly){
  if(!relative||relative.startsWith('..')||path.isAbsolute(relative)||out===root||out.startsWith(root+path.sep)||fs.existsSync(out))throw new Error('Output must be a new sibling workspace directory; existing paths are never overwritten.')
 }
 const files=new Set(['app.js','app.json','app.wxss','sitemap.json'])
-const legacyOnly=new Set(['utils/skillPage.js','utils/speakingTicket.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss'])
+const legacyOnly=new Set(['utils/skillPage.js','utils/speakingTicket.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss',...['js','json','wxml','wxss'].map(ext=>'components/text-practice/index.'+ext)])
 const normalized=value=>value.replaceAll('\\','/')
 const isSubRoot=relative=>app.subPackages.some(entry=>normalized(relative)===entry.root)
 function walk(directory,{skipSubRoots=false}={}){
@@ -33,6 +33,15 @@ function walk(directory,{skipSubRoots=false}={}){
 for(const directory of ['pages','components','utils','design-system','third_party'])walk(directory,{skipSubRoots:true})
 for(const entry of app.subPackages)walk(entry.root)
 const runtimeFiles=[...files].sort((a,b)=>normalized(a).localeCompare(normalized(b),'en'))
+// Retained source-only compatibility components must never be silently excluded
+// if a future native page or subpackage starts using them again.
+for(const file of runtimeFiles.filter(name=>name.endsWith('.json'))){
+ const declaration=JSON.parse(fs.readFileSync(path.join(root,file),'utf8'))
+ for(const component of Object.values(declaration.usingComponents||{})){
+  const resolved=component.startsWith('/')?component.slice(1):normalized(path.relative(root,path.resolve(root,path.dirname(file),component)))
+  if(legacyOnly.has(resolved+'.js'))throw Error('A registered component is excluded from the runtime: '+file+' -> '+resolved)
+ }
+}
 for(const file of runtimeFiles.filter(name=>name.endsWith('.js')))for(const match of fs.readFileSync(path.join(root,file),'utf8').matchAll(/require\(['"]([^'"]+)['"]\)/g)){
  const dependency=normalized(path.relative(root,path.resolve(root,path.dirname(file),match[1]+'.js')))
  if(legacyOnly.has(dependency))throw Error('A runtime import requires an excluded legacy module: '+file)

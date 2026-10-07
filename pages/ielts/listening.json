@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "IELTSist · Listening",
   "usingComponents": {
+    "pdf-download-progress": "/components/pdf-download-progress/index",
     "stemist-header": "/components/stemist-header/index",
     "ai-fab": "/components/ai-fab/index"
   }

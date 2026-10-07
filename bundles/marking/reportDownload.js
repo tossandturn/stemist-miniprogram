@@ -114,7 +114,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
   let estimate
   if(phase==='downloading')estimate=metrics.observe(downloadedBytes,totalBytes)
   else{metrics.reset();estimate={etaSeconds:null,speedLabel:'',remainingLabel:''}}
-  try{options.onProgress?.({downloadedBytes,totalBytes,percent:complete?100:knownTotal?Math.min(99,Math.floor(downloadedBytes*100/totalBytes)):null,complete,phase,...estimate})}catch{/* UI callbacks cannot alter download integrity. */}
+  try{options.onProgress?.({downloadedBytes,totalBytes,percent:complete?100:knownTotal?Math.min(99,Math.floor(downloadedBytes*100/totalBytes)):null,complete,phase,fromCache:phase==='cached',...estimate})}catch{/* UI callbacks cannot alter download integrity. */}
  }
  const requestRange=(start,end,etag='')=>new Promise((resolve,reject)=>{
   ensureCurrent()
@@ -174,7 +174,7 @@ async function runWholePaperDownload({origin,jobId,kind,scope,label='',token='',
  if(meta&&meta.jobId===jobId&&meta.kind===kind&&meta.etag===probe.etag){
   if(meta.complete===true)publish(meta.total,meta.total,false,'verifying')
   if(await validLocalFile(meta,{pdf:meta.complete===true})){
-   if(meta.complete===true){ensureCurrent();publish(meta.total,meta.total,true,'complete');return meta.filePath}
+   if(meta.complete===true){ensureCurrent();publish(meta.total,meta.total,true,'cached');return meta.filePath}
   }else{await discardPartial(scope,meta,{removeComplete:true});meta=null}
  }else if(meta){await discardPartial(scope,meta);meta=null}
  ensureCurrent()

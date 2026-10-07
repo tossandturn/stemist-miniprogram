@@ -4,10 +4,11 @@
    <text class="pdf-progress-title">{{state.label}}</text>
    <text class="pdf-progress-message">{{state.error || state.message}}</text>
   </view>
-  <button class="pdf-progress-action pdf-progress-toggle" bindtap="toggle" aria-label="{{state.collapsed ? '展开下载状态' : '收起下载状态'}}">{{state.collapsed ? '展开' : '收起'}}</button>
+  <button wx:if="{{!compact}}" class="pdf-progress-action pdf-progress-toggle" bindtap="toggle" aria-label="{{state.collapsed ? '展开下载状态' : '收起下载状态'}}">{{state.collapsed ? '展开' : '收起'}}</button>
  </view>
- <block wx:if="{{!state.collapsed}}">
+ <block wx:if="{{compact || !state.collapsed}}">
   <view wx:if="{{state.knownTotal}}" class="pdf-progress-track" aria-label="下载进度 {{state.percent === null ? 0 : state.percent}}%"><view class="pdf-progress-fill" style="width:{{state.percent === null ? 0 : state.percent}}%"></view></view>
+  <view wx:else class="pdf-progress-track is-unknown {{state.active ? 'is-indeterminate' : ''}} {{state.phase === 'ready' || state.phase === 'cached' || state.phase === 'opened' ? 'is-complete' : ''}}" aria-label="{{state.message}}"><view class="pdf-progress-fill"></view></view>
   <text wx:if="{{state.knownTotal}}" class="pdf-progress-bytes">{{state.downloadedLabel}} / {{state.totalLabel}} · {{state.percent === null ? 0 : state.percent}}%</text>
   <text wx:elif="{{state.downloadedLabel}}" class="pdf-progress-bytes">已下载 {{state.downloadedLabel}}</text>
   <text wx:if="{{state.speedLabel || state.remainingLabel}}" class="pdf-progress-bytes">{{state.speedLabel}}{{state.speedLabel && state.remainingLabel ? ' · ' : ''}}{{state.remainingLabel}}</text>

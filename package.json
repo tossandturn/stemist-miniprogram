@@ -20,7 +20,7 @@
     "test:ai-fab": "node scripts/test-ai-fab.mjs",
     "test:inventory": "node scripts/test-inventory.mjs && node scripts/test-public-inventory.mjs",
     "test:api": "node scripts/test-api-client.mjs",
-    "test:progress": "node scripts/test-operation-progress.mjs && node scripts/test-coach-progress-lifecycle.mjs && node scripts/test-marking-progress-view.mjs && node scripts/test-download-metrics-fast.mjs",
+    "test:progress": "node scripts/test-operation-progress.mjs && node scripts/test-coach-progress-lifecycle.mjs && node scripts/test-marking-progress-view.mjs && node scripts/test-download-metrics-fast.mjs && node scripts/test-transfer-progress.mjs && node scripts/test-download-coverage.mjs && node scripts/test-writing-report-download-progress.mjs",
     "test:chapter-integration": "node scripts/test-chapter-study-cross-repo.mjs --backend ../stem-profile-apib-candidate",
     "test:auth": "node scripts/test-auth-client.mjs && node scripts/test-account-profile.mjs",
     "test:session": "node scripts/test-session-cleanup.mjs && node scripts/test-private-page-owner-boundaries.mjs",

@@ -1,11 +1,13 @@
-:host { display: block; }
-.ai-fab { position: fixed; z-index: 60; top: 18px; right: 16px; left: auto; display: flex; align-items: center; justify-content: center; width: 112px; min-width: 0; min-height: 44px; margin: 0; padding: 10px 12px; border: 0; border-radius: 22px; color: #fff; background: #6848d7; font-size: 13px; font-weight: 700; line-height: 1.5; box-sizing: border-box; box-shadow: 0 4px 12px rgba(84,57,178,.14); }
-.ai-fab::after { border: 0; }
-.ai-fab-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 19px; height: 19px; margin-right: 7px; border: 1px solid #fff; border-radius: 50%; }
-.ai-fab-cross { position: relative; width: 10px; height: 10px; }
-.ai-fab-cross::before, .ai-fab-cross::after { position: absolute; left: 4px; top: 0; width: 2px; height: 10px; border-radius: 1px; background: currentColor; content: ''; }
-.ai-fab-cross::after { transform: rotate(90deg); }
-.ai-fab:active { opacity: .8; }
-.ai-fab-inline { position: static; width: 112px; }
-button.ai-fab.ai-fab-fixed, button.ai-fab.ai-fab-inline { width: 112px; min-width: 0; margin: 0; }
-@media (min-width: 768px) { .ai-fab { right: 28px; top: 24px; } .ai-fab-inline { position: static; } }
+:host{display:block;}
+.ai-fab{position:fixed;z-index:60;top:18px;right:16px;left:auto;display:flex;align-items:center;justify-content:center;width:112px;min-width:0;min-height:44px;margin:0;padding:10px 12px;border:0;border-radius:22px;color:#fff;background:#6848d7;font-size:13px;font-weight:700;line-height:1.5;box-sizing:border-box;box-shadow:0 4px 12px rgba(84,57,178,.14);}
+.ai-fab::after{border:0;}
+.ai-fab-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:19px;height:19px;margin-right:7px;border:1px solid #fff;border-radius:50%;}
+.ai-fab-cross{position:relative;width:10px;height:10px;}
+.ai-fab-cross::before, .ai-fab-cross::after{position:absolute;left:4px;top:0;width:2px;height:10px;border-radius:1px;background:currentColor;content:'';}
+.ai-fab-cross::after{transform:rotate(90deg);}
+.ai-fab:active{opacity:.8;}
+.ai-fab-inline{position:static;width:112px;}
+button.ai-fab.ai-fab-fixed, button.ai-fab.ai-fab-inline{width:112px;min-width:0;margin:0;}
+@media (min-width: 768px) {
+.ai-fab{right:28px;top:24px;}
+.ai-fab-inline{position:static;}}

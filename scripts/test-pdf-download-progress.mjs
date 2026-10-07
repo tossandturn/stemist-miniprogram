@@ -321,6 +321,9 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
 }
 const componentWxml=read('components/pdf-download-progress/index.wxml'),componentWxss=read('components/pdf-download-progress/index.wxss')
 assert.match(componentWxml,/bindtap="cancel"/);assert.match(componentWxml,/bindtap="retry"/);assert.match(componentWxml,/收起/);assert.match(componentWxml,/aria-label/)
-assert.match(componentWxss,/min-height:\s*44px/);assert.doesNotMatch(componentWxss,/@keyframes|animation\s*:/,'progress must reflect network events, not a fabricated animation')
+assert.match(componentWxss,/min-height:\s*44px/)
+assert.doesNotMatch(componentWxss.match(/(?<![\w-])\.pdf-progress-fill\s*\{([^}]+)\}/)?.[1]||'',/animation\s*:/,'measured percentages never animate independently of network events')
+assert.match(componentWxml,/<view wx:else class="pdf-progress-track is-unknown/,'indeterminate animation is limited to unknown totals')
+assert.match(componentWxss,/\.is-indeterminate \.pdf-progress-fill\s*\{[^}]*animation:/)
 
 console.log('PDF download progress: real bytes/percent, throttle, open phase, cancel/retry, identity/private/public cache boundaries, lifecycle scope, exam MS gate and inline accessible UI passed.')

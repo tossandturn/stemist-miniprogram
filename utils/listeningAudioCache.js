@@ -25,12 +25,12 @@ function legacyListeningAudio(url,{version='',onProgress=()=>{}}={}){
  let entry=entries.get(key)
  if(entry?.path){try{fs.accessSync(entry.path)}catch{entries.delete(key);entry=null}}
  if(!entry){
-  entry={key,refs:0,listeners:new Set(),used:Date.now(),size:0,path:'',progress:{bytes:0,total:0,percent:null},done:false}
+  entry={key,refs:0,listeners:new Set(),used:Date.now(),size:0,path:'',progress:{bytes:0,total:0,percent:null,phase:'connecting'},done:false}
   entries.set(key,entry)
   entry.promise=new Promise((resolve,reject)=>{entry.resolve=resolve;entry.reject=reject})
  }
  entry.refs++;entry.used=Date.now();entry.listeners.add(onProgress)
- if(!entry.path)onProgress(entry.progress)
+ onProgress(entry.path?{bytes:entry.size,total:entry.size,phase:'cached',fromCache:true}:entry.progress)
  const clear=()=>{clearTimeout(entry.stall);clearTimeout(entry.hard)}
  const fail=message=>{
   if(entry.done)return
@@ -45,13 +45,13 @@ function legacyListeningAudio(url,{version='',onProgress=()=>{}}={}){
    if(result.statusCode!==200||!entry.path)return fail('音频下载未完成，请重试。')
    try{entry.size=Number(fs.statSync(entry.path).size)||0}catch{return fail('音频文件未能读取，请重试。')}
    if(entry.size<=0||entry.size>MAX_FILE)return fail('音频文件不完整或过大，请重新选题。')
-   entry.done=true;clear();entry.used=Date.now();entry.resolve(entry.path);prune()
+   entry.done=true;clear();entry.used=Date.now();for(const listener of entry.listeners)listener({bytes:entry.size,total:entry.size,phase:'ready'});entry.resolve(entry.path);prune()
   },fail:()=>fail('音频准备失败，请检查网络后重试。')})
   entry.task?.onProgressUpdate(event=>{
    if(entry.done)return
    const before=entry.progress.bytes,bytes=Math.max(0,Number(event.totalBytesWritten)||0),total=Math.max(0,Number(event.totalBytesExpectedToWrite)||0)
    if(bytes>MAX_FILE||total>MAX_FILE){fail('音频文件过大，请重新选题。');entry.task.abort();return}
-   if(bytes>before)arm();entry.progress={bytes,total,percent:total?Math.min(99,Math.floor(bytes*100/total)):null}
+   if(bytes>before)arm();entry.progress={bytes,total,percent:total?Math.min(99,Math.floor(bytes*100/total)):null,phase:'downloading'}
    if(!entry.lastProgress||Date.now()-entry.lastProgress>=250){entry.lastProgress=Date.now();for(const listener of entry.listeners)listener(entry.progress)}
   })}catch{fail('音频准备失败，请重试。')}
  }

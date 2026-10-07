@@ -24,10 +24,9 @@
 <text>{{audioPosition}} / {{audioDuration}}s</text>
 </view>
 <view wx:if="{{audioAvailable}}" class="audio-load-status" role="status">
- <block wx:if="{{audioPreparing}}"><text>准备音频 {{audioDownloadPercent !== null ? audioDownloadPercent + '%' : audioDownloadedLabel}}</text><progress wx:if="{{audioDownloadPercent !== null}}" percent="{{audioDownloadPercent}}" stroke-width="3" activeColor="#7357e8"/></block>
- <text wx:elif="{{audioError}}" class="audio-load-error">{{audioError}}</text>
- <text wx:elif="{{audioBuffering}}">正在缓冲…</text>
- <text wx:elif="{{audioReady && !audioPlaying}}">音频已就绪</text>
+ <pdf-download-progress wx:if="{{audioProgress && !audioPlaying}}" state="{{audioProgress}}" compact="{{true}}" bind:cancel="cancelAudioDownload" bind:retry="prepareAudio"/>
+ <text wx:if="{{audioError && !audioProgress}}" class="audio-load-error">{{audioError}}</text>
+ <text wx:if="{{audioBuffering}}">正在缓冲…</text>
 </view>
 <view wx:if="{{audioAvailable && !examMode}}" class="caption-controls"><button bindtap="toggleCaptions">{{captionsEnabled ? '隐藏字幕' : '字幕'}}</button></view>
 <view wx:if="{{captionsEnabled}}" class="native-captions">

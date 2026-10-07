@@ -3,6 +3,8 @@ const {getIeltsTask}=require('./ieltsContent')
 const {sectionTask}=require('./ieltsUnits')
 const {loadCaptions,captionFrame}=require('./nativeCaptions')
 const {acquireListeningAudio}=require('./listeningAudioCache')
+const {buildTransferProgress}=require('./transferProgress')
+const {createDownloadMetrics}=require('./downloadMetrics')
 const {requestIeltsJson}=require('./api')
 const {requestIeltsLearning}=require('./ieltsLearning')
 const {rememberRecord}=require('./nativeRecords')
@@ -13,10 +15,10 @@ const clock=seconds=>`${Math.floor(seconds/60).toString().padStart(2,'0')}:${Mat
 function makeObjectivePage(module){
  const initial={module,title:module==='listening'?'Listening':'Reading',taskId:'',taskTitle:'',loading:true,busy:false,error:'',questions:[],questionNav:[],current:0,total:0,answer:'',answered:0,sourceImages:[],imageIndex:0,imageCount:0,passageText:'',showPassage:false,audioAvailable:false,audioPlaying:false,audioPosition:0,audioDuration:0,audioTracks:[],audioIndex:0,elapsed:'00:00',saveStatus:'',submitted:false,result:null,review:[],captionsEnabled:false,captionBubbles:[],captionStatus:''}
  return{
- data:deviceState(initial),
+ data:deviceState({...initial,audioProgress:null}),
  onLoad(options={}){this.__disposed=false;this.__epoch=epoch();this.__owner=owner();this.__generation=0;this.__section=Number(options.section)||0;this.__examKey=String(options.examKey||'');this.setData({taskId:String(options.taskId||''),examMode:Boolean(this.__examKey)});if(this.__examKey){this.__exam=readExam(this.__examKey);if(this.__section||!this.__exam||this.__exam.sources[module]!==this.data.taskId){this.setData({loading:false,error:'试题不属于当前模拟。'});return}}if(!this.data.taskId){wx.redirectTo({url:`/pages/ielts/library?module=${module}`});return}this.load()},
  onShow(){this.__visible=true;syncDevice(this);if(this.__epoch!==epoch()||this.__owner!==owner()){this.resetIdentity();return}if(this.__task){this.startClock();if(this.data.audioAvailable&&!this.__preparedAudio&&!this.data.audioPreparing)this.prepareAudio()}},onResize(){syncDevice(this)},
- onHide(){this.__visible=false;this.pauseAudio();if(this.data.audioPreparing)this.cancelAudioPreparation();this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
+ onHide(){this.__visible=false;this.pauseAudio();if(this.data.audioPreparing)this.cancelAudioPreparation(true);this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
  onUnload(){this.flush();this.__disposed=true;this.__visible=false;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy();this.cancelAudioPreparation()},
  currentOwner(){return !this.__disposed&&this.__epoch===epoch()&&this.__owner===owner()},
  resetIdentity(){
@@ -24,7 +26,7 @@ function makeObjectivePage(module){
   this.__audioWanted=false;const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.stop?.();audio?.destroy?.();this.cancelAudioPreparation();this.__audioPreparation=null
   this.__captionRequest=(this.__captionRequest||0)+1;this.__captionModel=null;this.__captionIndex=-2
   this.__task=null;this.__draft=null;this.__storageKey='';this.__images=[];this.__exam=null;this.__examClock=null;this.__baseElapsed=0;this.__activeAt=null
-  this.setData({...initial,loading:false,error:'账号已变化，请重新打开这份练习。',timeExpired:false})
+  this.setData({...initial,audioProgress:null,loading:false,error:'账号已变化，请重新打开这份练习。',timeExpired:false})
  },
  async load(){const generation=++this.__generation;this.setData({loading:true,error:''});try{
   const task=sectionTask(await getIeltsTask(module,this.data.taskId),this.__section);if(!this.currentOwner()||generation!==this.__generation)return
@@ -83,7 +85,8 @@ function makeObjectivePage(module){
   audio.src=url
   return audio
  },
- cancelAudioPreparation(){this.__audioPrepareRevision=(this.__audioPrepareRevision||0)+1;this.__audioCacheLease?.release();this.__audioCacheLease=null;this.__preparedAudio=null;if(!this.__disposed)this.setData({audioPreparing:false,audioReady:false})},
+ cancelAudioPreparation(paused=false){this.__audioPrepareRevision=(this.__audioPrepareRevision||0)+1;this.__audioCacheLease?.release();this.__audioCacheLease=null;this.__preparedAudio=null;if(!this.__disposed)this.setData({audioPreparing:false,audioReady:false,audioProgress:paused?buildTransferProgress({...this.data.audioProgress,phase:'paused'},'听力音频',{canRetry:true}):null})},
+ cancelAudioDownload(){this.pauseAudio();this.cancelAudioPreparation(true)},
  prepareAudio(){
   if(!this.currentOwner()||this.__visible===false||!this.data.audioAvailable)return
   if(this.data.audioPreparing)return this.__audioPreparation
@@ -91,18 +94,19 @@ function makeObjectivePage(module){
   if(this.__preparedAudio?.index===index)return Promise.resolve(this.__preparedAudio.path)
   this.cancelAudioPreparation()
   const revision=this.__audioPrepareRevision,active=()=>this.currentOwner()&&this.__visible!==false&&revision===this.__audioPrepareRevision&&index===this.data.audioIndex
-  this.setData({audioPreparing:true,audioError:'',audioDownloadPercent:null,audioDownloadedLabel:'0 KB',audioReady:false})
+  this.setData({audioPreparing:true,audioError:'',audioDownloadPercent:null,audioDownloadedLabel:'0 KB',audioReady:false,audioProgress:buildTransferProgress({},'听力音频',{canCancel:true})})
+  const metrics=createDownloadMetrics()
   try{
-   const lease=acquireListeningAudio(url,{version:this.__task.contentVersion||'',onProgress:p=>{if(active())this.setData({audioDownloadPercent:p.percent,audioDownloadedLabel:p.bytes>=1048576?(p.bytes/1048576).toFixed(1)+' MB':Math.floor(p.bytes/1024)+' KB'})}})
+   const lease=acquireListeningAudio(url,{version:this.__task.contentVersion||'',onProgress:p=>{if(active()){const progress=buildTransferProgress({...p,downloadedBytes:p.bytes,...metrics.observe(p.bytes,p.total)},'听力音频',{canCancel:!['ready','cached'].includes(p.phase)});this.setData({audioProgress:progress,audioDownloadPercent:progress.percent,audioDownloadedLabel:progress.downloadedLabel})}}})
    this.__audioCacheLease=lease
    this.__audioPreparation=lease.promise.then(path=>{
     if(!active()){lease.release();return}
-    this.__preparedAudio={index,path};this.setData({audioPreparing:false,audioReady:true,audioDownloadPercent:100})
+    this.__preparedAudio={index,path};this.setData({audioPreparing:false,audioReady:true,audioDownloadPercent:100,audioProgress:buildTransferProgress({...this.data.audioProgress,phase:this.data.audioProgress?.phase==='cached'?'cached':'ready'},'听力音频')})
     if(this.__audioWanted){const audio=this.initAudio(this.data.audioPosition);audio?.play()}
     return path
-   }).catch(()=>{if(active()){this.__audioWanted=false;this.setData({audioPreparing:false,audioPlaying:false,audioError:'音频准备失败，点击播放重试。'})}})
+   }).catch(()=>{if(active()){this.__audioWanted=false;this.setData({audioPreparing:false,audioPlaying:false,audioError:'音频准备失败，点击播放重试。',audioProgress:buildTransferProgress({...this.data.audioProgress,phase:'error'},'听力音频',{canRetry:true})})}})
    return this.__audioPreparation
-  }catch{this.__audioWanted=false;this.setData({audioPreparing:false,audioError:'音频准备失败，点击播放重试。'})}
+  }catch{this.__audioWanted=false;this.setData({audioPreparing:false,audioError:'音频准备失败，点击播放重试。',audioProgress:buildTransferProgress({phase:'error'},'听力音频',{canRetry:true})})}
  },
  toggleCaptions(){if(this.data.examMode)return;this.__captionRequest=(this.__captionRequest||0)+1;this.setData({captionsEnabled:!this.data.captionsEnabled,captionBubbles:[],captionStatus:''});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
  async loadCurrentCaptions(){

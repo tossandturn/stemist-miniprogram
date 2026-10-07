@@ -52,14 +52,15 @@ async function run(entry){
  try{
   let stored=records().find(item=>item.key===entry.key)
   if(stored)entry.path=stored.path
-  if(stored?.ready){await drain(stored.path);guard(entry);if(await mp3(stored)){guard(entry);stored={...stored,used:Date.now()};put(stored);return complete(entry,stored.path)}await removeRecord(entry.key);guard(entry);stored=null}
+  if(stored?.ready){await drain(stored.path);guard(entry);if(await mp3(stored)){guard(entry);stored={...stored,used:Date.now()};put(stored);entry.progress(stored.offset,stored.total,'cached');return complete(entry,stored.path)}await removeRecord(entry.key);guard(entry);stored=null}
   const probe=checked(await request(entry,'bytes=0-0'),0,0);guard(entry)
   if(stored){await drain(stored.path);guard(entry)}
   if(stored&&(stored.etag!==probe.etag||stored.total!==probe.total||fileSize(stored.path)!==stored.offset||(await read(stored.path,0,1).catch(()=>null))?.[0]!==probe.data[0])){await removeRecord(entry.key);guard(entry);stored=null;entry.path=''}
   if(!stored){try{fs().mkdirSync(folder(),true)}catch{fs().accessSync(folder())}const path=folder()+'/audio-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10)+'.mp3';entry.pendingPath=entry.path=path;await write(path,probe.data);guard(entry);stored={schema:SCHEMA,key:entry.key,url:entry.url,version:entry.version,etag:probe.etag,total:probe.total,offset:1,ready:probe.total===1,path,used:Date.now()};try{put(stored)}catch{await unlink(path);throw checkpoint()}}else{stored={...stored,used:Date.now()};put(stored)}
   entry.progress(stored.offset,stored.total)
   while(stored.offset<stored.total){guard(entry);const start=stored.offset,end=Math.min(start+CHUNK-1,stored.total-1),part=checked(await request(entry,`bytes=${start}-${end}`,stored.etag),start,end,stored.total,stored.etag);guard(entry);await write(stored.path,part.data,true);guard(entry);if(fileSize(stored.path)!==end+1){await removeRecord(entry.key);throw checkpoint()}const next={...stored,offset:end+1,ready:end+1===stored.total,used:Date.now()};try{put(next)}catch{await removeRecord(entry.key);throw checkpoint()}stored=next;entry.progress(stored.offset,stored.total)}
-  guard(entry);if(!await mp3(stored)){await removeRecord(entry.key);throw err('audio_file_invalid','音频文件不完整。')}guard(entry)
+  guard(entry);entry.progress(stored.offset,stored.total,'verifying');if(!await mp3(stored)){await removeRecord(entry.key);throw err('audio_file_invalid','音频文件不完整。')}guard(entry)
+  entry.progress(stored.offset,stored.total,'ready')
   complete(entry,stored.path)
  }catch(error){
   if(entry.pendingPath&&!records().some(item=>item.path===entry.pendingPath)){await drain(entry.pendingPath);await unlink(entry.pendingPath);entry.pendingPath=''}
@@ -74,9 +75,9 @@ function acquireRangeAudio(url,{version='',onProgress=()=>{}}={}){
  const key=url+'|'+normalizedVersion,existing=entries.get(key)
  if(existing?.stale)return waitStale(existing,url,{version:normalizedVersion,onProgress})
  let entry=existing
- if(!entry){entry={key,url,version:normalizedVersion,refs:0,listeners:new Set(),done:false,path:'',progress(bytes,total){const value={bytes,total,percent:total?Math.min(99,Math.floor(bytes*100/total)):null};for(const listener of this.listeners)listener(value)}};entry.promise=new Promise((resolve,reject)=>{entry.resolve=resolve;entry.reject=reject});entry.closed=new Promise(resolve=>{entry.close=resolve});entries.set(key,entry);entry.hard=setTimeout(()=>stop(entry,err('audio_hard_timeout','音频准备超时，进度已保留。'),{abort:true}),HARD_MS);run(entry)}
+ if(!entry){entry={key,url,version:normalizedVersion,refs:0,listeners:new Set(),done:false,path:'',progress(bytes,total,phase='downloading'){const value={bytes,total,phase,percent:total?Math.min(99,Math.floor(bytes*100/total)):null};this.lastProgress=value;for(const listener of this.listeners)listener(value)}};entry.promise=new Promise((resolve,reject)=>{entry.resolve=resolve;entry.reject=reject});entry.closed=new Promise(resolve=>{entry.close=resolve});entries.set(key,entry);entry.hard=setTimeout(()=>stop(entry,err('audio_hard_timeout','音频准备超时，进度已保留。'),{abort:true}),HARD_MS);run(entry)}
  entry.refs++;entry.listeners.add(onProgress)
- const stored=records().find(item=>item.key===key);onProgress(stored?{bytes:stored.offset,total:stored.total,percent:stored.total?Math.min(99,Math.floor(stored.offset*100/stored.total)):null}:{bytes:0,total:0,percent:null})
+ const stored=records().find(item=>item.key===key);onProgress(entry.lastProgress||(stored?{bytes:stored.offset,total:stored.total,phase:'verifying'}:{bytes:0,total:0,phase:'connecting'}))
  let released=false
  return{promise:entry.promise,invalidate(){if(released||entries.get(key)!==entry)return;entry.stale=true;const stored=records().find(item=>item.key===key&&item.path===entry.path);if(stored)forget(key,entry.path);if(!entry.refs)closeEntry(entry)},release(){if(released)return;released=true;entry.listeners.delete(onProgress);entry.refs=Math.max(0,entry.refs-1);if(!entry.refs&&!entry.done)stop(entry,cancelled(),{abort:true});if(!entry.refs)closeEntry(entry);prune()}}
 }

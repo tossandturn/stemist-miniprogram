@@ -3,6 +3,7 @@ const {STEM_ROUTES}=require('../../utils/stemRoutes')
 const api=require('./service')
 const {reportState}=require('./reportState')
 const {markingJobDisplay,retryRequestId}=require('./display')
+const {buildTransferProgress}=require('../../utils/transferProgress')
 const message=e=>api.errorMessage?api.errorMessage(e):e.message||'请求未完成，请重试。'
 const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)
 const RECOVERY_DELAYS=[4000,8000,16000,30000]
@@ -10,6 +11,9 @@ const fileSizeLabel=bytes=>bytes>=1024*1024?(bytes/(1024*1024)).toFixed(bytes<10
 const routes=STEM_ROUTES.filter(r=>['IGCSE','AS','A2'].includes(r.stage)).map(r=>({id:r.routeId,label:r.stage+' · '+r.subjectCode+' · '+r.subjectLabel+' · '+r.components}))
 const roles={answer:'学生作答','question-paper':'原卷','mark-scheme':'评分标准'}
 const states={draft:'等待上传',queued:'排队中',processing:'正在批改',completed:'批改已完成',failed:'批改暂未完成'}
+const documentLabel=control=>control?.temporary?'临时 PDF 预览':control?.kind==='source'?'作答 PDF':'批改报告'
+const documentProgress=(control,progress={},overrides={})=>buildTransferProgress({...progress,fromCache:progress.fromCache===true||control?.fromCache===true},documentLabel(control),overrides)
+const hiddenDocumentProgress=()=>buildTransferProgress({phase:'preparing'},'PDF',{visible:false})
 const pickerDiagnostic=error=>{
  const safe=value=>typeof value==='number'&&Number.isFinite(value)||typeof value==='string'&&/^[a-zA-Z0-9_-]{1,48}$/.test(value)?String(value):''
  const errMsg=String(error?.errMsg||error?.message||'').replace(/(?:wxfile|file):\/\/\S+|[a-zA-Z]:\\\S+|\/(?:tmp|var|private|Users|data)\/\S+/g,'[file]').replace(/\b(?:access_?token|token|authorization|cookie|session|ticket)=\S+/gi,'[redacted]').slice(0,180)
@@ -28,12 +32,12 @@ const pickerFailure=error=>{
 }
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,creating:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false,refreshing:false,refreshError:'',retrying:false,recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',expiresAtLabel:'',sourceAvailable:false,reportAvailable:false,markingProgress:{}}),
- onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__creating=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false;this.bindOwner()},
+ data:deviceState({title:'',instructions:'',routes,routeIndex:0,files:[],answers:[],references:[],selectionSummary:'尚未选择作答',uploadTotal:0,uploadCompleted:0,busy:false,creating:false,picking:false,selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',authenticated:false,jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:true,optionalOpen:false,result:null,questions:[],reportPage:0,reportPages:0,history:[],privacy:false,documentBusy:false,documentProgress:hiddenDocumentProgress(),refreshing:false,refreshError:'',retrying:false,recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',expiresAtLabel:'',sourceAvailable:false,reportAvailable:false,markingProgress:{}}),
+ onLoad(){this.__disposed=false;this.__visible=true;this.__generation=0;this.__privacyCheck=0;this.__selectionSequence=0;this.__autoResume=null;this.__creating=null;this.__documentGeneration=0;this.__document=null;this.__resumeDocument=null;this.__documentRetry=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false;this.bindOwner()},
  bindOwner(){
   const s=api.scope();if(this.__scope&&s.owner===this.__scope.owner&&s.epoch===this.__scope.epoch)return false
   this.pauseDocument();this.pause();this.__creating=null;this.__upload=null;this.__scope=s;this.__key='stemistDraft:whole-paper:'+s.owner
-  this.setData({documentStatus:''})
+  this.__documentRetry=null;this.setData({documentProgress:hiddenDocumentProgress()})
   this.__privacyCheck++;this.__privacyKnown=typeof wx.getPrivacySetting!=='function';this.__privacyNeeded=false
   this.__job=null;this.__questions=[];this.__pickAction=null;this.__pickerDiagnostic=null;this.__statusRecoveryFailures=0
   const old=wx.getStorageSync(this.__key)
@@ -301,36 +305,37 @@ Page({
   const jobId=String(event.currentTarget.dataset.id);if(!this.data.history.some(j=>j.jobId===jobId))return
   this.pause();this.__creating=null;this.__upload=null;const saved=wx.getStorageSync(this.__key+':'+jobId)
   this.__draft=saved?.epoch===this.__scope.epoch&&saved.jobId===jobId&&Array.isArray(saved.files)?saved:{clientRequestId:'paper-'+uid(),files:[],jobId,epoch:this.__scope.epoch,routeId:routes[0]?.id||''}
-  this.__job=null;this.__questions=[];this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=Boolean(this.__draft.retryRequestId);this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,currentStepLabel:'上传作答',actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:'',refreshError:'',recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',reportAvailable:false,sourceAvailable:false,creating:false});this.refreshJob()
+  this.__job=null;this.__questions=[];this.__documentRetry=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=Boolean(this.__draft.retryRequestId);this.save();this.setData({jobId,jobStatus:'',jobLabel:'',jobStateHint:'正在读取任务状态…',flowStep:1,currentStepLabel:'上传作答',actionVisible:false,optionalOpen:false,result:null,questions:[],title:this.__draft.title||'',instructions:this.__draft.instructions||'',error:'',refreshError:'',recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',retentionLabel:'',reportAvailable:false,sourceAvailable:false,creating:false,documentProgress:hiddenDocumentProgress()});this.refreshJob()
  },
  pauseDocument(resume=false){
   const control=this.__document
   if(!control||control.phase!=='downloading'){if(!resume)this.__resumeDocument=null;return}
   this.__resumeDocument=resume?{owner:control.scope.owner,epoch:control.scope.epoch,jobId:control.jobId,kind:control.kind}:null
+  if(!resume)this.__documentRetry={owner:control.scope.owner,epoch:control.scope.epoch,jobId:control.jobId,kind:control.kind}
   this.__documentGeneration++;this.__document=null;control.task?.abort?.()
-  if(!this.__disposed)this.setData({documentBusy:false,documentStatus:resume?'下载已暂停，返回后自动继续。':'下载已暂停，点击下载按钮继续；不会重新批改。'})
+  if(!this.__disposed)this.setData({documentBusy:false,documentProgress:documentProgress(control,{...control.progress,phase:'paused'},{message:resume?'下载已暂停，返回后自动继续。':'下载已暂停，点击重试继续；不会重新批改。',canRetry:!resume,visible:true})})
  },
  cancelDocument(){this.pauseDocument()},
+ retryDocument(){const retry=this.__documentRetry;if(!retry||this.data.documentBusy||!this.current()||retry.owner!==this.__scope?.owner||retry.epoch!==this.__scope?.epoch||retry.jobId!==this.data.jobId)return;this.document({currentTarget:{dataset:{kind:retry.kind}}})},
  async document(event){
   if(!this.current()||this.data.documentBusy)return
-  if(event.currentTarget.dataset.kind==='report'&&!this.data.reportAvailable)return
-  const s=this.__scope,id=this.data.jobId,kind=event.currentTarget.dataset.kind,g=++this.__documentGeneration
-  const control=this.__document={scope:s,jobId:id,kind,phase:'downloading',task:null}
-  this.setData({documentBusy:true,documentStatus:'正在连接并确认 PDF 下载进度…',error:''})
+  const kind=event.currentTarget.dataset.kind;if(!['report','source'].includes(kind)||kind==='report'&&!this.data.reportAvailable)return
+  const s=this.__scope,id=this.data.jobId,g=++this.__documentGeneration
+  const control=this.__document={scope:s,jobId:id,kind,phase:'downloading',task:null,progress:{phase:'connecting'},temporary:false,fromCache:false}
+  this.__documentRetry=null;this.setData({documentBusy:true,documentProgress:documentProgress(control,control.progress,{message:'正在连接并确认下载权限…',canCancel:true,visible:true}),error:''})
   const alive=()=>this.accept(s)&&id===this.data.jobId&&g===this.__documentGeneration
-  const options={cancelled:()=>!alive(),onTask:task=>{if(alive())control.task=task;else task?.abort?.()},onTemporary:()=>{if(alive()){control.temporary=true;this.setData({documentStatus:'本机空间不足，正在准备临时 PDF 预览；云端报告仍保留。'})}},onProgress:progress=>{
+  const options={cancelled:()=>!alive(),onTask:task=>{if(alive())control.task=task;else task?.abort?.()},onTemporary:()=>{if(alive()){control.temporary=true;control.progress={...control.progress,phase:'preparing'};this.setData({documentProgress:documentProgress(control,control.progress,{message:'本机空间不足，正在准备临时 PDF 预览；云端报告仍保留。',canCancel:true})})}},onProgress:progress=>{
    if(!alive())return
-   const downloaded=Math.max(0,Number(progress.downloadedBytes)||0),total=Math.max(0,Number(progress.totalBytes)||0)
-   const percent=total>0?Math.max(0,Math.min(99,Math.floor(downloaded/total*100))):null
-   this.setData({documentStatus:progress.phase==='verifying'?'下载已完成，正在校验 PDF…':(control.temporary?'临时预览下载 ':'正在下载 ')+(downloaded?fileSizeLabel(downloaded):'0 KB')+(total?' / '+fileSizeLabel(total)+' · '+percent+'%':'')+(progress.speedLabel?' · '+progress.speedLabel:'')+(progress.remainingLabel?' · '+progress.remainingLabel:'')})
+   const phase=progress.phase==='complete'?'ready':progress.phase||'downloading';if(progress.fromCache===true||phase==='cached')control.fromCache=true
+   control.progress={...progress,phase,fromCache:control.fromCache};this.setData({documentProgress:documentProgress(control,control.progress,{canCancel:!['ready','cached'].includes(phase)})})
   }}
   try{
    const filePath=await api.download(id,kind,s,this.__job?.title||this.__draft.title||routes[this.data.routeIndex]?.label,options)
-   if(alive()&&this.__visible){control.phase='opening';this.setData({documentStatus:'下载完成，正在打开 PDF…'});wx.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(alive())this.setData({documentStatus:control.temporary?'临时 PDF 已打开；云端报告仍保留。':'PDF 已打开。'})},fail:()=>{if(alive())this.setData({error:'PDF 已下载，但未能打开，请重试。',documentStatus:control.temporary?'云端报告保留，重试下载不会重新批改。':'文件已保留，重新点击下载按钮可再次打开。'})}})}
-  }catch(e){if(alive())this.setData({error:e.message,documentStatus:'下载未完成，点击下载按钮重试；不会重新批改。'})}
+   if(alive()&&this.__visible){control.phase='opening';control.progress={...control.progress,phase:'opening',complete:true,fromCache:control.fromCache};this.setData({documentProgress:documentProgress(control,control.progress,{message:control.temporary?'临时 PDF 已校验，正在打开；云端报告仍保留。':undefined})});wx.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(alive()){control.phase='ready';control.progress={...control.progress,phase:'ready',complete:true};this.setData({documentProgress:documentProgress(control,control.progress,{message:control.temporary?'临时 PDF 已打开；云端报告仍保留。':control.fromCache?'已从缓存打开 PDF。':'PDF 已打开。'})})}},fail:()=>{if(alive()){this.__documentRetry={owner:s.owner,epoch:s.epoch,jobId:id,kind};control.progress={...control.progress,phase:'error'};this.setData({documentProgress:documentProgress(control,control.progress,{error:'PDF 已下载，但未能打开，请重试。',message:control.temporary?'云端报告保留，重试不会重新批改。':'文件已保留，重试不会重新批改。',canRetry:true})})}}})}
+  }catch(e){if(alive()){this.__documentRetry={owner:s.owner,epoch:s.epoch,jobId:id,kind};control.progress={...control.progress,phase:'error'};this.setData({documentProgress:documentProgress(control,control.progress,{error:e.message||'下载未完成，请重试。',message:'点击重试继续下载；不会重新批改。',canRetry:true})})}}
   finally{if(alive())this.setData({documentBusy:false});if(this.__document===control)this.__document=null}
  },
- newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__creating=null;this.__upload=null;const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAtLabel:'',retentionLabel:'',sourceAvailable:false,reportAvailable:false,refreshError:'',recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',creating:false});this.loadHistory()}})},
+ newTask(){if(!this.current()||this.data.busy||this.data.picking||this.data.documentBusy)return;const s=this.__scope;wx.showModal({title:'新建整卷批改',content:'当前任务保留在历史记录中。重新选择下一份作答？',success:r=>{if(!r.confirm||!this.accept(s))return;this.pause();this.__creating=null;this.__upload=null;this.__documentRetry=null;const previous=this.__draft.files;this.__job=null;this.__questions=[];this.__pickerDiagnostic=null;this.__statusRecoveryFailures=0;this.__retryNeedsConfirmation=false;this.__draft={clientRequestId:'paper-'+uid(),files:[],epoch:this.__scope.epoch,routeId:routes[this.data.routeIndex]?.id||'',title:'',instructions:''};this.save();Promise.resolve(api.releaseFiles?.(previous,this.__draft.files,s)).catch(()=>{});this.setData({title:'',instructions:'',jobId:'',jobStatus:'',jobLabel:'',jobStateHint:'选择作答后即可提交。',flowStep:1,currentStepLabel:'上传作答',actionVisible:true,optionalOpen:false,result:null,questions:[],selectionError:'',selectionCode:'',selectionNotice:'',error:'',status:'',archivedRoute:'',expiresAtLabel:'',retentionLabel:'',sourceAvailable:false,reportAvailable:false,refreshError:'',recoveryError:'',failureKind:'',failureAction:'',failureActionLabel:'',creating:false,documentProgress:hiddenDocumentProgress()});this.loadHistory()}})},
  login(){wx.navigateTo({url:'/pages/account/auth'})},
  back(){wx.navigateBack()},
 })

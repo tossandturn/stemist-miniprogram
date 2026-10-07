@@ -1,37 +1,37 @@
-.route-setup-card { padding: 0; }
-.chip-grid { display: flex; flex-wrap: wrap; margin: -4px; }
-.route-chip { display: flex; align-items: center; justify-content: center; min-height: 44px; width: auto; margin: 4px; padding: 10px 16px; border: 1px solid #e1e5ee; border-radius: 11px; color: #59637e; background: #fff; font-size: 14px; }
-.route-chip.active { border-color: #6b4ed1; color: #5434b5; background: #eeebfb; }
-.stage-options { margin-bottom: 12px; }
-.stage-options .route-chip { flex: 1; font-weight: 700; }
-.subject-options { margin-bottom: 16px; }
-.route-list { display: flex; flex-wrap: wrap; margin: -4px; }
-.route-option { width: auto; min-height: 44px; margin: 4px; padding: 10px 14px; border: 1px solid #e1e5ee; border-radius: 11px; color: #59637e; background: #fff; font-size: 14px; }
-.route-option.active { border-color: #6b4ed1; color: #5434b5; background: #eeebfb; }
-.feature-grid { display: flex; flex-wrap: wrap; margin: -6px; }
-.feature-card { width: calc(50% - 12px); min-height: 104px; margin: 6px; padding: 18px; border: 1px solid #e4e7f0; border-radius: 14px; background: #fff; text-align: left; }
-.feature-title, .feature-detail { display: block; }
-.feature-title { color: #18213d; font-size: 16px; font-weight: 700; }
-.feature-detail { margin-top: 8px; color: #66708a; font-size: 12px; line-height: 1.5; }
-.inventory-topic { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #edf0f4; color: #59637e; font-size: 13px; }
-.inventory-topic text:first-child { min-width: 0; flex: 1; margin-right: 12px; }
-.inventory-topic text:last-child { flex-shrink: 0; }
-.ielts-group-title { margin-top: 26px; }
-.ielts-feature-grid { display: flex; flex-wrap: wrap; margin: -6px; }
-.ielts-feature-card { display: flex; align-items: center; width: calc(100% - 12px); min-height: 94px; margin: 6px; padding: 18px; border: 1px solid #e4e7f0; border-radius: 14px; background: #fff; text-align: left; }
-.ielts-feature-mark { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; height: 40px; margin-right: 16px; border-radius: 12px; color: #6b4bcb; background: #eeeafb; }
-.ielts-feature-mark-inner { width: 17px; height: 17px; border: 2px solid currentColor; border-radius: 4px; }
-.ielts-feature-copy { min-width: 0; flex: 1; }
-.ielts-feature-copy text { display: block; }
-.ielts-feature-copy .card-title { font-size: 17px; font-weight: 700; }
-.ielts-feature-copy .card-detail { margin-top: 6px; color: #66708a; font-size: 13px; font-weight: 400; }
-.tone-reading .ielts-feature-mark, .tone-vocabulary .ielts-feature-mark { color: #15775e; background: #e7f6f0; }
-.tone-writing .ielts-feature-mark, .tone-exam .ielts-feature-mark { color: #a65d12; background: #fff1df; }
-.tone-speaking .ielts-feature-mark { color: #ad3c69; background: #fff0f5; }
-.device-tablet .ielts-feature-card { width: calc(50% - 12px); min-height: 116px; }
-.device-tablet .feature-card { width: calc(33.333% - 12px); min-height: 118px; }
-.practice-page .route-chip, .practice-page .route-option { width: auto; min-width: 0; margin: 4px; }
-.practice-page .feature-grid .feature-card { width: calc(50% - 12px); min-width: 0; margin: 6px; }
-.practice-page .ielts-feature-grid .ielts-feature-card { width: calc(100% - 12px); min-width: 0; margin: 6px; }
-.practice-page.device-tablet .ielts-feature-grid .ielts-feature-card { width: calc(50% - 12px); }
-.practice-page.device-tablet .feature-grid .feature-card { width: calc(33.333% - 12px); }
+.route-setup-card{padding:0;}
+.chip-grid{display:flex;flex-wrap:wrap;margin:-4px;}
+.route-chip{display:flex;align-items:center;justify-content:center;min-height:44px;width:auto;margin:4px;padding:10px 16px;border:1px solid #e1e5ee;border-radius:11px;color:#59637e;background:#fff;font-size:14px;}
+.route-chip.active{border-color:#6b4ed1;color:#5434b5;background:#eeebfb;}
+.stage-options{margin-bottom:12px;}
+.stage-options .route-chip{flex:1;font-weight:700;}
+.subject-options{margin-bottom:16px;}
+.route-list{display:flex;flex-wrap:wrap;margin:-4px;}
+.route-option{width:auto;min-height:44px;margin:4px;padding:10px 14px;border:1px solid #e1e5ee;border-radius:11px;color:#59637e;background:#fff;font-size:14px;}
+.route-option.active{border-color:#6b4ed1;color:#5434b5;background:#eeebfb;}
+.feature-grid{display:flex;flex-wrap:wrap;margin:-6px;}
+.feature-card{width:calc(50% - 12px);min-height:104px;margin:6px;padding:18px;border:1px solid #e4e7f0;border-radius:14px;background:#fff;text-align:left;}
+.feature-title, .feature-detail{display:block;}
+.feature-title{color:#18213d;font-size:16px;font-weight:700;}
+.feature-detail{margin-top:8px;color:#66708a;font-size:12px;line-height:1.5;}
+.inventory-topic{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #edf0f4;color:#59637e;font-size:13px;}
+.inventory-topic text:first-child{min-width:0;flex:1;margin-right:12px;}
+.inventory-topic text:last-child{flex-shrink:0;}
+.ielts-group-title{margin-top:26px;}
+.ielts-feature-grid{display:flex;flex-wrap:wrap;margin:-6px;}
+.ielts-feature-card{display:flex;align-items:center;width:calc(100% - 12px);min-height:94px;margin:6px;padding:18px;border:1px solid #e4e7f0;border-radius:14px;background:#fff;text-align:left;}
+.ielts-feature-mark{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:40px;height:40px;margin-right:16px;border-radius:12px;color:#6b4bcb;background:#eeeafb;}
+.ielts-feature-mark-inner{width:17px;height:17px;border:2px solid currentColor;border-radius:4px;}
+.ielts-feature-copy{min-width:0;flex:1;}
+.ielts-feature-copy text{display:block;}
+.ielts-feature-copy .card-title{font-size:17px;font-weight:700;}
+.ielts-feature-copy .card-detail{margin-top:6px;color:#66708a;font-size:13px;font-weight:400;}
+.tone-reading .ielts-feature-mark, .tone-vocabulary .ielts-feature-mark{color:#15775e;background:#e7f6f0;}
+.tone-writing .ielts-feature-mark, .tone-exam .ielts-feature-mark{color:#a65d12;background:#fff1df;}
+.tone-speaking .ielts-feature-mark{color:#ad3c69;background:#fff0f5;}
+.device-tablet .ielts-feature-card{width:calc(50% - 12px);min-height:116px;}
+.device-tablet .feature-card{width:calc(33.333% - 12px);min-height:118px;}
+.practice-page .route-chip, .practice-page .route-option{width:auto;min-width:0;margin:4px;}
+.practice-page .feature-grid .feature-card{width:calc(50% - 12px);min-width:0;margin:6px;}
+.practice-page .ielts-feature-grid .ielts-feature-card{width:calc(100% - 12px);min-width:0;margin:6px;}
+.practice-page.device-tablet .ielts-feature-grid .ielts-feature-card{width:calc(50% - 12px);}
+.practice-page.device-tablet .feature-grid .feature-card{width:calc(33.333% - 12px);}

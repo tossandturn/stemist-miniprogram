@@ -3,6 +3,7 @@
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index",
     "coach-panel": "/components/coach-panel/index",
-    "app-nav": "/components/app-nav/index"
+    "app-nav": "/components/app-nav/index",
+    "pdf-download-progress": "/components/pdf-download-progress/index"
   }
 }

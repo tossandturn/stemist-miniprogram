@@ -195,14 +195,16 @@ reportNow=2000;answerRange(d.requests[2],reportBytes);const firstPath=await down
 assert.deepEqual(d.files.get(firstPath),reportBytes)
 assert.ok(progress.slice(0,-1).every(item=>item.percent<100&&item.complete!==true),'Chunk progress cannot claim completion before PDF validation')
 assert.equal(progress[0].phase,'connecting');assert.equal(progress[0].etaSeconds,null)
+assert.equal(progress[0].totalBytes,0);assert.equal(progress[0].percent,null,'an unknown total uses indeterminate progress instead of a fabricated percentage')
 assert.ok(progress.some(item=>item.phase==='downloading'&&item.speedLabel&&item.etaSeconds!==null),'private report progress exposes an observed speed and ETA')
 assert.ok(progress.some(item=>item.phase==='verifying'&&item.percent===99&&!item.remainingLabel),'private reports stay below 100% while validation runs')
 assert.equal(progress.at(-1).percent,100);assert.equal(progress.at(-1).complete,true)
 assert.equal(progress.at(-1).phase,'complete');assert.equal(progress.at(-1).etaSeconds,null);assert.equal(progress.at(-1).speedLabel,'')
 assert.ok(d.storage.get('stemistPaperReports').includes(firstPath))
 const requestCountBeforeCache=d.requests.length
-const cached=d.api.download(jobId,'report',ds,'Fixture report');await settle();answerRange(d.requests.at(-1),reportBytes)
+const cachedProgress=[],cached=d.api.download(jobId,'report',ds,'Fixture report',{onProgress:value=>cachedProgress.push(value)});await settle();answerRange(d.requests.at(-1),reportBytes)
 assert.equal(await cached,firstPath);assert.equal(d.requests.length,requestCountBeforeCache+1,'A matching ETag reuses the verified local PDF after one-byte validation')
+assert.ok(cachedProgress.some(item=>item.phase==='cached'&&item.fromCache===true&&item.complete===true&&item.percent===100),'a verified cache hit is explicit and reaches 100 only after local PDF validation')
 
 const writeRace=reportDownloadRuntime({deferAppend:true});const writeRaceScope=writeRace.api.scope();let writeRaceTask
 const writeRacePending=writeRace.api.download('job-write-race','report',writeRaceScope,'Write race',{onTask:value=>{writeRaceTask=value}});await settle();answerRange(writeRace.requests[0],reportBytes,'"write-race-v1"');await settle();answerRange(writeRace.requests[1],reportBytes,'"write-race-v1"');await settle()

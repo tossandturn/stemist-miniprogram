@@ -68,7 +68,7 @@
      <view wx:else class="job-actions"><button wx:if="{{!refreshError}}" class="text-button" bindtap="refreshJob" loading="{{refreshing}}" disabled="{{busy || refreshing}}">刷新状态</button><button wx:if="{{reportAvailable}}" class="secondary" data-kind="report" bindtap="document" loading="{{documentBusy}}" disabled="{{documentBusy}}">下载批改报告</button><button wx:if="{{sourceAvailable && !result}}" class="secondary" data-kind="source" bindtap="document" disabled="{{documentBusy}}">查看已合成的作答 PDF</button></view>
     </view>
     <view id="marking-refresh-error" wx:if="{{refreshError}}" class="notice refresh-error" role="alert"><text>{{refreshError}}</text><button class="secondary" bindtap="refreshJob" loading="{{refreshing}}" disabled="{{busy || refreshing}}">重新读取状态</button></view>
-    <view id="marking-document-progress" wx:if="{{documentStatus}}" class="notice" role="status"><text>{{documentStatus}}</text><button wx:if="{{documentBusy}}" class="text-button" bindtap="cancelDocument">暂停下载</button></view>
+    <pdf-download-progress state="{{documentProgress}}" compact="{{true}}" bindcancel="cancelDocument" bindretry="retryDocument" />
     <view id="marking-report" wx:if="{{result}}" class="panel marking-report">
      <text class="step-kicker">第 3 步 · 查看报告</text><view class="card-title">批改报告</view><view wx:if="{{result.scoreReady}}" class="report-score">{{result.provisionalScore}} / {{result.maxScore}} <text>AI 估分</text></view><view wx:else class="warning">本次提供批改建议，评分依据不足，暂不显示总分。</view>
      <view wx:if="{{result.reviewRequired}}" class="notice">AI 已完成本次批改，报告中已标明不确定项。可补充清晰作答或参考材料后重新批改。</view>
