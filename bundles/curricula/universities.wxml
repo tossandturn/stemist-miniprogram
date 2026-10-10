@@ -13,15 +13,13 @@
   <view wx:if="{{cacheNotice}}" class="warning cache-notice" role="status">{{cacheNotice}}</view>
   <block wx:if="{{activeTab === 'rankings'}}">
    <view class="ranking-toolbar">
-    <text class="control-label">选择榜单</text>
-    <picker mode="selector" range="{{rankingOptions}}" range-key="label" value="{{rankingIndex}}" bindchange="chooseRanking"><view class="ranking-select"><text>{{rankingOptions[rankingIndex].label}}</text><text class="select-hint">切换</text></view></picker>
+    <picker mode="selector" aria-label="选择大学榜单" range="{{rankingOptions}}" range-key="label" value="{{rankingIndex}}" bindchange="chooseRanking"><view class="ranking-select"><text>{{rankingOptions[rankingIndex].label}}</text><text class="select-hint">切换</text></view></picker>
    </view>
    <view wx:if="{{currentRanking}}" class="ranking-meta">
     <view class="ranking-meta-summary"><text class="ranking-edition">{{currentRanking.scopeLabel}} · {{currentRanking.editionYear}} 版 · 前 100 名（含并列）</text><text class="verified-badge">核验于 {{currentRanking.verifiedAt}}</text></view>
     <view class="source-actions"><button class="source-copy" data-kind="source" bindtap="copyRankingLink">复制榜单来源</button><button class="source-copy" data-kind="methodology" bindtap="copyRankingLink">复制排名方法</button></view>
    </view>
    <view class="ranking-search">
-    <text class="control-label">搜索大学</text>
     <view class="search-row"><input value="{{queryDraft}}" placeholder="输入中文或英文校名" aria-label="输入中文或英文校名" maxlength="120" confirm-type="search" bindinput="onSearchInput" bindconfirm="applySearch" /><button bindtap="applySearch" disabled="{{loading}}">搜索</button></view>
     <button wx:if="{{query}}" class="text-button search-clear" bindtap="clearSearch">清除搜索</button>
    </view>
