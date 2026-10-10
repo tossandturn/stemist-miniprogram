@@ -59,7 +59,7 @@ Page({
   const ranking=this.__rankings.find(item=>item.id===this.data.currentRankingId)
   if(!ranking)return this.setData({visibleItems:[],filteredCount:0,pageNumber:1,pageCount:0})
   const needle=clean(this.data.query).toLowerCase()
-  const filtered=needle?ranking.items.filter(item=>item.nameEn.toLowerCase().includes(needle)||item.nameZh.toLowerCase().includes(needle)):ranking.items
+  const filtered=needle?ranking.items.filter(item=>item.nameEn.toLowerCase().includes(needle)||item.nameZh.toLowerCase().includes(needle)||item.website.split('/')[2].includes(needle)):ranking.items
   const pageCount=Math.ceil(filtered.length/PAGE_SIZE),pageNumber=pageCount?Math.min(Math.max(1,Number(page)||1),pageCount):1,start=(pageNumber-1)*PAGE_SIZE
   this.setData({visibleItems:filtered.slice(start,start+PAGE_SIZE),filteredCount:filtered.length,pageNumber,pageCount})
  },
