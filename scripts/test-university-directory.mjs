@@ -115,10 +115,12 @@ function fixture() {
   let failures = 0
   const clipboard = []
   const toasts = []
+  const scrolls = []
   const runtime = miniRuntime({
     wx: {
       setClipboardData: (options) => clipboard.push(options),
       showToast: (options) => toasts.push(options),
+      pageScrollTo: (options) => scrolls.push(options),
     },
     modules: { 'bundles/curricula/universityService': {
       fetchUniversityDirectory: async () => {
@@ -139,6 +141,12 @@ function fixture() {
   assert.equal(page.data.visibleItems[19].rankLabel, '=20')
   page.nextPage()
   assert.equal(page.data.visibleItems[0].rankLabel, '=20', 'ties spanning pages keep the source label')
+  assert.equal(scrolls.at(-1)?.scrollTop, 0, 'pagination returns to the start so the next universities are visible')
+  page.previousPage()
+  assert.equal(page.data.pageNumber, 1)
+  assert.equal(scrolls.length, 2)
+  page.previousPage()
+  assert.equal(scrolls.length, 2, 'disabled boundary does not jump the page')
   page.onSearchInput({ detail: { value: '合成大学21' } })
   page.applySearch()
   assert.equal(page.data.visibleItems.length, 1)

@@ -63,8 +63,9 @@ Page({
   const pageCount=Math.ceil(filtered.length/PAGE_SIZE),pageNumber=pageCount?Math.min(Math.max(1,Number(page)||1),pageCount):1,start=(pageNumber-1)*PAGE_SIZE
   this.setData({visibleItems:filtered.slice(start,start+PAGE_SIZE),filteredCount:filtered.length,pageNumber,pageCount})
  },
- previousPage(){if(this.data.pageNumber>1)this.updateRankingList(this.data.pageNumber-1)},
- nextPage(){if(this.data.pageNumber<this.data.pageCount)this.updateRankingList(this.data.pageNumber+1)},
+ showRankingPage(page){this.updateRankingList(page);if(typeof wx.pageScrollTo==='function')wx.pageScrollTo({scrollTop:0,duration:0})},
+ previousPage(){if(this.data.pageNumber>1)this.showRankingPage(this.data.pageNumber-1)},
+ nextPage(){if(this.data.pageNumber<this.data.pageCount)this.showRankingPage(this.data.pageNumber+1)},
  chooseBoard(event){
   const boardId=safeOption(event?.currentTarget?.dataset?.board,BOARD_IDS,'')
   const board=this.__boards.find(item=>item.id===boardId)
