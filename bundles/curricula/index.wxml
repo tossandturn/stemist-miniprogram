@@ -3,7 +3,7 @@
  <app-nav active="practice" source="curriculum-papers" is-tablet="{{isTablet}}" />
  <view wx:if="{{invalidBoard}}" class="error" role="alert">{{error}}</view>
  <block wx:else>
-  <view class="curriculum-intro"><view><text class="curriculum-title">{{boardLabel}} 课程真题</text><text class="curriculum-copy">先筛选课程、年份和卷型；每份资料会标明下载与答案状态。</text></view><button class="secondary curriculum-share" open-type="share">分享筛选</button></view>
+  <view class="curriculum-intro"><view><text class="curriculum-title">{{boardLabel}} 课程真题</text></view><button class="secondary curriculum-share" open-type="share">分享筛选</button></view>
   <view id="curriculum-filters" class="filter-panel">
    <picker wx:if="{{courseOptions.length}}" mode="selector" range="{{courseOptions}}" range-key="label" value="{{courseIndex}}" bindchange="chooseCourse"><view class="filter-select"><text>{{courseOptions[courseIndex].label}}</text><text class="filter-chevron">课程</text></view></picker>
    <picker wx:if="{{levelOptions.length > 1}}" mode="selector" range="{{levelOptions}}" range-key="label" value="{{levelIndex}}" data-filter="level" bindchange="chooseFilter"><view class="filter-select"><text>{{levelOptions[levelIndex].label}}</text><text class="filter-chevron">级别</text></view></picker>
@@ -13,14 +13,14 @@
    <view class="search-box"><input value="{{queryDraft}}" placeholder="搜索课程或试卷标题" bindinput="onQuery" bindconfirm="applySearch" confirm-type="search" maxlength="120" /><button class="search-action" bindtap="applySearch" disabled="{{loading}}">搜索</button></view>
   </view>
   <button wx:if="{{course || level || year || session || paper || query}}" class="text-button filter-reset" bindtap="clearFilters" disabled="{{loading}}">重置全部筛选</button>
-  <view wx:if="{{visiblePracticeRoutes.length}}" class="practice-entry"><view class="practice-entry-head"><view class="practice-entry-copy"><text class="practice-entry-title">选择题练习</text><text class="practice-entry-note">{{practiceHint}} · AI 核对，不计正式进度或官方成绩。</text></view><button class="secondary practice-toggle" bindtap="togglePractice">{{practiceExpanded ? '收起' : '展开'}}</button></view><view wx:if="{{practiceExpanded}}" class="practice-entry-actions"><button wx:for="{{visiblePracticeRoutes}}" wx:key="id" class="secondary practice-route" data-route="{{item.id}}" bindtap="openPractice"><text>{{item.label}}</text></button></view></view>
+  <view wx:if="{{visiblePracticeRoutes.length}}" class="practice-entry"><view class="practice-entry-head"><view class="practice-entry-copy"><text class="practice-entry-title">选择题练习</text><text class="practice-entry-note">AI 核对练习，不计正式进度或成绩。</text></view><button class="secondary practice-toggle" bindtap="togglePractice">{{practiceExpanded ? '收起' : '展开'}}</button></view><view wx:if="{{practiceExpanded}}" class="practice-entry-actions"><button wx:for="{{visiblePracticeRoutes}}" wx:key="id" class="secondary practice-route" data-route="{{item.id}}" bindtap="openPractice"><text>{{item.label}}</text></button></view></view>
   <view wx:if="{{loading}}" class="loading-state" role="status">正在加载 {{boardLabel}} 真题资料…</view>
   <view wx:elif="{{error && !catalog}}" class="error" role="alert"><text>{{error}}</text><button class="secondary" bindtap="retry">重新加载</button></view>
   <block wx:else>
-   <view wx:if="{{catalog}}" class="catalog-summary"><text>{{summary.papers}} 份资料</text><text>可下载 {{summary.downloadable}}</text><text>仅来源 {{summary.sourceOnly}}</text></view>
+   <view wx:if="{{catalog}}" class="catalog-summary"><text>{{summary.papers}} 份资料</text><text wx:if="{{summary.downloadable < summary.papers}}">可下载 {{summary.downloadable}}</text><text wx:if="{{summary.sourceOnly > 0}}">暂不可下载 {{summary.sourceOnly}}</text></view>
    <view id="curriculum-paper-list" class="paper-list">
     <view wx:for="{{items}}" wx:key="id" class="paper-card">
-     <view class="paper-head"><view class="paper-heading"><text class="paper-course">{{item.courseLabel}}</text><text class="paper-title">{{item.title}}</text></view><text class="pair-badge pair-{{item.pairStatus}}">{{item.pairLabel}}</text></view>
+     <view class="paper-head"><view class="paper-heading"><text class="paper-course">{{item.courseLabel}}</text><text class="paper-title">{{item.title}}</text></view><text wx:if="{{item.pairStatus !== 'verified' || item.answerDocumentTitle === '批注参考答案'}}" class="pair-badge pair-{{item.pairStatus}}">{{item.pairLabel}}</text></view>
      <text class="paper-meta">{{item.metaText}}</text><text wx:if="{{item.variantNote}}" class="variant-note">{{item.variantNote}}</text>
      <text wx:if="{{item.detailText}}" class="paper-detail">{{item.detailText}}</text>
      <view class="document-row"><view class="document-copy"><text class="document-title">原卷</text><text wx:if="{{item.qpMeta}}" class="document-meta">{{item.qpMeta}}</text></view><button wx:if="{{item.canDownloadQp}}" class="document-action" data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" disabled="{{pdfDownload.active}}">查看原卷</button><button wx:elif="{{item.qpSourceUrl}}" class="document-action source-action" data-id="{{item.id}}" data-kind="qp" bindtap="copySource">{{item.sourceLinkLabel}}</button><text wx:else class="document-status">暂未开放下载</text></view>

@@ -1,9 +1,9 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const MODES=Object.freeze([
- {id:'steps',title:'步骤提示',detail:'只讲关键概念、思路和下一步，不揭晓最终答案。'},
- {id:'answers',title:'答案询问',detail:'拍一道题，直接获得整洁步骤、最终结果与检查。'},
- {id:'pdf',title:'PDF 阅卷',detail:'提交整卷 PDF 或多张图片，查看真实任务进度与报告。'},
- {id:'tavern',title:'AI 休闲酒馆',detail:'从八种休闲预设中选择，轻松聊天、冒险、推理或娱乐抽取。'},
+ {id:'steps',title:'步骤提示',detail:'理清思路，提示下一步。'},
+ {id:'answers',title:'答案询问',detail:'拍下题目，获取完整解答。'},
+ {id:'pdf',title:'PDF 阅卷',detail:'上传 PDF 或图片，生成批改报告。'},
+ {id:'tavern',title:'AI 休闲酒馆',detail:'选个角色，聊聊学习以外的事。'},
 ])
 const FORWARD=['source','routeId','stage','subjectCode','category','family','entry']
 const query=value=>FORWARD.map(key=>[key,String(value?.[key]||'').slice(0,key==='entry'?240:120)]).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&')

@@ -19,7 +19,7 @@
       <view class="builder-heading">设置练习</view>
       <view class="option-label">学习方式</view>
       <view class="option-row study-mode-row"><button class="option-chip {{studyMode !== 'chapter-study' ? 'selected' : ''}}" data-mode="" bindtap="chooseStudyMode" disabled="{{busy}}" aria-pressed="{{studyMode !== 'chapter-study'}}">真题章节练习</button><button wx:if="{{chapterStudyAvailable}}" class="option-chip {{studyMode === 'chapter-study' ? 'selected' : ''}}" data-mode="chapter-study" bindtap="chooseStudyMode" disabled="{{busy}}" aria-pressed="{{studyMode === 'chapter-study'}}">章节学习</button></view>
-      <view class="study-mode-note">{{studyMode === 'chapter-study' ? '每次专注一个章节，真题优先；暂无合格真题时使用明确标注的原创基础练习。结果仅用于学习，不计正式进度或官方成绩。' : '使用具备完整原卷、来源和批改依据的题目；原有正式题库门槛保持不变。'}}</view>
+      <view class="study-mode-note">{{studyMode === 'chapter-study' ? '本章优先使用真题；缺题时补充原创基础练习。不计正式进度或成绩。' : '使用来源和批改依据完整的真题。'}}</view>
       <view class="option-label">卷型</view>
       <view class="option-row component-shortcuts"><button class="option-chip {{allComponentsSelected ? 'selected' : ''}}" data-value="0" bindtap="onlyComponent" disabled="{{busy}}">全部卷型</button><button wx:for="{{componentOptions}}" wx:key="value" class="option-chip {{item.onlySelected ? 'selected' : ''}}" data-value="{{item.value}}" bindtap="onlyComponent" disabled="{{busy}}">仅 {{item.label}}</button></view>
       <view wx:if="{{studyMode !== 'chapter-study'}}" class="subtle component-multi-label">也可组合卷型</view>

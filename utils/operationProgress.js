@@ -1,4 +1,4 @@
-const KEY='stemistOperationTimings',SCHEMA='operation-timing-v1',PHASES=['preparing','calling','analysis','arranging','complete'],LABELS=['准备内容','调用接口中','分析中 · 等待 AI 返回','整理答案中','完成']
+const KEY='stemistOperationTimings',SCHEMA='operation-timing-v1',PHASES=['preparing','calling','analysis','arranging','complete'],LABELS=['准备内容','连接 AI 中','分析中','整理答案中','完成']
 function createOperationTracker({key='coach-text',onChange=()=>{},now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,history=typeof wx==='object'?wx:null}={}){
  const started=now();let phase='preparing',timer=null,closed=false
  const records=()=>{try{const v=history?.getStorageSync(KEY);return v?.schema===SCHEMA&&Array.isArray(v.items)?v.items.filter(x=>['coach-photo','coach-text'].includes(x?.key)&&Number.isFinite(x.ms)&&x.ms>=1000&&x.ms<=300000&&Number.isFinite(x.at)&&x.at>=now()-2592000000&&x.at<=now()+60000).slice(-24).map(x=>({key:x.key,ms:x.ms,at:x.at})):[]}catch{return[]}}

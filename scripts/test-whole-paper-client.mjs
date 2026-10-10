@@ -14,7 +14,7 @@ assert.match(markingTemplate,/wx:if="{{failureAction === 'retry'}}"[^>]*class="t
 assert.equal((markingTemplate.match(/换文件重新批改/g)||[]).length,1,'Non-retryable failure must not duplicate its primary new-task action')
 const pickerPosition=markingTemplate.indexOf('id="marking-picker"'),actionPosition=markingTemplate.indexOf('id="marking-primary-action"'),optionalPosition=markingTemplate.indexOf('id="marking-optional-toggle"')
 assert.ok(pickerPosition<actionPosition&&actionPosition<optionalPosition,'Selection summary and primary submit must precede optional reference fields')
-assert.match(markingTemplate,/请先选择 1 份作答 PDF 或 1–20 张图片/,'Disabled submit explains exactly what is missing')
+assert.match(markingTemplate,/请选择作答 PDF 或图片/,'Disabled submit explains exactly what is missing')
 assert.match(markingTemplate,/<privacy-consent[^>]*button-text="同意隐私授权"/,'Privacy authorization stays adjacent to the picker with one explicit native action')
 assert.match(markingStyles,/\.device-phone[^}]*\.marking-primary-action\s*\{[^}]*position:\s*fixed/s,'Phone primary action stays above the fixed app navigation')
 assert.match(markingStyles,/bottom:\s*calc\(80px \+ env\(safe-area-inset-bottom\)\)/)

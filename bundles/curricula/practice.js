@@ -27,7 +27,7 @@ Page({
    this.syncResume();await this.loadHistory()
    if(this.__initial.sessionId&&this.active())await this.restoreSession(this.__initial.sessionId)
    return true
-  }catch(error){if(!this.__disposed&&request===this.__catalogRequest)this.setData({error:errorText(error)}) ;return false}
+  }catch(error){if(!this.__disposed&&request===this.__catalogRequest)this.setData({error:errorText(error).replace(/，答案(?:已保留|仍保存在本机|尚未保存)[，。]?/g,'，')}) ;return false}
   finally{if(!this.__disposed&&request===this.__catalogRequest)this.setData({loading:false})}
  },
  async loadHistory(){if(!this.active())return this.setData({history:[]});try{const sessions=await api.fetchHistory(this.__scope);if(!this.active())return;const labels=Object.fromEntries(this.__catalog.routes.map(route=>[route.id,route.label]));this.setData({history:sessions.filter(session=>session.status==='submitted').slice(0,5).map(session=>({id:session.id,label:labels[session.routeId]||session.routeId,score:session.result.score,maxScore:session.result.maxScore,submittedAt:session.submittedAt}))})}catch{if(!this.__disposed)this.setData({history:[]})}},

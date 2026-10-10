@@ -5,8 +5,8 @@
     <view class="home-announcement-head"><view><text class="home-announcement-label">公告中心</text><text wx:if="{{announcementUnread}}" class="home-announcement-unread">新公告</text></view><text class="home-announcement-link">查看全部</text></view>
     <view wx:if="{{announcementLoading}}" class="home-announcement-loading" role="status">正在读取最新公告…</view>
     <block wx:elif="{{announcement}}"><text class="home-announcement-title">{{announcement.title}}</text><text class="home-announcement-summary">{{announcement.summary}}</text><text class="home-announcement-date">{{announcement.categoryLabel}} · {{announcement.publishedLabel}}</text></block>
-    <text wx:elif="{{announcementError}}" class="home-announcement-summary">最新公告暂未加载，点此进入公告中心重试。</text>
-    <text wx:else class="home-announcement-summary">版本更新、资料进展和学习通知会发布在这里。</text>
+    <text wx:elif="{{announcementError}}" class="home-announcement-summary">公告暂未加载，点击重试。</text>
+    <text wx:else class="home-announcement-summary">暂无公告</text>
   </view>
   <view class="home-heading">今天想学什么？</view>
   <view class="entry-grid">

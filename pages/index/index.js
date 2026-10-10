@@ -5,8 +5,8 @@ const { ensureWeChatSession } = require('../../utils/wechatAuth')
 const { announcementViews, fetchAnnouncements, ownerId } = require('../../utils/announcements')
 const ENTRY_POINTS = [
 {id:'alevel',title:'A-Level 学科',detail:'IGCSE · AS · A2',tone:'alevel',url:'/pages/practice/index?category=alevel'},
-{id:'ap',title:'AP',detail:'课程真题 · QP / MS 资料',tone:'ap',url:'/bundles/curricula/index?board=ap'},
-{id:'ib',title:'IB',detail:'课程真题 · QP / MS 资料',tone:'ib',url:'/bundles/curricula/index?board=ib'},
+{id:'ap',title:'AP',detail:'历年真题',tone:'ap',url:'/bundles/curricula/index?board=ap'},
+{id:'ib',title:'IB',detail:'历年真题',tone:'ib',url:'/bundles/curricula/index?board=ib'},
 {id:'ielts',title:'IELTS',detail:'听说读写 · 模考 · 词汇',tone:'ielts',url:'/pages/practice/index?category=ielts'},
 {id:'competition',title:'竞赛 / 入学考试',detail:'BPhO · AMC · ESAT · TMUA 真题',tone:'competition',url:'/pages/papers/index?category=competition'},
 {id:'calculator',title:'Casio 计算器',detail:'科学计算 · 历史记录',tone:'calculator',url:'/pages/calculator/index'},

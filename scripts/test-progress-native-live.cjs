@@ -16,7 +16,7 @@ async function main(){
   await until(function(){return getCurrentPages().at(-1)?.route==='pages/coach/index'},'Coach ready')
   for(const tablet of [false,true]){
    for(const phase of ['calling','analysis','arranging']){
-    const progress={phase,active:true,label:{calling:'调用接口中',analysis:'分析中 · 等待 AI 返回',arranging:'整理答案中'}[phase],elapsedLabel:'已等待 8 秒',etaLabel:'预计剩余约 5–15 秒',percentage:null}
+    const progress={phase,active:true,label:{calling:'连接 AI 中',analysis:'分析中',arranging:'整理答案中'}[phase],elapsedLabel:'已等待 8 秒',etaLabel:'预计剩余约 5–15 秒',percentage:null}
     await call('automation_page_action',{action:'setData',patch:JSON.stringify({message:'',answer:'',imagePath:'',entryHasImage:false,loading:true,deviceClass:'device-'+(tablet?'tablet':'phone'),isTablet:tablet,orientation:'portrait',progress})})
     const rect=await geometry('.coach-progress')
     assert(rect.left>=0&&rect.right<=rect.viewportWidth+1)

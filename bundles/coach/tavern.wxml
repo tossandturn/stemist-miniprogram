@@ -1,9 +1,9 @@
 <view class="page {{deviceClass}} {{orientation}} tavern-page">
   <stemist-header eyebrow="AI 休闲酒馆" title="星光酒馆" />
   <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
-  <view class="tavern-note">角色均为 AI 虚构互动，不读取学术内容。</view>
+  <view class="tavern-note">AI 虚构角色，不读取学术内容。</view>
   <view wx:if="{{selectorOpen || !presetChosen}}" class="preset-discovery">
-    <view class="preset-head"><view><text class="preset-title">休闲精选</text><text class="preset-subtitle">按气氛筛选，选择后直接进入。</text></view></view>
+    <view class="preset-head"><view><text class="preset-title">休闲精选</text></view></view>
     <view class="category-filter" role="group" aria-label="筛选休闲预设"><button wx:for="{{categories}}" wx:key="id" class="{{category === item.id ? 'active' : ''}}" data-category="{{item.id}}" bindtap="chooseCategory" disabled="{{loading || examBlocked}}">{{item.label}}</button></view>
     <view class="persona-list" role="group" aria-label="选择休闲聊天预设">
       <button wx:for="{{visiblePersonas}}" wx:key="id" class="persona role-{{item.id}} {{persona === item.id && presetChosen ? 'active' : ''}}" data-persona="{{item.id}}" bindtap="choosePersona" disabled="{{loading || examBlocked}}" aria-label="{{item.name}}，{{item.tag}}：{{item.detail}}">
@@ -24,9 +24,9 @@
       <button wx:else class="primary fortune-primary" bindtap="retryInterpretation" loading="{{interpretLoading || drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在重新抽取…' : interpretLoading ? '正在解读…' : canRetry ? '重试解读' : selected.divinationKind === 'hexagram' ? '解读当前卦签' : '解读当前牌面'}}</button>
       <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
     </view>
-    <view wx:if="{{turns.length}}" class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的云端对话' : '云端对话 · 当前页'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">回到最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button></view></view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前预设聊天记录；每次只显示一页"><view wx:for="{{turns}}" wx:key="id" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
-    <view wx:elif="{{!selected.divinationKind || draw}}" class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 预设开场</text><text class="preset-opening-text">{{greeting}}</text></view>
-    <view wx:if="{{(!selected.divinationKind || draw) && !turns.length}}" class="starter-list" aria-label="当前预设开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
+    <view wx:if="{{turns.length}}" class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的对话' : '聊天记录'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">回到最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button></view></view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前角色聊天记录"><view wx:for="{{turns}}" wx:key="id" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
+    <view wx:elif="{{!selected.divinationKind || draw}}" class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 开场白</text><text class="preset-opening-text">{{greeting}}</text></view>
+    <view wx:if="{{(!selected.divinationKind || draw) && !turns.length}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
     <block wx:if="{{selected.divinationKind}}">
       <view class="fortune-panel">
         <view class="fortune-note">随机娱乐提示，不是科学预测，也不替你做决定。</view>

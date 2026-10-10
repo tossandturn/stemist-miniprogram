@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import './test-student-copy.mjs'
 import { miniRuntime, deferred, settle } from './helpers/mini-runtime.mjs'
 
 const failures = []
