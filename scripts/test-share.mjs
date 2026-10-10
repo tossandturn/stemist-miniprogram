@@ -29,14 +29,16 @@ const png=fs.readFileSync(new URL('../design-system/share-card.png',import.meta.
 assert.equal(png.subarray(1,4).toString(),'PNG');assert.equal(png.readUInt32BE(16)/png.readUInt32BE(20),5/4)
 console.log('Native friend sharing: all page hooks, registered public destinations, fixed cover and private-state exclusion passed.')
 const curriculumRoute='bundles/curricula/index'
+const universityRoute='bundles/curricula/universities'
 const announcementRoute='bundles/announcements/index'
-const publicRoutes=['pages/index/index','pages/practice/index','pages/papers/index','pages/stem/topics','pages/ielts/home','pages/ielts/library','pages/ielts/vocabulary','pages/calculator/index',curriculumRoute,announcementRoute]
+const publicRoutes=['pages/index/index','pages/practice/index','pages/papers/index','pages/stem/topics','pages/ielts/home','pages/ielts/library','pages/ielts/vocabulary','pages/calculator/index',curriculumRoute,universityRoute,announcementRoute]
 assert.equal(publicRoutes.includes(markingRoute),false,'whole-paper marking is friend-share only and never a Moments route')
 const menus=[],timelineRuntime=miniRuntime({wx:{showShareMenu:options=>menus.push(options)}})
 for(const route of registered.allPages){
  const page=timelineRuntime.page(route);page.route=route
  page.data={...page.data,routeId:'cie-9702-as-physics',activeCategory:'ielts',category:'competition',module:'speaking',sessionId:'private-session',taskId:'private-task',answer:'private-answer',title:'private-title'}
  if(route===curriculumRoute)page.data={...page.data,board:'ap',boardLabel:'AP',course:'ap-calculus-ab',year:'2025',query:'private-query'}
+ if(route===universityRoute)page.data={...page.data,activeTab:'rankings',currentRankingId:'qs-world',selectedBoardId:'ap',query:'private-query'}
  page.options={sessionId:'private-session',token:'private-token',query:'private-query'}
  timelineRuntime.load('utils/page').syncDevice(page)
  assert.deepEqual(Array.from(menus.at(-1).menus),publicRoutes.includes(route)?['shareAppMessage','shareTimeline']:['shareAppMessage'])
@@ -50,7 +52,8 @@ for(const route of registered.allPages){
  if(route==='pages/ielts/library')assert.equal(result.query,'module=speaking')
  if(route==='pages/stem/topics')assert.equal(result.query,'routeId=cie-9702-as-physics')
  if(route===curriculumRoute){assert.equal(result.query,'board=ap&course=ap-calculus-ab&year=2025');assert.doesNotMatch(result.query,/private-query/)}
+ if(route===universityRoute){assert.equal(result.query,'tab=rankings&ranking=qs-world');assert.doesNotMatch(result.query,/private-query/)}
 }
 const markingMenu=menus[registered.allPages.indexOf(markingRoute)]
 assert.deepEqual(Array.from(markingMenu.menus),['shareAppMessage'])
-console.log('Moments: ten public pages, explicit menus, same-page safe queries, app logo and private-page exclusion passed.')
+console.log('Moments: eleven public pages, explicit menus, same-page safe queries, app logo and private-page exclusion passed.')

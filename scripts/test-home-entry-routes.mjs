@@ -13,4 +13,6 @@ assert.match(source,/id\s*:\s*'ib'[\s\S]*url\s*:\s*'\/bundles\/curricula\/index\
 for (const target of targets.filter((value) => value.startsWith('pages/'))) assert.ok(app.pages.includes(target), `home URL points to missing page ${target}`)
 const curricula=app.subPackages?.find(item=>item.root==='bundles/curricula')
 assert.ok(curricula?.pages?.includes('index'),'AP/IB home target must be registered in the curricula subpackage')
+assert.ok(curricula?.pages?.includes('universities'),'University directory must be registered in the curricula subpackage')
+assert.match(fs.readFileSync(path.join(root,'pages/index/index.wxml'),'utf8'),/url="\/bundles\/curricula\/universities"[^>]*>大学排名与官网<\/navigator>/)
 console.log('Home six-entry route contract passed.')

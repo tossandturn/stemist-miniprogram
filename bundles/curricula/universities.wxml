@@ -1,0 +1,47 @@
+<view class="page {{deviceClass}} {{orientation}} university-page">
+ <stemist-header title="大学排名与官网" />
+ <app-nav active="practice" source="university-directory" is-tablet="{{isTablet}}" />
+ <view class="directory-toolbar"><view class="directory-tabs" role="tablist" aria-label="切换大学排名与课程官网">
+   <button class="directory-tab {{activeTab === 'rankings' ? 'active' : ''}}" data-tab="rankings" bindtap="chooseTab" role="tab" aria-selected="{{activeTab === 'rankings'}}">大学排名</button>
+   <button class="directory-tab {{activeTab === 'official' ? 'active' : ''}}" data-tab="official" bindtap="chooseTab" role="tab" aria-selected="{{activeTab === 'official'}}">课程官网</button>
+  </view>
+  <button class="text-button directory-share" open-type="share">分享</button>
+ </view>
+ <view wx:if="{{loading}}" class="directory-loading" role="status">正在加载大学目录…</view>
+ <view wx:elif="{{error && !loaded}}" class="error" role="alert"><text>{{error}}</text><button class="secondary retry-action" bindtap="retry">重新加载</button></view>
+ <block wx:else>
+  <view wx:if="{{cacheNotice}}" class="warning cache-notice" role="status">{{cacheNotice}}</view>
+  <block wx:if="{{activeTab === 'rankings'}}">
+   <view class="ranking-toolbar">
+    <text class="control-label">选择榜单</text>
+    <picker mode="selector" range="{{rankingOptions}}" range-key="label" value="{{rankingIndex}}" bindchange="chooseRanking"><view class="ranking-select"><text>{{rankingOptions[rankingIndex].label}}</text><text class="select-hint">切换</text></view></picker>
+   </view>
+   <view wx:if="{{currentRanking}}" class="ranking-meta">
+    <view class="ranking-meta-summary"><text class="ranking-edition">{{currentRanking.scopeLabel}} · {{currentRanking.editionYear}} 版 · 前 100 名（含并列）</text><text class="verified-badge">核验于 {{currentRanking.verifiedAt}}</text></view>
+    <view class="source-actions"><button class="source-copy" data-kind="source" bindtap="copyRankingLink">复制榜单来源</button><button class="source-copy" data-kind="methodology" bindtap="copyRankingLink">复制排名方法</button></view>
+   </view>
+   <view class="ranking-search">
+    <text class="control-label">搜索大学</text>
+    <view class="search-row"><input value="{{queryDraft}}" placeholder="输入中文或英文校名" aria-label="输入中文或英文校名" maxlength="120" confirm-type="search" bindinput="onSearchInput" bindconfirm="applySearch" /><button bindtap="applySearch" disabled="{{loading}}">搜索</button></view>
+    <button wx:if="{{query}}" class="text-button search-clear" bindtap="clearSearch">清除搜索</button>
+   </view>
+   <view class="result-summary"><text>{{filteredCount}} 所大学</text><text wx:if="{{pageCount}}">第 {{pageNumber}} / {{pageCount}} 页</text></view>
+   <view class="university-list">
+    <view wx:for="{{visibleItems}}" wx:key="id" class="university-card">
+     <view class="rank-mark" aria-label="排名 {{item.rankLabel}}">{{item.rankLabel}}</view>
+     <view class="university-copy"><text class="university-name-zh">{{item.nameZh}}</text><text class="university-name-en">{{item.nameEn}}</text><text class="university-country">{{item.country}}</text><text class="university-host">{{item.hostname}}</text></view>
+     <button class="website-copy" data-id="{{item.id}}" bindtap="copyUniversity" aria-label="复制 {{item.nameZh}} 官网">复制官网</button>
+    </view>
+   </view>
+   <view wx:if="{{loaded && !visibleItems.length}}" class="empty-state"><text class="empty-title">没有匹配的大学</text><text class="empty-detail">试试中文或英文校名。</text><button class="secondary" bindtap="clearSearch">清除搜索</button></view>
+   <view wx:if="{{pageCount > 1}}" class="directory-pagination"><button class="secondary" disabled="{{pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary" disabled="{{pageNumber >= pageCount}}" bindtap="nextPage">下一页</button></view>
+  </block>
+  <block wx:else>
+   <view class="board-tabs" role="tablist" aria-label="选择课程体系"><button wx:for="{{examBoards}}" wx:key="id" class="board-tab {{selectedBoardId === item.id ? 'active' : ''}}" data-board="{{item.id}}" bindtap="chooseBoard" role="tab" aria-selected="{{selectedBoardId === item.id}}">{{item.label}}</button></view>
+   <view wx:if="{{currentBoard}}" class="official-card">
+    <text class="official-label">{{currentBoard.label}} 官方课程入口</text><text class="official-organization">{{currentBoard.organization}}</text><text class="official-host">{{currentBoard.hostname}}</text><button class="primary official-copy" bindtap="copyOfficial">复制官网链接</button><text class="official-note">复制后请在浏览器中打开。</text>
+   </view>
+  </block>
+  <view wx:if="{{error && loaded}}" class="error" role="alert">{{error}}</view>
+ </block>
+</view>

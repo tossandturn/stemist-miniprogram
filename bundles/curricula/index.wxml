@@ -4,6 +4,7 @@
  <view wx:if="{{invalidBoard}}" class="error" role="alert">{{error}}</view>
  <block wx:else>
   <view class="curriculum-intro"><view><text class="curriculum-title">{{boardLabel}} 课程真题</text></view><button class="secondary curriculum-share" open-type="share">分享筛选</button></view>
+  <navigator class="official-directory-entry" url="/bundles/curricula/universities?tab=official&amp;board={{board}}" hover-class="official-directory-entry-pressed" aria-label="打开 {{boardLabel}} 课程官网">{{boardLabel}} 课程官网</navigator>
   <view id="curriculum-filters" class="filter-panel">
    <picker wx:if="{{courseOptions.length}}" mode="selector" range="{{courseOptions}}" range-key="label" value="{{courseIndex}}" bindchange="chooseCourse"><view class="filter-select"><text>{{courseOptions[courseIndex].label}}</text><text class="filter-chevron">课程</text></view></picker>
    <picker wx:if="{{levelOptions.length > 1}}" mode="selector" range="{{levelOptions}}" range-key="label" value="{{levelIndex}}" data-filter="level" bindchange="chooseFilter"><view class="filter-select"><text>{{levelOptions[levelIndex].label}}</text><text class="filter-chevron">级别</text></view></picker>

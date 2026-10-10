@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "大学排名与官网",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true,
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index"
+  }
+}

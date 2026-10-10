@@ -14,6 +14,7 @@
         <view class="route-list"><button wx:for="{{routeOptions}}" wx:key="routeId" class="route-option {{item.routeId === routeId ? 'active' : ''}}" data-route="{{item.routeId}}" bindtap="chooseRoute">{{item.components}}</button></view>
       </block>
     </view>
+    <navigator class="secondary" url="/bundles/curricula/universities?tab=official&amp;board=alevel">A-Level 官网</navigator>
     <view class="section-title">开始练习</view>
     <view class="feature-grid">
       <button wx:for="{{stemTools}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-tool="{{item.id}}" bindtap="openStemTool" disabled="{{!routeId}}"><text class="feature-title">{{item.label}}</text><text class="feature-detail">{{item.detail}}</text></button>
