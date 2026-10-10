@@ -19,7 +19,7 @@ Date: 2026-10-10
 ## Interaction
 
 - Ranking picker, Chinese/English name search, and 20-row client pagination preserve the server-provided `rankLabel`, including ties.
-- Metadata shows edition, scope, verification date, source host, methodology host, and directory update date.
+- Metadata shows edition, scope and verification date, with compact source/methodology copy actions; redundant metadata blocks were removed after phone visual review.
 - Share paths include only allowlisted `tab`, `ranking`, and `board` values. Loading, empty, error, retry, and cached states remain explicit on phone and tablet.
 
 ## Verification
