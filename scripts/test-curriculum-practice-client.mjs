@@ -146,7 +146,7 @@ console.log('Curriculum practice page: setup, lazy questions, drafts, multiple c
 function indexRuntime({board='ap',practiceCatalog=catalogPayload,practiceError=null}={}){
  const practiceCalls=[]
  const runtime=miniRuntime({modules:{
-  'bundles/curricula/service':{KNOWN_BOARDS:{ap:'AP',ib:'IB'},fetchCurriculumPapers:async()=>({items:[],courses:[],filters:{levels:[],years:[],sessions:[],papers:[]},summary:{papers:0,downloadable:0,sourceOnly:0},total:0,page:1,pages:0})},
+  'bundles/curricula/service':{KNOWN_BOARDS:{ap:'AP',ib:'IB'},fetchCurriculumPapers:async()=>({items:[],courses:[{id:'physics-1',label:'AP Physics 1',subject:'Physics'},{id:'physics-c-em',label:'AP Physics C: Electricity and Magnetism',subject:'Physics'},{id:'calculus-ab',label:'AP Calculus AB',subject:'Mathematics'}],filters:{levels:[],years:[],sessions:[],papers:[]},summary:{papers:0,downloadable:0,sourceOnly:0},total:0,page:1,pages:0})},
   'bundles/curricula/practiceService':{fetchCatalog:async filters=>{practiceCalls.push(filters);if(practiceError)throw practiceError;return clone(practiceCatalog)}},
   'utils/page':{deviceState:value=>({deviceClass:'device-phone',orientation:'portrait',isTablet:false,...value}),syncDevice(){}},
   'utils/pdfDownload':{formatBytes:value=>String(value),initialPdfDownloadState:()=>({visible:false,active:false,itemId:''}),createPdfDownloadController:()=>({setScope(){},resume(){},suspend(){},dispose(){}})},
@@ -155,13 +155,15 @@ function indexRuntime({board='ap',practiceCatalog=catalogPayload,practiceError=n
  return{...runtime,page,practiceCalls,load:()=>page.onLoad({board})}
 }
 {
- const h=indexRuntime();await h.load();await settle();assert.equal(h.practiceCalls.length,1);assert.equal(h.page.data.practiceRoutes.length,2);assert.equal(h.page.data.practiceRoutes[0].questionCount,40);h.page.openPractice({currentTarget:{dataset:{route:routeId}}});assert.equal(h.calls.at(-1).url,`/bundles/curricula/practice?routeId=${routeId}`)
+ const h=indexRuntime();await h.load();await settle();assert.equal(h.practiceCalls.length,1);assert.equal(h.page.data.practiceRoutes.length,2);assert.equal(h.page.data.visiblePracticeRoutes.length,2);assert.equal(h.page.data.practiceExpanded,false);assert.equal(h.page.data.practiceRoutes[0].questionCount,40);h.page.togglePractice();assert.equal(h.page.data.practiceExpanded,true);h.page.openPractice({currentTarget:{dataset:{route:routeId}}});assert.equal(h.calls.at(-1).url,`/bundles/curricula/practice?routeId=${routeId}`)
+ const physicsOne=h.page.data.courseOptions.findIndex(option=>option.value==='physics-1');await h.page.chooseCourse({detail:{value:physicsOne}});assert.deepEqual([...h.page.data.visiblePracticeRoutes.map(route=>route.course)],['physics-1']);assert.equal(h.page.data.practiceExpanded,false)
+ const calculus=h.page.data.courseOptions.findIndex(option=>option.value==='calculus-ab');await h.page.chooseCourse({detail:{value:calculus}});assert.equal(h.page.data.visiblePracticeRoutes.length,0,'unrelated Physics practice must disappear for Calculus')
  const ib=indexRuntime({board:'ib'});await ib.load();await settle();assert.equal(ib.practiceCalls.length,0);assert.equal(ib.page.data.practiceRoutes.length,0)
  const empty=indexRuntime({practiceCatalog:{...catalogPayload,routes:catalogPayload.routes.map(route=>({...route,questionCount:0}))}});await empty.load();await settle();assert.equal(empty.page.data.practiceRoutes.length,0,'entry remains hidden without actual released questions')
  const failed=indexRuntime({practiceError:Error('practice unavailable')});await failed.load();await settle();assert.equal(failed.page.data.practiceRoutes.length,0);assert.equal(failed.page.data.error,'','practice discovery failure must not break the PDF library')
 }
 const indexWxml=fs.readFileSync(new URL('bundles/curricula/index.wxml',root),'utf8'),indexWxss=fs.readFileSync(new URL('bundles/curricula/index.wxss',root),'utf8')
-assert.match(indexWxml,/选择题练习/);assert.match(indexWxml,/practiceRoutes/);assert.match(indexWxml,/不计正式/);assert.match(indexWxss,/\.practice-entry/)
+assert.match(indexWxml,/选择题练习/);assert.match(indexWxml,/visiblePracticeRoutes/);assert.match(indexWxml,/practiceExpanded/);assert.match(indexWxml,/不计正式/);assert.doesNotMatch(indexWxml,/item\.questionCount|item\.topicCount/);assert.match(indexWxss,/\.practice-entry/)
 console.log('Curriculum index exposes practice only for real AP catalog counts without changing the PDF library contract.')
 const nativeQaSource=fs.readFileSync(new URL('scripts/test-curriculum-practice-native-live.cjs',root),'utf8')
 assert.match(nativeQaSource,/--expected-device/);assert.match(nativeQaSource,/--expected-orientation/);assert.match(nativeQaSource,/\.practice-progress/);assert.match(nativeQaSource,/\.submit-practice/);assert.match(nativeQaSource,/windowWidth/);assert.match(nativeQaSource,/tabletNativeVerified/);assert.doesNotMatch(nativeQaSource,/automation_page_action[^\n]*setData|deviceClass:\s*['"]device-tablet/)

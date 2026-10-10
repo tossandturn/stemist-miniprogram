@@ -10,14 +10,15 @@ const waitFor=async predicate=>{for(let i=0;i<100&&!predicate();i++)await wait(5
 
 function harness({data=source,failAt=-1,damage=false}={}){
  const files=new Map(),storage=new Map(),requests=[],opens=[],states=[],phases=[]
- let calls=0,errorAt=failAt,changedData=data,badRange=false,badEtag=false,writesFail=false,holdReadPath='',heldRead=null
+ let calls=0,errorAt=failAt,changedData=data,badRange=false,badEtag=false,writesFail=false,holdReadPath='',heldRead=null,holdUnlinkPath='',heldUnlink=null,holdAppends=false
+ const pendingAppends=[]
  const manager={
   mkdirSync(){},accessSync(p){if(!files.has(p))throw Error('not found')},statSync(p){if(!files.has(p))throw Error('not found');return{size:files.get(p).length}},
   readdirSync(directory){const prefix=directory.replace(/\/$/,'')+'/';return[...new Set([...files.keys()].filter(file=>file.startsWith(prefix)).map(file=>file.slice(prefix.length).split('/')[0]).filter(Boolean))]},
   writeFile(o){if(writesFail)return queueMicrotask(()=>o.fail());files.set(o.filePath,Buffer.from(o.data));queueMicrotask(()=>o.success())},
-  appendFile(o){if(writesFail)return queueMicrotask(()=>o.fail());files.set(o.filePath,Buffer.concat([files.get(o.filePath),Buffer.from(o.data)]));queueMicrotask(()=>o.success())},
+  appendFile(o){if(writesFail)return queueMicrotask(()=>o.fail());const write=()=>{files.set(o.filePath,Buffer.concat([files.get(o.filePath),Buffer.from(o.data)]));queueMicrotask(()=>o.success())};if(holdAppends)pendingAppends.push(write);else write()},
   readFile(o){const read=()=>{const b=files.get(o.filePath);if(!b)return queueMicrotask(()=>o.fail());let part=b.subarray(o.position||0,(o.position||0)+(o.length||b.length));if(damage&&o.position>5)part=Buffer.alloc(part.length,9);queueMicrotask(()=>o.success({data:part.buffer.slice(part.byteOffset,part.byteOffset+part.length)}))};if(o.filePath===holdReadPath&&!heldRead){heldRead=read;return}read()},
-  unlink(o){files.delete(o.filePath);o.success?.()},
+  unlink(o){const remove=()=>{files.delete(o.filePath);o.success?.()};if(o.filePath===holdUnlinkPath&&!heldUnlink)heldUnlink=remove;else remove()},
  }
  const wx={env:{USER_DATA_PATH:'/user'},getFileSystemManager:()=>manager,getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),request(o){
   const m=/^bytes=(\d+)-(\d+)$/.exec(o.header.Range);assert.ok(m,'all native PDF requests must have a finite end');const start=Number(m[1]),end=Number(m[2]);assert.ok(end-start+1<=128*1024)
@@ -27,12 +28,23 @@ function harness({data=source,failAt=-1,damage=false}={}){
  storage.set('stemistUser',{id:'student-1'});storage.set('stemistPrivacyEpoch',1)
  const r=miniRuntime({wx,globals:{setTimeout:(fn,ms)=>setTimeout(fn,ms===350||ms===900?0:ms)}}),module=r.load('utils/pdfRangeCache')
  const acquire=(extra={})=>module.acquirePdf({wxApi:wx,url:URL,owner:'student-1|1',version:'v1',fileName:'IB_Math_AA_2025_QP.pdf',expectedBytes:changedData.length,expectedSha256:digest(changedData),onProgress:(n,total)=>states.push({n,total}),onPhase:(phase,n,total)=>phases.push({phase,n,total}),...extra})
- return{acquire,module,wx,files,storage,requests,states,phases,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v,holdReadFor:p=>holdReadPath=p,releaseRead(){const read=heldRead;heldRead=null;holdReadPath='';read?.()},get readHeld(){return Boolean(heldRead)}}
+ return{acquire,module,wx,files,storage,requests,states,phases,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v,holdReadFor:p=>holdReadPath=p,releaseRead(){const read=heldRead;heldRead=null;holdReadPath='';read?.()},holdUnlinkFor:p=>holdUnlinkPath=p,releaseUnlink(){const unlink=heldUnlink;heldUnlink=null;holdUnlinkPath='';unlink?.()},setAppendHold:v=>holdAppends=v,releaseAppend(){pendingAppends.shift()?.()},get readHeld(){return Boolean(heldRead)},get unlinkHeld(){return Boolean(heldUnlink)},get pendingAppends(){return pendingAppends.length}}
 }
 
 {
  const r=miniRuntime(),{createSha256}=r.load('utils/sha256')
  for(const size of [0,1,55,56,63,64,65,8193,390000]){const b=crypto.randomBytes(size),hash=createSha256();for(let at=0;at<size;at+=31)hash.update(new Uint8Array(b.subarray(at,at+31)));assert.equal(hash.digest(),digest(b))}
+}
+{
+ const h=harness(),alternate='https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'b'.repeat(24)+'-'+ 'c'.repeat(16)
+ for(const [index,url] of [URL,alternate].entries()){const handle=h.acquire({url,version:'id-shape-'+index,fileName:'AP_ID_Shape_'+index+'.pdf'});assert.ok(handle,'both deployed curriculum file-id shapes must use native Range');await handle.promise;handle.release()}
+ const invalid=[
+  'https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'd'.repeat(31),
+  'https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'd'.repeat(24)+'--'+ 'e'.repeat(16),
+  'https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'd'.repeat(24)+'%2F'+ 'e'.repeat(16),
+  alternate+'?signature=private',
+ ]
+ for(const url of invalid)assert.equal(h.acquire({url,version:'invalid-id-shape',fileName:'AP_Invalid.pdf'}),null,'invalid, encoded or credentialed curriculum URLs stay outside native Range')
 }
 {
  const h=harness({failAt:2}),first=h.acquire();await assert.rejects(first.promise,error=>error.code==='pdf_network');first.release()
@@ -124,6 +136,17 @@ function harness({data=source,failAt=-1,damage=false}={}){
  const manual=harness(),e=manual.r.load('utils/pdfDownload').createPdfDownloadController({wxApi:manual.wx,onState:s=>state=s});e.setScope('ib');await e.open(req);e.cancel();const count=manual.requests.length;e.resume();await wait(30);assert.equal(manual.requests.length,count,'explicit cancellation is not automatically restarted');e.dispose()
 }
 {
+ const h=harness(),{createPdfDownloadController}=h.r.load('utils/pdfDownload');let state
+ const c=createPdfDownloadController({wxApi:h.wx,onState:s=>state=s});c.setScope('cancel-append');h.setAppendHold(true)
+ const req={url:URL,scope:'cancel-append',fileName:'AP_Cancel_Append_QP.pdf',cacheVersion:'source',expectedBytes:source.length,sha256:digest(source),ownerKey:'cancel-append:qp',itemId:'cancel-append'}
+ await c.open(req);await waitFor(()=>h.pendingAppends===1);const requests=h.requests.length;c.cancel();await c.retry();await wait(20)
+ const serialized=h.pendingAppends===1&&h.requests.length===requests
+ if(!serialized){c.dispose();while(h.pendingAppends)h.releaseAppend();await wait(20);assert.ok(serialized,'immediate retry waits for a cancelled generation\'s already-started append instead of writing the same checkpoint twice')}
+ h.releaseAppend();for(let i=0;i<20&&!['opened','error'].includes(state.phase);i++){await wait(5);if(h.pendingAppends)h.releaseAppend()}
+ assert.equal(state.phase,'opened');assert.deepEqual(h.files.get(h.opens.at(-1).filePath),source)
+ const requestCount=h.requests.length;c.dispose();const cached=createPdfDownloadController({wxApi:h.wx,onState:s=>state=s});cached.setScope('cancel-append');await cached.open(req);await waitFor(()=>state.phase==='opened');assert.equal(h.requests.length,requestCount,'the serialized retry leaves a verified reusable SHA cache');cached.dispose()
+}
+{
  const h=harness(),base=h.wx.request;let rejected=0
  h.wx.request=o=>{const m=/bytes=(\d+)-(\d+)/.exec(o.header.Range);if(Number(m[2])-Number(m[1])+1>32*1024){rejected++;setImmediate(()=>o.fail({errMsg:'timeout'}));return{abort(){}}}return base(o)}
  const handle=h.acquire(),p=await handle.promise;assert.equal(rejected,2);assert.deepEqual(h.files.get(p),source);assert.ok(h.requests.slice(1).every(r=>r.end-r.start+1<=32*1024),'slow links retain the smaller successful chunk size');handle.release()
@@ -192,6 +215,23 @@ function harness({data=source,failAt=-1,damage=false}={}){
  assert.deepEqual(h.files.get(student),Buffer.alloc(400000,7));assert.equal(h.files.has(pausedPath),true,'insufficient safe reclamation keeps a foreign paused download and falls back to temporary preview')
  assert.equal(h.files.has(orphanPath),true,'unknown unregistered PDF bytes are not assumed complete or safe to delete')
  assert.ok(h.storage.get(h.module.REGISTRY).some(item=>item.key===paused.key&&item.offset<item.total),'temporary preview never claims or deletes a durable partial checkpoint')
+}
+{
+ const h=harness(),records=[],partials=[]
+ for(let used=1;used<=8;used++){const path=`/user/pdf-cache/pdf-reclaim-partial-${used}/partial-${used}.pdf`,record={schema:1,key:`reclaim-partial-${used}`,owner:'paused|1',url:URL,version:'v',path,offset:100,total:source.length,etag:'"paused"',used};records.push(record);partials.push(path);h.files.set(path,Buffer.alloc(100,used))}
+ for(let used=9;used<=18;used++){const path=`/user/pdf-cache/pdf-reclaim-complete-${used}/complete-${used}.pdf`;records.push({schema:1,key:`reclaim-complete-${used}`,owner:'complete|1',url:URL,version:'v',path,offset:source.length,total:source.length,etag:'"complete"',used});h.files.set(path,Buffer.from(source))}
+ h.storage.set(h.module.REGISTRY,records);assert.equal(await h.module.reclaimCompletedPublicPdfs(h.wx),8)
+ for(const path of partials)assert.equal(h.files.has(path),true,'bounded reclamation preserves partial checkpoints even when they are the oldest records')
+ assert.deepEqual(h.storage.get(h.module.REGISTRY).filter(record=>record.offset===record.total).map(record=>record.used),[17,18],'bounded reclamation evicts the oldest eligible completed PDFs, not the newest cache hits')
+}
+{
+ const h=harness(),firstPath='/user/pdf-cache/pdf-reclaim-race-first/first.pdf',activePath='/user/pdf-cache/pdf-reclaim-race-active/active.pdf',owner='active-owner|1',version='active-v1',key=owner+'|'+URL+'|'+version
+ const record=(path,used,key)=>({schema:1,key,owner,url:URL,version,path,offset:source.length,total:source.length,etag:'"'+digest(source)+'"',sha256:digest(source),used})
+ h.files.set(firstPath,Buffer.from(source));h.files.set(activePath,Buffer.from(source));h.storage.set(h.module.REGISTRY,[record(firstPath,1,'first'),record(activePath,2,key)])
+ h.holdUnlinkFor(firstPath);const reclaim=h.module.reclaimCompletedPublicPdfs(h.wx);await waitFor(()=>h.unlinkHeld)
+ h.holdReadFor(activePath);const active=h.acquire({owner,version,fileName:'active.pdf'});await waitFor(()=>h.readHeld);h.releaseUnlink();assert.equal(await reclaim,1)
+ assert.equal(h.files.has(activePath),true,'a completed candidate that becomes active during awaited reclamation is rechecked before deletion');assert.ok(h.storage.get(h.module.REGISTRY).some(item=>item.path===activePath))
+ h.releaseRead();assert.equal(await active.promise,activePath);active.release()
 }
 {
  const h=harness(),manager=h.wx.getFileSystemManager(),privatePath='/user/native-writing/private-no-fallback.jpg',pausedPath='/user/pdf-cache/pdf-no-fallback/paused.pdf',paused={schema:1,key:'paused-no-fallback',owner:'student-3|2',url:URL,version:'paused',path:pausedPath,total:source.length,offset:120000,etag:'"'+digest(source)+'"',used:1}

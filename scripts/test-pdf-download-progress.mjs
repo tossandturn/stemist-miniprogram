@@ -322,6 +322,7 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
 const componentWxml=read('components/pdf-download-progress/index.wxml'),componentWxss=read('components/pdf-download-progress/index.wxss')
 assert.match(componentWxml,/bindtap="cancel"/);assert.match(componentWxml,/bindtap="retry"/);assert.match(componentWxml,/收起/);assert.match(componentWxml,/aria-label/)
 assert.match(componentWxss,/min-height:\s*44px/)
+assert.match(componentWxss,/\.pdf-progress-toggle\s*\{[^}]*flex:\s*0\s+0\s+64px/,'native default button width must not squeeze the progress message into a narrow column')
 assert.doesNotMatch(componentWxss.match(/(?<![\w-])\.pdf-progress-fill\s*\{([^}]+)\}/)?.[1]||'',/animation\s*:/,'measured percentages never animate independently of network events')
 assert.match(componentWxml,/<view wx:else class="pdf-progress-track is-unknown/,'indeterminate animation is limited to unknown totals')
 assert.match(componentWxss,/\.is-indeterminate \.pdf-progress-fill\s*\{[^}]*animation:/)
