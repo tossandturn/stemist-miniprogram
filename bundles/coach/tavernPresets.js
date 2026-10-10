@@ -10,4 +10,13 @@ const TAVERN_PRESETS=Object.freeze([
  ...TAVERN_FORTUNE_PRESETS.map((item,index)=>({...item,placeholder:index?'可以留一个轻问题，再选择单张或三张抽取…':'可以留一个轻问题（不需要生日或个人资料）…',category:'fortune',icon:index?'tarot-moon-cards.svg':'eastern-oracle-lots.svg'})),
 ].map(item=>Object.freeze({...item,starters:Object.freeze(item.starters),...(item.supportedSpreads?{supportedSpreads:Object.freeze(item.supportedSpreads)}:{})})))
 const tavernPreset=id=>TAVERN_PRESETS.find(item=>item.id===String(id||''))||null
-module.exports={TAVERN_CATEGORIES,TAVERN_PRESETS,tavernPreset}
+const DEFAULT_TAVERN_CATALOG=Object.freeze({categories:TAVERN_CATEGORIES,presets:TAVERN_PRESETS})
+const presentation=item=>({id:item.id,name:item.name,tag:item.tag,detail:item.detail,greeting:item.greeting,placeholder:item.placeholder,starters:Object.freeze([...item.starters]),category:item.category,icon:item.icon})
+function configuredTavernCatalog(value){
+ if(!value||!Array.isArray(value.categories)||!Array.isArray(value.presets))return DEFAULT_TAVERN_CATALOG
+ const categories=Object.freeze(value.categories.map(item=>Object.freeze({id:item.id,label:item.label})))
+ const presets=Object.freeze(value.presets.map(item=>{const local=tavernPreset(item.id),metadata=presentation(item);return Object.freeze(local?{...local,...metadata}:{...metadata,interactionKind:'textchat'})}))
+ return Object.freeze({categories,presets})
+}
+const catalogPreset=(catalog,id)=>catalog&&Array.isArray(catalog.presets)?catalog.presets.find(item=>item.id===String(id||''))||null:null
+module.exports={DEFAULT_TAVERN_CATALOG,TAVERN_CATEGORIES,TAVERN_PRESETS,catalogPreset,configuredTavernCatalog,tavernPreset}

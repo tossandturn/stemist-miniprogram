@@ -31,7 +31,8 @@ console.log('Native friend sharing: all page hooks, registered public destinatio
 const curriculumRoute='bundles/curricula/index'
 const universityRoute='bundles/curricula/universities'
 const announcementRoute='bundles/announcements/index'
-const publicRoutes=['pages/index/index','pages/practice/index','pages/papers/index','pages/stem/topics','pages/ielts/home','pages/ielts/library','pages/ielts/vocabulary','pages/calculator/index',curriculumRoute,universityRoute,announcementRoute]
+const configuredRoute='bundles/configured/index'
+const publicRoutes=['pages/index/index','pages/practice/index','pages/papers/index','pages/stem/topics','pages/ielts/home','pages/ielts/library','pages/ielts/vocabulary','pages/calculator/index',curriculumRoute,universityRoute,announcementRoute,configuredRoute]
 assert.equal(publicRoutes.includes(markingRoute),false,'whole-paper marking is friend-share only and never a Moments route')
 const menus=[],timelineRuntime=miniRuntime({wx:{showShareMenu:options=>menus.push(options)}})
 for(const route of registered.allPages){
@@ -56,4 +57,4 @@ for(const route of registered.allPages){
 }
 const markingMenu=menus[registered.allPages.indexOf(markingRoute)]
 assert.deepEqual(Array.from(markingMenu.menus),['shareAppMessage'])
-console.log('Moments: eleven public pages, explicit menus, same-page safe queries, app logo and private-page exclusion passed.')
+console.log('Moments: twelve public pages, explicit menus, same-page safe queries, app logo and private-page exclusion passed.')

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
 
 const root = path.resolve(import.meta.dirname, '..')
 const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
@@ -14,5 +15,11 @@ for (const target of targets.filter((value) => value.startsWith('pages/'))) asse
 const curricula=app.subPackages?.find(item=>item.root==='bundles/curricula')
 assert.ok(curricula?.pages?.includes('index'),'AP/IB home target must be registered in the curricula subpackage')
 assert.ok(curricula?.pages?.includes('universities'),'University directory must be registered in the curricula subpackage')
-assert.match(fs.readFileSync(path.join(root,'pages/index/index.wxml'),'utf8'),/url="\/bundles\/curricula\/universities"[^>]*>大学排名与官网<\/navigator>/)
+const homeTemplate=fs.readFileSync(path.join(root,'pages/index/index.wxml'),'utf8')
+assert.match(homeTemplate,/wx:for="\{\{secondaryLinks\}\}"/)
+assert.match(homeTemplate,/bindtap="openSecondary"/)
+const runtime=miniRuntime(),config=runtime.load('utils/productConfig'),snapshot=config.readProductConfigSnapshot()
+const university=snapshot.config.home.secondary.find(item=>item.id==='university-directory')
+assert.equal(university?.label,'大学排名与官网')
+assert.equal(config.resolveProductAction(snapshot.config,university.action)?.url,'/bundles/curricula/universities')
 console.log('Home six-entry route contract passed.')

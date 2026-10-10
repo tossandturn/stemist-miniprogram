@@ -1,7 +1,8 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const {isAuthError}=require('../../utils/api')
 const {coachHelpPolicy}=require('../../utils/coach')
-const {TAVERN_CATEGORIES,TAVERN_PRESETS,tavernPreset}=require('./tavernPresets')
+const {loadProductConfig,readProductConfigSnapshot}=require('../../utils/productConfig')
+const {DEFAULT_TAVERN_CATALOG,TAVERN_CATEGORIES,TAVERN_PRESETS,catalogPreset,configuredTavernCatalog}=require('./tavernPresets')
 const {
  TAVERN_PAGE_LIMIT,displayTavernMessages,legacyDisplayTavernMessages,legacyImportIdFor,legacyTavernMessages,mergeTavernMessages,
  newClientTurnId,resumeTavernConversation,fetchTavernMessages,deleteTavernConversation,sendTavernTurn,
@@ -11,6 +12,7 @@ const {newDrawNonce,normalizeTavernDraw,requestTavernDraw,interpretTavernDraw,re
 const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const clip=(value,max)=>Array.from(String(value||'')).slice(0,max).join('')
+const viewPreset=value=>({...value,starters:Array.from(value.starters||[]),...(value.supportedSpreads?{supportedSpreads:Array.from(value.supportedSpreads)}:{})})
 const hasSession=()=>Boolean(wx.getStorageSync('stemistSessionToken'))
 const LOCAL_CLEAR_FENCES=new Map()
 const sessionStamp=()=>{const token=String(wx.getStorageSync('stemistSessionToken')||'');if(!token)return'';let first=2166136261,second=2246822519;for(let index=0;index<token.length;index++){const code=token.charCodeAt(index);first=Math.imul(first^code,16777619)>>>0;second=Math.imul(second+code+index,3266489917)>>>0}return`${token.length}:${first.toString(36)}:${second.toString(36)}`}
@@ -48,7 +50,8 @@ Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({personas:TAVERN_PRESETS,visiblePersonas:TAVERN_PRESETS,categories:TAVERN_CATEGORIES,category:'all',selected:TAVERN_PRESETS[0],persona:'keeper',starters:TAVERN_PRESETS[0].starters,greeting:TAVERN_PRESETS[0].greeting,placeholder:TAVERN_PRESETS[0].placeholder,selectorOpen:true,presetChosen:false,message:'',question:'',spread:'single',draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:'',warning:'',canRetry:false,authRequired:false,clearPending:false,status:'',examBlocked:false}),
  onLoad(options){
-  this.__owner=owner();this.__epoch=epoch();this.__disposed=false;this.__states={};this.__attemptId='';this.__fortuneRevision=0;this.__historyRevision=0;this.__conversationGeneration=0;this.__browseNextBefore='';this.__pendingDrawNonce=''
+  this.__owner=owner();this.__epoch=epoch();this.__disposed=false;this.__states={};this.__attemptId='';this.__fortuneRevision=0;this.__historyRevision=0;this.__conversationGeneration=0;this.__browseNextBefore='';this.__pendingDrawNonce='';this.__productConfigRequest=0;this.__tavernCatalog=DEFAULT_TAVERN_CATALOG
+  const productSnapshot=readProductConfigSnapshot();if(productSnapshot.source!=='bundled')this.applyProductConfig(productSnapshot,false)
   let blocked=false;const key=String(options?.entry||''),entry=wx.getStorageSync('stemistCoachEntry'),age=Date.now()-Number(entry?.at)
   if(key&&entry?.key===key&&entry.owner===this.__owner&&entry.epoch===this.__epoch&&age>=0&&age<120000){const source=entry.context||{},attempt=source.attempt||{};this.__attemptId=String(source.attemptId||source.paperAttemptId||attempt.id||attempt.attemptId||'');blocked=coachHelpPolicy(source).solutionDisabled}
   const initial=this.initialPersona();this.loadPersona(initial.persona,{chosen:initial.chosen,open:!initial.chosen})
@@ -56,12 +59,23 @@ Page({
  },
  onShow(){
   syncDevice(this)
+  this.refreshProductConfig()
   if(this.__authResumeRequested&&wx.getStorageSync('stemistSessionToken')&&owner()===this.__owner&&epoch()===this.__epoch){this.__authResumeRequested=false;this.loadPersona(this.data.persona,{chosen:true,open:false});return}
   if(!this.current()){this.__fortuneRevision++;this.__conversationGeneration++;this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:false,status:'',error:'账号状态已变化，请返回后重新进入酒馆。'})}
  },
  onResize(){syncDevice(this)},
- onUnload(){this.__fortuneRevision++;this.__conversationGeneration++;if(this.current())this.save(false);this.__disposed=true},
+ onUnload(){this.__fortuneRevision++;this.__conversationGeneration++;this.__productConfigRequest++;if(this.current())this.save(false);this.__disposed=true},
  current(){return!this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
+ applyProductConfig(result,refreshSelection=true){
+  const config=result&&result.config;if(!config||!config.tavern)return false
+  const catalog=configuredTavernCatalog(config.tavern);this.__tavernCatalog=catalog
+  const category=catalog.categories.some(item=>item.id===this.data.category)?this.data.category:'all',personas=Array.from(catalog.presets,viewPreset),categories=Array.from(catalog.categories,item=>({id:item.id,label:item.label})),visiblePersonas=category==='all'?Array.from(personas):Array.from(personas.filter(item=>item.category===category)),sourceSelected=catalogPreset(catalog,this.data.persona),selected=sourceSelected&&viewPreset(sourceSelected)
+  const patch={personas,categories,category,visiblePersonas}
+  if(refreshSelection&&selected)Object.assign(patch,{selected,starters:Array.from(selected.starters),greeting:selected.greeting,placeholder:selected.placeholder})
+  this.setData(patch);return true
+ },
+ async refreshProductConfig(){const request=++this.__productConfigRequest,result=await loadProductConfig();if(this.__disposed||request!==this.__productConfigRequest||!this.current())return false;return this.applyProductConfig(result,true)},
+ catalog(){return this.__tavernCatalog||DEFAULT_TAVERN_CATALOG},
  quiesceIdentityFailure(error,{status='对话未完成',clearPending=this.data.clearPending===true}={}){
   const auth=isAuthError(error),changed=!this.current()
   if(!auth&&!changed)return false
@@ -80,7 +94,7 @@ Page({
  clearFenceKey(persona=this.data.persona){return`${this.key(persona)}:clear-fence`},
  selectionKey(){return`stemistTavern:${this.__owner}:${this.__epoch}:selected`},
  read(persona){let state=this.__states[persona];if(!state){let fenceId=LOCAL_CLEAR_FENCES.get(this.clearFenceKey(persona))||'';try{const storedFence=wx.getStorageSync(this.clearFenceKey(persona));if(storedFence?.cleared===true)fenceId=String(storedFence.conversationId||fenceId)}catch{}if(fenceId){state=emptyState(this.__owner,this.__epoch,persona);state.localClearFence=true;state.deletedConversationId=fenceId}else try{state=storedState(wx.getStorageSync(this.key(persona)),this.__owner,this.__epoch,persona)}catch{state=emptyState(this.__owner,this.__epoch,persona)}}this.__states[persona]=state;return state},
- initialPersona(){let selected='';try{selected=String(wx.getStorageSync(this.selectionKey())||'')}catch{}if(tavernPreset(selected))return{persona:selected,chosen:true};for(const preset of TAVERN_PRESETS){const state=this.read(preset.id);if(String(state.draft||state.question||'')||state.turns.length||state.draw||state.conversation)return{persona:preset.id,chosen:true}}return{persona:'keeper',chosen:false}},
+ initialPersona(){const catalog=this.catalog();let selected='';try{selected=String(wx.getStorageSync(this.selectionKey())||'')}catch{}if(catalogPreset(catalog,selected))return{persona:selected,chosen:true};for(const preset of catalog.presets){const state=this.read(preset.id);if(String(state.draft||state.question||'')||state.turns.length||state.draw||state.conversation)return{persona:preset.id,chosen:true}}return{persona:'keeper',chosen:false}},
  save(warn=true){
   if(!this.current())return false
   const state=this.read(this.data.persona),fortune=Boolean(this.data.selected.divinationKind)
@@ -94,7 +108,7 @@ Page({
  renderLatest(state,extra={}){const turns=state.turns;this.__browseNextBefore='';this.setData({turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra})},
  loadPersona(persona,{chosen=this.data.presetChosen,open=this.data.selectorOpen}={}){
   this.__fortuneRevision++;const generation=++this.__conversationGeneration;this.__pendingDrawNonce='';this.__browseNextBefore=''
-  const selected=tavernPreset(persona)||TAVERN_PRESETS[0],state=this.read(selected.id),fortune=Boolean(selected.divinationKind),spread=fortune&&selected.supportedSpreads.includes(state.spread)?state.spread:selected.supportedSpreads?.[0]||'single'
+  const catalog=this.catalog(),selected=viewPreset(catalogPreset(catalog,persona)||catalog.presets[0]),state=this.read(selected.id),fortune=Boolean(selected.divinationKind),spread=fortune&&selected.supportedSpreads.includes(state.spread)?state.spread:selected.supportedSpreads?.[0]||'single'
   let draw=null,drawNeedsRedraw=false,drawError=''
   if(fortune&&state.draw)try{draw=normalizeTavernDraw({draw:state.draw},{persona:selected.id,spread,now:0});if(draw.expiresAt<=Date.now()){drawNeedsRedraw=true;drawError='本次娱乐抽取已过期，请重新抽取。'}}catch{drawNeedsRedraw=true;drawError='本机抽取记录无效，请重新抽取。'}
   const turns=state.turns
@@ -126,9 +140,9 @@ Page({
   return this.applyEnvelope(state,envelope,{legacyConfirmed:Boolean(legacyImport),render:true})
  },
  async ensureConversation(includeLegacy,generation){const state=this.read(this.data.persona);if(!state.conversation||(includeLegacy&&state.legacyBackup.length&&!state.legacyImported))return this.resumeConversation(includeLegacy,generation);return state},
- chooseCategory(event){if(this.data.loading||this.data.examBlocked)return;const category=String(event.currentTarget?.dataset?.category||'');if(!TAVERN_CATEGORIES.some(item=>item.id===category))return;this.setData({category,visiblePersonas:category==='all'?TAVERN_PRESETS:TAVERN_PRESETS.filter(item=>item.category===category)})},
+ chooseCategory(event){if(this.data.loading||this.data.examBlocked)return;const catalog=this.catalog(),category=String(event.currentTarget?.dataset?.category||'');if(!catalog.categories.some(item=>item.id===category))return;this.setData({category,visiblePersonas:Array.from(category==='all'?catalog.presets:catalog.presets.filter(item=>item.category===category),viewPreset)})},
  openSelector(){if(this.current()&&!this.data.loading&&!this.data.examBlocked)this.setData({selectorOpen:true})},
- choosePersona(event){if(!this.current()||this.data.loading||this.data.examBlocked)return;const persona=String(event.currentTarget?.dataset?.persona||'');if(!tavernPreset(persona))return;if(this.data.presetChosen)this.save();this.loadPersona(persona,{chosen:true,open:false});this.rememberPersona(persona)},
+ choosePersona(event){if(!this.current()||this.data.loading||this.data.examBlocked)return;const persona=String(event.currentTarget?.dataset?.persona||'');if(!catalogPreset(this.catalog(),persona))return;if(this.data.presetChosen)this.save();this.loadPersona(persona,{chosen:true,open:false});this.rememberPersona(persona)},
  onMessage(event){
   if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.presetChosen||this.data.selected.divinationKind)return
   const message=String(event.detail?.value||''),state=this.read(this.data.persona);if(state.pendingTurn&&state.pendingTurn.message!==message.trim())state.pendingTurn=null

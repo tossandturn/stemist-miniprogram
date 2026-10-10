@@ -214,7 +214,12 @@ assert.ok(curricula?.pages.includes('universities'), 'university directory must 
 const homeJs = fs.readFileSync(path.join(root, 'pages/index/index.js'), 'utf8')
 const homeWxml = fs.readFileSync(path.join(root, 'pages/index/index.wxml'), 'utf8')
 assert.equal((homeJs.match(/id\s*:\s*'(?:alevel|ap|ib|ielts|competition|calculator)'/g) || []).length, 6, 'the six primary home entries stay unchanged')
-assert.match(homeWxml, /url="\/bundles\/curricula\/universities"[^>]*>大学排名与官网<\/navigator>/)
+assert.match(homeWxml, /wx:for="\{\{secondaryLinks\}\}"/)
+assert.match(homeWxml, /bindtap="openSecondary"/)
+const homeConfigRuntime=miniRuntime(),homeConfigService=homeConfigRuntime.load('utils/productConfig'),homeConfig=homeConfigService.readProductConfigSnapshot().config
+const universityLink=homeConfig.home.secondary.find(item=>item.id==='university-directory')
+assert.equal(universityLink?.label,'大学排名与官网')
+assert.equal(homeConfigService.resolveProductAction(homeConfig,universityLink.action)?.url,'/bundles/curricula/universities')
 assert.match(fs.readFileSync(path.join(root, 'pages/practice/index.wxml'), 'utf8'), /url="\/bundles\/curricula\/universities\?tab=official&amp;board=alevel"[^>]*>A-Level 官网<\/navigator>/)
 const curriculumWxml = fs.readFileSync(path.join(root, 'bundles/curricula/index.wxml'), 'utf8')
 assert.match(curriculumWxml, /\/bundles\/curricula\/universities\?tab=official&amp;board=\{\{board\}\}/)

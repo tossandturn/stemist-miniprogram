@@ -1,0 +1,37 @@
+<view class="page {{deviceClass}} {{orientation}} configured-page">
+  <stemist-header title="{{title}}" />
+  <view wx:if="{{state === 'loading'}}" class="configured-status" role="status">
+    <text class="configured-status-title">正在加载内容…</text>
+    <text class="configured-status-detail">网络较慢时会自动使用最近可用的公开版本。</text>
+  </view>
+  <block wx:elif="{{state === 'ready'}}">
+    <view class="configured-sections">
+      <view wx:for="{{sections}}" wx:for-item="section" wx:key="id" class="configured-section configured-{{section.type}} notice-{{section.tone}}">
+        <block wx:if="{{section.type === 'text'}}">
+          <text wx:if="{{section.title}}" class="configured-section-title">{{section.title}}</text>
+          <text class="configured-section-text" user-select="{{true}}">{{section.text}}</text>
+        </block>
+        <block wx:elif="{{section.type === 'notice'}}">
+          <text wx:if="{{section.title}}" class="configured-section-title">{{section.title}}</text>
+          <text class="configured-section-text" user-select="{{true}}">{{section.text}}</text>
+        </block>
+        <block wx:elif="{{section.type === 'links'}}">
+          <text wx:if="{{section.title}}" class="configured-section-title">{{section.title}}</text>
+          <view class="configured-links" role="list">
+            <button wx:for="{{section.items}}" wx:for-item="link" wx:key="id" class="configured-link" data-section="{{section.id}}" data-item="{{link.id}}" bindtap="openLink" role="listitem" aria-label="{{link.label}}{{link.detail ? '：' + link.detail : ''}}">
+              <text class="configured-link-label">{{link.label}}</text>
+              <text wx:if="{{link.detail}}" class="configured-link-detail">{{link.detail}}</text>
+            </button>
+          </view>
+        </block>
+      </view>
+    </view>
+    <button class="secondary configured-share" open-type="share">分享此页</button>
+  </block>
+  <view wx:else class="configured-status" role="alert">
+    <text class="configured-status-title">{{state === 'unknown' ? '找不到这个内容' : '加载未完成'}}</text>
+    <text class="configured-status-detail">{{error}}</text>
+    <button wx:if="{{state === 'error'}}" class="secondary configured-retry" bindtap="retry">重新加载</button>
+    <navigator class="configured-home" url="/pages/index/index" open-type="redirect">返回首页</navigator>
+  </view>
+</view>

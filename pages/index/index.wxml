@@ -8,7 +8,7 @@
     <text wx:elif="{{announcementError}}" class="home-announcement-summary">公告暂未加载，点击重试。</text>
     <text wx:else class="home-announcement-summary">暂无公告</text>
   </view>
-  <view class="home-heading">今天想学什么？</view>
+  <view class="home-heading">{{homeHeading}}</view>
   <view class="entry-grid">
     <button wx:for="{{entryPoints}}" wx:key="id" class="entry-card entry-{{item.tone}}" data-entry="{{item.id}}" bindtap="openEntry" loading="{{entryLoading === item.id}}" disabled="{{!!entryLoading}}">
       <view class="entry-mark" aria-hidden="true"><view class="entry-mark-inner"></view></view>
@@ -17,7 +17,7 @@
     </button>
   </view>
   <view wx:if="{{entryError}}" class="error">{{entryError}}</view>
-  <navigator class="home-account" url="/bundles/curricula/universities">大学排名与官网</navigator>
+  <button wx:for="{{secondaryLinks}}" wx:key="id" class="home-account text-button" data-secondary="{{item.id}}" bindtap="openSecondary">{{item.label}}</button>
   <navigator class="home-account" url="/pages/account/auth">我的学习记录与账号</navigator>
   <button class="home-share secondary" open-type="share">分享给好友</button>
 </view>

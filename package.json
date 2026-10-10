@@ -2,6 +2,9 @@
   "name": "stemist-miniprogram",
   "private": true,
   "type": "module",
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
   "scripts": {
     "test": "node scripts/test-contract.mjs",
     "test:device": "node scripts/test-device-profile.mjs",
@@ -34,6 +37,9 @@
     "test:paper-catalog": "node scripts/test-paper-catalog.mjs && node scripts/test-paper-page-service.mjs && node scripts/test-paper-filters.mjs && node scripts/test-paper-source-mapping.mjs && node scripts/test-native-topic-directory.mjs && node scripts/test-ielts-topic-integrity.mjs && node scripts/test-ielts-shared-topics.mjs",
     "test:curricula": "node scripts/test-curriculum-papers-client.mjs",
     "test:university-directory": "node scripts/test-university-directory.mjs",
+    "test:product-config": "node scripts/test-product-config-client.mjs",
+    "test:package-minification": "node scripts/test-native-package-minification.mjs",
+    "pretest:all": "npm run test:product-config && npm run test:package-minification",
     "test:curriculum-practice": "node scripts/test-curriculum-practice-client.mjs",
     "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs",
     "test:learning-summary": "node scripts/test-learning-summary.mjs",

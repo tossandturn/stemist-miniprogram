@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import {execFileSync} from 'node:child_process'
-import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
+import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,packageRootForPath,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
+import {MINIMUM_MAIN_PACKAGE_SAVINGS_BYTES,NATIVE_PACKAGE_TRANSFORM,transformNativePackageFile} from './helpers/native-package-transform.mjs'
 
 const root=path.resolve(import.meta.dirname,'..'),checkOnly=process.argv.includes('--check-only')
 const MAX_RUNTIME_BYTES=WECHAT_PACKAGE_LIMIT_BYTES,MINIMUM_HEADROOM=MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES
@@ -54,19 +55,26 @@ if(!checkOnly){
 const manifest=[]
 for(const name of runtimeFiles){
  if(/(^|[\\/])(?:\.env|node_modules|\.git|.*\.sqlite)/i.test(name)||/\.(?:pdf|zip|tar|pem|key)$/i.test(name))throw new Error('Excluded payload type in runtime tree')
- const source=path.join(root,name),bytes=fs.readFileSync(source)
- if(/<web-view\b/i.test(bytes.toString('utf8')))throw new Error('A WebView remains in the upload tree')
- manifest.push({path:normalized(name),bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')})
+ const source=path.join(root,name),sourceBytes=fs.readFileSync(source)
+ if(/<web-view\b/i.test(sourceBytes.toString('utf8')))throw new Error('A WebView remains in the upload tree')
+ const transformed=transformNativePackageFile(normalized(name),sourceBytes)
+ manifest.push({path:normalized(name),sourceBytes:sourceBytes.length,sourceSha256:crypto.createHash('sha256').update(sourceBytes).digest('hex'),bytes:transformed.bytes.length,sha256:crypto.createHash('sha256').update(transformed.bytes).digest('hex'),transform:transformed.transform,output:transformed.bytes})
 }
+const receiptFiles=manifest.map(({output,...item})=>item)
+const runtimeManifestSha256=crypto.createHash('sha256').update(JSON.stringify(receiptFiles.map(({path,bytes,sha256,transform})=>({path,bytes,sha256,transform})))).digest('hex')
+const sourceManifestSha256=crypto.createHash('sha256').update(JSON.stringify(receiptFiles.map(({path,sourceBytes,sourceSha256})=>({path,sourceBytes,sourceSha256})))).digest('hex')
 const {mainFiles,mainPackageBytes,mainPackageHeadroom,subPackages,totalRuntimeFiles,totalRuntimeBytes}=runtimePackageBudgets(manifest,app.subPackages)
-const summary={status:'pass',runtimeFiles:mainFiles.length,runtimeBytes:mainPackageBytes,headroom:mainPackageHeadroom,minimumHeadroom:MINIMUM_HEADROOM,budget:MAX_RUNTIME_BYTES,mainPackageFiles:mainFiles.length,mainPackageBytes,mainPackageHeadroom,totalRuntimeFiles,totalRuntimeBytes,subPackages,webViews:0}
+const sourceMainPackageBytes=manifest.filter(item=>packageRootForPath(item.path,app.subPackages)===null).reduce((sum,item)=>sum+item.sourceBytes,0)
+const sourceTotalRuntimeBytes=manifest.reduce((sum,item)=>sum+item.sourceBytes,0),mainPackageSavingsBytes=sourceMainPackageBytes-mainPackageBytes,totalRuntimeSavingsBytes=sourceTotalRuntimeBytes-totalRuntimeBytes
+if(mainPackageSavingsBytes<MINIMUM_MAIN_PACKAGE_SAVINGS_BYTES)throw new Error(`Native package transform must recover at least 35 KiB in the main package; recovered ${mainPackageSavingsBytes} bytes`)
+const summary={status:'pass',transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeFiles:mainFiles.length,runtimeBytes:mainPackageBytes,headroom:mainPackageHeadroom,minimumHeadroom:MINIMUM_HEADROOM,budget:MAX_RUNTIME_BYTES,mainPackageFiles:mainFiles.length,sourceMainPackageBytes,mainPackageBytes,mainPackageSavingsBytes,mainPackageHeadroom,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,subPackages,webViews:0}
 if(checkOnly){console.log(JSON.stringify(summary));process.exit(0)}
 fs.mkdirSync(out)
-for(const item of manifest){const source=path.join(root,item.path),target=path.join(out,item.path);fs.mkdirSync(path.dirname(target),{recursive:true});fs.copyFileSync(source,target)}
+for(const item of manifest){const target=path.join(out,item.path);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,item.output)}
 const original=JSON.parse(fs.readFileSync(path.join(root,'project.config.json'),'utf8'))
 const config={appid:original.appid,projectname:'stemist-native',compileType:'miniprogram',libVersion:original.libVersion,miniprogramRoot:'./',setting:{...original.setting,urlCheck:true,minified:true,minifyWXSS:true,compileHotReLoad:false},packOptions:{ignore:[],include:[]}}
 fs.writeFileSync(path.join(out,'project.config.json'),JSON.stringify(config,null,2)+'\n','utf8')
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()
-const receipt={schemaVersion:'stemist-native-upload-v2',commit,runtimeBytes:mainPackageBytes,runtimeHeadroomBytes:mainPackageHeadroom,minimumHeadroomBytes:MINIMUM_HEADROOM,mainPackage:{files:mainFiles.length,bytes:mainPackageBytes,headroom:mainPackageHeadroom,budget:MAX_RUNTIME_BYTES},subPackages,totalRuntimeFiles,totalRuntimeBytes,files:manifest,originalProjectConfigChanged:false}
+const receipt={schemaVersion:'stemist-native-upload-v3',commit,transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeBytes:mainPackageBytes,runtimeHeadroomBytes:mainPackageHeadroom,minimumHeadroomBytes:MINIMUM_HEADROOM,sourceMainPackageBytes,mainPackageSavingsBytes,mainPackage:{files:mainFiles.length,bytes:mainPackageBytes,headroom:mainPackageHeadroom,budget:MAX_RUNTIME_BYTES},subPackages,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,files:receiptFiles,originalProjectConfigChanged:false}
 fs.writeFileSync(out+'-manifest.json',JSON.stringify(receipt,null,2)+'\n','utf8')
 console.log(JSON.stringify({directory:out,manifest:out+'-manifest.json',commit,...summary,originalProjectConfigChanged:false}))
