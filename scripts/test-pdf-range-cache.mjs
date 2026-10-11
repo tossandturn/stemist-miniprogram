@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 
 const source=Buffer.concat([Buffer.from('%PDF-1.7\n'),Buffer.alloc(390000,42),Buffer.from('\n%%EOF')])
+const PROBE_BYTES=256*1024
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex')
 const URL='https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'a'.repeat(32)
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))
@@ -17,11 +18,11 @@ function harness({data=source,failAt=-1,damage=false}={}){
   readdirSync(directory){const prefix=directory.replace(/\/$/,'')+'/';return[...new Set([...files.keys()].filter(file=>file.startsWith(prefix)).map(file=>file.slice(prefix.length).split('/')[0]).filter(Boolean))]},
   writeFile(o){if(writesFail)return queueMicrotask(()=>o.fail());files.set(o.filePath,Buffer.from(o.data));queueMicrotask(()=>o.success())},
   appendFile(o){if(writesFail)return queueMicrotask(()=>o.fail());const write=()=>{files.set(o.filePath,Buffer.concat([files.get(o.filePath),Buffer.from(o.data)]));queueMicrotask(()=>o.success())};if(holdAppends)pendingAppends.push(write);else write()},
-  readFile(o){const read=()=>{const b=files.get(o.filePath);if(!b)return queueMicrotask(()=>o.fail());let part=b.subarray(o.position||0,(o.position||0)+(o.length||b.length));if(damage&&o.position>5)part=Buffer.alloc(part.length,9);queueMicrotask(()=>o.success({data:part.buffer.slice(part.byteOffset,part.byteOffset+part.length)}))};if(o.filePath===holdReadPath&&!heldRead){heldRead=read;return}read()},
+  readFile(o){const read=()=>{const b=files.get(o.filePath);if(!b)return queueMicrotask(()=>o.fail());let part=b.subarray(o.position||0,(o.position||0)+(o.length||b.length));if(damage&&((o.position||0)>0||(o.length||b.length)>5))part=Buffer.alloc(part.length,9);queueMicrotask(()=>o.success({data:part.buffer.slice(part.byteOffset,part.byteOffset+part.length)}))};if(o.filePath===holdReadPath&&!heldRead){heldRead=read;return}read()},
   unlink(o){const remove=()=>{files.delete(o.filePath);o.success?.()};if(o.filePath===holdUnlinkPath&&!heldUnlink)heldUnlink=remove;else remove()},
  }
  const wx={env:{USER_DATA_PATH:'/user'},getFileSystemManager:()=>manager,getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),request(o){
-  const m=/^bytes=(\d+)-(\d+)$/.exec(o.header.Range);assert.ok(m,'all native PDF requests must have a finite end');const start=Number(m[1]),end=Number(m[2]);assert.ok(end-start+1<=128*1024)
+  const m=/^bytes=(\d+)-(\d+)$/.exec(o.header.Range);assert.ok(m,'all native PDF requests must have a finite end');const start=Number(m[1]),end=Number(m[2]);assert.ok(end-start+1<=1024*1024)
   requests.push({start,end,etag:o.header['If-Range']||''});const at=calls++,task={aborted:false,abort(){this.aborted=true}}
   setImmediate(()=>{if(task.aborted)return o.fail({errMsg:'abort'});if(errorAt>=0&&at>=errorAt)return o.fail({errMsg:'request:fail timeout'});const body=changedData.subarray(start,end+1);o.success({statusCode:206,header:{'Content-Type':'application/pdf','Content-Length':String(body.length),'Content-Range':'bytes '+(badRange?start+1:start)+'-'+end+'/'+changedData.length,ETag:'"'+(badEtag?'wrong':digest(changedData))+'"'},data:body.buffer.slice(body.byteOffset,body.byteOffset+body.length)})});return task
  },openDocument(o){opens.push(o);o.success()}}
@@ -47,9 +48,9 @@ function harness({data=source,failAt=-1,damage=false}={}){
  for(const url of invalid)assert.equal(h.acquire({url,version:'invalid-id-shape',fileName:'AP_Invalid.pdf'}),null,'invalid, encoded or credentialed curriculum URLs stay outside native Range')
 }
 {
- const h=harness({failAt:2}),first=h.acquire();await assert.rejects(first.promise,error=>error.code==='pdf_network');first.release()
- const record=h.storage.get(h.module.REGISTRY)[0],savedOffset=record.offset;assert.equal(savedOffset,128*1024+5);assert.equal(h.files.get(record.path).length,savedOffset)
- const attempts=h.requests.length;h.setFail(-1);const next=h.acquire(),path=await next.promise;assert.equal(h.requests[attempts].start,0,'retry probes source version');assert.equal(h.requests[attempts+1].start,savedOffset,'retry starts at the saved byte, not at zero');assert.deepEqual(h.files.get(path),source);next.release()
+ const h=harness({failAt:1}),first=h.acquire();await assert.rejects(first.promise,error=>error.code==='pdf_network');first.release()
+ const record=h.storage.get(h.module.REGISTRY)[0],savedOffset=record.offset;assert.ok(savedOffset>=PROBE_BYTES);assert.ok(savedOffset<source.length);assert.equal(h.files.get(record.path).length,savedOffset)
+ const attempts=h.requests.length;h.setFail(-1);const next=h.acquire(),path=await next.promise;assert.equal(h.requests[attempts].start,0,'retry probes source version');assert.equal(h.requests[attempts].end-h.requests[attempts].start+1,5,'resume validation does not redownload the useful cold-start prefix');assert.equal(h.requests[attempts+1].start,savedOffset,'retry starts at the saved byte, not at zero');assert.deepEqual(h.files.get(path),source);next.release()
  assert.ok(h.phases.some(item=>item.phase==='connecting'));assert.ok(h.phases.some(item=>item.phase==='downloading'&&item.n===savedOffset),'resume reports its durable offset without treating it as new bytes');assert.ok(h.phases.some(item=>item.phase==='verifying'&&item.n===source.length),'integrity validation is a distinct phase')
  const count=h.requests.length,cache=h.acquire();assert.equal(await cache.promise,path);assert.equal(h.requests.length,count,'verified complete files survive controller recreation');cache.release()
 }
@@ -103,8 +104,8 @@ function harness({data=source,failAt=-1,damage=false}={}){
  assert.deepEqual(h.files.get(h.opens.at(-1).filePath),source);c.dispose()
 }
 {
- const h=harness({failAt:2});await assert.rejects(h.acquire().promise);const alternate=Buffer.from(source);alternate[30]=7;h.setData(alternate);const attempts=h.requests.length;h.setFail(-1)
- const path=await h.acquire().promise;assert.deepEqual(h.files.get(path),alternate);assert.equal(h.requests[attempts+1].start,5,'a changed ETag safely restarts before appending new data')
+ const h=harness({failAt:1});await assert.rejects(h.acquire().promise);const alternate=Buffer.from(source);alternate[30]=7;h.setData(alternate);const attempts=h.requests.length;h.setFail(-1)
+ const path=await h.acquire().promise,fresh=h.requests.slice(attempts);assert.deepEqual(h.files.get(path),alternate);assert.equal(fresh[0].end-fresh[0].start+1,5);assert.equal(fresh[1].end-fresh[1].start+1,PROBE_BYTES);assert.equal(fresh[2].start,PROBE_BYTES,'a changed ETag safely restarts after persisting the useful new probe')
 }
 {
  const h=harness();h.setBadRange(true);await assert.rejects(h.acquire().promise,e=>e.code==='pdf_invalid_range');assert.equal(h.files.size,0)
@@ -113,10 +114,10 @@ function harness({data=source,failAt=-1,damage=false}={}){
 }
 {
  const h=harness(),handle=h.acquire();handle.release();await assert.rejects(handle.promise,e=>e.code==='pdf_cancelled'||e.code==='pdf_network');assert.equal(h.states.at(-1)?.n||0,0)
- const owner=harness({failAt:2});await assert.rejects(owner.acquire().promise);const attempts=owner.requests.length;owner.setFail(-1);const old=owner.storage.get(owner.module.REGISTRY)[0];const next=owner.acquire({owner:'student-2|2'}),path=await next.promise;assert.notEqual(path,old.path,'different owners have independent file paths');assert.equal(owner.requests[attempts+1].start,5)
+ const owner=harness({failAt:1});await assert.rejects(owner.acquire().promise);const attempts=owner.requests.length;owner.setFail(-1);const old=owner.storage.get(owner.module.REGISTRY)[0];const next=owner.acquire({owner:'student-2|2'}),path=await next.promise;assert.notEqual(path,old.path,'different owners have independent file paths');assert.equal(owner.requests[attempts+1].start,PROBE_BYTES)
 }
 {
- const h=harness({failAt:2}),{createPdfDownloadController}=h.r.load('utils/pdfDownload')
+ const h=harness({failAt:1}),{createPdfDownloadController}=h.r.load('utils/pdfDownload')
  let state;const timeline=[];const c=createPdfDownloadController({wxApi:h.wx,onState:s=>{state=s;timeline.push({...s})}});c.setScope('ap')
  const req={url:URL,scope:'ap',fileName:'AP_Test_QP.pdf',cacheVersion:'source',expectedBytes:source.length,sha256:digest(source),ownerKey:'ap:qp',itemId:'ap',label:'原卷'}
  await c.open(req);await wait(60);assert.equal(state.phase,'error');assert.ok(state.downloadedBytes>0);assert.match(state.error,/已保存/)
@@ -125,7 +126,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
  c.dispose()
 }
 {
- const h=harness({failAt:2});let network,state
+ const h=harness({failAt:1});let network,state
  h.wx.onNetworkStatusChange=fn=>network=fn;h.wx.offNetworkStatusChange=fn=>{if(network===fn)network=null}
  const {createPdfDownloadController}=h.r.load('utils/pdfDownload'),c=createPdfDownloadController({wxApi:h.wx,onState:s=>state=s})
  c.setScope('ib');const req={url:URL,scope:'ib',fileName:'IB_Physics_QP.pdf',cacheVersion:'source',expectedBytes:source.length,sha256:digest(source),ownerKey:'ib:qp',itemId:'ib'}
@@ -149,7 +150,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
 {
  const h=harness(),base=h.wx.request;let rejected=0
  h.wx.request=o=>{const m=/bytes=(\d+)-(\d+)/.exec(o.header.Range);if(Number(m[2])-Number(m[1])+1>32*1024){rejected++;setImmediate(()=>o.fail({errMsg:'timeout'}));return{abort(){}}}return base(o)}
- const handle=h.acquire(),p=await handle.promise;assert.equal(rejected,2);assert.deepEqual(h.files.get(p),source);assert.ok(h.requests.slice(1).every(r=>r.end-r.start+1<=32*1024),'slow links retain the smaller successful chunk size');handle.release()
+ const handle=h.acquire(),p=await handle.promise;assert.ok(rejected>=2);assert.deepEqual(h.files.get(p),source);assert.ok(h.requests.every(r=>r.end-r.start+1<=32*1024),'successful weak-link requests remain at the bounded fallback size');handle.release()
  const refresh=harness(),{createPdfDownloadController}=refresh.r.load('utils/pdfDownload');let state
  const controller=createPdfDownloadController({wxApi:refresh.wx,onState:s=>state=s});controller.setScope('renew')
  await controller.open({url:URL,scope:'renew',fileName:'AP_Renew_QP.pdf',expectedBytes:source.length,sha256:digest(source),cacheVersion:'same-source'})

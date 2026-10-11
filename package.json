@@ -41,7 +41,7 @@
     "test:package-minification": "node scripts/test-native-package-minification.mjs",
     "pretest:all": "npm run test:product-config && npm run test:package-minification",
     "test:curriculum-practice": "node scripts/test-curriculum-practice-client.mjs",
-    "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs",
+    "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs && node scripts/test-pdf-transfer-pipeline.mjs",
     "test:learning-summary": "node scripts/test-learning-summary.mjs",
     "test:webview-policy": "node scripts/test-webview-policy.mjs",
     "test:responsive": "node scripts/test-responsive-contract.mjs",
