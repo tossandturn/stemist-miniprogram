@@ -24,12 +24,13 @@ function choiceOptions(values){
  })
 }
 async function questionDisplay(session,q){
- const key=[session.routeId,session.stage,q.paperId].join('|');let entry=cache.get(key)
+ const access={owner:String(wx.getStorageSync('stemistUser')?.id||'guest'),epoch:Number(wx.getStorageSync('stemistPrivacyEpoch'))||0},key=[access.owner,access.epoch,session.routeId,session.stage,q.paperId].join('|');let entry=cache.get(key)
  if(!entry||entry.until<Date.now()){
-  const promise=requestJson('/api/stem/papers/'+encodeURIComponent(q.paperId)+'/source-context?routeId='+encodeURIComponent(session.routeId)+'&stage='+encodeURIComponent(session.stage),undefined,{method:'GET',timeout:12000,stemAuth:false}).catch(error=>{cache.delete(key);throw error})
+  const promise=requestJson('/api/stem/papers/'+encodeURIComponent(q.paperId)+'/source-context?routeId='+encodeURIComponent(session.routeId)+'&stage='+encodeURIComponent(session.stage),undefined,{method:'GET',timeout:12000,stemAuth:true}).catch(error=>{cache.delete(key);throw error})
   entry={promise,until:Date.now()+60000};cache.set(key,entry);while(cache.size>2)cache.delete(cache.keys().next().value)
  }
  const value=await entry.promise
+ if(access.owner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||access.epoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))throw Error('账号已变化，请重新加载题目。')
  if(value.schemaVersion!=='native-paper-sources-v1'||value.paperId!==q.paperId||value.routeId!==session.routeId||value.stage!==session.stage)throw Error('原卷题目对应关系未确认。')
  const item=value.questions?.find(item=>item.sourceQuestionId===q.id)
  if(!item||item.sourceQuestionId!==q.paperId+':q'+item.number)return null

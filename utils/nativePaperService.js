@@ -10,7 +10,7 @@ function sourceImages(values,paperId){
  return [...new Set(values)]
 }
 async function paperSources(draft){
- const response=await requestJson('/api/stem/papers/'+encodeURIComponent(draft.paperId)+'/source-context?routeId='+encodeURIComponent(draft.routeId)+'&stage='+encodeURIComponent(draft.stage),undefined,{method:'GET',timeout:12000,stemAuth:false})
+ const response=await requestJson('/api/stem/papers/'+encodeURIComponent(draft.paperId)+'/source-context?routeId='+encodeURIComponent(draft.routeId)+'&stage='+encodeURIComponent(draft.stage),undefined,{method:'GET',timeout:12000,stemAuth:true})
  if(!current(draft)||response?.schemaVersion!=='native-paper-sources-v1'||response.paperId!==draft.paperId||response.routeId!==draft.routeId||response.stage!==draft.stage||!Array.isArray(response.questions))throw new Error('试卷题图关联尚未确认。')
  const seen=new Set()
  return {questions:response.questions.map(q=>{if(!Number.isInteger(q.number)||q.number<1||seen.has(q.number)||q.sourceQuestionId!==draft.paperId+':q'+q.number)throw new Error('试卷题号关联无效。');seen.add(q.number);const images=sourceImages(q.images,draft.paperId);return {number:q.number,sourceQuestionId:q.sourceQuestionId,answerFormat:q.answerFormat,choiceLabels:q.choiceLabels,images,sourceRegions:normalizeQuestionFocus(q.questionFocus,draft.paperId,q.sourceQuestionId,images),choiceOptions:choiceOptions(q.choiceOptions),parts:[]}})}

@@ -4,6 +4,9 @@ import path from 'node:path'
 import {miniRuntime,settle} from './helpers/mini-runtime.mjs'
 
 const paper={id:'paper-1',subject:'9702',year:2025,seasonLabel:'夏季',file:'9702_s25_qp_22.pdf',title:'Physics Paper 2',paperNumber:'9702/22',stages:['as'],routeIds:['cie-9702-as-physics'],localUrl:'/local-pdf/9702/9702_s25_qp_22.pdf',sourceVersion:'catalog-version-1',markScheme:{localUrl:'/local-pdf/9702/9702_s25_ms_22.pdf'}}
+const testMembershipGate=async({wxApi})=>{const user=wxApi.getStorageSync?.('stemistUser')||{};return{owner:String(user.id||'guest'),epoch:Number(wxApi.getStorageSync?.('stemistPrivacyEpoch'))||0,enforcementEnabled:true,active:true}}
+const testAuthorization=async()=> 'Bearer pdf-test-token'
+const membershipModule={'utils/membershipProof':{ensureMembershipAccess:testMembershipGate,authorizationForMembership:testAuthorization}}
 let progressListener=null
 let catalogDownloadOptions=null,catalogDownloads=0,catalogAborts=0,catalogOpenCalls=0
 const downloadTask={onProgressUpdate(listener){progressListener=listener},offProgressUpdate(){},abort(){catalogAborts++}}
@@ -13,21 +16,23 @@ const runtime=miniRuntime({
   'utils/page':{deviceState:value=>({deviceClass:'device-phone',orientation:'portrait',...value}),syncDevice(){}},
   'utils/paperCatalog':{PAPER_SUBJECTS:[{code:'9702',label:'Physics'}],fetchPaperPage:async()=>({items:[paper],facets:{years:[2025],seasons:[]},total:1,subjectTotal:1,pairedTotal:1,page:1,pageCount:1})},
   'utils/stemCatalog':{normalizeStemCategory:value=>value||'alevel',subjectsForCategory:()=>[{code:'9702',label:'Physics'}],categoryForSubject:()=> 'alevel'},
-  'utils/stemRoutes':{STEM_ROUTES:[{subjectCode:'9702',stage:'AS',routeId:'cie-9702-as-physics',components:'P1 + P2'}],routeById:id=>id==='cie-9702-as-physics'?{subjectCode:'9702',stage:'AS',routeId:id,components:'P1 + P2'}:null},
+ 'utils/stemRoutes':{STEM_ROUTES:[{subjectCode:'9702',stage:'AS',routeId:'cie-9702-as-physics',components:'P1 + P2'}],routeById:id=>id==='cie-9702-as-physics'?{subjectCode:'9702',stage:'AS',routeId:id,components:'P1 + P2'}:null},
+  ...membershipModule,
  }
 })
 const page=runtime.page('pages/papers/index')
 await page.onLoad({subject:'9702',stage:'AS',routeId:'cie-9702-as-physics'})
-page.openPdf({currentTarget:{dataset:{id:paper.id,kind:'qp'}}})
+await page.openPdf({currentTarget:{dataset:{id:paper.id,kind:'qp'}}})
 assert.equal(typeof progressListener,'function','openPdf must register DownloadTask.onProgressUpdate so students see real PDF bytes and progress')
-page.openPdf({currentTarget:{dataset:{id:paper.id,kind:'qp'}}});assert.equal(catalogDownloads,1,'repeated taps must not create parallel downloads')
+assert.equal(catalogDownloadOptions.header.Authorization,'Bearer pdf-test-token')
+await page.openPdf({currentTarget:{dataset:{id:paper.id,kind:'qp'}}});assert.equal(catalogDownloads,1,'repeated taps must not create parallel downloads')
 progressListener({progress:100,totalBytesWritten:1000,totalBytesExpectedToWrite:1000})
 assert.equal(page.data.pdfDownload.percent,99,'a progress event cannot claim 100% before HTTP 200 success')
 page.onSearch({detail:{value:'different scope'}})
 assert.equal(catalogAborts,1,'changing the catalog scope must abort the active network download')
 catalogDownloadOptions.success({statusCode:200,tempFilePath:'wxfile://late.pdf'})
 assert.equal(catalogOpenCalls,0,'a late success from the previous catalog scope must not open a document')
-page.setData({mode:'exam-simulation'});page.openPdf({currentTarget:{dataset:{id:paper.id,kind:'ms'}}});assert.equal(catalogDownloads,1,'the catalog must not expose or download a mark scheme during exam simulation')
+page.setData({mode:'exam-simulation'});await page.openPdf({currentTarget:{dataset:{id:paper.id,kind:'ms'}}});assert.equal(catalogDownloads,1,'the catalog must not expose or download a mark scheme during exam simulation')
 page.onUnload()
 
 const {createPdfDownloadController,initialPdfDownloadState}=miniRuntime().load('utils/pdfDownload')
@@ -47,7 +52,7 @@ function manualClock(){
 function controllerHarness({openDocument=true,cacheLimit=4}={}){
  const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']])
  const downloads=[],opens=[],states=[],clock=manualClock()
- let cachedPathExists=true,scope='scope-a'
+ let cachedPathExists=true,scope='scope-a',membershipChecks=0,authorizationChecks=0
  const manager={
   access({success,fail}){cachedPathExists?success({}):fail({errMsg:'not found'})},
  }
@@ -55,14 +60,15 @@ function controllerHarness({openDocument=true,cacheLimit=4}={}){
   getStorageSync:key=>storage.get(key),
   getFileSystemManager:()=>manager,
   downloadFile(options){
+   assert.equal(options.header.Authorization,'Bearer pdf-test-token')
    const task={options,progress:null,aborted:0,onProgressUpdate(listener){this.progress=listener},offProgressUpdate(listener){if(this.progress===listener)this.progress=null},abort(){this.aborted++}}
    downloads.push(task);return task
   },
  }
  if(openDocument)wxApi.openDocument=options=>opens.push(options)
- const controller=createPdfDownloadController({wxApi,onState:state=>states.push({...state}),isScopeCurrent:value=>value===scope,now:clock.now,setTimer:clock.setTimer,clearTimer:clock.clearTimer,cacheLimit})
+ const controller=createPdfDownloadController({wxApi,onState:state=>states.push({...state}),isScopeCurrent:value=>value===scope,now:clock.now,setTimer:clock.setTimer,clearTimer:clock.clearTimer,cacheLimit,membershipGate:async input=>{membershipChecks++;return testMembershipGate(input)},authorizeMembership:async input=>{authorizationChecks++;return testAuthorization(input)}})
  controller.setScope(scope)
- return {controller,downloads,opens,states,storage,clock,wxApi,get state(){return controller.getState()},setScope(value){scope=value;controller.setScope(value)},setCachedPathExists(value){cachedPathExists=value}}
+ return {controller,downloads,opens,states,storage,clock,wxApi,get state(){return controller.getState()},get membershipChecks(){return membershipChecks},get authorizationChecks(){return authorizationChecks},setScope(value){scope=value;controller.setScope(value)},setCachedPathExists(value){cachedPathExists=value}}
 }
 
 const {createDownloadMetrics}=miniRuntime().load('utils/downloadMetrics')
@@ -198,7 +204,7 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
 
 {
  const h=controllerHarness();h.setScope('scope-r');await h.controller.open(request('r'));h.downloads[0].options.success({statusCode:503,tempFilePath:'wxfile://error.pdf'})
- assert.equal(h.state.phase,'error');assert.equal(h.state.canRetry,true);assert.match(h.state.error,/503/);assert.equal(h.opens.length,0)
+ assert.equal(h.state.phase,'error');assert.equal(h.state.canRetry,true);assert.match(h.state.error,/会员状态/);assert.equal(h.opens.length,0)
  await h.controller.retry();assert.equal(h.downloads.length,2,'HTTP failure must expose a real retry that starts a new DownloadTask')
 }
 
@@ -206,22 +212,24 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  const h=controllerHarness();h.setScope('scope-k');const req=request('k');await h.controller.open(req)
  h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://cache-k.pdf'});h.opens[0].success({})
  await h.controller.open(req);assert.equal(h.downloads.length,1,'a validated in-memory temp-file cache should open without downloading again');assert.equal(h.opens.length,2);h.opens[1].success({})
+ assert.equal(h.membershipChecks,2,'a local PDF cache hit still requires a fresh bounded membership gate before open')
+ assert.equal(h.authorizationChecks,1,'a local cache hit does not invent a network dispatch')
  h.setCachedPathExists(false);await h.controller.open(req);assert.equal(h.downloads.length,2,'a missing cached path must be evicted and downloaded again')
 }
 
 {
  const h=controllerHarness();h.setScope('scope-key-url')
  const first={...request('private-a'),scope:'scope-key-url',cacheKey:'stable-private-id'};await h.controller.open(first);h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://private-a.pdf'});h.opens[0].success({})
- await h.controller.open({...first,url:'https://stem.ieltsist.com/private/private-b.pdf'});assert.equal(h.downloads.length,2,'a stable private cache key cannot reuse a temp file after the actual URL changes')
+ await h.controller.open({...first,url:'https://stem.ieltsist.com/local-pdf/9702/private-b.pdf'});assert.equal(h.downloads.length,2,'a stable private cache key cannot reuse a temp file after the actual URL changes')
  h.downloads[1].options.success({statusCode:200,tempFilePath:'wxfile://private-b.pdf'});h.opens[1].success({});h.storage.set('stemistPrivacyEpoch',4);h.setScope('scope-key-url')
- await h.controller.open({...first,url:'https://stem.ieltsist.com/private/private-b.pdf'});assert.equal(h.downloads.length,3,'private temp files must not cross an owner privacy epoch')
+ await h.controller.open({...first,url:'https://stem.ieltsist.com/local-pdf/9702/private-b.pdf'});assert.equal(h.downloads.length,3,'private temp files must not cross an owner privacy epoch')
 }
 
 {
  const h=controllerHarness();h.setScope('scope-signed')
  const signed={...request('signed'),scope:'scope-signed',url:'https://stem.ieltsist.com/local-pdf/9702/signed.pdf?signature=private-credential',cacheKey:'https://stem.ieltsist.com/local-pdf/9702/signed.pdf?signature=private-credential',cacheScope:'public',cacheVersion:'catalog-version-1'}
- await h.controller.open(signed);h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://signed.pdf'});h.opens[0].success({});await h.controller.open(signed)
- assert.equal(h.downloads.length,2,'a URL carrying query credentials must never enter a temp-file cache');assert.doesNotMatch(JSON.stringify(h.states),/private-credential|signature=/,'credentialed URLs must stay out of UI state')
+ assert.equal(await h.controller.open(signed),false);assert.equal(await h.controller.open(signed),false)
+ assert.equal(h.downloads.length,0,'a PDF URL carrying query credentials is rejected before any network or cache access');assert.doesNotMatch(JSON.stringify(h.states),/private-credential|signature=/,'credentialed URLs must stay out of UI state')
 }
 
 {
@@ -255,7 +263,7 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
 }
 
 {
- let paperDownloads=0,paperOpenCalls=0,paperTask=null
+ let paperDownloads=0,paperOpenCalls=0,paperTask=null;const protectedLoads=[]
  const draft={storageKey:'paper-draft',id:'mini-paper-fixture',schema:1,index:1,answers:{},startedAt:Date.now(),submitted:false,cloudSynced:false,selfScore:''}
  const paperRuntime=miniRuntime({
   wx:{downloadFile(options){paperDownloads++;paperTask={options,progress:null,aborted:0,onProgressUpdate(fn){this.progress=fn},offProgressUpdate(){},abort(){this.aborted++}};return paperTask},openDocument(){paperOpenCalls++}},
@@ -266,13 +274,16 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
    'utils/stemCatalog':{categoryForSubject:()=> 'alevel',familyForCategoryStage:()=> 'exam'},
    'utils/nativePaper':{createPaperDraft:()=>draft,savePaperDraft(){},readPaperDraft:()=>draft,current:()=>true},
    'utils/image':{readAsJpegDataUrl:async()=>''},'utils/coach':{runCoach:async()=>({})},
-   'utils/nativePaperService':{paperSources:async()=>({questions:[]}),paperContext:async()=>({questions:[]}),syncPaperAttempt:async()=>{},markPaperQuestion:async()=>{}},
+   'utils/nativePaperService':{paperSources:async()=>({questions:[{number:1,sourceQuestionId:'paper-1:q1',images:['/question-assets/paper-1/qp-1.jpg'],sourceRegions:[],parts:[]}]}),paperContext:async()=>({questions:[]}),syncPaperAttempt:async()=>{},markPaperQuestion:async()=>{}},
+   'utils/protectedAsset':{createProtectedAssetLoader:()=>({load:async url=>{protectedLoads.push(url);return'wxfile://owner-paper-q1.jpg'},setScope(){return false},dispose(){}})},
+   ...membershipModule,
    'utils/nativeRecords':{rememberRecord(){}},
   }
  })
- const p=paperRuntime.page('pages/stem/paper');await p.onLoad({paperId:paper.id,subject:'9702',routeId:'cie-9702-as-physics',mode:'exam-simulation'})
- p.openDocument({currentTarget:{dataset:{kind:'ms'}}});assert.equal(paperDownloads,0,'the mark scheme remains disabled during an unsubmitted exam')
- p.openDocument({currentTarget:{dataset:{kind:'qp'}}});assert.equal(paperDownloads,1);assert.equal(typeof paperTask.progress,'function')
+ const p=paperRuntime.page('pages/stem/paper');await p.onLoad({paperId:paper.id,subject:'9702',routeId:'cie-9702-as-physics',mode:'exam-simulation'});await settle();await settle()
+ assert.deepEqual(protectedLoads,['https://stem.ieltsist.com/question-assets/paper-1/qp-1.jpg']);assert.equal(p.data.sourceImages[0],'wxfile://owner-paper-q1.jpg','full-paper WXML receives only an owner-scoped local question image')
+ await p.openDocument({currentTarget:{dataset:{kind:'ms'}}});assert.equal(paperDownloads,0,'the mark scheme remains disabled during an unsubmitted exam')
+ await p.openDocument({currentTarget:{dataset:{kind:'qp'}}});assert.equal(paperDownloads,1);assert.equal(typeof paperTask.progress,'function')
  p.onUnload();assert.equal(paperTask.aborted,1);paperTask.options.success({statusCode:200,tempFilePath:'wxfile://late-unload.pdf'});assert.equal(paperOpenCalls,0)
 }
 
@@ -286,14 +297,14 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
 
 {
  const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']])
- const downloads=[],opens=[],states=[];let now=1000,pathExists=true
+ const downloads=[],opens=[],states=[];let now=1000,pathExists=true,membershipChecks=0,authorizationChecks=0
  const wxApi={
   getStorageSync:key=>storage.get(key),
   getFileSystemManager:()=>({access({success,fail}){pathExists?success({}):fail({errMsg:'missing'})}}),
   downloadFile(options){const task={options,onProgressUpdate(){},offProgressUpdate(){},abort(){}};downloads.push(task);return task},
   openDocument(options){opens.push(options)},
  }
- const makeController=()=>{const controller=createPdfDownloadController({wxApi,isScopeCurrent:scope=>scope==='shared-scope',onState:state=>states.push(state),now:()=>now,cacheTtlMs:1000});controller.setScope('shared-scope');return controller}
+ const makeController=()=>{const controller=createPdfDownloadController({wxApi,isScopeCurrent:scope=>scope==='shared-scope',onState:state=>states.push(state),now:()=>now,cacheTtlMs:1000,membershipGate:async input=>{membershipChecks++;return testMembershipGate(input)},authorizeMembership:async input=>{authorizationChecks++;return testAuthorization(input)}});controller.setScope('shared-scope');return controller}
  const sharedRequest={...request('shared-public'),scope:'shared-scope',cacheScope:'public',cacheVersion:'catalog-version-1'}
  const first=makeController();await first.open(sharedRequest);downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://shared-public.pdf'});opens[0].success({});first.dispose()
  const second=makeController();await second.open(sharedRequest)
@@ -306,14 +317,21 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
  storage.set('stemistPrivacyEpoch',4);const changedEpoch=makeController();await changedEpoch.open({...sharedRequest,cacheVersion:'catalog-version-2'});assert.equal(downloads.length,6,'a changed privacy epoch must invalidate shared reuse');downloads[5].options.success({statusCode:200,tempFilePath:'wxfile://epoch-4.pdf'});opens[6].success({});changedEpoch.dispose()
  const damagedRequest={...request('damaged-public'),scope:'shared-scope',cacheScope:'public',cacheVersion:'catalog-version-2'},damaged=makeController();await damaged.open(damagedRequest);downloads[6].options.success({statusCode:200,tempFilePath:'wxfile://damaged.pdf'});opens[7].fail({errMsg:'cannot open'});damaged.dispose()
  const damagedRetry=makeController();await damagedRetry.open(damagedRequest);assert.equal(downloads.length,8,'a public file that openDocument rejected must not poison the shared cache');damagedRetry.dispose()
- const foreignRequest={...request('foreign'),scope:'shared-scope',url:'https://files.example.com/local-pdf/9702/foreign.pdf',cacheKey:'https://files.example.com/local-pdf/9702/foreign.pdf',cacheScope:'public',cacheVersion:'catalog-version-2'},foreign=makeController();await foreign.open(foreignRequest);downloads.at(-1).options.success({statusCode:200,tempFilePath:'wxfile://foreign.pdf'});opens.at(-1).success({});await foreign.open(foreignRequest);assert.equal(downloads.length,10,'a public label cannot bypass the fixed source allowlist');foreign.dispose()
+ const foreignRequest={...request('foreign'),scope:'shared-scope',url:'https://files.example.com/local-pdf/9702/foreign.pdf',cacheKey:'https://files.example.com/local-pdf/9702/foreign.pdf',cacheScope:'public',cacheVersion:'catalog-version-2'},foreign=makeController(),beforeForeignDownloads=downloads.length,beforeForeignMembership=membershipChecks,beforeForeignAuthorization=authorizationChecks;assert.equal(await foreign.open(foreignRequest),false);assert.equal(downloads.length,beforeForeignDownloads,'a foreign HTTPS PDF must be rejected before network dispatch');assert.equal(membershipChecks,beforeForeignMembership,'a rejected foreign URL never opens membership authority');assert.equal(authorizationChecks,beforeForeignAuthorization,'a rejected foreign URL never reads or forwards the STEM bearer');foreign.dispose()
  assert.doesNotMatch(JSON.stringify(states),/https:\/\/|session-1/,'shared-cache keys and credentials must stay out of UI state')
+}
+
+{
+ const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',1],['stemistSessionToken','token-a']]),downloads=[],states=[];let cleared=0
+ const runtime=miniRuntime({modules:{'utils/pdfRangeCache':{acquirePdf:()=>null},'utils/membershipProof':{ensureMembershipAccess:async()=>({owner:'student-1',epoch:1,enforcementEnabled:true,active:true}),authorizationForMembership:async({wxApi})=>{wxApi.setStorageSync('stemistSessionToken','token-b');return'Bearer token-b'}},'utils/session':{clearLocalSession:()=>{cleared++;storage.delete('stemistSessionToken');storage.delete('stemistUser')}},'utils/membershipAccess':{offerMembership(){}}},wx:{env:{USER_DATA_PATH:'/user'},getStorageSync:key=>storage.get(key),setStorageSync:(key,value)=>storage.set(key,value),removeStorageSync:key=>storage.delete(key),getFileSystemManager:()=>({access({fail}){fail({})}}),downloadFile(options){const task={options,onProgressUpdate(){},offProgressUpdate(){},abort(){}};downloads.push(task);return task}}})
+ const controller=runtime.load('utils/pdfDownload').createPdfDownloadController({wxApi:runtime.wx,onState:value=>states.push(value)});controller.setScope('refresh-401')
+ await controller.open({...request('refresh-401'),scope:'refresh-401'});assert.equal(downloads[0].options.header.Authorization,'Bearer token-b');downloads[0].options.success({statusCode:401,tempFilePath:''});assert.equal(cleared,1,'a 401 clears the exact refreshed bearer that was actually dispatched');assert.equal(storage.has('stemistSessionToken'),false);assert.equal(states.at(-1).error,'登录已过期，请重新登录后继续。');controller.dispose()
 }
 
 {
  const storage=new Map([['stemistUser',{id:'student-1'}],['stemistPrivacyEpoch',3],['stemistSessionToken','session-1']]),downloads=[],opens=[],states=[]
  const wxApi={getStorageSync:key=>storage.get(key),getFileSystemManager:()=>({access({success}){success({})}}),downloadFile(options){const task={options,onProgressUpdate(){},offProgressUpdate(){},abort(){}};downloads.push(task);return task},openDocument(options){opens.push(options)}}
- const makeController=()=>{const controller=createPdfDownloadController({wxApi,isScopeCurrent:scope=>scope==='document-transition',onState:state=>states.push(state)});controller.setScope('document-transition');return controller}
+ const makeController=()=>{const controller=createPdfDownloadController({wxApi,isScopeCurrent:scope=>scope==='document-transition',onState:state=>states.push(state),membershipGate:testMembershipGate,authorizeMembership:testAuthorization});controller.setScope('document-transition');return controller}
  const req={...request('document-transition'),scope:'document-transition',cacheScope:'public',cacheVersion:'catalog-version-1'}
  const source=makeController();await source.open(req);downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://document-transition.pdf'});source.suspend();const stateCount=states.length;opens[0].success({})
  assert.equal(states.length,stateCount,'a late native-document callback must not revive the hidden page UI');assert.equal(source.getState().phase,'idle')

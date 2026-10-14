@@ -53,7 +53,7 @@
 <text class="passage-text" selectable>{{passageText || '正在读取文章…'}}</text>
 </scroll-view>
 <block wx:else>
-<image wx:for="{{sourceImages}}" wx:key="id" class="native-question-image" src="{{item.url}}" mode="widthFix" lazy-load bindtap="previewImage" binderror="imageFailed"/>
+<block wx:for="{{sourceImages}}" wx:key="id"><image wx:if="{{item.url}}" class="native-question-image" src="{{item.url}}" mode="widthFix" lazy-load bindtap="previewImage" binderror="imageFailed"/></block>
 <view wx:if="{{imageCount > 1}}" class="source-pages">
 <button data-direction="previous" disabled="{{imageIndex <= 0}}" bindtap="changeImage">上一页</button>
 <text>{{imageIndex+1}} / {{imageCount}}</text>

@@ -4,6 +4,7 @@ import path from 'node:path'
 import {miniRuntime,settle,deferred} from './helpers/mini-runtime.mjs'
 
 const OLD='a'.repeat(64),CURRENT='b'.repeat(64),SECOND='c'.repeat(64),FOURTH='d'.repeat(64),FIFTH='e'.repeat(64)
+const accessModules={'utils/membershipProof':{ensureMembershipAccess:async()=>({owner:'guest',epoch:0,enforcementEnabled:false,active:false}),scopeOf:()=>({owner:'guest',epoch:0}),sameScope:()=>true},'utils/ieltsAssets':{createIeltsAssetLoader:()=>({load:async url=>'wxfile://'+url.split('/').pop(),setScope(){return false},dispose(){}}),pendingIeltsImages:images=>(images||[]).map(image=>({...image,protectedUrl:image.protectedUrl||image.url,url:''})),hydrateIeltsImages:async images=>(images||[]).map(image=>({...image,protectedUrl:image.protectedUrl||image.url,url:'wxfile://source.webp'})),persistableIeltsImages:images=>(images||[]).map(image=>({...image,url:image.protectedUrl||image.url}))}}
 const task=(number,revision=CURRENT,availability='ready')=>({
  id:`cam15-w-test1-task${number}`,module:'writing',book:15,test:1,type:`Task ${number}`,
  title:`Writing Task ${number}`,prompt:`Current canonical prompt ${number}`,
@@ -11,21 +12,20 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  sourceAvailability:availability,sourceRevision:revision,
 })
 
-// The current public index is authoritative even when the bundled detail pack is stale.
+// The current public index remains authoritative over a stale protected detail response.
 {
  const indexTask={...task(1,CURRENT,'pending-review'),writingPageImages:[{page:1,url:'/generated/writing/current.webp'}]}
  const catalog={schemaVersion:'native-ielts-catalog-v1',version:'catalog-current',baseVersion:'pack-old',listeningTests:[],readingTests:[],writingTasks:[indexTask],speakingSets:[]}
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsBootstrap':{catalog},
-  'utils/ieltsTaskBootstrap':{version:'pack-old'},
-  'utils/nativeDataPack':{unpackTask:()=>({...task(1,OLD,'ready'),prompt:'Stale bundled prompt',writingPageImages:[{page:9,url:'/generated/writing/stale.webp'}]})},
   'utils/api':{IELTS_API_BASE:'https://ieltsist.com',requestIeltsJson:async()=>{throw new Error('detail request should not be needed')}},
+  'utils/ieltsLearning':{requestIeltsLearning:async()=>({schemaVersion:'native-ielts-task-v1',task:{...task(1,OLD,'ready'),prompt:'Stale protected prompt',writingPageImages:[{page:9,url:'/generated/writing/stale.webp'}]}})},
  }})
  const content=r.load('utils/ieltsContent')
  const loaded=await content.getIeltsTask('writing',indexTask.id)
  assert.equal(loaded.sourceAvailability,'pending-review')
  assert.equal(loaded.sourceRevision,CURRENT)
- assert.equal(loaded.prompt,'Stale bundled prompt','source gate metadata overlays the bundle without inventing replacement content')
+ assert.equal(loaded.prompt,'Stale protected prompt','source gate metadata overlays protected detail without inventing replacement content')
  assert.equal(content.normalizeTask({id:'cam9-w-test1-task1',prompt:'legacy'},'writing').sourceAvailability,'pending-review','canonical Writing without a valid revision fails closed')
  const item=content.catalogPage([loaded]).items[0]
  assert.equal(item.sourceAvailability,'pending-review');assert.equal(item.sourceRevision,CURRENT)
@@ -37,9 +37,10 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  const oldCatalog={schemaVersion:'native-ielts-catalog-v1',version:'legacy-index',baseVersion:'legacy-pack',listeningTests:[],readingTests:[],writingTasks:[legacy],speakingSets:[]}
  const currentTask={...task(1),writingPageImages:[]};const currentCatalog={...oldCatalog,version:'current-index',writingTasks:[currentTask]}
  const requests=[]
- const r=miniRuntime({modules:{
-  'utils/ieltsBootstrap':{catalog:oldCatalog},'utils/ieltsTaskBootstrap':{version:'legacy-pack'},'utils/nativeDataPack':{unpackTask:()=>({...legacy,prompt:'Unverified bundled prompt'})},
-  'utils/api':{IELTS_API_BASE:'https://ieltsist.com',requestIeltsJson:async path=>{requests.push(path);return path.endsWith('/catalog')?currentCatalog:{schemaVersion:'native-ielts-task-v1',task:currentTask}}},
+ const r=miniRuntime({modules:{...accessModules,
+  'utils/ieltsBootstrap':{catalog:oldCatalog},
+  'utils/api':{IELTS_API_BASE:'https://ieltsist.com',requestIeltsJson:async path=>{requests.push(path);return currentCatalog}},
+  'utils/ieltsLearning':{requestIeltsLearning:async path=>{requests.push(path);return{schemaVersion:'native-ielts-task-v1',task:currentTask}}},
  }})
  const loaded=await r.load('utils/ieltsContent').getIeltsTask('writing',id)
  assert.deepEqual(requests,['/api/native/ielts/catalog','/api/native/ielts/tasks/writing/'+id]);assert.equal(loaded.sourceAvailability,'ready');assert.equal(loaded.sourceRevision,CURRENT)
@@ -49,7 +50,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 {
  let clocks=0
  const exam={key:'exam-source-gate',sources:{writing:[task(1).id,task(2).id]},clocks:{}}
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:async()=>task(1,CURRENT,'pending-review')},
   'utils/nativeExam':{readExam:()=>exam,completeExamModule:()=>{},startExamModuleClock:()=>{clocks++;return {startedAt:Date.now(),deadlineAt:Date.now()+3600000,limitSeconds:3600}},clockState:clock=>clock?{label:'60:00',expired:false}:null},
  }})
@@ -59,7 +60,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 // A late source response and restored private fields cannot cross an account/privacy epoch.
 {
  const latest=deferred();let polls=0
- const r=miniRuntime({modules:{'utils/ieltsContent':{getIeltsTask:()=>latest.promise},'utils/ieltsWriting':{writingJob:async()=>{polls++;return {status:'pending'}}}}})
+ const r=miniRuntime({modules:{...accessModules,'utils/ieltsContent':{getIeltsTask:()=>latest.promise},'utils/ieltsWriting':{writingJob:async()=>{polls++;return {status:'pending'}}}}})
  r.storage.set('stemistUser',{id:'ielts:old'})
  const key='stemistDraft:ielts-writing:'+task(1).id
  r.storage.set(key,{owner:'ielts:old',epoch:0,inputMode:'photo',text:'Private old essay',prompt:'Private restored prompt',photoPath:'/owned/private.jpg',answer:'Private feedback',warning:'Private warning',jobId:'private-old-job',sourceAvailability:'ready',sourceRevision:OLD})
@@ -70,7 +71,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 // A direct review-required response stays fail-closed even if a rolling catalog refresh is stale.
 {
  let starts=0
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:async()=>task(1)},
   'utils/ieltsWriting':{startWritingFeedback:async()=>{starts++;throw Object.assign(new Error('review'),{statusCode:409,code:'writing_source_review_required'})}},
  }})
@@ -79,25 +80,25 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  await p.submit();assert.equal(starts,1,'stale ready metadata cannot retry after the authoritative review-required response');p.onUnload()
 }
 
-// A ready catalog revision can use bundled details only when the bundle carries the exact same revision.
+// A ready catalog revision still requires an authenticated task-detail response.
 {
  let detailRequests=0
  const currentTask={...task(1),writingPageImages:[]}
  const catalog={schemaVersion:'native-ielts-catalog-v1',version:'catalog-ready',baseVersion:'pack-stale',listeningTests:[],readingTests:[],writingTasks:[currentTask],speakingSets:[]}
- const r=miniRuntime({modules:{
-  'utils/ieltsBootstrap':{catalog},'utils/ieltsTaskBootstrap':{version:'pack-stale'},
-  'utils/nativeDataPack':{unpackTask:()=>({...task(1,OLD),prompt:'Stale ready prompt'})},
-  'utils/api':{IELTS_API_BASE:'https://ieltsist.com',requestIeltsJson:async()=>{detailRequests++;return {schemaVersion:'native-ielts-task-v1',task:currentTask}}},
+ const r=miniRuntime({modules:{...accessModules,
+  'utils/ieltsBootstrap':{catalog},
+  'utils/api':{IELTS_API_BASE:'https://ieltsist.com',requestIeltsJson:async()=>assert.fail('ready catalog is already packaged')},
+  'utils/ieltsLearning':{requestIeltsLearning:async()=>{detailRequests++;return {schemaVersion:'native-ielts-task-v1',task:currentTask}}},
  }})
  const loaded=await r.load('utils/ieltsContent').getIeltsTask('writing',currentTask.id)
- assert.equal(detailRequests,1,'a stale ready bundle must not be relabelled with a newer source revision')
+ assert.equal(detailRequests,1,'a ready public catalog cannot substitute for protected task detail')
  assert.equal(loaded.prompt,currentTask.prompt)
 }
 
 // Every canonical grading request carries its own authoritative revision; free input remains compatible.
 {
  const payloads=[]
- const r=miniRuntime({modules:{'utils/ieltsLearning':{requestIeltsLearning:async(_path,payload)=>{payloads.push(payload);return {jobId:'writing-source-job'}}}}})
+ const r=miniRuntime({modules:{...accessModules,'utils/ieltsLearning':{requestIeltsLearning:async(_path,payload)=>{payloads.push(payload);return {jobId:'writing-source-job'}}}}})
  const service=r.load('utils/ieltsWriting')
  await assert.rejects(()=>service.startWritingFeedback('Prompt','Essay',task(1).id,[]),/来源|更新|核验/)
  assert.equal(payloads.length,0,'canonical tasks cannot reach the network without a source revision')
@@ -111,19 +112,19 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 // A server-side changed race reloads the source and returns to the same explicit confirmation gate.
 {
  let revision=OLD,starts=0,polls=0
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:async(_module,_id,options={})=>task(1,options.refresh?CURRENT:revision)},
   'utils/ieltsWriting':{startWritingFeedback:async()=>{starts++;if(starts===1)throw Object.assign(new Error('changed'),{statusCode:409,code:'writing_source_changed'});return 'race-new-job'},writingJob:async()=>{polls++;return {status:'done',result:{ai:true,gradeReady:true,feedback:'Race-safe feedback',band:7,criteria:[],warning:'',reportUrl:''}}}},
  }})
  const p=r.page('pages/ielts/writing');p.onLoad({taskId:task(1).id});await settle();p.onInput({detail:{value:'Race-safe essay'}});revision=CURRENT;await p.submit()
  assert.equal(p.data.sourceReviewRequired,true);assert.equal(p.data.text,'Race-safe essay');assert.equal(polls,0)
- p.viewSourceUpdate();p.confirmSourceUpdate();await p.submit();assert.equal(starts,2);assert.equal(p.data.answer,'Race-safe feedback');p.onUnload()
+ p.viewSourceUpdate();await p.confirmSourceUpdate();await p.submit();assert.equal(starts,2);assert.equal(p.data.answer,'Race-safe feedback');p.onUnload()
 }
 
 // A restored old draft/photo/result/job is frozen until a real two-step learner confirmation.
 {
  const latest=deferred();let starts=0,polls=0,sent
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:()=>latest.promise},
   'utils/image':{readAsJpegDataUrl:async()=>'data:image/jpeg;base64,fixture'},
   'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}},
@@ -139,7 +140,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  assert.equal(polls,0);assert.equal(starts,0)
  const guardedCoach=p.getCoachContext();assert.doesNotMatch(guardedCoach.contextText,/Old source prompt|Current canonical prompt/,'AI Coach does not receive an unconfirmed task prompt')
  p.viewSourceUpdate();assert.equal(p.data.sourcePreview,true);assert.equal(p.data.latestPrompt,'Current canonical prompt 1')
- p.confirmSourceUpdate();assert.equal(p.data.sourceReviewRequired,false);assert.equal(p.data.prompt,'Current canonical prompt 1');assert.equal(p.data.sourceRevision,CURRENT)
+ await p.confirmSourceUpdate();assert.equal(p.data.sourceReviewRequired,false);assert.equal(p.data.prompt,'Current canonical prompt 1');assert.equal(p.data.sourceRevision,CURRENT)
  assert.equal(p.data.text,'My preserved essay');assert.equal(p.data.photoPath,'/owned/old-answer.jpg');assert.equal(p.data.answer,'','old feedback cannot masquerade as feedback for the new task')
  p.onHide();const confirmed=r.storage.get(key),archives=r.load('utils/writingSourceArchive').listWritingSourceArchives(p.__scope,'guest',0)
  assert.ok(confirmed.sourceArchiveRef?.archiveId);assert.equal(confirmed.sourceArchive,undefined);assert.equal(archives.total,1);assert.equal(archives.items[0].jobId,'old-source-job');assert.equal(archives.items[0].feedback,'Old feedback');assert.equal(archives.items[0].text,'My preserved essay');assert.equal(archives.items[0].photoPath,'/owned/old-answer.jpg');assert.equal(archives.items[0].prompt,'Old source prompt')
@@ -149,7 +150,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 // Weak-network source loading keeps every old artifact and cannot resume the job.
 {
  let starts=0,polls=0
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:async()=>{throw new Error('网络连接失败，输入已保留。')}},
   'utils/ieltsWriting':{startWritingFeedback:async()=>{starts++;return 'never'},writingJob:async()=>{polls++;return {status:'pending'}}},
  }})
@@ -162,7 +163,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 // Same-revision jobs resume normally; a new ready task submits normally; pending review submits nothing.
 {
  let samePolls=0
- const same=miniRuntime({modules:{
+ const same=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:async()=>task(1)},
   'utils/ieltsWriting':{startWritingFeedback:async()=>{throw new Error('must not restart')},writingJob:async()=>{samePolls++;return {status:'done',result:{ai:true,gradeReady:true,feedback:'Recovered same-source feedback',band:7,criteria:[],warning:'',reportUrl:''}}}},
  }})
@@ -170,11 +171,11 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  const restored=same.page('pages/ielts/writing');restored.onLoad({taskId:task(1).id});restored.onShow();await settle();await settle();assert.equal(samePolls,1);assert.equal(restored.data.answer,'Recovered same-source feedback');restored.onUnload()
 
  let starts=0,revision=''
- const fresh=miniRuntime({modules:{'utils/ieltsContent':{getIeltsTask:async()=>task(1)},'utils/ieltsWriting':{startWritingFeedback:async(_p,_e,_id,_images,rev)=>{starts++;revision=rev;return 'fresh-source-job'},writingJob:async()=>({status:'done',result:{ai:true,gradeReady:true,feedback:'Fresh feedback',band:7,criteria:[],warning:'',reportUrl:''}})}}})
+ const fresh=miniRuntime({modules:{...accessModules,'utils/ieltsContent':{getIeltsTask:async()=>task(1)},'utils/ieltsWriting':{startWritingFeedback:async(_p,_e,_id,_images,rev)=>{starts++;revision=rev;return 'fresh-source-job'},writingJob:async()=>({status:'done',result:{ai:true,gradeReady:true,feedback:'Fresh feedback',band:7,criteria:[],warning:'',reportUrl:''}})}}})
  const page=fresh.page('pages/ielts/writing');page.onLoad({taskId:task(1).id});await settle();page.onInput({detail:{value:'Fresh essay'}});await page.submit();assert.equal(starts,1);assert.equal(revision,CURRENT);page.onUnload()
 
  let blockedStarts=0
- const blocked=miniRuntime({modules:{'utils/ieltsContent':{getIeltsTask:async()=>task(1,CURRENT,'pending-review')},'utils/ieltsWriting':{startWritingFeedback:async()=>{blockedStarts++;return 'blocked'}}}})
+ const blocked=miniRuntime({modules:{...accessModules,'utils/ieltsContent':{getIeltsTask:async()=>task(1,CURRENT,'pending-review')},'utils/ieltsWriting':{startWritingFeedback:async()=>{blockedStarts++;return 'blocked'}}}})
  const pending=blocked.page('pages/ielts/writing');pending.onLoad({taskId:task(1).id});await settle();pending.onInput({detail:{value:'Saved but not graded'}});await pending.submit();assert.equal(blockedStarts,0);assert.equal(pending.data.sourceAvailability,'pending-review');assert.doesNotMatch(pending.getCoachContext().contextText,/Current canonical prompt/);pending.onUnload()
 }
 
@@ -182,7 +183,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 {
  const tasks=[task(1),task(2,SECOND)];let starts=0,polls=0,sent
  const real=miniRuntime().load('utils/ieltsWriting')
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{loadIeltsContent:async()=>({writing:tasks}),getIeltsTask:async(_module,id)=>tasks.find(item=>item.id===id)},
   'utils/image':{readAsJpegDataUrl:async()=>'data:image/jpeg;base64,fixture'},
   'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}},
@@ -192,7 +193,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  r.storage.set(key,{items:[{text:'Old essay 1',photo:'',inputMode:'typed',prompt:'Old pair prompt 1',sourceRevision:OLD,sourceAvailability:'ready'},{text:'',photo:'/owned/pair-task2.jpg',inputMode:'photo',prompt:'Old pair prompt 2',sourceRevision:OLD,sourceAvailability:'ready'}],jobId:'old-pair-job',feedback:'Old pair feedback',band:6,taskScores:[],warning:'Old pair warning',reportUrl:'/api/report/pdf/old-pair'})
  const p=r.page('pages/ielts/writing-full');p.onLoad({pairId:'cam15-test1'});await settle();await settle()
  assert.equal(p.data.sourceReviewRequired,true);assert.equal(p.data.items[0].prompt,'Old pair prompt 1');assert.equal(p.data.items[1].photo,'/owned/pair-task2.jpg');assert.equal(p.data.feedback,'Old pair feedback');assert.equal(starts,0);assert.equal(polls,0);assert.equal(p.__clock,null,'an unconfirmed replacement pair cannot start a fresh 60-minute clock')
- p.viewSourceUpdate();p.confirmSourceUpdate();assert.ok(p.__clock);assert.equal(p.data.items[0].text,'Old essay 1');assert.equal(p.data.items[1].photo,'/owned/pair-task2.jpg');assert.equal(p.data.feedback,'')
+ p.viewSourceUpdate();await p.confirmSourceUpdate();assert.ok(p.__clock);assert.equal(p.data.items[0].text,'Old essay 1');assert.equal(p.data.items[1].photo,'/owned/pair-task2.jpg');assert.equal(p.data.feedback,'')
  p.onHide();const confirmed=r.storage.get(key),archives=r.load('utils/writingSourceArchive').listWritingSourceArchives(p.__scope,'guest',0)
  assert.ok(confirmed.sourceArchiveRef?.archiveId);assert.equal(confirmed.sourceArchive,undefined);assert.equal(archives.total,1);assert.equal(archives.items[0].jobId,'old-pair-job');assert.equal(archives.items[0].items[0].text,'Old essay 1');assert.equal(archives.items[0].items[1].photo,'/owned/pair-task2.jpg')
  await p.submit();assert.equal(starts,1);assert.deepEqual(Array.from(sent,item=>item.sourceRevision),[CURRENT,SECOND]);p.onUnload()
@@ -201,7 +202,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 // Three consecutive source corrections retain three independent revision archives without putting history in setData.
 {
  const revisions=[OLD,CURRENT,SECOND,FOURTH];let current=1
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{getIeltsTask:async()=>task(1,revisions[current])},
   'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}},
   'utils/ieltsWriting':{startWritingFeedback:async()=>{throw new Error('no grading during archive test')}},
@@ -210,7 +211,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  r.storage.set(key,{owner:'guest',epoch:0,inputMode:'photo',text:'Archive essay A',photoPath:'/owned/archive-a.jpg',prompt:'Archive prompt A',answer:'Archive feedback A',jobId:'archive-job-a',sourceAvailability:'ready',sourceRevision:revisions[0]})
  const p=r.page('pages/ielts/writing');p.onLoad({taskId:task(1).id});await settle()
  for(let index=0;index<3;index++){
-  assert.equal(p.data.sourceReviewRequired,true);p.viewSourceUpdate();p.confirmSourceUpdate();assert.equal(p.data.sourceRevision,revisions[index+1])
+  assert.equal(p.data.sourceReviewRequired,true);p.viewSourceUpdate();await p.confirmSourceUpdate();assert.equal(p.data.sourceRevision,revisions[index+1])
   if(index===2)break
   const label=String.fromCharCode(66+index)
   p.setData({text:'Archive essay '+label,photoPath:'/owned/archive-'+label.toLowerCase()+'.jpg',prompt:'Archive prompt '+label,answer:'Archive feedback '+label,sourceRevision:revisions[index+1],sourceAvailability:'ready'});p.__jobId='archive-job-'+label.toLowerCase();p.saveDraft();p.onHide();current=index+2;await p.loadTask({refresh:true})
@@ -224,11 +225,11 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 
 // Storage capacity/write failure leaves the old source binding fully active and unconfirmed.
 {
- const r=miniRuntime({modules:{'utils/ieltsContent':{getIeltsTask:async()=>task(1)},'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}}}})
+ const r=miniRuntime({modules:{...accessModules,'utils/ieltsContent':{getIeltsTask:async()=>task(1)},'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}}}})
  const scope='ielts-writing:'+task(1).id,key='stemistDraft:'+scope
  r.storage.set(key,{owner:'guest',epoch:0,inputMode:'typed',text:'Capacity-safe essay',prompt:'Capacity-safe old prompt',answer:'Capacity-safe feedback',jobId:'capacity-old-job',sourceAvailability:'ready',sourceRevision:OLD})
  r.wx.getStorageInfoSync=()=>({keys:[...r.storage.keys()],currentSize:10239,limitSize:10240})
- const p=r.page('pages/ielts/writing');p.onLoad({taskId:task(1).id});await settle();p.viewSourceUpdate();p.confirmSourceUpdate()
+ const p=r.page('pages/ielts/writing');p.onLoad({taskId:task(1).id});await settle();p.viewSourceUpdate();await p.confirmSourceUpdate()
  assert.equal(p.data.sourceReviewRequired,true);assert.equal(p.data.sourcePreview,true);assert.equal(p.data.sourceRevision,OLD);assert.equal(p.data.prompt,'Capacity-safe old prompt');assert.equal(p.data.text,'Capacity-safe essay');assert.equal(p.data.answer,'Capacity-safe feedback');assert.equal(p.__jobId,'capacity-old-job');assert.match(p.data.error,/空间|保存/)
  assert.equal([...r.storage.keys()].some(name=>name.includes('writing-source-archive')),false);p.onUnload()
 }
@@ -238,7 +239,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  const revisionPairs=[[OLD,OLD],[CURRENT,SECOND],[SECOND,FOURTH],[FOURTH,FIFTH]];let generation=1
  const currentTasks=()=>[task(1,revisionPairs[generation][0]),task(2,revisionPairs[generation][1])]
  const real=miniRuntime().load('utils/ieltsWriting')
- const r=miniRuntime({modules:{
+ const r=miniRuntime({modules:{...accessModules,
   'utils/ieltsContent':{loadIeltsContent:async()=>({writing:currentTasks()}),getIeltsTask:async(_module,id)=>currentTasks().find(item=>item.id===id)},
   'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}},
   'utils/ieltsWriting':{writingPairs:real.writingPairs,startWritingPairFeedback:async()=>{throw new Error('no grading during archive test')}},
@@ -247,7 +248,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  r.storage.set(key,{items:[{text:'Pair essay A1',photo:'',inputMode:'typed',prompt:'Pair prompt A1',sourceRevision:OLD,sourceAvailability:'ready'},{text:'',photo:'/owned/pair-a2.jpg',inputMode:'photo',prompt:'Pair prompt A2',sourceRevision:OLD,sourceAvailability:'ready'}],jobId:'pair-archive-job-a',feedback:'Pair feedback A',sourceAvailability:'ready'})
  const p=r.page('pages/ielts/writing-full');p.onLoad({pairId:'cam15-test1'});await settle();await settle()
  for(let index=0;index<3;index++){
-  assert.equal(p.data.sourceReviewRequired,true);p.viewSourceUpdate();p.confirmSourceUpdate();assert.deepEqual(Array.from(p.data.items,item=>item.sourceRevision),revisionPairs[index+1])
+  assert.equal(p.data.sourceReviewRequired,true);p.viewSourceUpdate();await p.confirmSourceUpdate();assert.deepEqual(Array.from(p.data.items,item=>item.sourceRevision),revisionPairs[index+1])
   if(index===2)break
   const label=String.fromCharCode(66+index),items=p.data.items.map((item,slot)=>({...item,text:slot?'':'Pair essay '+label+'1',photo:slot?'/owned/pair-'+label.toLowerCase()+'2.jpg':'',inputMode:slot?'photo':'typed',prompt:'Pair prompt '+label+(slot+1)}))
   p.setData({items,feedback:'Pair feedback '+label});p.__jobId='pair-archive-job-'+label.toLowerCase();p.save();p.onHide();generation=index+2;await p.load()
@@ -269,12 +270,24 @@ const task=(number,revision=CURRENT,availability='ready')=>({
 
 // If the independent archive succeeds but the active draft write fails, the visible source never switches.
 {
- const r=miniRuntime({modules:{'utils/ieltsContent':{getIeltsTask:async()=>task(1)},'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}}}}),scope='ielts-writing:'+task(1).id,key='stemistDraft:'+scope
+ const r=miniRuntime({modules:{...accessModules,'utils/ieltsContent':{getIeltsTask:async()=>task(1)},'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}}}}),scope='ielts-writing:'+task(1).id,key='stemistDraft:'+scope
  r.storage.set(key,{owner:'guest',epoch:0,inputMode:'typed',text:'Transactional essay',prompt:'Transactional old prompt',answer:'Transactional feedback',jobId:'transactional-job',sourceAvailability:'ready',sourceRevision:OLD})
  const p=r.page('pages/ielts/writing');p.onLoad({taskId:task(1).id});await settle();p.onHide();p.viewSourceUpdate()
  const set=r.wx.setStorageSync;r.wx.setStorageSync=(name,value)=>{if(name===key&&value?.sourceArchiveRef)throw new Error('main draft full');return set(name,value)}
- p.confirmSourceUpdate();assert.equal(p.data.sourceReviewRequired,true);assert.equal(p.data.sourceRevision,OLD);assert.equal(p.data.prompt,'Transactional old prompt');assert.equal(p.data.text,'Transactional essay');assert.equal(p.data.answer,'Transactional feedback');assert.equal(p.__jobId,'transactional-job');assert.match(p.data.error,/尚未切换/)
+ await p.confirmSourceUpdate();assert.equal(p.data.sourceReviewRequired,true);assert.equal(p.data.sourceRevision,OLD);assert.equal(p.data.prompt,'Transactional old prompt');assert.equal(p.data.text,'Transactional essay');assert.equal(p.data.answer,'Transactional feedback');assert.equal(p.__jobId,'transactional-job');assert.match(p.data.error,/尚未切换/)
  assert.equal(r.storage.get(key).sourceRevision,OLD);assert.equal(r.load('utils/writingSourceArchive').listWritingSourceArchives(scope,'guest',0).total,1,'the independently completed archive remains readable');p.onUnload()
+}
+
+// A protected image failure happens before archive/job mutation, so retry remains transactional.
+{
+ let failImages=false
+ const assets={...accessModules['utils/ieltsAssets'],hydrateIeltsImages:async images=>{if(failImages)throw new Error('protected image offline');return(images||[]).map(image=>({...image,protectedUrl:image.protectedUrl||image.url,url:'wxfile://source.webp'}))}}
+ const current=task(1),scope='ielts-writing:'+current.id,key='stemistDraft:'+scope
+ const r=miniRuntime({modules:{...accessModules,'utils/ieltsAssets':assets,'utils/ieltsContent':{getIeltsTask:async()=>current},'utils/nativeWritingPhoto':{removeWritingPhoto:()=>{}}}})
+ r.storage.set(key,{owner:'guest',epoch:0,inputMode:'typed',text:'Offline preserved essay',prompt:'Offline old prompt',answer:'Offline feedback',jobId:'offline-job',sourceAvailability:'ready',sourceRevision:OLD})
+ const p=r.page('pages/ielts/writing');p.onLoad({taskId:current.id});await settle();p.onHide();p.viewSourceUpdate();failImages=true
+ await p.confirmSourceUpdate();assert.equal(p.data.sourceReviewRequired,true);assert.equal(p.data.sourceRevision,OLD);assert.equal(p.data.prompt,'Offline old prompt');assert.equal(p.__jobId,'offline-job');assert.match(p.data.error,/protected image offline/)
+ assert.equal(r.load('utils/writingSourceArchive').listWritingSourceArchives(scope,'guest',0).total,0,'a failed protected-image fetch must not create a misleading archive or clear the pending job');p.onUnload()
 }
 
 // A real existing archiveId is a collision: retrying cannot overwrite the stored record.
@@ -292,7 +305,7 @@ const task=(number,revision=CURRENT,availability='ready')=>({
  const readyWriting=[{...source,...task(1)},{...source,...task(2,SECOND)}]
  const bank={listening:[{...source,id:'cam15-l-test1'}],reading:[{...source,id:'cam15-r-test1'}],writing:readyWriting,speaking:[{...source,id:'cam15-s-test1'}]}
  let starts=0
- const r=miniRuntime({modules:{'utils/ieltsContent':{loadIeltsContent:async()=>bank},'utils/ieltsWriting':{startWritingFeedback:async()=>{starts++;return 'exam-job'},writingJob:async()=>({status:'done'})},'utils/ieltsLearning':{requestIeltsLearning:async()=>({feedback:'report',mode:'ai'})}}})
+ const r=miniRuntime({modules:{...accessModules,'utils/ieltsContent':{loadIeltsContent:async()=>bank},'utils/ieltsWriting':{startWritingFeedback:async()=>{starts++;return 'exam-job'},writingJob:async()=>({status:'done'})},'utils/ieltsLearning':{requestIeltsLearning:async()=>({feedback:'report',mode:'ai'})}}})
  const api=r.load('utils/nativeExam');assert.equal(api.completeSets(bank).length,1)
  assert.equal(api.completeSets({...bank,writing:[{...readyWriting[0],sourceAvailability:'pending-review'},readyWriting[1]]}).length,0)
  assert.equal(api.completeSets({...bank,writing:readyWriting.map(({sourceRevision,...item})=>item)}).length,0,'stale catalog entries cannot form a full exam')
@@ -311,5 +324,6 @@ for(const source of [singleWxml,pairWxml]){
  assert.match(source,/bindtap="confirmSourceUpdate"/)
  assert.match(source,/sourceReviewRequired/)
 }
+assert.match(singleWxml,/item\.url\s*&&\s*\(!sourceGuarded\s*\|\|\s*sourceResolved\)/,'a restored protected prompt image stays hidden until fresh membership-backed task detail succeeds')
 
 console.log('Writing source guard: authoritative metadata, old draft/photo/job preservation, explicit confirmation, fail-closed grading, pair and exam propagation passed.')

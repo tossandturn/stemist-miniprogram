@@ -17,7 +17,7 @@ if(!checkOnly){
  if(!relative||relative.startsWith('..')||path.isAbsolute(relative)||out===root||out.startsWith(root+path.sep)||fs.existsSync(out))throw new Error('Output must be a new sibling workspace directory; existing paths are never overwritten.')
 }
 const files=new Set(['app.js','app.json','app.wxss','sitemap.json'])
-const legacyOnly=new Set(['utils/skillPage.js','utils/speakingTicket.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss',...['js','json','wxml','wxss'].map(ext=>'components/text-practice/index.'+ext)])
+const legacyOnly=new Set(['utils/skillPage.js','utils/speakingTicket.js','utils/ieltsTaskBootstrap.js','utils/nativeDataPack.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss',...['js','json','wxml','wxss'].map(ext=>'components/text-practice/index.'+ext)])
 const normalized=value=>value.replaceAll('\\','/')
 const isSubRoot=relative=>app.subPackages.some(entry=>normalized(relative)===entry.root)
 function walk(directory,{skipSubRoots=false}={}){

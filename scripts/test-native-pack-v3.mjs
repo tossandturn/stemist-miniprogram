@@ -82,13 +82,15 @@ assert.equal(single.id,'cam15-w-test1-task1');assert.ok(accessed.size<pack.value
 assert.ok(packLoadMs<500&&singleMs<100&&decodeMs<500,`bounded load/decode cost: load=${packLoadMs.toFixed(1)}ms one=${singleMs.toFixed(1)}ms all=${decodeMs.toFixed(1)}ms`)
 
 const declaredApp=nativeAppManifest(JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')))
-const runtimeFileSet=new Set(['app.js','app.json','app.wxss','sitemap.json']),legacyOnly=['utils/skillPage.js','utils/speakingTicket.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss',...['js','json','wxml','wxss'].map(ext=>'components/text-practice/index.'+ext)]
+const runtimeFileSet=new Set(['app.js','app.json','app.wxss','sitemap.json']),legacyOnly=['utils/skillPage.js','utils/speakingTicket.js','utils/ieltsTaskBootstrap.js','utils/nativeDataPack.js','pages/webview/index.js','pages/webview/index.json','pages/webview/index.wxml','pages/webview/index.wxss',...['js','json','wxml','wxss'].map(ext=>'components/text-practice/index.'+ext)]
 const portable=value=>value.replaceAll('\\','/')
 function collect(directory,{skipSubRoots=false}={}){for(const name of fs.readdirSync(path.join(root,directory))){const relative=path.join(directory,name),normalized=portable(relative),stat=fs.lstatSync(path.join(root,relative));if(relative.startsWith('design-system'+path.sep)&&name.endsWith('.md')||legacyOnly.includes(normalized))continue;if(stat.isDirectory()){if(skipSubRoots&&declaredApp.subPackages.some(entry=>entry.root===normalized))continue;collect(relative,{skipSubRoots})}else if(stat.isFile())runtimeFileSet.add(relative)}}
 for(const directory of ['pages','components','utils','design-system','third_party'])collect(directory,{skipSubRoots:true})
 for(const entry of declaredApp.subPackages)collect(entry.root)
 const runtimeFiles=[...runtimeFileSet],portableRuntimeFiles=new Set(runtimeFiles.map(portable)),mainRuntimeFiles=runtimeFiles.filter(file=>packageRootForPath(portable(file),declaredApp.subPackages)===null)
 assert(portableRuntimeFiles.has('utils/auth.js'),'subpackage account authentication remains in the main runtime')
+assert(!portableRuntimeFiles.has('utils/ieltsTaskBootstrap.js'),'full IELTS task data must remain source-only')
+assert(!portableRuntimeFiles.has('utils/nativeDataPack.js'),'the protected task-pack decoder must remain source-only')
 assert.match(fs.readFileSync(path.join(root,'bundles/account/auth.js'),'utf8'),/require\(['"]\.\.\/\.\.\/utils\/auth['"]\)/)
 for(const file of runtimeFiles.filter(name=>name.endsWith('.json'))){
  for(const component of Object.values(JSON.parse(fs.readFileSync(path.join(root,file),'utf8')).usingComponents||{})){

@@ -21,4 +21,11 @@ assert.deepEqual(Array.from(f.choiceOptions(null),x=>x.text),['','','',''])
 const session={schema:1,id:'mini-set-focus-fixture',owner:'',privacyEpoch:0,routeId:'cie-9702-as-physics',stage:'AS',subjectCode:'9702',answers:{},index:0,questions:[{id:'paper:q1',paperId:'paper',number:'Q1',component:1,marks:1,parts:[],images:[url],sourceRegions:f.normalizeQuestionFocus(focus,'paper','paper:q1',[url]),choiceOptions:options}]}
 const view=n.questionView(session,0);assert.equal(view.question.images[0].cropped,true);assert.equal(view.question.options[2].text,'weight')
 session.questions[0].sourceRegions[0].region=[.1,.4,.9,.7];const second=n.questionView(session,0);assert.notEqual(second.question.images[0].clipStyle,view.question.images[0].clipStyle)
+{
+ let calls=0,lastOptions
+ const runtime=miniRuntime({modules:{'utils/api':{requestJson:async(path,data,options)=>{calls++;lastOptions=options;return{schemaVersion:'native-paper-sources-v1',paperId:'paper',routeId:session.routeId,stage:session.stage,questions:[{number:1,sourceQuestionId:'paper:q1',images:[url],questionFocus:focus,choiceOptions:['A','B','C','D']}]}}}}})
+ runtime.storage.set('stemistUser',{id:'ielts:42'});runtime.storage.set('stemistPrivacyEpoch',1);runtime.storage.set('stemistSessionToken','token')
+ const guarded=runtime.load('utils/questionFocus');await guarded.questionDisplay(session,session.questions[0]);await guarded.questionDisplay(session,session.questions[0]);assert.equal(calls,1);assert.equal(lastOptions.stemAuth,true)
+ runtime.storage.set('stemistUser',{id:'ielts:99'});runtime.storage.set('stemistPrivacyEpoch',2);await guarded.questionDisplay(session,session.questions[0]);assert.equal(calls,2,'source-context cache is owner/privacy-epoch scoped while token rotation remains irrelevant')
+}
 console.log('Question correspondence: cross-topic source union, exact source/page/region scope and labelled ABCD text passed.')

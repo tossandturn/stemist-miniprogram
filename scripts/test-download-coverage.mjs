@@ -14,7 +14,7 @@ for(const [page,state,template=page+'.wxml'] of surfaces){
 }
 const expected=[
  'bundles/marking/reportDownload.js','pages/ielts/writingReportDownload.js',
- 'utils/listeningAudioCache.js','utils/listeningAudioRangeCache.js','utils/pdfDownload.js','utils/pdfRangeCache.js',
+ 'utils/listeningAudioCache.js','utils/listeningAudioRangeCache.js','utils/pdfDownload.js','utils/pdfRangeCache.js','utils/protectedAsset.js',
 ].sort(),transports=[]
 for(const directory of ['pages','components','utils','bundles'])for(const relative of fs.readdirSync(path.join(root,directory),{recursive:true})){
  if(!relative.endsWith('.js'))continue
@@ -23,4 +23,4 @@ for(const directory of ['pages','components','utils','bundles'])for(const relati
 }
 assert.deepEqual(transports.sort(),expected,'Every new binary download transport must be mapped to a visible progress surface and tested')
 for(const file of expected)assert.match(read(file),/onProgress|\.progress\(/,file+' publishes measured transfer progress')
-console.log('Download coverage: A-Level/AP/IB papers and answers, whole-paper answer/report/temporary preview, IELTS writing reports and listening audio all render shared bars.')
+console.log('Download coverage: papers/reports/listening render shared bars; authenticated task images publish measured progress into their visible loading/error surfaces.')

@@ -27,11 +27,11 @@ function serviceRuntime({getJson,requestJson}={}){
 {
  const h=serviceRuntime(),catalog=await h.service.fetchCatalog({routeId,topicId})
  assert.equal(h.calls[0].path,`/api/stem/curriculum-practice/catalog?routeId=${encodeURIComponent(routeId)}&topicId=${encodeURIComponent(topicId)}`)
- assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].options)),{timeout:12000,stemAuth:false})
+ assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].options)),{timeout:12000,stemAuth:true})
  assert.equal(catalog.routes[0].id,routeId);assert.equal(catalog.routes[0].questionCount,40);assert.equal(catalog.routes[0].topics[0].questionCount,12);assert.equal(catalog.routes[0].formalProgressEligible,false)
  const question=await h.service.fetchQuestion(questionId)
- assert.equal(h.calls[1].path,`/api/stem/curriculum-practice/questions/${encodeURIComponent(questionId)}`);assert.equal(h.calls[1].options.stemAuth,false)
- assert.equal(question.source.regions[0].imageUrl,'https://stem.ieltsist.com'+regionUrl);assert.deepEqual([...question.options],['A','B','C','D']);assert.equal(question.quality.formalProgressEligible,false)
+ assert.equal(h.calls[1].path,`/api/stem/curriculum-practice/questions/${encodeURIComponent(questionId)}`);assert.equal(h.calls[1].options.stemAuth,true)
+ assert.equal(question.source.regions[0].protectedUrl,'https://stem.ieltsist.com'+regionUrl);assert.equal(question.source.regions[0].imageUrl,'');assert.deepEqual([...question.options],['A','B','C','D']);assert.equal(question.quality.formalProgressEligible,false)
  for(const edit of [
   value=>{value.routes[0].authority='official'},value=>{value.routes[0].formalProgressEligible=true},value=>{value.routes[0].id='other-route'},value=>{value.routes[0].topics[0].routeId='other-route'},value=>{value.routes[0].topics[0].questionCount=-1},
  ]){const value=clone(catalogPayload);edit(value);assert.throws(()=>h.service.normalizeCatalog(value),/题库|练习|目录/)}
@@ -74,36 +74,36 @@ function serviceRuntime({getJson,requestJson}={}){
 
 console.log('Curriculum practice service contract passed.')
 
-const secondQuestion={...clone(questionPayload.question),id:'ap1-2017-q2',questionNumber:2,answerMode:'multiple',options:['A','B','C','D','E'],source:{...clone(questionPayload.question.source),regions:[{...clone(questionPayload.question.source.regions[0]),assetId:'asset_ap1_q2',url:`/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2/${regionSha}.png`,imageUrl:`https://stem.ieltsist.com/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2/${regionSha}.png`}]}}
-function pageRuntime({recent=null,questionGate=null,failFirstSubmit=false,failAnswerSave=false,submitError=null}={}){
- const serviceCalls=[],modalCalls=[];let saved=recent?clone(recent):null,submissionCalls=0
+const secondQuestion={...clone(questionPayload.question),id:'ap1-2017-q2',questionNumber:2,answerMode:'multiple',options:['A','B','C','D','E'],source:{...clone(questionPayload.question.source),regions:[{...clone(questionPayload.question.source.regions[0]),assetId:'asset_ap1_q2',url:`/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2/${regionSha}.png`,protectedUrl:`https://stem.ieltsist.com/api/stem/curriculum-practice/source/ap1-2017-q2/asset_ap1_q2/${regionSha}.png`,imageUrl:''}]}}
+function pageRuntime({recent=null,questionGate=null,assetGate=null,failFirstSubmit=false,failAnswerSave=false,submitError=null}={}){
+ const serviceCalls=[],modalCalls=[];let saved=recent?clone(recent):null,submissionCalls=0,currentScope={owner:'student-a',epoch:0}
  const session={...clone(draftSession),questionIds:[questionId,secondQuestion.id],questionCount:2}
  const service={
-  scope:()=>({owner:'student-a',epoch:0}),current:()=>true,
+  scope:()=>({...currentScope}),current:value=>Boolean(value&&value.owner===currentScope.owner&&value.epoch===currentScope.epoch),
   fetchCatalog:async()=>clone(catalogPayload),fetchHistory:async()=>[clone(submittedSession)],
   createSession:async(input)=>{serviceCalls.push({kind:'create',input:clone(input)});return clone(session)},
   getSession:async id=>{serviceCalls.push({kind:'getSession',id});return id===sessionId?clone(session):clone(submittedSession)},
-  fetchQuestion:async id=>{serviceCalls.push({kind:'question',id});if(questionGate)return questionGate.promise;return clone(id===questionId?{...questionPayload.question,source:{...questionPayload.question.source,regions:questionPayload.question.source.regions.map(region=>({...region,imageUrl:'https://stem.ieltsist.com'+region.url}))}}:secondQuestion)},
+   fetchQuestion:async id=>{serviceCalls.push({kind:'question',id});if(questionGate)return questionGate.promise;return clone(id===questionId?{...questionPayload.question,source:{...questionPayload.question.source,regions:questionPayload.question.source.regions.map(region=>({...region,protectedUrl:'https://stem.ieltsist.com'+region.url,imageUrl:''}))}}:secondQuestion)},
   createDraft:(value,scope,labels)=>({schemaVersion:'stemist-curriculum-practice-draft-v1',owner:scope.owner,epoch:scope.epoch,sessionId:value.id,routeId:value.routeId,topicId:value.topicId,routeLabel:labels.routeLabel,topicLabel:labels.topicLabel,questionIds:value.questionIds.slice(),index:0,answers:{},status:value.status,result:value.result||null,submissionId:'',createdAt:value.createdAt,updatedAt:Date.now()}),
   saveDraft:value=>{if(failAnswerSave&&Object.keys(value.answers||{}).length)throw Error('本机空间不足，选择题答案尚未保存。');saved=clone(value);serviceCalls.push({kind:'save',draft:clone(value)});return clone(value)},readDraft:id=>saved?.sessionId===id?clone(saved):null,recentDraft:()=>saved?clone(saved):null,newSubmissionId:()=> 'submission-mini-fixed-0001',
   submitSession:async(id,input)=>{submissionCalls++;serviceCalls.push({kind:'submit',id,input:clone(input)});if(submitError)throw submitError;if(failFirstSubmit&&submissionCalls===1)throw Error('网络连接失败，答案已保留。');return{session:clone(submittedSession),duplicate:submissionCalls>1}},
  }
  const runtime=miniRuntime({
   wx:{showModal:options=>{modalCalls.push(options);options.success?.({confirm:true,cancel:false})},pageScrollTo(){},previewImage(){},showToast(){}},
-  modules:{'bundles/curricula/practiceService':service,'utils/page':{deviceState:value=>({deviceClass:'device-phone',orientation:'portrait',isTablet:false,...value}),syncDevice(){}}},
+   modules:{'bundles/curricula/practiceService':service,'utils/page':{deviceState:value=>({deviceClass:'device-phone',orientation:'portrait',isTablet:false,...value}),syncDevice(){}},'utils/protectedAsset':{createProtectedAssetLoader:()=>({load:async url=>assetGate?assetGate.promise:'wxfile://'+url.split('/').at(-2)+'.png',setScope(){},dispose(){}})}},
  })
  runtime.storage.set('stemistUser',{id:'student-a'});runtime.storage.set('stemistSessionToken','token-a')
  const page=runtime.page('bundles/curricula/practice')
  assert.notEqual(typeof page.route,'function','Application methods must not shadow native Page.route metadata')
  page.route='bundles/curricula/practice'
- return{...runtime,page,serviceCalls,modalCalls,get saved(){return saved}}
+ return{...runtime,page,serviceCalls,modalCalls,setIdentity(owner,epoch){currentScope={owner,epoch};runtime.storage.set('stemistUser',{id:owner});runtime.storage.set('stemistPrivacyEpoch',epoch);runtime.storage.set('stemistSessionToken','token-'+owner)},get saved(){return saved}}
 }
 
 {
  const h=pageRuntime({failFirstSubmit:true});await h.page.onLoad({routeId});await settle()
  assert.equal(h.page.data.phase,'setup');assert.equal(h.page.data.routeId,routeId);assert.equal(h.page.data.routeOptions.length,2);assert.equal(h.page.data.count,10);assert.deepEqual([...h.page.data.countOptions.map(item=>item.value)],[1,5,10,20,30,40])
  h.page.chooseRoute({detail:{value:1}});assert.equal(h.page.data.routeId,'ap-physics-c-em-mcq-study');assert.deepEqual([...h.page.data.countOptions.map(item=>item.value)],[1,5,10,20,30,40,50],'UI must never offer a count above the authenticated API maximum');h.page.chooseRoute({detail:{value:0}})
- await h.page.start();assert.equal(h.page.data.phase,'practice');assert.equal(h.page.data.total,2);assert.equal(h.page.data.question.id,questionId);assert.equal(h.page.data.question.sourceLabel,'2017 · AP Physics 1 MCQ');assert.equal(h.page.data.question.source.regions.length,1);assert.deepEqual(h.serviceCalls.filter(call=>call.kind==='question').map(call=>call.id),[questionId],'only the current question may load')
+ await h.page.start();assert.equal(h.page.data.phase,'practice');assert.equal(h.page.data.total,2);assert.equal(h.page.data.question.id,questionId);assert.equal(h.page.data.question.sourceLabel,'2017 · AP Physics 1 MCQ');assert.equal(h.page.data.question.source.regions.length,1);assert.match(h.page.data.question.source.regions[0].imageUrl,/^wxfile:\/\//,'curriculum WXML receives only the authenticated owner-local source image');assert.deepEqual(h.serviceCalls.filter(call=>call.kind==='question').map(call=>call.id),[questionId],'only the current question may load')
  h.page.toggleOption({currentTarget:{dataset:{option:'A'}}});h.page.toggleOption({currentTarget:{dataset:{option:'B'}}});assert.deepEqual([...h.page.data.selectedOptions],['B']);assert.equal(h.page.data.answeredCount,1)
  await h.page.next();assert.equal(h.page.data.question.id,secondQuestion.id);h.page.toggleOption({currentTarget:{dataset:{option:'C'}}});h.page.toggleOption({currentTarget:{dataset:{option:'A'}}});assert.deepEqual([...h.page.data.selectedOptions],['A','C']);assert.equal(h.page.data.selectionCount,2);h.page.toggleOption({currentTarget:{dataset:{option:'A'}}});h.page.toggleOption({currentTarget:{dataset:{option:'C'}}});assert.deepEqual([...h.page.data.selectedOptions],[])
  const firstSubmitId=h.saved.submissionId;await h.page.submit();assert.equal(h.modalCalls.length,1,'incomplete practice requires an explicit visible confirmation');assert.match(h.page.data.error,/网络/);assert.equal(h.saved.submissionId,'submission-mini-fixed-0001');const retryId=h.saved.submissionId
@@ -119,6 +119,9 @@ function pageRuntime({recent=null,questionGate=null,failFirstSubmit=false,failAn
 
 {
  const gate=deferred(),h=pageRuntime({questionGate:gate}),loaded=h.page.onLoad({routeId});await loaded;const pending=h.page.start();await settle();h.page.onUnload();gate.resolve(clone(questionPayload.question));await pending;assert.equal(h.page.data.question,null,'late question data cannot render after unload')
+}
+{
+ const gate=deferred(),h=pageRuntime({assetGate:gate});await h.page.onLoad({routeId});const pending=h.page.start();await settle();h.setIdentity('student-b',1);h.page.onShow();const reset=JSON.stringify(h.page.data);gate.reject(Object.assign(Error('old image denied'),{code:'account_changed'}));await pending;assert.equal(JSON.stringify(h.page.data),reset,'a canceled old-owner image callback cannot overwrite the account-reset practice state');assert.equal(h.page.data.phase,'setup');assert.match(h.page.data.error,/账号已变化/)
 }
 {
  const h=pageRuntime();await h.page.onLoad({routeId});await h.page.start()

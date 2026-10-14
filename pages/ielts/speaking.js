@@ -29,7 +29,7 @@ Page({
   if(taskId&&!archived)this.loadTask()
  },
  current(){return !this.__disposed&&this.__valid&&this.__owner===owner()&&this.__epoch===epoch()},
- async loadTask(){this.setData({taskLoading:true});try{this.__task=await getIeltsTask('speaking',this.data.taskId);if(this.current())this.setData({taskTitle:this.__task.title})}catch(e){if(this.current())this.setData({error:e.message})}finally{this.state({taskLoading:false})}},
+ async loadTask(){this.setData({taskLoading:true,error:''});try{this.__task=await getIeltsTask('speaking',this.data.taskId);if(this.current())this.setData({taskTitle:this.__task.title,canRetry:false,retryAction:'start'})}catch(e){if(this.current())this.setData({error:e.message,canRetry:true,retryAction:'task'})}finally{this.state({taskLoading:false})}},
  onShow(){this.__visible=true;syncDevice(this);if(this.__owner!==owner()||this.__epoch!==epoch()){this.resetIdentity();return}if(this.current()&&!this.data.viewingArchive&&!this.__dirty&&!this.data.active&&!this.data.connecting&&!this.data.scoring){const saved=wx.getStorageSync(this.__scope);if(saved&&saved.epoch===this.__epoch&&saved.taskId===this.data.taskId&&(saved.sessionId!==this.__sessionId||(saved.revision||0)!==(this.__baseSnapshot.revision||0))){this.__baseSnapshot={...saved};this.__sessionId=saved.sessionId;this.__turns=saved.turns||[];this.__elapsed=saved.elapsed||0;this.__lastNote=saved.note||'';this.state({feedback:saved.feedback||'',band:saved.band??null,warning:saved.warning||'',elapsed:clock(this.__elapsed),status:'已恢复最新口语记录'});this.renderTurns()}}},onResize(){syncDevice(this)},
  onHide(){this.__visible=false;this.stopSession();this.persist()},
  onUnload(){this.stopSession();this.persist();this.__disposed=true},
@@ -105,7 +105,7 @@ Page({
   }catch(e){if(this.current())this.setData({error:e.message||'反馈未完成，对话已保留。',canRetry:true,retryAction:'score'})}
   finally{this.state({scoring:false})}
  },
- retry(){if(this.data.retryAction==='score')this.finish();else this.start()},
+ retry(){if(this.data.retryAction==='task')this.loadTask();else if(this.data.retryAction==='score')this.finish();else this.start()},
  finishPart2(){this.__engine?.finishLongTurn()},
  renderTurns(start=Math.max(0,this.__turns.length-12)){this.__turnStart=start;this.setData({turns:this.__turns.slice(start,start+12),turnCount:this.__turns.length,hasEarlier:start>0,hasLater:start+12<this.__turns.length})},
  showEarlier(){this.renderTurns(Math.max(0,(this.__turnStart||0)-12))},

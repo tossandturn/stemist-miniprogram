@@ -48,7 +48,7 @@ function normalizeQuestion(payload,expectedId=''){
   const assetId=identifier(region.assetId),digest=sha(region.sha256),page=integer(region.page,1,1000),bytes=integer(region.bytes,1,10*1024*1024),width=integer(region.width,1,20000),height=integer(region.height,1,20000),xyxy=region.region
   const url=`${ROOT}/source/${encodeURIComponent(id)}/${encodeURIComponent(assetId)}/${digest}.png`
   if(!assetId||!digest||assets.has(assetId)||region.url!==url||bytes===null||width===null||height===null||page===null||!pages.includes(page)||!Array.isArray(xyxy)||xyxy.length!==4||xyxy.some(value=>typeof value!=='number'||!Number.isFinite(value)||value<0)||xyxy[2]<=xyxy[0]||xyxy[3]<=xyxy[1])throw fail('选择题原图来源无效。')
-  assets.add(assetId);return{assetId,url,imageUrl:origin()+url,sha256:digest,bytes,width,height,page,region:xyxy.slice()}
+  assets.add(assetId);return{assetId,url,protectedUrl:origin()+url,imageUrl:'',sha256:digest,bytes,width,height,page,region:xyxy.slice()}
  })
  if(!pages.every(page=>regions.some(region=>region.page===page)))throw fail('选择题原图页码不完整。')
  if(!exact(q.quality,['label','authority','formalProgressEligible'])||q.quality.label!=='AI checked'||q.quality.authority!=='ai-provisional'||q.quality.formalProgressEligible!==false)throw fail('选择题练习质量标记无效。')
@@ -79,10 +79,10 @@ function normalizeSubmit(payload,expected){
 async function fetchCatalog(filters={}){
  const routeId=filters.routeId?identifier(filters.routeId):'',topicId=filters.topicId?identifier(filters.topicId):''
  if(filters.routeId&&!routeId||filters.topicId&&!topicId)throw fail('选择题练习筛选无效。')
- const payload=await getJson(`${ROOT}/catalog?routeId=${encodeURIComponent(routeId)}&topicId=${encodeURIComponent(topicId)}`,{timeout:12000,stemAuth:false})
+ const payload=await getJson(`${ROOT}/catalog?routeId=${encodeURIComponent(routeId)}&topicId=${encodeURIComponent(topicId)}`,{timeout:12000,stemAuth:true})
  return normalizeCatalog(payload,{routeId,topicId})
 }
-async function fetchQuestion(questionId){const id=identifier(questionId);if(!id)throw fail('选择题编号无效。');return normalizeQuestion(await getJson(`${ROOT}/questions/${encodeURIComponent(id)}`,{timeout:12000,stemAuth:false}),id)}
+async function fetchQuestion(questionId){const id=identifier(questionId);if(!id)throw fail('选择题编号无效。');return normalizeQuestion(await getJson(`${ROOT}/questions/${encodeURIComponent(id)}`,{timeout:12000,stemAuth:true}),id)}
 async function createSession(input,s){guard(s);const routeId=identifier(input?.routeId),topicId=input?.topicId?identifier(input.topicId):'',questionIds=Array.isArray(input?.questionIds)?input.questionIds.map(value=>identifier(value)):null,count=integer(input?.count??10,1,50);if(!ROUTES[routeId]||input?.topicId&&!topicId||questionIds&&(!questionIds.length||questionIds.length>50||questionIds.some(id=>!id)||new Set(questionIds).size!==questionIds.length)||!questionIds&&count===null)throw fail('选择题练习范围无效。');const body={routeId,...(topicId?{topicId}:{}),...(questionIds?{questionIds}:{count})},payload=await requestJson(`${ROOT}/sessions`,body,{timeout:15000});guard(s);return normalizeSession(payload?.session,{routeId,questionCount:questionIds?questionIds.length:count,...(questionIds?{questionIds}:{})})}
 async function getSession(sessionId,s){guard(s);const id=identifier(sessionId);if(!id)throw fail('选择题练习会话无效。');const payload=await getJson(`${ROOT}/sessions/${encodeURIComponent(id)}`,{timeout:12000});guard(s);return normalizeSession(payload?.session,{sessionId:id})}
 async function fetchHistory(s){guard(s);const payload=await getJson(`${ROOT}/history`,{timeout:12000});guard(s);if(!exact(payload,['sessions'])||!Array.isArray(payload.sessions)||payload.sessions.length>50)throw fail('选择题练习历史无效。');return payload.sessions.map(value=>normalizeSession(value))}

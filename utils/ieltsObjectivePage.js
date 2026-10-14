@@ -2,11 +2,12 @@ const {deviceState,syncDevice}=require('./page')
 const {getIeltsTask}=require('./ieltsContent')
 const {sectionTask}=require('./ieltsUnits')
 const {loadCaptions,captionFrame}=require('./nativeCaptions')
-const {acquireListeningAudio}=require('./listeningAudioCache')
+const {acquireListeningAudio,purgeListeningAudioScope}=require('./listeningAudioCache')
 const {buildTransferProgress}=require('./transferProgress')
 const {createDownloadMetrics}=require('./downloadMetrics')
-const {requestIeltsJson}=require('./api')
 const {requestIeltsLearning}=require('./ieltsLearning')
+const {createIeltsAssetLoader,pendingIeltsImages,hydrateIeltsImages}=require('./ieltsAssets')
+const {ensureMembershipAccess}=require('./membershipProof')
 const {rememberRecord}=require('./nativeRecords')
 const {readExam,completeExamModule,startExamModuleClock,clockState}=require('./nativeExam')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
@@ -16,16 +17,18 @@ function makeObjectivePage(module){
  const initial={module,title:module==='listening'?'Listening':'Reading',taskId:'',taskTitle:'',loading:true,busy:false,error:'',questions:[],questionNav:[],current:0,total:0,answer:'',answered:0,sourceImages:[],imageIndex:0,imageCount:0,passageText:'',showPassage:false,audioAvailable:false,audioPlaying:false,audioPosition:0,audioDuration:0,audioTracks:[],audioIndex:0,elapsed:'00:00',saveStatus:'',submitted:false,result:null,review:[],captionsEnabled:false,captionBubbles:[],captionStatus:''}
  return{
  data:deviceState({...initial,audioProgress:null}),
- onLoad(options={}){this.__disposed=false;this.__epoch=epoch();this.__owner=owner();this.__generation=0;this.__section=Number(options.section)||0;this.__examKey=String(options.examKey||'');this.setData({taskId:String(options.taskId||''),examMode:Boolean(this.__examKey)});if(this.__examKey){this.__exam=readExam(this.__examKey);if(this.__section||!this.__exam||this.__exam.sources[module]!==this.data.taskId){this.setData({loading:false,error:'试题不属于当前模拟。'});return}}if(!this.data.taskId){wx.redirectTo({url:`/pages/ielts/library?module=${module}`});return}this.load()},
- onShow(){this.__visible=true;syncDevice(this);if(this.__epoch!==epoch()||this.__owner!==owner()){this.resetIdentity();return}if(this.__task){this.startClock();if(this.data.audioAvailable&&!this.__preparedAudio&&!this.data.audioPreparing)this.prepareAudio()}},onResize(){syncDevice(this)},
+ onLoad(options={}){this.__disposed=false;this.__epoch=epoch();this.__owner=owner();this.__generation=0;this.__imageRequest=0;this.__assets=createIeltsAssetLoader({wxApi:wx});this.__section=Number(options.section)||0;this.__examKey=String(options.examKey||'');this.setData({taskId:String(options.taskId||''),examMode:Boolean(this.__examKey)});if(this.__examKey){this.__exam=readExam(this.__examKey);if(this.__section||!this.__exam||this.__exam.sources[module]!==this.data.taskId){this.setData({loading:false,error:'试题不属于当前模拟。'});return}}if(!this.data.taskId){wx.redirectTo({url:`/pages/ielts/library?module=${module}`});return}this.load()},
+ onShow(){this.__visible=true;syncDevice(this);this.__assets?.setScope();if(this.__epoch!==epoch()||this.__owner!==owner()){this.resetIdentity();return}if(this.__task){this.startClock();if(this.data.audioAvailable&&!this.__preparedAudio&&!this.data.audioPreparing)this.prepareAudio()}},onResize(){syncDevice(this)},
  onHide(){this.__visible=false;this.pauseAudio();if(this.data.audioPreparing)this.cancelAudioPreparation(true);this.flush();this.__baseElapsed=this.__draft?.elapsed||0;this.__activeAt=null;clearInterval(this.__clock)},
- onUnload(){this.flush();this.__disposed=true;this.__visible=false;this.__generation++;clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy();this.cancelAudioPreparation()},
+ onUnload(){this.flush();this.__disposed=true;this.__visible=false;this.__generation++;this.__imageRequest++;this.__assets?.dispose();clearInterval(this.__clock);clearTimeout(this.__saveTimer);const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.destroy();this.cancelAudioPreparation()},
  currentOwner(){return !this.__disposed&&this.__epoch===epoch()&&this.__owner===owner()},
  resetIdentity(){
+  const previous={owner:this.__owner,epoch:this.__epoch}
   this.__generation=(this.__generation||0)+1;clearInterval(this.__clock);clearTimeout(this.__saveTimer)
   this.__audioWanted=false;const audio=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;audio?.stop?.();audio?.destroy?.();this.cancelAudioPreparation();this.__audioPreparation=null
+  Promise.resolve(purgeListeningAudioScope(previous)).catch(()=>{})
   this.__captionRequest=(this.__captionRequest||0)+1;this.__captionModel=null;this.__captionIndex=-2
-  this.__task=null;this.__draft=null;this.__storageKey='';this.__images=[];this.__exam=null;this.__examClock=null;this.__baseElapsed=0;this.__activeAt=null
+  this.__imageRequest++;this.__assets?.dispose();this.__task=null;this.__draft=null;this.__storageKey='';this.__images=[];this.__exam=null;this.__examClock=null;this.__baseElapsed=0;this.__activeAt=null
   this.setData({...initial,audioProgress:null,loading:false,error:'账号已变化，请重新打开这份练习。',timeExpired:false})
  },
  async load(){const generation=++this.__generation;this.setData({loading:true,error:''});try{
@@ -44,10 +47,12 @@ function makeObjectivePage(module){
   const all=sources.length?sources:this.__task.images
   this.__images=[...new Map(all.map(image=>[image.url,image])).values()].sort((a,b)=>a.page-b.page)
   const imageIndex=Math.max(0,this.__images.findIndex(image=>image.page===q.page))
-  this.setData({questions:[q],answer:String(draft.answers[q.id]||''),sourceImages:this.__images[imageIndex]?[this.__images[imageIndex]]:[],imageIndex,imageCount:this.__images.length,
+  this.setData({questions:[q],answer:String(draft.answers[q.id]||''),sourceImages:this.__images[imageIndex]?pendingIeltsImages([this.__images[imageIndex]]):[],imageIndex,imageCount:this.__images.length,
    answered:Object.values(draft.answers).filter(v=>String(v).trim()).length,
    questionNav:this.__task.questions.map((item,index)=>({id:item.id,index,label:item.number||index+1,current:index===this.data.current,answered:Boolean(String(draft.answers[item.id]||'').trim())}))})
+  this.loadCurrentImage(imageIndex)
  },
+ async loadCurrentImage(index){const image=this.__images[index],request=++this.__imageRequest;if(!image)return;try{const loaded=await hydrateIeltsImages([image],this.__assets);if(this.currentOwner()&&request===this.__imageRequest&&this.data.imageIndex===index)this.setData({sourceImages:loaded})}catch(error){if(this.currentOwner()&&request===this.__imageRequest)this.setData({sourceImages:pendingIeltsImages([image]).map(item=>({...item,failed:true})),error:error?.message||'题图未加载，请重试。'})}},
  inputAnswer(event){if(!this.__draft||this.data.submitted||!this.currentOwner()||clockState(this.__examClock)?.expired)return;const value=String(event.detail.value||'').slice(0,160),q=this.__task.questions[this.data.current];this.__draft.answers[q.id]=value;this.setData({answer:value,answered:Object.values(this.__draft.answers).filter(v=>String(v).trim()).length,saveStatus:'正在保存…',error:''});this.scheduleSave()},
  scheduleSave(){clearTimeout(this.__saveTimer);this.__saveTimer=setTimeout(()=>this.flush(),180)},
  flush(){if(!this.__draft||!this.currentOwner())return;clearTimeout(this.__saveTimer);this.__draft.index=this.data.current;this.__draft.elapsed=this.elapsedSeconds();try{wx.setStorageSync(this.__storageKey,this.__draft);this.setData({saveStatus:'已保存'})}catch{this.setData({saveStatus:'尚未保存',error:'本机空间不足，请释放空间后重试。'})}},
@@ -58,10 +63,10 @@ function makeObjectivePage(module){
  nextQuestion(){this.chooseQuestion({currentTarget:{dataset:{index:Math.min(this.data.total-1,this.data.current+1)}}})},
  previousQuestion(){this.chooseQuestion({currentTarget:{dataset:{index:Math.max(0,this.data.current-1)}}})},
  jumpTo(event){const target=event.currentTarget.dataset.target==='answer'?'answer':'source';wx.pageScrollTo?.({selector:'.objective-'+target,offsetTop:-60,duration:150})},
- changeImage(event){const index=this.data.imageIndex+(event.currentTarget.dataset.direction==='previous'?-1:1);if(index<0||index>=this.__images.length)return;this.setData({imageIndex:index,sourceImages:[this.__images[index]]})},
- previewImage(){const current=this.data.sourceImages[0]?.url;if(current)wx.previewImage({current,urls:this.__images.map(image=>image.url)})},
+ changeImage(event){const index=this.data.imageIndex+(event.currentTarget.dataset.direction==='previous'?-1:1);if(index<0||index>=this.__images.length)return;this.setData({imageIndex:index,sourceImages:pendingIeltsImages([this.__images[index]])});this.loadCurrentImage(index)},
+ async previewImage(){try{const images=await hydrateIeltsImages(this.__images,this.__assets);if(!this.currentOwner())return;const current=images[this.data.imageIndex]?.url;if(current)wx.previewImage({current,urls:images.map(image=>image.url)})}catch(error){if(this.currentOwner())this.setData({error:error?.message||'题图未加载，请重试。'})}},
  imageFailed(){this.setData({error:'题图未加载，请检查网络或点开原图重试。'})},
- async togglePassage(){const showPassage=!this.data.showPassage;this.setData({showPassage});if(!showPassage||this.data.passageText)return;try{const data=await requestIeltsJson('/api/reading/context?id='+encodeURIComponent(this.data.taskId),undefined,{method:'GET',timeout:12000});if(this.currentOwner())this.setData({passageText:String(data.paperText||'')})}catch(e){if(this.currentOwner())this.setData({error:e.message})}},
+ async togglePassage(){const showPassage=!this.data.showPassage;this.setData({showPassage});if(!showPassage||this.data.passageText)return;try{const data=await requestIeltsLearning('/api/reading/context?id='+encodeURIComponent(this.data.taskId),undefined,{method:'GET',timeout:12000});if(this.currentOwner())this.setData({passageText:String(data.paperText||'')})}catch(e){if(this.currentOwner())this.setData({error:e.message})}},
  initAudio(startAt=0){
   if(!this.data.audioAvailable||!wx.createInnerAudioContext)return
   const index=this.data.audioIndex,url=this.__preparedAudio?.index===index?this.__preparedAudio.path:''
@@ -104,9 +109,9 @@ function makeObjectivePage(module){
     this.__preparedAudio={index,path};this.setData({audioPreparing:false,audioReady:true,audioDownloadPercent:100,audioProgress:buildTransferProgress({...this.data.audioProgress,phase:this.data.audioProgress?.phase==='cached'?'cached':'ready'},'听力音频')})
     if(this.__audioWanted){const audio=this.initAudio(this.data.audioPosition);audio?.play()}
     return path
-   }).catch(()=>{if(active()){this.__audioWanted=false;this.setData({audioPreparing:false,audioPlaying:false,audioError:'音频准备失败，点击播放重试。',audioProgress:buildTransferProgress({...this.data.audioProgress,phase:'error'},'听力音频',{canRetry:true})})}})
+   }).catch(error=>{if(active()){const known=['auth_required','membership_required','membership_authority_unavailable','membership_authority_invalid','membership_authority_mismatch','account_changed'].includes(String(error?.code||''));this.__audioWanted=false;this.setData({audioPreparing:false,audioPlaying:false,authRequired:error?.code==='auth_required',audioError:known&&error?.message?error.message:'音频准备失败，点击播放重试。',audioProgress:buildTransferProgress({...this.data.audioProgress,phase:'error'},'听力音频',{canRetry:true})})}})
    return this.__audioPreparation
-  }catch{this.__audioWanted=false;this.setData({audioPreparing:false,audioError:'音频准备失败，点击播放重试。',audioProgress:buildTransferProgress({phase:'error'},'听力音频',{canRetry:true})})}
+  }catch(error){const known=['auth_required','membership_required','membership_authority_unavailable','membership_authority_invalid','membership_authority_mismatch','account_changed'].includes(String(error?.code||''));this.__audioWanted=false;this.setData({audioPreparing:false,authRequired:error?.code==='auth_required',audioError:known&&error?.message?error.message:'音频准备失败，点击播放重试。',audioProgress:buildTransferProgress({phase:'error'},'听力音频',{canRetry:true})})}
  },
  toggleCaptions(){if(this.data.examMode)return;this.__captionRequest=(this.__captionRequest||0)+1;this.setData({captionsEnabled:!this.data.captionsEnabled,captionBubbles:[],captionStatus:''});if(this.data.captionsEnabled)this.loadCurrentCaptions()},
  async loadCurrentCaptions(){
@@ -115,10 +120,10 @@ function makeObjectivePage(module){
   try{const section=this.__task.audioSections?.[this.data.audioIndex]?.section||this.data.audioIndex+1;const model=await loadCaptions(this.data.taskId,section);if(!this.currentOwner()||request!==this.__captionRequest||!this.data.captionsEnabled)return;this.__captionModel=model;this.setData({captionStatus:''});this.updateCaptionFrame(this.__audio?.currentTime||0)}catch(e){if(this.currentOwner()&&request===this.__captionRequest)this.setData({captionStatus:e.message})}
  },
  updateCaptionFrame(time){if(!this.currentOwner()||!this.data.captionsEnabled||!this.__captionModel)return;const frame=captionFrame(this.__captionModel,time);if(frame.index!==this.__captionIndex){this.__captionIndex=frame.index;this.setData({captionBubbles:frame.bubbles,captionStatus:frame.index<0?'字幕将随语音出现':''})}},
- toggleAudio(){if(!this.currentOwner()||this.__visible===false)return;if(this.__audioWanted||this.data.audioPlaying){this.pauseAudio();return}this.__audioWanted=true;this.setData({audioError:'',audioWaitingToPlay:true});const audio=this.__audio||this.initAudio(this.data.audioPosition);if(audio)audio.play();else this.prepareAudio()},
+ async toggleAudio(){if(!this.currentOwner()||this.__visible===false)return;if(this.__audioWanted||this.data.audioPlaying){this.pauseAudio();return}try{await ensureMembershipAccess({wxApi:wx});if(!this.currentOwner()||this.__visible===false)return;this.__audioWanted=true;this.setData({audioError:'',audioWaitingToPlay:true});const audio=this.__audio||this.initAudio(this.data.audioPosition);if(audio)audio.play();else this.prepareAudio()}catch(error){if(this.currentOwner())this.setData({audioWaitingToPlay:false,audioError:error?.message||'会员状态暂未确认，请重试。'})}},
  pauseAudio(){this.__audioWanted=false;this.__audio?.pause();if(!this.__disposed)this.setData({audioPlaying:false,audioWaitingToPlay:false,audioBuffering:false})},
  selectAudio(event){const index=Number(event.detail.value);if(!this.__task.audioUrls[index]||index===this.data.audioIndex)return;this.__audioWanted=false;const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.stop();previous?.destroy();this.cancelAudioPreparation();this.setData({audioIndex:index,audioPosition:0,audioDuration:0,audioPlaying:false,audioBuffering:false,audioWaitingToPlay:false,audioError:''});this.prepareAudio();if(this.data.captionsEnabled)this.loadCurrentCaptions()},
- seekAudio(event){const time=Math.max(0,Number(event.detail.value)||0),existing=this.__audio;existing?.seek(time);if(!existing&&this.__preparedAudio)this.initAudio(time);this.setData({audioPosition:Math.floor(time)});this.updateCaptionFrame(time)},
+ async seekAudio(event){const time=Math.max(0,Number(event.detail.value)||0);try{await ensureMembershipAccess({wxApi:wx});if(!this.currentOwner())return;const existing=this.__audio;existing?.seek(time);if(!existing&&this.__preparedAudio)this.initAudio(time);this.setData({audioPosition:Math.floor(time)});this.updateCaptionFrame(time)}catch(error){if(this.currentOwner())this.setData({audioError:error?.message||'会员状态暂未确认，请重试。'})}},
  async submit(){
   if(this.data.busy||this.data.submitted||!this.__draft||!this.currentOwner())return
   this.flush();this.pauseAudio();this.setData({busy:true,error:''})

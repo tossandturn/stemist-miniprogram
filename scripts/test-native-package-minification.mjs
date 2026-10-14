@@ -210,7 +210,8 @@ try {
   const sourceRuntime = miniRuntimeAt(fixtureRoot)
   const packagedRuntime = miniRuntimeAt(firstOutput)
   assert.equal(jsonHash(packagedRuntime.load('utils/ieltsBootstrap')), jsonHash(sourceRuntime.load('utils/ieltsBootstrap')))
-  assert.equal(jsonHash(packagedRuntime.load('utils/ieltsTaskBootstrap')), jsonHash(sourceRuntime.load('utils/ieltsTaskBootstrap')))
+  assert.equal(fs.existsSync(path.join(firstOutput, 'utils/ieltsTaskBootstrap.js')), false, 'full IELTS task data is not a public runtime asset')
+  assert.equal(fs.existsSync(path.join(firstOutput, 'utils/nativeDataPack.js')), false, 'the task-pack decoder is excluded with its protected source data')
 
   let networkRequests = 0
   const offlineRuntime = miniRuntimeAt(firstOutput, { modules: {
@@ -218,14 +219,16 @@ try {
       IELTS_API_BASE: 'https://ieltsist.com',
       requestIeltsJson: async () => { networkRequests++; throw new Error('offline') },
     },
+    'utils/ieltsLearning': { requestIeltsLearning: async () => { networkRequests++; throw new Error('offline') } },
+    'utils/membershipProof': { ensureMembershipAccess: async () => ({ owner: 'guest', epoch: 0, enforcementEnabled: false, active: false }), sameScope: () => true },
   } })
   const content = offlineRuntime.load('utils/ieltsContent')
   const bank = await content.loadIeltsContent()
   assert.ok(bank.reading.length >= 72)
   assert.ok(bank.listening.length >= 72)
-  const reading = await content.getIeltsTask('reading', bank.reading[0].id)
-  assert.equal(reading.questions.length, 40)
-  assert.equal(networkRequests, 0, 'the transformed package must preserve the offline-first IELTS path')
+  assert.equal(bank.reading[0].questions.length, 0, 'the offline public package contains catalog metadata only')
+  await assert.rejects(content.getIeltsTask('reading', bank.reading[0].id), /offline/)
+  assert.equal(networkRequests, 1, 'full task detail must use the protected native-session transport')
 
   assert.equal(check.mainPackageBytes, firstReceipt.mainPackage.bytes)
   assert.equal(check.mainPackageHeadroom, firstReceipt.mainPackage.headroom)
@@ -240,7 +243,7 @@ try {
     mainPackageHeadroom: firstReceipt.mainPackage.headroom,
     deterministicBuilds: 2,
     verifiedFiles: firstReceipt.files.length,
-    offlineReadingQuestions: reading.questions.length,
+    offlineReadingQuestions: bank.reading[0].questions.length,
   }))
 } finally {
   for (const [relative, before] of Object.entries(protectedBefore)) {

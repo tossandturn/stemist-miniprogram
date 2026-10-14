@@ -110,12 +110,12 @@ await check('v2 foundation capability admits three strictly bound learning items
   assert.equal(native.validatePracticeSet(genuinelyLimited,chapterSpecV2).questions.length,2,'a reviewed selected pool below the request remains an explicit limited response')
   assert.equal(native.createSession(originalPayload(),chapterSpec).foundationCatalog,undefined,'saved/default v1 stays capability-free')
 })
-await check('public assembly does not forward stale bearer and timeout is not empty bank', async () => {
+await check('protected assembly forwards bearer and timeout is not empty bank', async () => {
   let request
   const runtime = miniRuntime({ wx: { request: options => { request = options; options.fail({ errMsg: 'request:fail timeout' }) } } })
   runtime.storage.set('stemistSessionToken', 'test-token')
   await assert.rejects(runtime.load('utils/nativePractice').generatePractice(spec), /超时/)
-  assert.equal(request.header.Authorization, undefined)
+  assert.equal(request.header.Authorization, 'Bearer test-token')
 })
 await check('chapter builder defaults new contracts and clearly labels original fallback',async()=>{
  const requests=[];const runtime=miniRuntime({modules:{'utils/inventory':{fetchRouteInventory:async()=>chapterInventory()},'utils/api':{requestJson:async(path,body)=>{requests.push({path,body});return originalPayload()}}}})

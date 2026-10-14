@@ -102,6 +102,7 @@ class TransferHarness {
   request(options) {
     const match = /^bytes=(\d+)-(\d+)$/.exec(options.header.Range)
     assert.ok(match, 'every PDF request has a finite byte range')
+    assert.equal(options.header.Authorization, 'Bearer transfer-test-token')
     const start = Number(match[1])
     const end = Number(match[2])
     const key = `${options.url}:${start}-${end}`
@@ -180,6 +181,7 @@ class TransferHarness {
       fileName: 'transfer-test.pdf',
       expectedBytes: this.source.length,
       expectedSha256: digest(this.source),
+      authorization: async () => 'Bearer transfer-test-token',
       onProgress: (saved, total) => this.progress.push({ saved, total }),
       onPhase: (phase, saved, total) => this.phases.push({ phase, saved, total }),
       ...extra,
@@ -250,11 +252,15 @@ class TransferHarness {
 {
   const source = pdf(900 * KiB)
   const harness = new TransferHarness({ source, delay: () => 15 })
+  let authorizations = 0
   const handles = Array.from({ length: 6 }, (_, index) => harness.acquire({
     url: `https://stem.ieltsist.com/local-pdf/9702/global-${index}.pdf`,
     version: `global-${index}`,
     fileName: `global-${index}.pdf`,
+    authorization: async () => { authorizations++; return 'Bearer transfer-test-token' },
   }))
+  await waitFor(() => harness.active === 4, 'four global request permits become active')
+  assert.equal(authorizations, 4, 'queued requests refresh authorization only after receiving a network permit')
   await Promise.all(handles.map(handle => handle.promise))
   handles.forEach(handle => handle.release())
   assert.equal(harness.maxActive, 4, 'the global PDF request pool is capped at four')
@@ -271,6 +277,15 @@ class TransferHarness {
   assert.equal(harness.requests.length, 1)
   assert.equal(harness.requests[0].end, 256 * KiB - 1)
   assert.deepEqual(harness.files.get(path), source)
+}
+
+// Access failures retain the exact dispatched bearer for stale-safe session invalidation upstream.
+{
+  const source = pdf(300 * KiB)
+  const harness = new TransferHarness({ source, response: () => ({ statusCode: 401 }) })
+  const handle = harness.acquire()
+  await assert.rejects(handle.promise, error => error.code === 'auth_required' && error.statusCode === 401 && error.authorization === 'Bearer transfer-test-token')
+  handle.release()
 }
 
 // Both useful workers are aborted, and a same-key retry waits for an already-started append to drain.

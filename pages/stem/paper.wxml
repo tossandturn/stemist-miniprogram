@@ -19,8 +19,8 @@
 <text class="paper-question-heading">原卷第 {{questionNumber}} 题</text>
 <text wx:if="{{sourceImages.length && !sourceFocused}}" class="paper-input-help">以下为原卷整页，请对应第 {{questionNumber}} 题作答。</text>
 <view wx:for="{{sourceViews}}" wx:key="id">
- <view wx:if="{{item.cropped}}" class="paper-question-region" style="{{item.clipStyle}}"><image class="paper-region-image" style="{{item.imageStyle}}" src="{{item.url}}" mode="scaleToFill" lazy-load data-index="{{index}}" data-source="{{item.url}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/></view>
- <image wx:else class="paper-source-image" src="{{item.url}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item.url}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
+ <view wx:if="{{item.cropped && item.url}}" class="paper-question-region" style="{{item.clipStyle}}"><image class="paper-region-image" style="{{item.imageStyle}}" src="{{item.url}}" mode="scaleToFill" lazy-load data-index="{{index}}" data-source="{{item.url}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/></view>
+ <image wx:elif="{{item.url}}" class="paper-source-image" src="{{item.url}}" mode="widthFix" lazy-load data-index="{{index}}" data-source="{{item.url}}" bindtap="previewQuestion" binderror="sourceImageFailed" bindload="sourceImageLoaded"/>
 </view>
 <text wx:if="{{sourceImages.length && sourceLoadedCount < sourceImages.length && !sourceImageError}}" class="paper-input-help">正在加载题图…</text>
 <view wx:if="{{sourceImageError}}" class="error">题图未加载，可重试或查看原卷。<button class="text-button" bindtap="retrySourceImage">重试题图</button></view>

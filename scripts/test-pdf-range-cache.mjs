@@ -8,6 +8,7 @@ const digest=b=>crypto.createHash('sha256').update(b).digest('hex')
 const URL='https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'a'.repeat(32)
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 const waitFor=async predicate=>{for(let i=0;i<100&&!predicate();i++)await wait(5);assert.ok(predicate(),'timed out waiting for in-memory filesystem event')}
+const membershipModules={'utils/membershipProof':{ensureMembershipAccess:async({wxApi})=>{const user=wxApi.getStorageSync('stemistUser')||{};return{owner:String(user.id||'guest'),epoch:Number(wxApi.getStorageSync('stemistPrivacyEpoch'))||0,enforcementEnabled:true,active:true}},authorizationForMembership:async()=> 'Bearer pdf-test-token'}}
 
 function harness({data=source,failAt=-1,damage=false}={}){
  const files=new Map(),storage=new Map(),requests=[],opens=[],states=[],phases=[]
@@ -23,12 +24,13 @@ function harness({data=source,failAt=-1,damage=false}={}){
  }
  const wx={env:{USER_DATA_PATH:'/user'},getFileSystemManager:()=>manager,getStorageSync:k=>storage.get(k),setStorageSync:(k,v)=>storage.set(k,v),removeStorageSync:k=>storage.delete(k),request(o){
   const m=/^bytes=(\d+)-(\d+)$/.exec(o.header.Range);assert.ok(m,'all native PDF requests must have a finite end');const start=Number(m[1]),end=Number(m[2]);assert.ok(end-start+1<=1024*1024)
+  assert.equal(o.header.Authorization,'Bearer pdf-test-token','every protected Range request carries the current bearer')
   requests.push({start,end,etag:o.header['If-Range']||''});const at=calls++,task={aborted:false,abort(){this.aborted=true}}
   setImmediate(()=>{if(task.aborted)return o.fail({errMsg:'abort'});if(errorAt>=0&&at>=errorAt)return o.fail({errMsg:'request:fail timeout'});const body=changedData.subarray(start,end+1);o.success({statusCode:206,header:{'Content-Type':'application/pdf','Content-Length':String(body.length),'Content-Range':'bytes '+(badRange?start+1:start)+'-'+end+'/'+changedData.length,ETag:'"'+(badEtag?'wrong':digest(changedData))+'"'},data:body.buffer.slice(body.byteOffset,body.byteOffset+body.length)})});return task
  },openDocument(o){opens.push(o);o.success()}}
  storage.set('stemistUser',{id:'student-1'});storage.set('stemistPrivacyEpoch',1)
- const r=miniRuntime({wx,globals:{setTimeout:(fn,ms)=>setTimeout(fn,ms===350||ms===900?0:ms)}}),module=r.load('utils/pdfRangeCache')
- const acquire=(extra={})=>module.acquirePdf({wxApi:wx,url:URL,owner:'student-1|1',version:'v1',fileName:'IB_Math_AA_2025_QP.pdf',expectedBytes:changedData.length,expectedSha256:digest(changedData),onProgress:(n,total)=>states.push({n,total}),onPhase:(phase,n,total)=>phases.push({phase,n,total}),...extra})
+ const r=miniRuntime({wx,modules:membershipModules,globals:{setTimeout:(fn,ms)=>setTimeout(fn,ms===350||ms===900?0:ms)}}),module=r.load('utils/pdfRangeCache')
+ const acquire=(extra={})=>module.acquirePdf({wxApi:wx,url:URL,owner:'student-1|1',version:'v1',fileName:'IB_Math_AA_2025_QP.pdf',expectedBytes:changedData.length,expectedSha256:digest(changedData),authorization:async()=> 'Bearer pdf-test-token',onProgress:(n,total)=>states.push({n,total}),onPhase:(phase,n,total)=>phases.push({phase,n,total}),...extra})
  return{acquire,module,wx,files,storage,requests,states,phases,opens,r,setFail:v=>errorAt=v,setData:v=>changedData=v,setBadRange:v=>badRange=v,setBadEtag:v=>badEtag=v,setStorageFailure:v=>writesFail=v,holdReadFor:p=>holdReadPath=p,releaseRead(){const read=heldRead;heldRead=null;holdReadPath='';read?.()},holdUnlinkFor:p=>holdUnlinkPath=p,releaseUnlink(){const unlink=heldUnlink;heldUnlink=null;holdUnlinkPath='';unlink?.()},setAppendHold:v=>holdAppends=v,releaseAppend(){pendingAppends.shift()?.()},get readHeld(){return Boolean(heldRead)},get unlinkHeld(){return Boolean(heldUnlink)},get pendingAppends(){return pendingAppends.length}}
 }
 
@@ -59,8 +61,8 @@ function harness({data=source,failAt=-1,damage=false}={}){
  for(let index=0;index<6;index++){const handle=h.acquire({url:'https://stem.ieltsist.com/local-pdf/9702/cache-'+index+'.pdf',version:'catalog-v1',fileName:'cache-'+index+'.pdf'});paths.push(await handle.promise);handle.release()}
  assert.ok(h.files.has(paths[0]),'downloading more than four papers must retain earlier complete files within the storage budget')
  const requests=h.requests.length,phaseStart=h.phases.length
- const fresh=miniRuntime({wx:h.wx}).load('utils/pdfRangeCache')
- const reopened=fresh.acquirePdf({wxApi:h.wx,url:'https://stem.ieltsist.com/local-pdf/9702/cache-0.pdf',owner:'student-1|1',version:'catalog-v1',fileName:'cache-0.pdf',expectedBytes:source.length,expectedSha256:digest(source),onPhase:(phase,n,total)=>h.phases.push({phase,n,total})})
+ const fresh=miniRuntime({wx:h.wx,modules:membershipModules}).load('utils/pdfRangeCache')
+ const reopened=fresh.acquirePdf({wxApi:h.wx,url:'https://stem.ieltsist.com/local-pdf/9702/cache-0.pdf',owner:'student-1|1',version:'catalog-v1',fileName:'cache-0.pdf',expectedBytes:source.length,expectedSha256:digest(source),authorization:async()=> 'Bearer pdf-test-token',onPhase:(phase,n,total)=>h.phases.push({phase,n,total})})
  assert.equal(await reopened.promise,paths[0]);assert.equal(h.requests.length,requests,'a fresh runtime opens persisted complete papers without any HTTP or Range probe');reopened.release()
  assert.ok(h.phases.some(item=>item.phase==='cached'),'a cache hit is distinguishable from downloading')
  assert.ok(!h.phases.slice(phaseStart).some(item=>['connecting','downloading'].includes(item.phase)),'opening a complete cache file does not claim an HTTP connection or a new transfer')
@@ -88,7 +90,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
  const req={url:URL,scope:'cached-file',fileName:'AP_Cached_QP.pdf',cacheVersion:'sha-v1',expectedBytes:source.length,sha256:digest(source),ownerKey:'cached:qp',itemId:'cached'}
  c.setScope(req.scope);await c.open(req);await waitFor(()=>c.getState().phase==='opened');c.dispose()
  const requestCount=h.requests.length
- const second=miniRuntime({wx:h.wx}).load('utils/pdfDownload').createPdfDownloadController({wxApi:h.wx,onState:s=>h.phases.push({cachedUi:s})})
+ const second=miniRuntime({wx:h.wx,modules:membershipModules}).load('utils/pdfDownload').createPdfDownloadController({wxApi:h.wx,onState:s=>h.phases.push({cachedUi:s})})
  second.setScope(req.scope);await second.open(req);await waitFor(()=>second.getState().phase==='opened')
  assert.equal(h.requests.length,requestCount)
  assert.match(second.getState().message,/缓存/,'students see that a complete saved paper was opened from local cache')
@@ -210,7 +212,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
  const pausedPath='/user/pdf-cache/pdf-paused/paused.pdf',orphanPath='/user/pdf-cache/pdf-unregistered/unknown-partial.pdf',paused={schema:1,key:'paused-foreign',owner:'student-2|7',url:URL,version:'paused',path:pausedPath,total:source.length,offset:150000,etag:'"'+digest(source)+'"',used:1}
  h.files.set(pausedPath,Buffer.alloc(paused.offset,6));h.files.set(orphanPath,Buffer.alloc(17,5));h.storage.set(h.module.REGISTRY,[paused])
  for(const name of ['writeFile','appendFile']){const original=manager[name];manager[name]=o=>{const used=[...h.files].filter(([p])=>p.startsWith('/user/')).reduce((n,[,b])=>n+b.length,0),before=name==='writeFile'?(h.files.get(o.filePath)?.length||0):0;if(used+o.data.byteLength-before>550000){queueMicrotask(()=>o.fail({errMsg:'file storage limit exceeded'}));return}original(o)}}
- h.wx.downloadFile=o=>{temporary++;setImmediate(()=>{h.files.set('/tmp/native-pdf.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/native-pdf.pdf'})});return{abort(){},onProgressUpdate(){}}}
+ h.wx.downloadFile=o=>{temporary++;assert.equal(o.header.Authorization,'Bearer pdf-test-token','temporary full-file fallback remains authenticated');setImmediate(()=>{h.files.set('/tmp/native-pdf.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/native-pdf.pdf'})});return{abort(){},onProgressUpdate(){}}}
  const p=await h.acquire().promise;assert.equal(p,'/tmp/native-pdf.pdf');assert.equal(temporary,1);assert.deepEqual(h.files.get(p),source)
  assert.ok(h.phases.some(item=>item.phase==='verifying'),'temporary previews are validated before completion')
  assert.deepEqual(h.files.get(student),Buffer.alloc(400000,7));assert.equal(h.files.has(pausedPath),true,'insufficient safe reclamation keeps a foreign paused download and falls back to temporary preview')

@@ -4,6 +4,7 @@ const { requestIeltsLearning } = require('../../utils/ieltsLearning')
 const PROTOCOL = 'stemist-membership-v1'
 const PLAN_ID = 'all-access-month'
 const CAPABILITY = 'membership-checkout-v1'
+const MAX_CANARY_MS = 2 * 60 * 60 * 1000
 const STATUS_LABELS = { created: '创建中', pending: '待支付', paid: '开通确认中', processing: '确认中', fulfilled: '已开通', closed: '已关闭', failed: '未完成', refunded: '已退款', refund_pending: '退款处理中' }
 
 function failure(message, code = 'membership_invalid') {
@@ -13,6 +14,9 @@ function failure(message, code = 'membership_invalid') {
 }
 function text(value, max = 120) {
   return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : ''
+}
+function exact(value, keys) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join('|') === keys.slice().sort().join('|'))
 }
 function context() {
   return { owner: String(wx.getStorageSync('stemistUser')?.id || 'guest'), epoch: Number(wx.getStorageSync('stemistPrivacyEpoch')) || 0 }
@@ -52,16 +56,37 @@ async function privateRequest(path, data, method = 'GET') {
 }
 async function fetchCatalog() {
   const expected = context()
-  const value = protocol(await requestIeltsJson('/api/membership/catalog', undefined, { method: 'GET', timeout: 10000 }))
+  const authenticated = expected.owner !== 'guest' && Boolean(wx.getStorageSync('stemistSessionToken'))
+  const value = authenticated ? await privateRequest('/api/membership/catalog/private') : protocol(await requestIeltsJson('/api/membership/catalog', undefined, { method: 'GET', timeout: 10000 }))
   assertContext(expected)
-  if (typeof value.commerce?.checkoutEnabled !== 'boolean' || typeof value.enforcement?.enabled !== 'boolean') throw failure('会员服务暂未就绪，请稍后重试。')
+  if (typeof value.commerce?.checkoutEnabled !== 'boolean' || typeof value.enforcement?.enabled !== 'boolean' || value.enforcement.appliesToExistingUsers !== true) throw failure('会员服务暂未就绪，请稍后重试。')
+  const validatedPlan = planData(value.plan)
   const providers = Array.isArray(value.commerce.providers) ? value.commerce.providers.filter(item => ['wechat_virtual', 'wechat_jsapi'].includes(item?.id)).map(item => ({ id: item.id, enabled: item.enabled === true, reason: text(item.reason), platforms: Array.isArray(item.platforms) ? item.platforms.filter(platform => ['android', 'ios'].includes(platform)) : [] })) : []
+  let canary = null,canaryCanStart = false
+  if (authenticated && value.commerce.canary !== null) {
+    const source = value.commerce.canary
+    if (!exact(source, ['mode', 'expiresAt', 'remainingNewOrders', 'recovery']) || source.mode !== 'single-testbuyer' || ![0, 1].includes(source.remainingNewOrders) || !Number.isFinite(Date.parse(source.expiresAt))) throw failure('测试支付授权无效，当前不会扣款。', 'membership_checkout_unavailable')
+    let recovery = null
+    if (source.recovery !== null) {
+      if (!exact(source.recovery, ['idempotencyKey', 'orderId']) || !/^[A-Za-z0-9_-]{8,128}$/.test(source.recovery.idempotencyKey || '') || source.recovery.orderId !== null && !/^M[A-Za-z0-9_-]{30}$/.test(source.recovery.orderId || '')) throw failure('测试订单恢复信息无效，当前不会扣款。', 'membership_checkout_unavailable')
+      recovery = { idempotencyKey: source.recovery.idempotencyKey, orderId: source.recovery.orderId || '' }
+      const local = readPending(),unsafeToDowngrade = !recovery.orderId && (Boolean(local?.orderId) || ['launched', 'submitted', 'unknown'].includes(local?.paymentAttemptState))
+      if (!unsafeToDowngrade) rememberPending({ ...recovery, paymentAttemptState: recovery.orderId ? 'unknown' : 'not_started' })
+      canaryCanStart = !recovery.orderId && !unsafeToDowngrade
+    }
+    else canaryCanStart = source.remainingNewOrders === 1
+    canary = { mode: 'single-testbuyer', expiresAt: new Date(Date.parse(source.expiresAt)).toISOString(), remainingNewOrders: source.remainingNewOrders, recovery }
+  }
   const platform = String(wx.getSystemInfoSync()?.platform || '').toLowerCase()
-  const platformProviders = providers.filter(item => item.enabled && item.platforms.includes(platform))
+  const platformProviders = providers.filter(item => item.id === 'wechat_virtual' && item.enabled && item.platforms.includes(platform))
   const available = platformProviders.some(item => typeof wx[item.id === 'wechat_virtual' ? 'requestVirtualPayment' : 'requestPayment'] === 'function')
-  const checkoutEnabled = value.commerce.checkoutEnabled && available
+  const expires = Date.parse(canary?.expiresAt),canStart = canary && canaryCanStart
+  const reasonAllowsStart = value.commerce.reason === 'testbuyer_canary' || value.commerce.reason === 'testbuyer_canary_recovery_required' && canary?.recovery && !canary.recovery.orderId
+  const canaryReady = authenticated && canStart && Number.isFinite(expires) && expires > Date.now() && expires - Date.now() <= MAX_CANARY_MS && reasonAllowsStart
+  const normalCommerceReady = authenticated && value.commerce.canary === null && value.commerce.reason === 'ready'
+  const checkoutEnabled = Boolean(value.commerce.checkoutEnabled && (normalCommerceReady || canaryReady) && available)
   const reason = checkoutEnabled ? 'ready' : value.commerce.checkoutEnabled ? platformProviders.length ? 'payment_unsupported' : 'platform_unavailable' : text(value.commerce.reason)
-  return { protocol: PROTOCOL, plan: planData(value.plan), commerce: { checkoutEnabled, reason, providers }, enforcement: { enabled: value.enforcement.enabled, appliesToExistingUsers: true } }
+  return { protocol: PROTOCOL, plan: validatedPlan, commerce: { checkoutEnabled, reason, providers, canary }, enforcement: { enabled: value.enforcement.enabled, appliesToExistingUsers: true } }
 }
 async function fetchStatus() {
   const value = await privateRequest('/api/membership/status')
@@ -80,7 +105,7 @@ async function fetchOrder(id) {
   return { order, entitlement: entitlementData(value.entitlement) }
 }
 async function createOrder({ idempotencyKey, wxCode, platform }) {
-  if (!/^[A-Za-z0-9_-]{8,96}$/.test(idempotencyKey || '')) throw failure('请重新发起开通。')
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(idempotencyKey || '')) throw failure('请重新发起开通。')
   const value = await privateRequest('/api/membership/orders', { planId: PLAN_ID, idempotencyKey, wxCode: text(wxCode, 256), platform: ['ios', 'android'].includes(platform) ? platform : 'unknown', clientCapability: CAPABILITY }, 'POST')
   return { userId: value.userId, order: orderData(value.order), payment: value.payment }
 }
@@ -127,11 +152,11 @@ async function invokePayment(checkout, plan) {
 function pendingKey() { return 'stemistMembershipPending:' + encodeURIComponent(context().owner) }
 function readPending() {
   const value = wx.getStorageSync(pendingKey())
-  if (context().owner === 'guest' || value?.owner !== context().owner || !/^[A-Za-z0-9_-]{8,96}$/.test(value.idempotencyKey || '')) return null
+  if (context().owner === 'guest' || value?.owner !== context().owner || !/^[A-Za-z0-9_-]{8,128}$/.test(value.idempotencyKey || '')) return null
   return { idempotencyKey: value.idempotencyKey, orderId: /^[A-Za-z0-9_-]{8,64}$/.test(value.orderId || '') ? value.orderId : '', paymentAttemptState: ['not_started', 'launched', 'submitted', 'unknown', 'canceled'].includes(value.paymentAttemptState) ? value.paymentAttemptState : value.orderId ? 'unknown' : 'not_started' }
 }
 function rememberPending(value) {
-  if (context().owner === 'guest' || !/^[A-Za-z0-9_-]{8,96}$/.test(value.idempotencyKey || '')) throw failure('请先登录后开通会员。')
+  if (context().owner === 'guest' || !/^[A-Za-z0-9_-]{8,128}$/.test(value.idempotencyKey || '')) throw failure('请先登录后开通会员。')
   wx.setStorageSync(pendingKey(), { owner: context().owner, idempotencyKey: value.idempotencyKey, orderId: /^[A-Za-z0-9_-]{8,64}$/.test(value.orderId || '') ? value.orderId : '', paymentAttemptState: ['not_started', 'launched', 'submitted', 'unknown', 'canceled'].includes(value.paymentAttemptState) ? value.paymentAttemptState : 'not_started' })
 }
 function forgetPending() { wx.removeStorageSync(pendingKey()) }

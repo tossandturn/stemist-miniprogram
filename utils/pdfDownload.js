@@ -1,11 +1,16 @@
 const DEFAULT_THROTTLE_MS=100
 const {acquirePdf}=require('./pdfRangeCache')
 const {createDownloadMetrics}=require('./downloadMetrics')
+const {ensureMembershipAccess,authorizationForMembership}=require('./membershipProof')
+const {clearLocalSession}=require('./session')
+const {offerMembership}=require('./membershipAccess')
 const DEFAULT_CACHE_LIMIT=4
 const DEFAULT_CACHE_TTL_MS=5*60*1000
 const sharedPublicCaches=new WeakMap()
 const NO_METRICS={etaSeconds:null,speedLabel:'',remainingLabel:''}
 const PUBLIC_PDF_URL=/^https:\/\/stem\.ieltsist\.com\/local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf$/i
+const PROTECTED_PDF_URL=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,179}|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
+const accessStatusError=(status,authorization='')=>{const error=status===401?Object.assign(Error('登录已过期，请重新登录后继续。'),{code:'auth_required',statusCode:401}):status===403?Object.assign(Error('此内容需要全功能会员。'),{code:'membership_required',statusCode:403}):status===503?Object.assign(Error('会员状态暂未确认，请稍后重试。'),{code:'membership_authority_unavailable',statusCode:503}):null;if(error&&authorization)Object.defineProperty(error,'authorization',{value:String(authorization),enumerable:false});return error}
 function pdfFileName(url){
 if(!PUBLIC_PDF_URL.test(url)||url.includes('..')||/%2e|%2f|%5c/i.test(url))return ''
 const m=/\/(\d{4})_[msw]\d{2}_(?:qp|ms)_\d{1,2}\.pdf$/i.exec(url)
@@ -41,6 +46,8 @@ const isScopeCurrent=typeof options.isScopeCurrent==='function'?options.isScopeC
 const now=typeof options.now==='function'?options.now:Date.now
 const setTimer=typeof options.setTimer==='function'?options.setTimer:setTimeout
 const clearTimer=typeof options.clearTimer==='function'?options.clearTimer:clearTimeout
+const membershipGate=typeof options.membershipGate==='function'?options.membershipGate:ensureMembershipAccess
+const authorizeMembership=typeof options.authorizeMembership==='function'?options.authorizeMembership:authorizationForMembership
 const throttleMs=Math.max(80,Number(options.throttleMs)||DEFAULT_THROTTLE_MS)
 const cacheLimit=Math.max(1,Math.min(8,Number(options.cacheLimit)||DEFAULT_CACHE_LIMIT))
 const cacheTtlMs=Math.max(1000,Math.min(30*60*1000,Number(options.cacheTtlMs)||DEFAULT_CACHE_TTL_MS))
@@ -149,18 +156,20 @@ pendingProgress=model
 if(progressTimer!==null)return
 progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pendingProgress=null;if(pending)emitProgress(context,pending)},Math.max(0,throttleMs-elapsed))
 }
-const startDownload=context=>{
+const startDownload=async context=>{
 const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
+let bearer=''
 if(!current(context))return false
 context.metrics.reset();publish({visible:true,phase:'preparing',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
-const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
+const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,authorization:context.authorization,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
 if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
 }
 function success(result){
 if(context.networkSettled||!current(context))return
-context.networkSettled=true
 const latestProgress=pendingProgress||{downloadedBytes:state.downloadedBytes,totalBytes:state.totalBytes,downloadedLabel:state.downloadedLabel,totalLabel:state.totalLabel,knownTotal:state.knownTotal,percent:state.percent,etaSeconds:state.etaSeconds,speedLabel:state.speedLabel,remainingLabel:state.remainingLabel}
+const denied=accessStatusError(Number(result?.statusCode),bearer);if(denied)return failure(denied)
+context.networkSettled=true
 detachTask(false)
 if(Number(result?.statusCode)!==200)return fail(context,'文件下载失败（HTTP '+String(result?.statusCode||'未知')+'），请重试。')
 const filePath=String(result?.tempFilePath||result?.filePath||'')
@@ -177,14 +186,21 @@ openLocal(context,filePath)
 function failure(error){
 if(context.networkSettled||!current(context))return
 context.networkSettled=true
+const rejected=/^Bearer ([^\s]{1,4096})$/.exec(String(error?.authorization||''))?.[1]||''
+const clearRejectedSession=error?.code==='auth_required'&&rejected&&rejected===String(wxApi.getStorageSync?.('stemistSessionToken')||'')
+if(error?.code==='membership_required')try{offerMembership()}catch{}
 if(pendingProgress)publish(pendingProgress)
 const saved=state.downloadedBytes,total=state.totalBytes
-const detail=['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
+const detail=['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed','auth_required','membership_required','membership_authority_unavailable','membership_authority_invalid','membership_authority_mismatch','account_changed'].includes(error?.code)?error.message:''
 resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)
-fail(context,detail||(context.rangeBacked&&saved>0?'下载中断，已保存 '+formatBytes(saved)+(total?' / '+formatBytes(total):'')+'；点击重试继续下载。':'下载未完成，请检查网络后重试。'))
+const failed=fail(context,detail||(context.rangeBacked&&saved>0?'下载中断，已保存 '+formatBytes(saved)+(total?' / '+formatBytes(total):'')+'；点击重试继续下载。':'下载未完成，请检查网络后重试。'))
+if(clearRejectedSession)try{clearLocalSession({preserveDrafts:true})}catch{}
+return failed
 }
 publish({phase:'connecting',message:'正在连接并确认'+context.request.label+'…'})
-try{downloadTask=wxApi.downloadFile({url:key,...(base&&file?{filePath:base+'/'+file}:{}),timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}
+try{bearer=await context.authorization()}catch(error){return failure(error)}
+if(!current(context))return false
+try{downloadTask=wxApi.downloadFile({url:key,...(base&&file?{filePath:base+'/'+file}:{}),...(bearer?{header:{Authorization:bearer}}:{}),timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}
 progressListener=event=>queueProgress(context,event)
 if(typeof downloadTask?.onProgressUpdate==='function')try{downloadTask.onProgressUpdate(progressListener)}catch{}
 return true
@@ -192,12 +208,16 @@ return true
 
 async function open(request={}){
 const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||request.url||''),cacheScope:['public','none'].includes(request.cacheScope)?request.cacheScope:'identity',cacheVersion:/^[^\s?#&]{1,160}$/.test(String(request.cacheVersion||''))?String(request.cacheVersion):'',ownerKey:String(request.ownerKey||''),itemId:String(request.itemId||''),label:String(request.label||'PDF'),fileName:safePdfFileName(request.fileName),expectedBytes:Number.isSafeInteger(Number(request.expectedBytes))?Number(request.expectedBytes):0,sha256:/^[a-f0-9]{64}$/.test(String(request.sha256||''))?String(request.sha256):'',scope:String(request.scope===undefined?scope:request.scope)}
-if(!/^https:\/\/[^\s]+$/i.test(normalized.url)){
+if(!PROTECTED_PDF_URL.test(normalized.url)||/\.\.|%2e|%2f|%5c/i.test(normalized.url)){
 lastRequest=null;publish({...initialPdfDownloadState(),visible:true,phase:'error',error:'PDF 地址不可用。'});return false
 }
 if(normalized.scope!==scope)setScope(normalized.scope)
 if(state.active&&lastRequest?.ownerKey===normalized.ownerKey)return false
 invalidate(true);const context={generation,scope,identity:identitySnapshot(wxApi),request:normalized,networkSettled:false,metrics:createDownloadMetrics({now})};lastRequest=normalized
+publish({visible:true,phase:'authorizing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在确认会员访问权限…',error:'',canCancel:true,canRetry:false,collapsed:false})
+try{context.membershipProof=await membershipGate({wxApi})}catch(error){return fail(context,error?.message||'会员状态暂未确认，请稍后重试。')}
+if(!current(context))return false
+context.authorization=()=>authorizeMembership({wxApi,proof:context.membershipProof,expected:context.identity})
 const target=cacheTarget(normalized,context.identity),entry=target?.store.get(target.key)
 const cached=entry&&now()>=entry.at&&now()-entry.at<=cacheTtlMs?entry.filePath:''
 if(entry&&!cached)target.store.delete(target.key)
