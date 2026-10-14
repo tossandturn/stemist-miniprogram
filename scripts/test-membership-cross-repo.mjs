@@ -15,6 +15,10 @@ try {
   const runtime = miniRuntime({ modules: {
     'utils/api': { requestIeltsJson: async url => { assert.equal(url, '/api/membership/catalog'); return authority.membershipCatalog({}, {}) } },
     'utils/ieltsLearning': { requestIeltsLearning: async (url, payload, options) => {
+      if (url === '/api/membership/catalog/private') {
+        const catalog = authority.membershipCatalog({}, {})
+        return { ...catalog, userId: 'ielts:42', commerce: { ...catalog.commerce, canary: null } }
+      }
       if (url === '/api/membership/status') return authority.membershipStatus(db, 'ielts:42', {})
       if (url === '/api/membership/orders' && options.method === 'GET') return authority.listMembershipOrders(db, 'ielts:42')
       if (url === '/api/membership/orders' && options.method === 'POST') return authority.createMembershipCheckout({ db, userId: 'ielts:42', payload, env: {}, providerRegistry: {}, resolveWechatIdentity: () => assert.fail('Disabled checkout must not exchange a WeChat code') })
