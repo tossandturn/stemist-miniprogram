@@ -44,7 +44,9 @@ async function requestIeltsLearning(path,data,{method='POST',timeout=20000,heade
    if(match)wx.setStorageSync(STATE,{...context(),guest:match[1]})
    if(response.statusCode>=200&&response.statusCode<300)return resolve(response.data)
    if(response.statusCode===401&&started.token&&context().token===started.token)wx.setStorageSync(STATE,{...context(),token:'',expiresAt:''})
-   const error=new Error(response.statusCode===401?'请登录后继续。':response.statusCode===409?'这次练习状态已变化，请重新打开。':response.statusCode===429?'请求较多，请稍后再试。':'服务暂未完成请求，输入已保留。')
+   const membershipRequired=response.statusCode===403&&response.data?.code==='membership_required'
+   if(membershipRequired)require('./membershipAccess').offerMembership()
+   const error=new Error(membershipRequired?'此功能需要开通全功能会员后继续。':response.statusCode===401?'请登录后继续。':response.statusCode===409?'这次练习状态已变化，请重新打开。':response.statusCode===429?'请求较多，请稍后再试。':'服务暂未完成请求，输入已保留。')
    error.statusCode=response.statusCode;error.code=String(response.data?.code||'');reject(error)
   },fail(error){settled=true;reject(new Error(/timeout/i.test(error?.errMsg||'')?'网络超时，请重试。':'网络连接失败，输入已保留。'))}});if(!settled&&typeof onDispatched==='function')try{onDispatched()}catch{}})
 }

@@ -46,6 +46,7 @@ openWeChatProfileOnboarding(user,version){
 openPrivacy() { wx.navigateTo({ url: '/pages/legal/privacy' }) },
 editProfile() { wx.navigateTo({ url: '/bundles/account/profile' }) },
 openIeltsAccount() { wx.navigateTo({ url: '/pages/ielts/home?view=subscription' }) },
+openMembership() { wx.navigateTo({ url: '/bundles/account/membership' }) },
 logout() {
 if (this.data.loading) return
 signOut()

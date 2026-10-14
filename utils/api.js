@@ -13,6 +13,9 @@ return safeIeltsApiBase(app && app.globalData && app.globalData.ieltsApiBaseUrl)
 const COACH_TEXT_TIMEOUT_MS = 55_000
 const COACH_IMAGE_TIMEOUT_MS = 60_000
 function safeErrorMessage(payload, statusCode) {
+const membershipCode=String(payload?.code||payload?.error?.code||'')
+if(membershipCode==='membership_required')return '此功能需要开通全功能会员后继续。'
+if(membershipCode==='membership_authority_unavailable')return '会员状态暂未确认，请稍后重试。'
 const detail = payload && typeof payload.error === 'object' ? payload.error : null
 const message = String((detail && detail.message) || (payload && (typeof payload.error === 'string' ? payload.error : payload.message)) || '').trim()
 if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
@@ -29,6 +32,7 @@ return Number(error && error.statusCode) === 401 || String(error && error.code) 
 }
 function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null, onDispatched = null } = {}) {
 const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
+const requestOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),requestEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 return new Promise((resolve, reject) => {
 let settled=false
 const request = {
@@ -56,6 +60,7 @@ if (stemAuth && token && token === wx.getStorageSync('stemistSessionToken')) cle
 reject(requestError('登录已过期，原始输入仍保留。请重新登录后再使用 AI。', 401, 'auth_required'))
 return
 }
+if(response.statusCode===403&&(payload?.code||payload?.error?.code)==='membership_required'&&requestOwner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&requestEpoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)&&(!stemAuth||token===wx.getStorageSync('stemistSessionToken')))require('./membershipAccess').offerMembership()
 reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && (payload.code || payload.error && payload.error.code)))
 },
 fail(error) {
