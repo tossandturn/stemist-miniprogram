@@ -20,7 +20,7 @@ async function main() {
   await call('automation_page_action', { action: 'setData', patch: JSON.stringify({ busy: true, phase: 'confirming', notice: '验收示例：正在确认订单，请勿重复付款。', pendingOrderId: 'DEMOORDER2026101401', pendingOrderShort: '2026101401' }) })
   await call('automation_viewport_action', { action: 'pageScrollTo', scrollTop: Math.max(0, geometry.cta.top - 130) })
   await call('simulator_screenshot', { path: path.join(output, 'membership-confirming.png'), optimize: false, waitForSelector: '.member-progress' })
-  const report = { status: 'PASS', scope: 'Native WeChat simulator at actual viewport; synthetic data; not physical iPad or live payment', productionWrites: false, paymentInvocations: 0, loginStorageMutated: false, geometry }
+  const report = { status: 'PASS', scope: 'Native WeChat simulator at actual viewport; synthetic data; not physical iPad or live payment', usesSyntheticPageData: true, paymentInvocations: 0, checkoutRequests: 0, scriptLoginStorageWrites: false, automaticAuthRefreshMayOccur: true, geometry }
   fs.writeFileSync(path.join(output, 'membership-native.json'), JSON.stringify(report, null, 2) + '\n', { encoding: 'utf8', flag: 'wx' })
   console.log(JSON.stringify(report))
   await evaluate(function () { delete getApp().__memberGeometry; const p = getCurrentPages().at(-1); p.setData({ busy: false, notice: '', pendingOrderId: '', pendingOrderShort: '', phase: 'idle' }); p.onShow(); return true })
