@@ -3,6 +3,7 @@ const {refreshNativeSession}=require('./nativeSession')
 const {offerMembership}=require('./membershipAccess')
 
 const PROTOCOL='stemist-membership-v1',MAX_PROOF_MS=30000
+const ACCESS_PLAN_IDS=new Set(['all-access-month','day','week','month','year'])
 const proofs=new WeakMap()
 const fail=(message,code,statusCode)=>Object.assign(Error(message),{code,statusCode})
 const scopeOf=(wxApi=wx)=>{const user=wxApi.getStorageSync?.('stemistUser')||{};return{owner:String(user.id||user.username||'guest'),epoch:Number(wxApi.getStorageSync?.('stemistPrivacyEpoch'))||0,hasToken:Boolean(wxApi.getStorageSync?.('stemistSessionToken'))}}
@@ -15,6 +16,11 @@ function enforcement(value){
  return value.enabled
 }
 function assertProtocol(value){if(value?.protocol!==PROTOCOL)throw authorityError('membership_authority_mismatch');return value}
+function normalizeVersion(value){
+ if(typeof value==='number'){if(Number.isSafeInteger(value)&&value>=0)return value;throw authorityError()}
+ if(typeof value==='string'&&value.length>0&&value.length<=128&&value.trim()===value&&!/[\u0000-\u001f\u007f]/.test(value))return value
+ throw authorityError()
+}
 function clearMembershipProof(wxApi=wx){proofs.delete(wxApi)}
 
 async function ensureMembershipAccess({wxApi=wx,now=Date.now,request=requestJson,force=false}={}){
@@ -33,12 +39,11 @@ async function ensureMembershipAccess({wxApi=wx,now=Date.now,request=requestJson
  const enabled=enforcement(value.enforcement)
  if(!enabled)return Object.freeze({protocol:PROTOCOL,owner:started.owner,epoch:started.epoch,enforcementEnabled:false,active:false,planId:'',expiresAt:null,version:value.entitlement?.version??null,validUntil:time})
  const entitlement=value.entitlement,expires=Date.parse(entitlement?.expiresAt)
- if(!entitlement||entitlement.active!==true||entitlement.planId!=='all-access-month'||!Number.isFinite(expires)||expires<=time){
+ if(!entitlement||entitlement.active!==true||!ACCESS_PLAN_IDS.has(entitlement.planId)||!Number.isFinite(expires)||expires<=time){
   clearMembershipProof(wxApi);try{offerMembership()}catch{}
   throw fail('此功能需要开通全功能会员后继续。','membership_required',403)
  }
- const version=Number(entitlement.version)
- if(!Number.isSafeInteger(version)||version<0)throw authorityError()
+ const version=normalizeVersion(entitlement.version)
  const proof=Object.freeze({protocol:PROTOCOL,owner:started.owner,epoch:started.epoch,enforcementEnabled:true,active:true,planId:entitlement.planId,expiresAt:new Date(expires).toISOString(),version,validUntil:Math.min(expires,time+MAX_PROOF_MS)})
  proofs.set(wxApi,proof);return proof
 }

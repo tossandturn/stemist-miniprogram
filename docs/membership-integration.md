@@ -36,6 +36,11 @@ All existing users are included when the server eventually enables enforcement.
   fresh public catalog explicitly says enforcement is disabled; an authenticated
   user uses `GET /api/membership/status`, with a positive proof capped at 30
   seconds and never beyond entitlement expiry.
+- The status authority owns entitlement versions and plan migration. The Mini
+  Program preserves a bounded non-empty string version (including the current
+  ISO `updated_at`) or a legacy non-negative integer as an opaque value. Access
+  accepts only the reviewed all-access plans `all-access-month`, `day`, `week`,
+  `month`, and `year`; an unknown plan or malformed version fails closed.
 - Protected STEM downloads use the latest STEM bearer at the actual network
   dispatch. IELTS task details, generated pages and Listening audio use the
   separate IELTS native-session bearer; neither credential is put in a URL,

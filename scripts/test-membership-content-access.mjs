@@ -13,6 +13,49 @@ const activeStatus = {
 }
 
 {
+  for (const planId of ['all-access-month', 'day', 'week', 'month', 'year']) {
+    const version = planId === 'all-access-month' ? '2026-10-14T11:00:00.000Z' : `${planId}:legacy-redemption:v1`
+    const runtime = miniRuntime({ modules: {
+      'utils/api': { requestJson: async () => ({ ...activeStatus, entitlement: { ...activeStatus.entitlement, planId, version } }) },
+      'utils/nativeSession': { refreshNativeSession: async () => 'token' },
+      'utils/membershipAccess': { offerMembership: () => assert.fail('confirmed active plans must not be prompted') },
+    } })
+    runtime.storage.set('stemistUser', { id: 'ielts:42' })
+    runtime.storage.set('stemistSessionToken', 'token')
+    const proof = await runtime.load('utils/membershipProof').ensureMembershipAccess({ wxApi: runtime.wx, now: () => nowValue })
+    assert.equal(proof.planId, planId)
+    assert.equal(proof.version, version, 'authority versions remain opaque and are not numerically coerced')
+  }
+}
+
+{
+  for (const version of [null, '', '   ', -1, 1.5, true, {}, 'x'.repeat(129), 'bad\nversion']) {
+    const runtime = miniRuntime({ modules: {
+      'utils/api': { requestJson: async () => ({ ...activeStatus, entitlement: { ...activeStatus.entitlement, version } }) },
+      'utils/nativeSession': { refreshNativeSession: async () => 'token' },
+      'utils/membershipAccess': { offerMembership() {} },
+    } })
+    runtime.storage.set('stemistUser', { id: 'ielts:42' })
+    runtime.storage.set('stemistSessionToken', 'token')
+    await assert.rejects(
+      runtime.load('utils/membershipProof').ensureMembershipAccess({ wxApi: runtime.wx, now: () => nowValue }),
+      error => error.code === 'membership_authority_invalid' && error.statusCode === 503,
+    )
+  }
+  const runtime = miniRuntime({ modules: {
+    'utils/api': { requestJson: async () => ({ ...activeStatus, entitlement: { ...activeStatus.entitlement, planId: 'weekly' } }) },
+    'utils/nativeSession': { refreshNativeSession: async () => 'token' },
+    'utils/membershipAccess': { offerMembership() {} },
+  } })
+  runtime.storage.set('stemistUser', { id: 'ielts:42' })
+  runtime.storage.set('stemistSessionToken', 'token')
+  await assert.rejects(
+    runtime.load('utils/membershipProof').ensureMembershipAccess({ wxApi: runtime.wx, now: () => nowValue }),
+    error => error.code === 'membership_required' && error.statusCode === 403,
+  )
+}
+
+{
   const calls = []
   const runtime = miniRuntime({ modules: {
     'utils/api': { requestJson: async (...args) => { calls.push(args); return { protocol, enforcement: { enabled: false, appliesToExistingUsers: true } } } },
