@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} tavern-page">
-  <stemist-header eyebrow="AI 休闲酒馆" title="星光酒馆" />
-  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
+  <stemist-header compact="{{true}}" eyebrow="AI 休闲酒馆" title="星光酒馆" />
+  <app-nav id="tavern-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
   <view class="tavern-note">AI 虚构角色，不读取学术内容。</view>
   <view wx:if="{{selectorOpen || !presetChosen}}" class="preset-discovery">
     <view class="preset-head"><view><text class="preset-title">休闲精选</text></view></view>
