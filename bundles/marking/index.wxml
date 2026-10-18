@@ -1,6 +1,6 @@
 <view id="marking-page" class="page {{deviceClass}} {{orientation}} marking-page {{optionalOpen ? 'optional-open' : ''}} {{actionVisible ? 'has-primary-action' : ''}} {{jobId ? 'has-job' : ''}} {{jobId && jobStatus !== 'draft' ? 'job-readonly' : ''}}">
- <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
- <stemist-header wx:if="{{false}}" />
+ <app-nav id="marking-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
+ <stemist-header compact="{{true}}" title="整卷批改" />
  <view wx:if="{{!authenticated}}" class="panel"><text>登录后可上传作答、查看批改进度和历史报告。</text><button class="primary" bindtap="login">登录后开始</button></view>
  <block wx:else>
   <view class="marking-intro">AI 自动完成批改并生成报告，不计入正式成绩。</view>
@@ -12,13 +12,13 @@
   <view class="marking-grid">
    <view id="marking-picker" wx:if="{{!jobId || jobStatus === 'draft'}}" class="panel marking-inputs">
     <view class="card-title">作答文件</view>
-    <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || creating || jobId}}"><view class="input">{{archivedRoute || routes[routeIndex].label}}</view></picker>
-    <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary" data-role="answer" bindtap="pickPdf" disabled="{{busy || creating || picking}}">选择作答 PDF</button><button class="secondary" bindtap="pickImages" disabled="{{busy || creating || picking}}">选择多张图片</button></view>
+    <text class="field-label">学科与阶段</text><picker range="{{routes}}" range-key="label" value="{{routeIndex}}" bindchange="routeChange" disabled="{{busy || creating || jobId}}"><view class="input marking-route"><text>{{archivedRoute || routes[routeIndex].label}}</text><view class="field-chevron" aria-hidden="true"></view></view></picker>
+    <view class="file-actions" wx:if="{{!jobId}}"><button class="secondary upload-file-button" data-role="answer" bindtap="pickPdf" disabled="{{busy || creating || picking}}"><image class="upload-file-art" src="/bundles/marking/icons/pdf.svg" mode="aspectFit" aria-hidden="true" /><text>选择作答 PDF</text></button><button class="secondary upload-file-button upload-images" bindtap="pickImages" disabled="{{busy || creating || picking}}"><image class="upload-file-art" src="/bundles/marking/icons/images.svg" mode="aspectFit" aria-hidden="true" /><text>选择多张图片</text></button></view>
     <button wx:if="{{picking}}" class="text-button" bindtap="cancelPicker">取消选择并重试</button>
     <privacy-consent wx:if="{{privacy}}" purpose="用于读取你主动选择的作答文件并进行 AI 批改。" button-text="同意隐私授权" bind:agreed="agreePrivacy" />
     <view wx:if="{{selectionNotice}}" class="notice selection-notice" role="status"><text>{{selectionNotice}}</text></view>
     <view wx:if="{{selectionError}}" class="error" role="alert"><text>{{selectionError}}</text></view>
-    <text class="subtle">1 份 PDF（最多 10 MB / 20 页），或 1–20 张图片（每张最多 4 MB）。</text>
+    <text class="subtle">PDF 最多 10 MB / 20 页；图片最多 20 张，每张不超过 4 MB。</text>
     <text wx:if="{{!jobId}}" class="subtle">PDF 从微信聊天文件中选择，可先发送到文件传输助手。</text>
     <view class="file-row" wx:for="{{answers}}" wx:key="id">
      <image wx:if="{{item.kind === 'image' && item.path}}" class="page-thumb" src="{{item.path}}" mode="aspectFit" data-id="{{item.id}}" bindtap="preview" />

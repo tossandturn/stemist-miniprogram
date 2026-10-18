@@ -17,7 +17,7 @@ assert.ok(pickerPosition<actionPosition&&actionPosition<optionalPosition,'Select
 assert.match(markingTemplate,/请选择作答 PDF 或图片/,'Disabled submit explains exactly what is missing')
 assert.match(markingTemplate,/<privacy-consent[^>]*button-text="同意隐私授权"/,'Privacy authorization stays adjacent to the picker with one explicit native action')
 assert.match(markingStyles,/\.device-phone[^}]*\.marking-primary-action\s*\{[^}]*position:\s*fixed/s,'Phone primary action stays above the fixed app navigation')
-assert.match(markingStyles,/bottom:\s*calc\(80px \+ env\(safe-area-inset-bottom\)\)/)
+assert.match(markingStyles,/bottom:\s*calc\(64px \+ env\(safe-area-inset-bottom\)\)/,'phone submit dock joins the 64px navigation footprint without exposing a strip of covered content')
 assert.match(markingTemplate,/marking-page[^\n]*jobId[^\n]*has-job/,'Current jobs expose a class for phone-first status ordering')
 assert.match(markingStyles,/#marking-submit-primary\[disabled\]\{[^}]*background:#e4ddf7;[^}]*color:#5b4a7c;[^}]*opacity:1/s,'Disabled primary action remains legible without losing disabled semantics')
 assert.match(markingStyles,/\.device-phone\.has-job \.marking-output\{grid-row:1\}/)

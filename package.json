@@ -44,7 +44,7 @@
     "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs && node scripts/test-pdf-transfer-pipeline.mjs",
     "test:learning-summary": "node scripts/test-learning-summary.mjs",
     "test:webview-policy": "node scripts/test-webview-policy.mjs",
-    "test:responsive": "node scripts/test-responsive-contract.mjs",
+    "test:responsive": "node scripts/test-responsive-contract.mjs && node scripts/test-coach-visual-layout.mjs",
     "test:contrast": "node scripts/test-color-contrast.mjs",
     "test:api-origin": "node scripts/test-api-origin.mjs",
     "test:calculator": "node scripts/test-calculator.mjs",
