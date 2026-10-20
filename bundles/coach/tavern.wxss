@@ -29,6 +29,19 @@
 .chat-illustration{display:block;width:240px;max-width:100%;height:120px;margin:0 auto 20px;border-radius:16px}
 .chat-row{display:flex;align-items:flex-start;gap:10px;margin:0 0 18px}
 .chat-row.user{flex-direction:row-reverse}
+.message-content{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;max-width:calc(100% - 44px)}
+.chat-row.user .message-content{align-items:flex-end}
+.message-content .chat-turn{max-width:100%}
+.reply-media{max-width:100%;border-radius:12px;background:#fff;overflow:hidden}
+.reply-media-frame{position:relative;max-width:100%;overflow:hidden;background:#fff}
+.sticker-sheet{position:absolute;display:block;max-width:none}
+.tavern-page button.reply-picture{display:block;box-sizing:border-box;width:100%;height:100%;min-width:0;max-width:100%;min-height:44px;margin:0;padding:0;border:0;border-radius:12px;background:#fff}
+.reply-image{display:block;width:100%;height:100%}
+.reply-media-loading,.reply-media-error{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;color:#66708a;background:#f4f2f8;font-size:12px;text-align:center}
+.reply-media-loading{pointer-events:none}
+.tavern-page button.media-retry{width:auto;min-width:88px;min-height:44px;margin:0;padding:8px 12px;border:1px solid #ded7f8;color:#5638b8;background:#fff;font-size:13px}
+.reply-media-caption{display:block;padding:6px 10px 9px;color:#5638b8;font-size:13px;line-height:1.4;text-align:center;overflow-wrap:anywhere}
+.reply-media.sticker .reply-media-caption{font-size:15px;font-weight:600}
 .message-avatar{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 34px;width:34px;height:34px;border:1px solid #dfdbea;border-radius:9px;background:#fff}
 .user-avatar{color:#fff;background:#7562b8;border-color:#7562b8;font-size:14px;font-weight:600}
 .chat-turn{position:relative;box-sizing:border-box;max-width:calc(100% - 44px);min-width:0;padding:10px 12px;border:1px solid #dedee6;border-radius:4px 12px 12px 12px;background:#fff;color:#18213d;font-size:16px;line-height:1.6;overflow-wrap:anywhere;word-break:break-word}

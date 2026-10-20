@@ -80,7 +80,7 @@ const interpretation=await interpretTavernDraw({persona:'eastern-oracle',drawId:
 assert.equal(interpretation.answer,'娱乐解读')
 assert.equal(calls.length,2)
 assert.equal(calls[1].path,'/api/ai/coach')
-assert.deepEqual(JSON.parse(JSON.stringify(calls[1].body)),{feature:'tavern',persona:'eastern-oracle',message:'今天适合怎样放松？',conversationId:'conversation-east',clientTurnId:'turn:east:1',expectedRevision:0,attemptId:'opaque-attempt',drawId:eastern.id})
+assert.deepEqual(JSON.parse(JSON.stringify(calls[1].body)),{feature:'tavern',mediaVersion:'tavern-media.v1',persona:'eastern-oracle',message:'今天适合怎样放松？',conversationId:'conversation-east',clientTurnId:'turn:east:1',expectedRevision:0,attemptId:'opaque-attempt',drawId:eastern.id})
 assert.equal(JSON.stringify(calls[1]).includes('forged'),false,'interpretation sends drawId, never client cards or system history')
 assert.equal(calls[1].body.history,undefined,'the current request is incremental and never carries a client history array')
 

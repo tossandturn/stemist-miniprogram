@@ -41,7 +41,20 @@
         <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
           <image wx:if="{{item.role !== 'user'}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
           <view wx:else class="message-avatar user-avatar" aria-hidden="true">你</view>
-          <view class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><answer-content wx:else compact="{{true}}" text="{{item.content}}" /></view>
+          <view class="message-content">
+            <view class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><answer-content wx:else compact="{{true}}" text="{{item.content}}" /></view>
+            <view wx:for="{{item.media}}" wx:for-item="mediaItem" wx:key="id" class="reply-media {{mediaItem.kind}}" aria-label="{{mediaItem.alt}}">
+              <view class="reply-media-frame" style="width:{{mediaItem.viewWidth}}px;height:{{mediaItem.viewHeight}}px;">
+                <view wx:if="{{mediaFailures[mediaItem.key]}}" class="reply-media-error"><text>图片暂未加载</text><button class="media-retry" data-media-key="{{mediaItem.key}}" bindtap="retryReplyMedia">重试图片</button></view>
+                <block wx:else>
+                  <image wx:if="{{mediaItem.kind === 'sticker'}}" class="sticker-sheet" style="{{mediaItem.atlasStyle}}" src="{{mediaItem.renderUrl}}" mode="scaleToFill" lazy-load="{{true}}" data-media-key="{{mediaItem.key}}" bindload="onReplyMediaLoad" binderror="onReplyMediaError" aria-hidden="true" />
+                  <button wx:else class="reply-picture" data-media-key="{{mediaItem.key}}" bindtap="previewReplyMedia" aria-label="{{'查看图片：' + mediaItem.alt}}"><image class="reply-image" src="{{mediaItem.renderUrl}}" mode="aspectFit" lazy-load="{{true}}" data-media-key="{{mediaItem.key}}" bindload="onReplyMediaLoad" binderror="onReplyMediaError" /></button>
+                  <view wx:if="{{!mediaLoaded[mediaItem.key]}}" class="reply-media-loading" role="status">图片加载中…</view>
+                </block>
+              </view>
+              <text wx:if="{{mediaItem.caption}}" class="reply-media-caption">{{mediaItem.caption}}</text>
+            </view>
+          </view>
         </view>
         <view wx:if="{{loading && message && !selected.divinationKind}}" class="chat-row user"><view class="message-avatar user-avatar" aria-hidden="true">你</view><view class="chat-turn user"><text>{{message}}</text><text class="message-name">发送中</text></view></view>
         <view wx:if="{{loading}}" class="chat-row assistant"><image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" /><view class="chat-turn assistant typing-status" role="status">{{drawLoading ? '正在抽取…' : interpretLoading ? '正在解读…' : '正在回复…'}}</view></view>

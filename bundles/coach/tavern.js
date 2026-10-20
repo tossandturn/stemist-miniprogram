@@ -1,5 +1,6 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const {keyboardData,keyboardMethods}=require('./tavernKeyboard')
+const {tavernMediaState,tavernMediaViewMethods}=require('./tavernMedia')
 const {isAuthError}=require('../../utils/api')
 const {coachHelpPolicy}=require('../../utils/coach')
 const {loadProductConfig,readProductConfigSnapshot}=require('../../utils/productConfig')
@@ -49,8 +50,9 @@ function confirmedLegacyImport(backup,envelope,importId){
 
 Page({
  ...keyboardMethods,
+ ...tavernMediaViewMethods,
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({...keyboardData,personas:TAVERN_PRESETS,visiblePersonas:TAVERN_PRESETS,categories:TAVERN_CATEGORIES,category:'all',selected:TAVERN_PRESETS[0],persona:'keeper',starters:TAVERN_PRESETS[0].starters,greeting:TAVERN_PRESETS[0].greeting,placeholder:TAVERN_PRESETS[0].placeholder,selectorOpen:true,presetChosen:false,message:'',question:'',spread:'single',draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:'',warning:'',canRetry:false,authRequired:false,clearPending:false,status:'',examBlocked:false}),
+ data:deviceState({...keyboardData,personas:TAVERN_PRESETS,visiblePersonas:TAVERN_PRESETS,categories:TAVERN_CATEGORIES,category:'all',selected:TAVERN_PRESETS[0],persona:'keeper',starters:TAVERN_PRESETS[0].starters,greeting:TAVERN_PRESETS[0].greeting,placeholder:TAVERN_PRESETS[0].placeholder,selectorOpen:true,presetChosen:false,message:'',question:'',spread:'single',draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],mediaFailures:{},mediaLoaded:{},historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:'',warning:'',canRetry:false,authRequired:false,clearPending:false,status:'',examBlocked:false}),
  onLoad(options){
   this.__owner=owner();this.__epoch=epoch();this.__disposed=false;this.__states={};this.__attemptId='';this.__fortuneRevision=0;this.__historyRevision=0;this.__conversationGeneration=0;this.__browseNextBefore='';this.__pendingDrawNonce='';this.__productConfigRequest=0;this.__tavernCatalog=DEFAULT_TAVERN_CATALOG
   this.initComposerViewport()
@@ -65,7 +67,7 @@ Page({
   this.resumeComposerViewport()
   this.refreshProductConfig()
   if(this.__authResumeRequested&&wx.getStorageSync('stemistSessionToken')&&owner()===this.__owner&&epoch()===this.__epoch){this.__authResumeRequested=false;this.loadPersona(this.data.persona,{chosen:true,open:false});return}
-  if(!this.current()){this.__fortuneRevision++;this.__conversationGeneration++;this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:false,status:'',error:'账号状态已变化，请返回后重新进入酒馆。'})}
+  if(!this.current()){this.__fortuneRevision++;this.__conversationGeneration++;this.setData({message:'',question:'',draw:null,turns:[],mediaFailures:{},mediaLoaded:{},historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:false,status:'',error:'账号状态已变化，请返回后重新进入酒馆。'})}
  },
  onResize(){syncDevice(this);this.refreshComposerViewport()},
  onHide(){if(this.current())this.save(false);this.suspendComposerViewport()},
@@ -86,7 +88,7 @@ Page({
   if(!auth&&!changed)return false
   if(this.__disposed)return true
   const sameEpoch=epoch()===this.__epoch,currentOwner=owner(),authRecovery=auth&&sameEpoch&&(currentOwner==='guest'||currentOwner===this.__owner)
-  this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:authRecovery,clearPending:Boolean(clearPending),warning:'',error:authRecovery?(clearPending?'登录已过期，云端对话尚未清除；请登录后重试。':'登录已过期，请登录后继续。'):(clearPending?'账号状态已变化，旧账号的云端对话尚未清除。':'账号状态已变化，请重新进入酒馆。'),status})
+  this.setData({message:'',question:'',draw:null,turns:[],mediaFailures:{},mediaLoaded:{},historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:authRecovery,clearPending:Boolean(clearPending),warning:'',error:authRecovery?(clearPending?'登录已过期，云端对话尚未清除；请登录后重试。':'登录已过期，请登录后继续。'):(clearPending?'账号状态已变化，旧账号的云端对话尚未清除。':'账号状态已变化，请重新进入酒馆。'),status})
   return true
  },
  staleSessionFailure(error,requestStamp,{status='对话未完成',clearPending=this.data.clearPending===true}={}){
@@ -110,14 +112,14 @@ Page({
  releaseClearFence(persona=this.data.persona){const key=this.clearFenceKey(persona);try{wx.removeStorageSync(key)}catch{return false}LOCAL_CLEAR_FENCES.delete(key);return true},
  rememberPersona(persona){try{wx.setStorageSync(this.selectionKey(),persona);return true}catch{this.setData({warning:'当前预设未能保存在本机；本页内选择仍然有效。'});return false}},
  nextHistoryAnchor(turns){return turns.length?`tavern-tail-${++this.__historyRevision}`:''},
- renderLatest(state,extra={}){const turns=state.turns;this.__browseNextBefore='';this.setData({turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra},()=>this.scrollChatToLatest())},
+ renderLatest(state,extra={}){const view=tavernMediaState(state.turns,this.data.windowWidth,this.data),turns=view.turns;this.__browseNextBefore='';this.setData({...view,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra},()=>this.scrollChatToLatest())},
  loadPersona(persona,{chosen=this.data.presetChosen,open=this.data.selectorOpen}={}){
   this.__fortuneRevision++;const generation=++this.__conversationGeneration;this.__pendingDrawNonce='';this.__browseNextBefore=''
   const catalog=this.catalog(),selected=viewPreset(catalogPreset(catalog,persona)||catalog.presets[0]),state=this.read(selected.id),fortune=Boolean(selected.divinationKind),spread=fortune&&selected.supportedSpreads.includes(state.spread)?state.spread:selected.supportedSpreads?.[0]||'single'
   let draw=null,drawNeedsRedraw=false,drawError=''
   if(fortune&&state.draw)try{draw=normalizeTavernDraw({draw:state.draw},{persona:selected.id,spread,now:0});if(draw.expiresAt<=Date.now()){drawNeedsRedraw=true;drawError='本次娱乐抽取已过期，请重新抽取。'}}catch{drawNeedsRedraw=true;drawError='本机抽取记录无效，请重新抽取。'}
-  const turns=state.turns
-  this.setData({selected,persona:selected.id,starters:selected.starters,greeting:selected.greeting,placeholder:selected.placeholder,selectorOpen:open,presetChosen:chosen,message:fortune?'':String(state.draft||''),question:fortune?clip(state.question,600):'',spread,draw,drawLoading:false,interpretLoading:false,drawNeedsRedraw,turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:this.data.examBlocked?this.data.error:drawError,warning:'',canRetry:false,authRequired:false,clearPending:state.clearPending,status:''})
+  const view=tavernMediaState(state.turns,this.data.windowWidth),turns=view.turns
+  this.setData({...view,selected,persona:selected.id,starters:selected.starters,greeting:selected.greeting,placeholder:selected.placeholder,selectorOpen:open,presetChosen:chosen,message:fortune?'':String(state.draft||''),question:fortune?clip(state.question,600):'',spread,draw,drawLoading:false,interpretLoading:false,drawNeedsRedraw,turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:this.data.examBlocked?this.data.error:drawError,warning:'',canRetry:false,authRequired:false,clearPending:state.clearPending,status:''})
   if(chosen)this.scrollChatToLatest()
   if(chosen&&hasSession()&&!state.clearPending){const requestStamp=sessionStamp();Promise.resolve().then(()=>this.resumeConversation(false,generation)).catch(error=>{if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({warning:'云端历史暂未同步；本机草稿仍保留。'})})}
  },
@@ -200,7 +202,7 @@ Page({
   const generation=this.__conversationGeneration,state=this.read(this.data.persona),before=this.__browseNextBefore||state.nextBefore,requestStamp=sessionStamp()
   if(!state.conversation||!before)return
   this.setData({historyLoading:true,error:''})
-  try{const envelope=await fetchTavernMessages({conversationId:state.conversation.id,persona:this.data.persona,before,attemptId:this.__attemptId});if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}if(envelope.conversation.id!==state.conversation.id||envelope.conversation.revision<state.conversation.revision)throw Error('历史分页已过期，请回到最新对话。');state.conversation=envelope.conversation;this.__browseNextBefore=envelope.nextBefore;this.setData({turns:envelope.messages,historyAnchor:'',chatScrollTop:0,historySource:'cloud',historyBrowsing:true,hasOlderHistory:Boolean(envelope.nextBefore),historyLoading:false,status:'正在查看较早对话'});this.save(false)}catch(error){if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({historyLoading:false,error:error.message||'较早对话读取失败，请重试。'})}
+  try{const envelope=await fetchTavernMessages({conversationId:state.conversation.id,persona:this.data.persona,before,attemptId:this.__attemptId});if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}if(envelope.conversation.id!==state.conversation.id||envelope.conversation.revision<state.conversation.revision)throw Error('历史分页已过期，请回到最新对话。');state.conversation=envelope.conversation;this.__browseNextBefore=envelope.nextBefore;this.setData({...tavernMediaState(envelope.messages,this.data.windowWidth,this.data),historyAnchor:'',chatScrollTop:0,historySource:'cloud',historyBrowsing:true,hasOlderHistory:Boolean(envelope.nextBefore),historyLoading:false,status:'正在查看较早对话'});this.save(false)}catch(error){if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({historyLoading:false,error:error.message||'较早对话读取失败，请重试。'})}
  },
  returnLatestHistory(){if(!this.current())return;const state=this.read(this.data.persona);this.renderLatest(state,{status:''})},
  async drawFortune(){return this.startFortuneDraw(false)},
@@ -252,7 +254,7 @@ Page({
    const persona=this.data.persona,deletedConversationId=String(state.conversation?.id||''),fresh=emptyState(this.__owner,this.__epoch,persona),fortune=Boolean(this.data.selected.divinationKind);fresh.spread=fortune?this.data.selected.supportedSpreads[0]:'single';fresh.localClearFence=true;fresh.deletedConversationId=deletedConversationId;this.__states[persona]=fresh
    const fencePersisted=this.persistClearFence(persona,deletedConversationId);let persisted=true,removed=false;try{wx.setStorageSync(this.key(),fresh)}catch{persisted=false}if(!persisted)try{wx.removeStorageSync(this.key());removed=true}catch{}
    const localSecured=fencePersisted||persisted||removed
-   this.setData({message:'',question:'',spread:fresh.spread,draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,error:'',warning:localSecured?'':'云端对话已清除，但本机缓存隔离未能持久保存；请保持当前页面并释放本机空间。',canRetry:false,authRequired:false,clearPending:false,status:localSecured?'已清空当前角色对话':'云端对话已清除'})
+   this.setData({message:'',question:'',spread:fresh.spread,draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],mediaFailures:{},mediaLoaded:{},historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,error:'',warning:localSecured?'':'云端对话已清除，但本机缓存隔离未能持久保存；请保持当前页面并释放本机空间。',canRetry:false,authRequired:false,clearPending:false,status:localSecured?'已清空当前角色对话':'云端对话已清除'})
   }catch(error){if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'清除未完成',clearPending:true}))return;if(this.quiesceIdentityFailure(error,{status:'清除未完成',clearPending:true}))return;if(!this.current())return;state.clearPending=true;this.setData({loading:false,clearPending:true,error:'云端对话尚未清除，请重试。',warning:error.message||'',status:'清除未完成'});this.save(false)}
  },
 })
