@@ -1,20 +1,23 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
   "highestAssignedVersion": "1.0.49",
-  "pendingUploads": [
+  "pendingUploads": [],
+  "reconciledUploads": [
     {
       "version": "1.0.49",
-      "status": "awaiting_user_confirmation",
-      "assignedOn": "2026-10-20",
+      "status": "upload_verified",
+      "observedOn": "2026-10-20",
+      "success": true,
       "commit": "950eccb07a1d9752036cc9513001f77f0cfd7585",
       "project": "D:/CodexWork/tavern-media-20261020-candidate",
       "taskId": "confirmation_upload_83c21bdb-6478-42f5-a2bf-6afb21934ca3",
-      "officialInfo": "D:/CodexWork/tavern-media-20261020/upload-1.0.49-request.json",
+      "officialInfo": "D:/CodexWork/tavern-media-20261020/upload-1.0.49-result.json",
+      "platformResultUpdatedAt": 1792471065789,
+      "compiledTotalBytes": 2424219,
+      "compiledMainBytes": 1983940,
       "reviewSubmitted": false,
       "publicReleasePerformed": false
-    }
-  ],
-  "reconciledUploads": [
+    },
     {
       "version": "1.0.48",
       "status": "upload_verified",
