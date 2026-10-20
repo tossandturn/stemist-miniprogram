@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
+const rt=miniRuntime()
+const {tavernViewport}=rt.load('bundles/coach/tavernKeyboard')
+for(const [base,current,keyboard,expected] of [[753,753,300,453],[753,453,300,453],[753,500,300,453],[753,753,0,753],[667,667,320,347],[1024,1024,350,674],[768,418,350,418],[390,390,320,70]]){
+ assert.equal(tavernViewport(base,current,keyboard).height,expected,'keyboard must not be subtracted twice when Android resizes the window')
+}
+assert.equal(tavernViewport(753,753,NaN).keyboardHeight,0)
+assert.equal(tavernViewport(753,753,-300).keyboardHeight,0)
+let listener,removed,hidden=0,window={windowWidth:390,windowHeight:753,screenWidth:390,screenHeight:844}
+const runtime=miniRuntime({wx:{getWindowInfo:()=>window,getDeviceInfo:()=>({deviceType:'phone',model:'iPhone'}),onKeyboardHeightChange:fn=>{listener=fn},offKeyboardHeightChange:fn=>{removed=fn},hideKeyboard:()=>{hidden++}}})
+const p=runtime.page('bundles/coach/tavern')
+p.onLoad({})
+p.onShow()
+p.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
+p.onMessage({detail:{value:'保留草稿'}})
+p.onComposerFocus({detail:{height:300}})
+assert.equal(p.data.chatViewportHeight,453)
+assert.equal(p.data.keyboardOpen,true)
+window={...window,windowHeight:453}
+p.onResize()
+assert.equal(p.data.chatViewportHeight,453)
+p.onComposerBlur()
+assert.equal(p.data.keyboardOpen,true,'blur must not collapse layout before the keyboard finishes closing')
+listener({height:0})
+assert.equal(p.data.chatViewportHeight,453,'window restoration can arrive after keyboard dismissal')
+window={...window,windowHeight:753}
+p.onResize()
+assert.equal(p.data.chatViewportHeight,753)
+p.onComposerFocus({detail:{height:300}})
+p.openSelector()
+assert.equal(p.data.keyboardOpen,false)
+assert.equal(p.data.message,'保留草稿')
+assert.ok(hidden>0)
+listener({height:300})
+assert.equal(p.data.keyboardOpen,false,'late keyboard events must not shrink the role picker')
+p.onHide()
+p.onUnload()
+assert.equal(removed,listener)
+const snapshot=JSON.stringify(p.data)
+p.onComposerFocus({detail:{height:300}})
+p.onComposerBlur()
+p.onComposerLineChange({detail:{lineCount:4}})
+assert.equal(JSON.stringify(p.data),snapshot,'late native input events cannot modify an unloaded page')
+const q=runtime.page('bundles/coach/tavern');q.onLoad();q.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
+let sent=0;q.submit=()=>{sent++}
+q.setData({authRequired:true});q.onComposerConfirm({detail:{value:'blocked'}});assert.equal(sent,0)
+q.setData({authRequired:false});q.onComposerConfirm({detail:{value:'IME 最后的文字'}});assert.equal(q.data.message,'IME 最后的文字');assert.equal(sent,1)
+q.onComposerLineChange({detail:{lineCount:999}});assert.equal(q.data.composerHeight,116)
+let redundantUpdates=0;const set=q.setData;q.setData=function(...args){redundantUpdates++;return set.apply(this,args)};q.onComposerLineChange({detail:{lineCount:999}});assert.equal(redundantUpdates,0,'unchanged native line events cannot create a render loop');q.setData=set
+q.onComposerFocus({detail:{height:300}});window={...window,windowWidth:844,windowHeight:390};q.onResize();assert.equal(q.data.keyboardOpen,false);assert.equal(q.data.chatViewportHeight,390);assert.equal(q.data.message,'IME 最后的文字')
+q.onUnload()
+const queries=[]
+runtime.wx.createSelectorQuery=()=>{const query={in:()=>query,select:()=>query,boundingClientRect:()=>query,exec:callback=>queries.push(callback)};return query}
+runtime.wx.nextTick=fn=>fn()
+let modal
+runtime.wx.showModal=options=>{modal=options}
+const s=runtime.page('bundles/coach/tavern');s.onLoad();s.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
+queries.splice(0)
+s.scrollChatToLatest();queries.shift()([{height:500}]);assert.ok(s.data.chatScrollTop>=540)
+const bottom=s.data.chatScrollTop;s.scrollChatToLatest();s.setData({historyBrowsing:true});queries.shift()([{height:900}]);assert.equal(s.data.chatScrollTop,bottom,'history browsing is not interrupted by a late layout query')
+s.setData({historyBrowsing:false});s.scrollChatToLatest();s.__conversationGeneration++;queries.shift()([{height:900}]);assert.equal(s.data.chatScrollTop,bottom,'a previous role cannot move the new role viewport')
+let clears=0;s.clear=()=>{clears++};s.requestClear();modal.success({confirm:false});assert.equal(clears,0)
+s.requestClear();s.__conversationGeneration++;modal.success({confirm:true});assert.equal(clears,0)
+s.requestClear();modal.success({confirm:true});assert.equal(clears,1)
+s.onUnload()
+const wxml=fs.readFileSync(new URL('../bundles/coach/tavern.wxml',import.meta.url),'utf8')
+assert.match(wxml,/adjust-position="{{false}}"/)
+assert.match(wxml,/bindkeyboardheightchange="onComposerKeyboard"/)
+assert.match(wxml,/hold-keyboard="{{true}}"/)
+assert.match(wxml,/class="chat-composer"/)
+assert.match(wxml,/wx:if="{{selectorOpen \|\| !presetChosen}}"[^>]*id="tavern-nav"/)
+assert.match(wxml,/tavern-lounge\.jpg/)
+const contentDefinition=rt.load('components/answer-content/index')
+const content={...contentDefinition.methods,data:{text:'第一段\n\n第二段',compact:false},setData(patch){Object.assign(this.data,patch)}}
+content.updateContent();const normal=JSON.stringify(content.data.nodes)
+content.data.compact=true;content.updateContent()
+assert.match(content.data.nodes[0].attrs.style,/margin-top:0/)
+assert.match(content.data.nodes.at(-1).attrs.style,/margin-bottom:0/)
+content.data.compact=false;content.updateContent();assert.equal(JSON.stringify(content.data.nodes),normal,'academic answer formatting is unchanged unless compact is requested')
+console.log('Tavern keyboard overlay/resize, draft preservation, lifecycle and immersive composer contracts passed.')

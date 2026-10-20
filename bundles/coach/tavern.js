@@ -1,4 +1,5 @@
 const {deviceState,syncDevice}=require('../../utils/page')
+const {keyboardData,keyboardMethods}=require('./tavernKeyboard')
 const {isAuthError}=require('../../utils/api')
 const {coachHelpPolicy}=require('../../utils/coach')
 const {loadProductConfig,readProductConfigSnapshot}=require('../../utils/productConfig')
@@ -47,10 +48,12 @@ function confirmedLegacyImport(backup,envelope,importId){
 }
 
 Page({
+ ...keyboardMethods,
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({personas:TAVERN_PRESETS,visiblePersonas:TAVERN_PRESETS,categories:TAVERN_CATEGORIES,category:'all',selected:TAVERN_PRESETS[0],persona:'keeper',starters:TAVERN_PRESETS[0].starters,greeting:TAVERN_PRESETS[0].greeting,placeholder:TAVERN_PRESETS[0].placeholder,selectorOpen:true,presetChosen:false,message:'',question:'',spread:'single',draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:'',warning:'',canRetry:false,authRequired:false,clearPending:false,status:'',examBlocked:false}),
+ data:deviceState({...keyboardData,personas:TAVERN_PRESETS,visiblePersonas:TAVERN_PRESETS,categories:TAVERN_CATEGORIES,category:'all',selected:TAVERN_PRESETS[0],persona:'keeper',starters:TAVERN_PRESETS[0].starters,greeting:TAVERN_PRESETS[0].greeting,placeholder:TAVERN_PRESETS[0].placeholder,selectorOpen:true,presetChosen:false,message:'',question:'',spread:'single',draw:null,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,turns:[],historyAnchor:'',historySource:'cloud',hasOlderHistory:false,historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:'',warning:'',canRetry:false,authRequired:false,clearPending:false,status:'',examBlocked:false}),
  onLoad(options){
   this.__owner=owner();this.__epoch=epoch();this.__disposed=false;this.__states={};this.__attemptId='';this.__fortuneRevision=0;this.__historyRevision=0;this.__conversationGeneration=0;this.__browseNextBefore='';this.__pendingDrawNonce='';this.__productConfigRequest=0;this.__tavernCatalog=DEFAULT_TAVERN_CATALOG
+  this.initComposerViewport()
   const productSnapshot=readProductConfigSnapshot();if(productSnapshot.source!=='bundled')this.applyProductConfig(productSnapshot,false)
   let blocked=false;const key=String(options?.entry||''),entry=wx.getStorageSync('stemistCoachEntry'),age=Date.now()-Number(entry?.at)
   if(key&&entry?.key===key&&entry.owner===this.__owner&&entry.epoch===this.__epoch&&age>=0&&age<120000){const source=entry.context||{},attempt=source.attempt||{};this.__attemptId=String(source.attemptId||source.paperAttemptId||attempt.id||attempt.attemptId||'');blocked=coachHelpPolicy(source).solutionDisabled}
@@ -59,12 +62,14 @@ Page({
  },
  onShow(){
   syncDevice(this)
+  this.resumeComposerViewport()
   this.refreshProductConfig()
   if(this.__authResumeRequested&&wx.getStorageSync('stemistSessionToken')&&owner()===this.__owner&&epoch()===this.__epoch){this.__authResumeRequested=false;this.loadPersona(this.data.persona,{chosen:true,open:false});return}
   if(!this.current()){this.__fortuneRevision++;this.__conversationGeneration++;this.setData({message:'',question:'',draw:null,turns:[],historyAnchor:'',hasOlderHistory:false,historyBrowsing:false,answer:'',loading:false,drawLoading:false,interpretLoading:false,drawNeedsRedraw:false,canRetry:false,authRequired:false,status:'',error:'账号状态已变化，请返回后重新进入酒馆。'})}
  },
- onResize(){syncDevice(this)},
- onUnload(){this.__fortuneRevision++;this.__conversationGeneration++;this.__productConfigRequest++;if(this.current())this.save(false);this.__disposed=true},
+ onResize(){syncDevice(this);this.refreshComposerViewport()},
+ onHide(){if(this.current())this.save(false);this.suspendComposerViewport()},
+ onUnload(){this.suspendComposerViewport();this.__fortuneRevision++;this.__conversationGeneration++;this.__productConfigRequest++;if(this.current())this.save(false);this.__disposed=true},
  current(){return!this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
  applyProductConfig(result,refreshSelection=true){
   const config=result&&result.config;if(!config||!config.tavern)return false
@@ -105,7 +110,7 @@ Page({
  releaseClearFence(persona=this.data.persona){const key=this.clearFenceKey(persona);try{wx.removeStorageSync(key)}catch{return false}LOCAL_CLEAR_FENCES.delete(key);return true},
  rememberPersona(persona){try{wx.setStorageSync(this.selectionKey(),persona);return true}catch{this.setData({warning:'当前预设未能保存在本机；本页内选择仍然有效。'});return false}},
  nextHistoryAnchor(turns){return turns.length?`tavern-tail-${++this.__historyRevision}`:''},
- renderLatest(state,extra={}){const turns=state.turns;this.__browseNextBefore='';this.setData({turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra})},
+ renderLatest(state,extra={}){const turns=state.turns;this.__browseNextBefore='';this.setData({turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra},()=>this.scrollChatToLatest())},
  loadPersona(persona,{chosen=this.data.presetChosen,open=this.data.selectorOpen}={}){
   this.__fortuneRevision++;const generation=++this.__conversationGeneration;this.__pendingDrawNonce='';this.__browseNextBefore=''
   const catalog=this.catalog(),selected=viewPreset(catalogPreset(catalog,persona)||catalog.presets[0]),state=this.read(selected.id),fortune=Boolean(selected.divinationKind),spread=fortune&&selected.supportedSpreads.includes(state.spread)?state.spread:selected.supportedSpreads?.[0]||'single'
@@ -113,6 +118,7 @@ Page({
   if(fortune&&state.draw)try{draw=normalizeTavernDraw({draw:state.draw},{persona:selected.id,spread,now:0});if(draw.expiresAt<=Date.now()){drawNeedsRedraw=true;drawError='本次娱乐抽取已过期，请重新抽取。'}}catch{drawNeedsRedraw=true;drawError='本机抽取记录无效，请重新抽取。'}
   const turns=state.turns
   this.setData({selected,persona:selected.id,starters:selected.starters,greeting:selected.greeting,placeholder:selected.placeholder,selectorOpen:open,presetChosen:chosen,message:fortune?'':String(state.draft||''),question:fortune?clip(state.question,600):'',spread,draw,drawLoading:false,interpretLoading:false,drawNeedsRedraw,turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:this.data.examBlocked?this.data.error:drawError,warning:'',canRetry:false,authRequired:false,clearPending:state.clearPending,status:''})
+  if(chosen)this.scrollChatToLatest()
   if(chosen&&hasSession()&&!state.clearPending){const requestStamp=sessionStamp();Promise.resolve().then(()=>this.resumeConversation(false,generation)).catch(error=>{if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({warning:'云端历史暂未同步；本机草稿仍保留。'})})}
  },
  applyEnvelope(state,envelope,{legacyConfirmed=false,render=true}={}){
@@ -141,7 +147,7 @@ Page({
  },
  async ensureConversation(includeLegacy,generation){const state=this.read(this.data.persona);if(!state.conversation||(includeLegacy&&state.legacyBackup.length&&!state.legacyImported))return this.resumeConversation(includeLegacy,generation);return state},
  chooseCategory(event){if(this.data.loading||this.data.examBlocked)return;const catalog=this.catalog(),category=String(event.currentTarget?.dataset?.category||'');if(!catalog.categories.some(item=>item.id===category))return;this.setData({category,visiblePersonas:Array.from(category==='all'?catalog.presets:catalog.presets.filter(item=>item.category===category),viewPreset)})},
- openSelector(){if(this.current()&&!this.data.loading&&!this.data.examBlocked)this.setData({selectorOpen:true})},
+ openSelector(){if(this.current()&&!this.data.loading&&!this.data.examBlocked){this.dismissComposerKeyboard();this.setData({selectorOpen:true})}},
  choosePersona(event){if(!this.current()||this.data.loading||this.data.examBlocked)return;const persona=String(event.currentTarget?.dataset?.persona||'');if(!catalogPreset(this.catalog(),persona))return;if(this.data.presetChosen)this.save();this.loadPersona(persona,{chosen:true,open:false});this.rememberPersona(persona)},
  onMessage(event){
   if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.presetChosen||this.data.selected.divinationKind)return
@@ -172,7 +178,7 @@ Page({
   if(this.data.selected.divinationKind)return this.data.draw?this.retryInterpretation():this.drawFortune()
   const message=this.data.message.trim();if(!message||this.data.loading||!this.current()||this.data.examBlocked||!this.data.presetChosen)return;if(message.length>1200)return this.setData({error:'一次最多输入 1200 个字。'})
   const generation=this.__conversationGeneration,pending=this.preparePending(message),requestStamp=sessionStamp()
-  this.setData({loading:true,error:'',answer:'',canRetry:false,authRequired:false,status:'AI 正在回应…'})
+  this.setData({loading:true,error:'',answer:'',canRetry:false,authRequired:false,status:'AI 正在回应…'},()=>this.scrollChatToLatest())
   try{
    const state=await this.ensureConversation(true,generation);if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}
    const result=await sendTavernTurn({persona:this.data.persona,message,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision,attemptId:this.__attemptId})
@@ -187,14 +193,14 @@ Page({
    if(revisionConflict(error)&&this.current())try{await this.resumeConversation(false,generation);this.setData({error:'云端对话已更新，请重试发送。',canRetry:true,status:'对话未完成'})}catch(refreshError){if(generation!==this.__conversationGeneration)return;if(this.quiesceIdentityFailure(refreshError,{status:'对话未完成'}))return;if(this.current())this.setData({error:refreshError.message||'云端历史刷新失败，请稍后重试。',canRetry:true,status:'对话未完成'})}
    else if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return
    else if(this.current()){this.setData({answer:'',error:error.message||'AI 暂时不可用，文字已保留。',canRetry:!auth,authRequired:auth,status:'对话未完成'});this.save()}
-  }finally{if(this.current()||this.data.authRequired)this.setData({loading:false})}
+  }finally{if(this.current()||this.data.authRequired)this.setData({loading:false},()=>this.scrollChatToLatest())}
  },
  async loadOlderHistory(){
   if(!this.current()||this.data.loading||this.data.historyLoading||this.data.examBlocked)return
   const generation=this.__conversationGeneration,state=this.read(this.data.persona),before=this.__browseNextBefore||state.nextBefore,requestStamp=sessionStamp()
   if(!state.conversation||!before)return
   this.setData({historyLoading:true,error:''})
-  try{const envelope=await fetchTavernMessages({conversationId:state.conversation.id,persona:this.data.persona,before,attemptId:this.__attemptId});if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}if(envelope.conversation.id!==state.conversation.id||envelope.conversation.revision<state.conversation.revision)throw Error('历史分页已过期，请回到最新对话。');state.conversation=envelope.conversation;this.__browseNextBefore=envelope.nextBefore;this.setData({turns:envelope.messages,historyAnchor:'',historySource:'cloud',historyBrowsing:true,hasOlderHistory:Boolean(envelope.nextBefore),historyLoading:false,status:'正在查看较早对话'});this.save(false)}catch(error){if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({historyLoading:false,error:error.message||'较早对话读取失败，请重试。'})}
+  try{const envelope=await fetchTavernMessages({conversationId:state.conversation.id,persona:this.data.persona,before,attemptId:this.__attemptId});if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}if(envelope.conversation.id!==state.conversation.id||envelope.conversation.revision<state.conversation.revision)throw Error('历史分页已过期，请回到最新对话。');state.conversation=envelope.conversation;this.__browseNextBefore=envelope.nextBefore;this.setData({turns:envelope.messages,historyAnchor:'',chatScrollTop:0,historySource:'cloud',historyBrowsing:true,hasOlderHistory:Boolean(envelope.nextBefore),historyLoading:false,status:'正在查看较早对话'});this.save(false)}catch(error){if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({historyLoading:false,error:error.message||'较早对话读取失败，请重试。'})}
  },
  returnLatestHistory(){if(!this.current())return;const state=this.read(this.data.persona);this.renderLatest(state,{status:''})},
  async drawFortune(){return this.startFortuneDraw(false)},
@@ -227,6 +233,11 @@ Page({
  },
  retry(){if(this.data.loading)return;if(this.data.selected.divinationKind){if(this.data.drawNeedsRedraw)return;if(this.data.draw)return this.retryInterpretation();return this.drawFortune()}return this.submit()},
  openAccount(){this.__authResumeRequested=true;wx.navigateTo({url:'/pages/account/auth'})},
+ requestClear(){
+  if(this.data.loading||this.data.historyLoading||!this.current()||!this.data.presetChosen)return
+  const generation=this.__conversationGeneration
+  wx.showModal?.({title:'清空当前角色对话？',content:`只清除“${this.data.selected.name}”的聊天记录与草稿，不影响其他角色。`,confirmText:'清空',cancelText:'取消',confirmColor:'#a22e48',success:result=>{if(result.confirm&&this.current()&&generation===this.__conversationGeneration)this.clear()}})
+ },
  async clear(){
   if(this.data.loading||this.data.historyLoading||!this.current()||!this.data.presetChosen)return
   const generation=++this.__conversationGeneration,requestStamp=sessionStamp();this.__fortuneRevision++;this.__pendingDrawNonce='';let state=this.read(this.data.persona)

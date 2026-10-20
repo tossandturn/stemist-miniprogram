@@ -1,9 +1,10 @@
-<view class="page {{deviceClass}} {{orientation}} tavern-page">
-  <stemist-header compact="{{true}}" eyebrow="AI 休闲酒馆" title="星光酒馆" />
-  <app-nav id="tavern-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
-  <view class="tavern-note">AI 虚构角色，不读取学术内容。</view>
+<view class="page {{deviceClass}} {{orientation}} tavern-page {{presetChosen && !selectorOpen ? 'chat-active' : ''}} {{keyboardOpen ? 'keyboard-open' : ''}} {{keyboardOpen && chatViewportHeight < 260 ? 'compact-chat' : ''}}" style="{{presetChosen && !selectorOpen ? 'height:' + chatViewportHeight + 'px' : ''}}">
+  <stemist-header wx:if="{{selectorOpen || !presetChosen}}" compact="{{true}}" eyebrow="AI 休闲酒馆" title="星光酒馆" />
+  <app-nav wx:if="{{selectorOpen || !presetChosen}}" id="tavern-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
   <view wx:if="{{selectorOpen || !presetChosen}}" class="preset-discovery">
-    <view class="preset-head"><view><text class="preset-title">休闲精选</text></view></view>
+    <image class="tavern-illustration" src="/bundles/coach/art/tavern-lounge.jpg" mode="aspectFit" aria-label="月光窗边的猫咪与热茶" />
+    <view class="tavern-note">AI 虚构角色，不读取学术内容。</view>
+    <view class="preset-head"><text class="preset-title">今晚，想和谁聊聊？</text></view>
     <view class="category-filter" role="group" aria-label="筛选休闲预设"><button wx:for="{{categories}}" wx:key="id" class="{{category === item.id ? 'active' : ''}}" data-category="{{item.id}}" bindtap="chooseCategory" disabled="{{loading || examBlocked}}">{{item.label}}</button></view>
     <view class="persona-list" role="group" aria-label="选择休闲聊天预设">
       <button wx:for="{{visiblePersonas}}" wx:key="id" class="persona role-{{item.id}} {{persona === item.id && presetChosen ? 'active' : ''}}" data-persona="{{item.id}}" bindtap="choosePersona" disabled="{{loading || examBlocked}}" aria-label="{{item.name}}，{{item.tag}}：{{item.detail}}">
@@ -14,36 +15,48 @@
   </view>
   <view wx:else class="selected-workspace">
     <view class="selected-preset role-{{selected.id}}">
-      <view class="persona-avatar tone-{{selected.category}}" aria-hidden="true"><image class="persona-icon" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" /></view>
-      <view class="selected-copy"><text class="persona-tag">{{selected.tag}}</text><text class="selected-name">{{selected.name}}</text><text class="selected-detail">{{selected.detail}}</text></view>
-      <button class="preset-change" bindtap="openSelector" disabled="{{loading || examBlocked}}">更换预设</button>
+      <view class="persona-avatar" aria-hidden="true"><image class="persona-icon" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" /></view>
+      <view class="selected-copy"><text class="selected-name">{{selected.name}}</text><text class="selected-detail">AI 虚构角色 · {{selected.tag}}</text></view>
+      <button class="preset-change" bindtap="openSelector" disabled="{{loading || examBlocked}}">换角色</button>
     </view>
-    <view wx:if="{{selected.divinationKind && draw}}" class="fortune-result-priority">
-      <view class="draw-grid {{draw.spread === 'three' ? 'three' : 'single'}}" aria-label="本次娱乐抽取结果"><view wx:for="{{draw.cards}}" wx:key="id" class="draw-card"><text class="draw-position">{{item.position}}</text><text class="draw-name">{{item.name}}</text><text wx:if="{{item.orientation}}" class="draw-orientation">{{item.orientation === 'upright' ? '正位' : '逆位'}}</text></view></view>
-      <button wx:if="{{drawNeedsRedraw}}" class="primary fortune-primary" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在重新抽取…' : '重新抽取'}}</button>
-      <button wx:else class="primary fortune-primary" bindtap="retryInterpretation" loading="{{interpretLoading || drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在重新抽取…' : interpretLoading ? '正在解读…' : canRetry ? '重试解读' : selected.divinationKind === 'hexagram' ? '解读当前卦签' : '解读当前牌面'}}</button>
-      <view wx:if="{{status}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error}}" class="error">{{error}}</view>
-    </view>
-    <view wx:if="{{turns.length}}" class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的对话' : '聊天记录'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">回到最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button></view></view><scroll-view wx:if="{{turns.length}}" class="chat-list" scroll-y="true" scroll-into-view="{{historyAnchor}}" enhanced="true" show-scrollbar="false" aria-label="当前角色聊天记录"><view wx:for="{{turns}}" wx:key="id" class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" /></view><view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" aria-hidden="true"></view></scroll-view>
-    <view wx:elif="{{!selected.divinationKind || draw}}" class="preset-opening"><text class="preset-opening-label">{{selected.name}} · 开场白</text><text class="preset-opening-text">{{greeting}}</text></view>
-    <view wx:if="{{(!selected.divinationKind || draw) && !turns.length}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
-    <block wx:if="{{selected.divinationKind}}">
-      <view class="fortune-panel">
-        <view class="fortune-note">随机娱乐提示，不是科学预测，也不替你做决定。</view>
-        <textarea class="tavern-input fortune-question" value="{{question}}" maxlength="600" disabled="{{loading || examBlocked}}" placeholder="{{placeholder}}" cursor-spacing="24" adjust-position="true" bindinput="onFortuneQuestion" aria-label="可选的娱乐问题" />
-        <view wx:if="{{selected.divinationKind === 'tarot'}}" class="spread-options" role="group" aria-label="选择塔罗抽取方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">单张提示</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">三张主题</button></view>
-        <button wx:if="{{!draw && !drawNeedsRedraw}}" class="primary fortune-primary" bindtap="drawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">{{drawLoading ? '正在随机抽取…' : '抽取并解读'}}</button>
-        <button wx:elif="{{!draw && drawNeedsRedraw}}" class="primary fortune-primary" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">重新抽取</button>
-        <button wx:if="{{draw && !drawNeedsRedraw && !loading}}" class="secondary fortune-redraw" bindtap="redrawFortune" disabled="{{examBlocked}}">重新抽取</button>
+    <scroll-view id="tavern-chat" class="chat-list" scroll-y="true" scroll-top="{{chatScrollTop}}" enhanced="true" show-scrollbar="false" bindtap="dismissComposerKeyboard" aria-label="当前角色聊天记录">
+      <view class="chat-inner">
+        <view class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的对话' : '仅供休闲交流'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button><button class="history-action tavern-clear" bindtap="requestClear" disabled="{{loading || historyLoading}}">{{clearPending ? '重试清空' : '清空'}}</button></view></view>
+        <image wx:if="{{!turns.length && !keyboardOpen}}" class="chat-illustration" src="/bundles/coach/art/tavern-lounge.jpg" mode="aspectFit" aria-hidden="true" />
+        <view wx:if="{{!turns.length}}" class="chat-row assistant opening-row">
+          <image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
+          <view class="chat-turn assistant"><text class="message-name">{{selected.name}}</text><text class="preset-opening-text">{{greeting}}</text></view>
+        </view>
+        <view wx:if="{{!turns.length && !keyboardOpen}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
+        <view wx:if="{{selected.divinationKind}}" class="fortune-panel">
+          <view class="fortune-note">随机娱乐提示，不是科学预测，也不替你做决定。</view>
+          <view wx:if="{{selected.divinationKind === 'tarot'}}" class="spread-options" role="group" aria-label="选择塔罗抽取方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">单张提示</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">三张主题</button></view>
+        </view>
+        <view wx:if="{{selected.divinationKind && draw}}" class="fortune-result-priority">
+          <view class="draw-grid {{draw.spread === 'three' ? 'three' : 'single'}}" aria-label="本次娱乐抽取结果"><view wx:for="{{draw.cards}}" wx:key="id" class="draw-card"><text class="draw-position">{{item.position}}</text><text class="draw-name">{{item.name}}</text><text wx:if="{{item.orientation}}" class="draw-orientation">{{item.orientation === 'upright' ? '正位' : '逆位'}}</text></view></view>
+          <button wx:if="{{drawNeedsRedraw}}" class="secondary fortune-redraw" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">重新抽取</button>
+          <button wx:elif="{{canRetry}}" class="secondary fortune-primary" bindtap="retryInterpretation" disabled="{{loading || examBlocked}}">重试解读</button>
+          <button wx:else class="secondary fortune-redraw" bindtap="redrawFortune" disabled="{{loading || examBlocked}}">重新抽取</button>
+        </view>
+        <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
+          <image wx:if="{{item.role !== 'user'}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
+          <view wx:else class="message-avatar user-avatar" aria-hidden="true">你</view>
+          <view class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><answer-content wx:else compact="{{true}}" text="{{item.content}}" /></view>
+        </view>
+        <view wx:if="{{loading && message && !selected.divinationKind}}" class="chat-row user"><view class="message-avatar user-avatar" aria-hidden="true">你</view><view class="chat-turn user"><text>{{message}}</text><text class="message-name">发送中</text></view></view>
+        <view wx:if="{{loading}}" class="chat-row assistant"><image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" /><view class="chat-turn assistant typing-status" role="status">{{drawLoading ? '正在抽取…' : interpretLoading ? '正在解读…' : '正在回复…'}}</view></view>
+        <view wx:if="{{error}}" class="error" role="alert">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
+        <view wx:if="{{status && !loading && (error || clearPending)}}" class="status-line" role="status">{{status}}</view>
+        <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录 / 注册后重试</button>
       </view>
-    </block>
-    <block wx:else>
-      <textarea class="tavern-input" value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="{{placeholder}}" cursor-spacing="24" adjust-position="true" bindinput="onMessage" aria-label="休闲聊天输入" />
-      <button class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked || authRequired}}">{{loading ? 'AI 正在回应…' : canRetry ? '重试 AI' : '发送给' + selected.name}}</button>
-    </block>
-    <view wx:if="{{status && (!selected.divinationKind || !draw)}}" class="status-line" role="status">{{status}}</view><view wx:if="{{error && (!selected.divinationKind || !draw)}}" class="error">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
-    <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录 / 注册后重试</button>
-    <button class="text-button tavern-clear" bindtap="clear" disabled="{{loading || historyLoading}}">{{clearPending ? '重试清空云端对话' : '清空当前预设对话'}}</button>
+      <view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" class="chat-tail" aria-hidden="true"></view>
+    </scroll-view>
+    <view class="chat-composer">
+      <textarea wx:if="{{!selected.divinationKind}}" id="tavern-input" class="tavern-input" style="height:{{composerHeight}}px" value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="发消息…" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onMessage" bindconfirm="onComposerConfirm" aria-label="休闲聊天输入" />
+      <textarea wx:else id="fortune-input" class="tavern-input fortune-question" style="height:{{composerHeight}}px" value="{{question}}" maxlength="600" disabled="{{loading || examBlocked}}" placeholder="想问点什么（可选）" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onFortuneQuestion" bindconfirm="onComposerConfirm" aria-label="可选的娱乐问题" />
+      <button wx:if="{{!selected.divinationKind}}" id="tavern-send" class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked || authRequired}}">{{loading ? '回复中' : canRetry ? '重试' : '发送'}}</button>
+      <button wx:else id="fortune-send" class="primary tavern-submit" bindtap="sendFortuneMessage" loading="{{loading}}" disabled="{{loading || examBlocked || authRequired}}">{{loading ? '处理中' : drawNeedsRedraw ? '重抽' : draw ? '解读' : '抽取'}}</button>
+    </view>
   </view>
   <view wx:if="{{!presetChosen && error}}" class="error">{{error}}</view>
 </view>

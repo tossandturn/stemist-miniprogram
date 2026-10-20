@@ -39,7 +39,7 @@ assert.match(tavern,/不读取学术内容/,'The entertainment surface keeps its
 assert.match(tavern,/不是科学预测/)
 assert.match(tavern,/本机旧对话 · 待同步/,'Legacy unsynced history is meaningful state, not decorative copy')
 assert.match(tavern,/bindtap="loadOlderHistory"/)
-assert.match(tavern,/bindtap="clear"/)
+assert.match(tavern,/bindtap="requestClear"/,'chat clearing remains visible and now requires confirmation')
 const chapter=read('pages/stem/topics.wxml'),apPractice=read('bundles/curricula/practice.wxml')
 assert.doesNotMatch(chapter,/原有正式题库门槛保持不变/)
 assert.match(chapter,/原创基础练习/)
