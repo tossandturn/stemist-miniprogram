@@ -1,6 +1,35 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.43",
+  "highestAssignedVersion": "1.0.49",
+  "pendingUploads": [
+    {
+      "version": "1.0.49",
+      "status": "awaiting_user_confirmation",
+      "assignedOn": "2026-10-20",
+      "commit": "950eccb07a1d9752036cc9513001f77f0cfd7585",
+      "project": "D:/CodexWork/tavern-media-20261020-candidate",
+      "taskId": "confirmation_upload_83c21bdb-6478-42f5-a2bf-6afb21934ca3",
+      "officialInfo": "D:/CodexWork/tavern-media-20261020/upload-1.0.49-request.json",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    }
+  ],
+  "reconciledUploads": [
+    {
+      "version": "1.0.48",
+      "status": "upload_verified",
+      "observedOn": "2026-10-20",
+      "success": true,
+      "commit": "9c4f4474b01737877085013f866bbbbb68cd5064",
+      "taskId": "confirmation_upload_f3912c6e-ce8e-4485-8694-cb40671940d7",
+      "officialInfo": "D:/CodexWork/tavern-media-20261020/upload-1.0.48-observed.json",
+      "platformResultUpdatedAt": 1792465790181,
+      "compiledTotalBytes": 2381157,
+      "compiledMainBytes": 1953128,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    }
+  ],
   "baselineEvidence": {
     "lastVerifiedHistoricalUpload": "1.0.24",
     "lastVerifiedHistoricalUploadReceipt": "D:/CodexWork/stemist-release-coordination/wechat-profile-20260928/upload-1.0.24.json",
