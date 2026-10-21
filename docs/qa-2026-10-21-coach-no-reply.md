@@ -36,3 +36,7 @@ Artifacts: `D:/CodexWork/coach-no-reply-20261021/`.
 IELTS-specific pages, providers, model settings and services were not modified. No business data, payment settings, secrets, user project config or source photographs were changed. Physical Android/iPhone/iPad and the user's exact direct-network route remain **NOT VERIFIED**. Upload/release state is tracked separately in `releases/development.json`.
 
 Reference: Tencent's official [image API documentation](https://intl.cloud.tencent.com/zh/document/product/1219/57745) for proportional compression dimensions. No dependency installed.
+
+## Development upload
+
+1.0.52 is pinned to `f4683bc21c24138aa00964448329ff67a6cdea7b`. Official task `confirmation_upload_d0c77943-da7f-4384-8eb6-47ea2b375ae5` returned **pending confirmation**, not successful upload. Source main-package size 1,966,001 bytes, 131,151 bytes headroom. On continuation, query this exact task before attempting another upload. No public review/release was performed.
