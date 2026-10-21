@@ -64,6 +64,6 @@
     "test:native-practice": "node scripts/test-native-practice.mjs && node scripts/test-native-released-inventory.mjs && node scripts/test-native-source-regions.mjs && node scripts/test-question-correspondence.mjs && node scripts/test-paper-auto-assessment.mjs && node scripts/test-paper-component-client.mjs && node scripts/test-native-choice.mjs && node scripts/test-ai-review-labels.mjs",
     "test:calculator-page": "node scripts/test-calculator-page.mjs && node scripts/test-calculator-models.mjs && npm run test:cw",
     "test:cw": "node scripts/test-cw-calculator.mjs && node scripts/test-cw-adversarial.mjs && node scripts/test-cw-natural-input.mjs && node scripts/test-cw-touch-cursor.mjs && node scripts/test-cw-solver.mjs && node scripts/test-cw-solver-page.mjs && node scripts/test-cw-shift.mjs && node scripts/test-cw-complex.mjs && node scripts/test-cw-complex-page.mjs",
-    "test:coach-formats": "node scripts/test-academic-answer.mjs"
+    "test:coach-formats": "node scripts/test-academic-answer.mjs && node scripts/test-coach-answer-modules.mjs && node scripts/test-academic-package.mjs"
   }
 }

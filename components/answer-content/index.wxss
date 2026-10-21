@@ -18,3 +18,9 @@
 .answer-step-marker{flex:0 0 22px;color:#5638c3;font-weight:650;font-size:14px}
 .answer-step-content{flex:1;min-width:0}
 .answer-truncated{display:block;margin-top:16px;color:#80531a;font-size:13px}
+.section-answer,.section-steps{padding:16px;border:1px solid #e4e7f0;border-radius:14px;background:#fff}
+.section-answer{border-color:#dcd3f4;background:#f7f4ff}
+.section-answer .answer-section-title,.section-steps .answer-section-title{font-size:18px;margin-bottom:14px}
+.section-answer .block-formula{border:0;padding-left:0}
+.block-heading{padding-top:14px;margin-top:16px;border-top:1px solid #e4e7f0;font-size:14px;color:#66708a}
+.block-heading:first-child{padding-top:0;margin-top:0;border:0}

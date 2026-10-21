@@ -139,7 +139,8 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
     assert.equal(item.sourceSha256, hash(source), `${item.path} source hash`)
     assert.equal(item.bytes, output.length, `${item.path} output byte count`)
     assert.equal(item.sha256, hash(output), `${item.path} output hash`)
-    assert.equal(item.transform, item.path.endsWith('.js') ? NATIVE_PACKAGE_TRANSFORM.id : 'identity')
+    const transformId=NATIVE_PACKAGE_TRANSFORM.overrides.find(override=>override.paths.includes(item.path))?.id||NATIVE_PACKAGE_TRANSFORM.id
+    assert.equal(item.transform, item.path.endsWith('.js') ? transformId : 'identity')
     if (item.transform === 'identity') assert.equal(item.sha256, item.sourceSha256)
     if (item.path.endsWith('.js')) new vm.Script(output.toString('utf8'), { filename: item.path })
     outputManifest.push({ path: item.path, bytes: item.bytes })

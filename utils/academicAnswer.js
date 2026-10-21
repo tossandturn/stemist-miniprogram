@@ -67,9 +67,9 @@ function academicAnswer(value){
     add('table',nodes);continue
    }
    const heading=line.match(/^#{1,6}\s+(.{1,80})$/)||line.match(/^\*\*([^*\n]{1,50})\*\*\s*$/)
-   const label=line.match(/^\*\*([^*\n]{1,30})[：:]?\*\*[：:]?\s*(.+)$/)
+   const label=line.match(/^\*\*([^*\n]{1,30})[：:]?\*\*[：:]?\s*(.+)$/)||line.match(/^([^：:]{1,30})[：:]\s*(.+)$/)
    if(heading&&!/[=^\\]/.test(heading[1])){section(heading[1].replace(/[：:]$/,''));continue}
-   if(label&&/^(?:结论|答案|最终答案|解题步骤|关键概念|方法方向|下一步动作|检验习惯|检验|检查|易错点)[：:]?$/.test(label[1])){
+   if(label&&/^(?:结论|答案|最终答案|解题步骤|关键概念|方法方向|下一步动作|检验习惯|检验|检查|易错点|final answer|answer|solution|steps|check|verification)[：:]?$/i.test(label[1])){
     section(label[1].replace(/[：:]$/,''));add('paragraph',inline(label[2]));continue
    }
    const step=line.match(/^(\d{1,3}[.)、]|[-*+])\s+(.+)$/)
@@ -90,4 +90,34 @@ function academicAnswer(value){
  if(!truncated||cursor<plain.length)prose(plain.slice(cursor))
  return {sections,links,truncated:truncated||budget.truncated}
 }
-module.exports={academicAnswer}
+function modularAnswer(value){
+ const content=academicAnswer(value),groups=[]
+ let group={label:'',sections:[]}
+ for(const section of content.sections){
+  if(/^(?:[（(][a-z\d]+[)）]|Q(?:uestion)?\s*\d+|第[^题]+题|Part\s+[（(]?[a-z\d]+[)）]?)/i.test(section.title)){
+   if(group.sections.length)groups.push(group)
+   group={label:section.title,sections:[]}
+  }
+  group.sections.push(section)
+ }
+ if(group.sections.length)groups.push(group)
+ const sections=[]
+ for(const [index,group] of groups.entries()){
+  const explicit=group.sections.filter(s=>/^(?:最终答案|最终结果|答案|final answer|answer|result)$/i.test(s.title)&&s.blocks.length)
+  const candidates=explicit.length?explicit:group.sections.filter(s=>s.kind==='result'&&s.blocks.length)
+  // No final answer (hint/clarification), or ambiguous multiple answers: do not
+  // invent a result or guess which explanation belongs to which question.
+  if(candidates.length!==1){sections.push(...group.sections);continue}
+  const answer=candidates[0],prefix=group.label?group.label+' · ':''
+  sections.push({id:'answer-'+index,kind:'answer',title:prefix+'答案',blocks:answer.blocks})
+  const blocks=[]
+  for(const section of group.sections){
+   if(section===answer||!section.blocks.length)continue
+   if(section.title&&!/^(?:解题步骤|步骤|solution|steps)$/i.test(section.title))blocks.push({id:'heading-'+section.id,kind:'heading',nodes:[element('strong','',[text(section.title)])]})
+   blocks.push(...section.blocks)
+  }
+  if(blocks.length)sections.push({id:'steps-'+index,kind:'steps',title:prefix+'解题步骤',blocks})
+ }
+ return {...content,sections}
+}
+module.exports={academicAnswer,modularAnswer}

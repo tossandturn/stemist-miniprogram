@@ -10,6 +10,11 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   id: 'esbuild-whitespace-v1',
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
+  overrides: Object.freeze([Object.freeze({
+    id: 'esbuild-academic-identifiers-v1',
+    paths: Object.freeze(['utils/academicAnswer.js', 'utils/nativeMath.js']),
+    options: Object.freeze({ minifyIdentifiers: true, keepNames: true }),
+  })]),
   options: Object.freeze({
     charset: 'utf8',
     legalComments: 'inline',
@@ -28,12 +33,14 @@ export function transformNativePackageFile(relative, sourceBytes) {
   const source = sourceBytes.toString('utf8')
   if (!Buffer.from(source, 'utf8').equals(sourceBytes)) throw new Error(`Runtime JavaScript is not valid UTF-8: ${relative}`)
   try {
+    const override = NATIVE_PACKAGE_TRANSFORM.overrides.find(item => item.paths.includes(relative.replaceAll('\\', '/')))
     const result = esbuild.transformSync(source, {
       ...NATIVE_PACKAGE_TRANSFORM.options,
+      ...override?.options,
       logLevel: 'silent',
       sourcefile: relative.replaceAll('\\', '/'),
     })
-    return { bytes: Buffer.from(result.code, 'utf8'), transform: NATIVE_PACKAGE_TRANSFORM.id }
+    return { bytes: Buffer.from(result.code, 'utf8'), transform: override?.id || NATIVE_PACKAGE_TRANSFORM.id }
   } catch (error) {
     throw new Error(`Unable to transform runtime JavaScript ${relative}: ${error?.message || error}`, { cause: error })
   }
