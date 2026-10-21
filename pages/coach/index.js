@@ -7,6 +7,7 @@ const {loadCaptions}=require('../../utils/nativeCaptions')
 const {readAsJpegDataUrl}=require('../../utils/image')
 const {readCoachPhoto,consumeCoachPhotoAutoSubmit,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 const {createOperationTracker}=require('../../utils/operationProgress')
+const {warmCoachSession}=require('../../utils/coachSession')
 
 const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
 const STEM_FAMILIES = new Set(['exam', 'competition', 'admissions'])
@@ -81,6 +82,7 @@ const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
 resetIdentity(){
+this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null
 this.__coachProgress?.dispose();this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
 this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false,helpIntent:'',feature:'',solutionDisabled:false})
 },
@@ -93,12 +95,14 @@ return entry
 onShow() {
 syncDevice(this)
 if(!this.current()){this.resetIdentity();return}
+this.__stopWarm?.();if(this.data.contextId==='stem-photo')this.__stopWarm=warmCoachSession()
 this.restorePhoto()
 if(this.data.mediaBusy)this.setData({mediaBusy:false})
 if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.setData({ authRequired: false, error: '' })
 },
 onResize() { syncDevice(this) },
-onUnload() { this.__disposed = true;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
+onHide(){this.__stopWarm?.()},
+onUnload() { this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
 restorePhoto(){
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId)
 const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers')
@@ -153,6 +157,7 @@ if(this.__entry?.skill!==contextId){this.__entry=null;this.__entryKey='';this.__
 const selected=CONTEXTS.find(item=>item.id===contextId)||CONTEXTS[0],policy=coachHelpPolicy({product:selected.product,skill:selected.id,...(contextId==='stem-photo'?this.data.routeContext:{})})
 const feature=this.__mode?(policy.solutionDisabled&&this.data.feature==='answers'?'steps':this.data.feature):'',helpIntent=feature==='steps'?'hint':feature==='answers'?'worked-solution':''
 this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false,entryHasImage:false,helpIntent,feature,solutionDisabled:policy.solutionDisabled })
+this.__stopWarm?.();if(contextId==='stem-photo')this.__stopWarm=warmCoachSession()
 },
 chooseContextPicker(event) {
 const selected = CONTEXTS[Number(event.detail.value)]
@@ -178,7 +183,8 @@ const entryImages=Array.isArray(this.__entry?.imagePaths)?this.__entry.imagePath
 if (!typedMessage&&!this.data.imagePath&&!entryImages.length) return this.setData({ error: '请先拍照、上传图片，或写下你的问题。' })
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
-const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:value})}})
+this.__receiving=false
+const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active?{...value,label:'正在生成答案…'}:value})}})
 let authExpired=false
 try {
 const entry=await this.prepareEntry()
@@ -198,6 +204,10 @@ imageDataUrls,
 context: coachContext,
 history:this.__history.slice(-10),
 onStage:stage=>progress.stage(stage),
+...(selected.product==='STEM Studio'?{
+onCancelReady:cancel=>{if(this.current())this.__cancelCoach=cancel;else cancel()},
+onPartial:answer=>{if(this.current()&&this.data.loading&&this.__coachProgress===progress){this.__receiving=Boolean(answer);this.setData({answer,warning:answer?'正在生成，以下内容尚未完整。':'',coachStatus:answer?'正在生成答案…':'正在分析…'});if(answer)progress.stage('arranging')}},
+}:{}),
 })
 if (!this.current()) return
 const coachState = result.coachState || {}
@@ -206,7 +216,7 @@ if(!completed){
 progress.finish(false)
 cancelDraft(this)
 writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey})
-this.setData({answer:'',warning:coachState.warning||'',error:result.failureMessage||'AI 未完成本次答疑，内容已保留，请重试。',coachStatus:coachState.label||'答疑未完成',canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
+this.setData({answer:result.partialAnswer||'',warning:coachState.warning||'',error:result.failureMessage||'AI 未完成本次答疑，内容已保留，请重试。',coachStatus:coachState.label||'答疑未完成',canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
 return
 }
 this.setData({ answer: result.answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
@@ -219,10 +229,11 @@ clearDraft('coach')
 progress.finish(true)
 } catch (error) {
 authExpired=isAuthError(error)
-if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })
+if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: '答疑未完成',...(selected.product==='STEM Studio'?{answer:error.partialAnswer||'',warning:error.partialAnswer?'回答未完成，以下仅为已收到的部分内容。':''}:{}) })
 } finally {
 progress.finish(false)
 if(this.__coachProgress===progress){
+this.__cancelCoach=null
 if(this.current())this.setData({loading:false})
 else if(!this.__disposed&&selected.product==='STEM Studio'){this.resetIdentity();this.setData({progress:{},...(authExpired?{authRequired:true,error:'登录已过期，请重新登录后继续。'}:{})})}
 }

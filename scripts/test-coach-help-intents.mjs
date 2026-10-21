@@ -33,6 +33,8 @@ const photoDefault = await orchestration.runCoach({ context: { product: 'STEM St
 assert.equal(apiRequests[0].helpIntent, 'worked-solution')
 assert.match(apiRequests[0].message, /完整解答/)
 assert.match(apiRequests[0].message, /最终结果/)
+assert.match(apiRequests[0].message, /答案.*解题步骤/)
+assert.match(apiRequests[0].message, /简单题.*不重复/)
 assert.equal(photoDefault.completed, true)
 
 for (const message of ['检查第二步', '不要答案，只给我提示']) {

@@ -22,7 +22,7 @@
     "test:camera-page": "node scripts/test-camera-page.mjs && node scripts/test-camera-lifecycle.mjs",
     "test:ai-fab": "node scripts/test-ai-fab.mjs",
     "test:inventory": "node scripts/test-inventory.mjs && node scripts/test-public-inventory.mjs",
-    "test:api": "node scripts/test-api-client.mjs && node scripts/test-coach-request-deadline.mjs && node scripts/test-coach-image-budget.mjs && node scripts/test-coach-network-package.mjs && node scripts/test-coach-auth-wait-recovery.mjs",
+    "test:api": "node scripts/test-api-client.mjs && node scripts/test-coach-request-deadline.mjs && node scripts/test-coach-image-budget.mjs && node scripts/test-coach-network-package.mjs && node scripts/test-coach-auth-wait-recovery.mjs && node scripts/test-coach-stream.mjs && node scripts/test-coach-prewarm.mjs && node scripts/test-coach-stream-pages.mjs",
     "test:progress": "node scripts/test-operation-progress.mjs && node scripts/test-coach-progress-lifecycle.mjs && node scripts/test-marking-progress-view.mjs && node scripts/test-download-metrics-fast.mjs && node scripts/test-transfer-progress.mjs && node scripts/test-download-coverage.mjs && node scripts/test-writing-report-download-progress.mjs",
     "test:chapter-integration": "node scripts/test-chapter-study-cross-repo.mjs --backend ../stem-profile-apib-candidate",
     "test:auth": "node scripts/test-auth-client.mjs && node scripts/test-account-profile.mjs",

@@ -15,15 +15,17 @@ function captureNativeCookie(origin,path,response){
  if(cookie)wx.setStorageSync('stemistNativeSessionCookie',cookie[1])
 }
 
-async function refreshNativeSession(){
+async function refreshNativeSession({aheadMs=45000}={}){
  const original=String(wx.getStorageSync('stemistSessionToken')||''),meta=wx.getStorageSync('stemistSessionMeta')
- if(!original||!meta||!Number.isFinite(Date.parse(meta.expiresAt))||Date.parse(meta.expiresAt)>Date.now()+45000)return original
+ if(!original||!meta||!Number.isFinite(Date.parse(meta.expiresAt))||Date.parse(meta.expiresAt)>Date.now()+Math.min(120000,Math.max(45000,Number(aheadMs)||45000)))return original
  const started={owner:owner(),epoch:epoch(),token:original}
  if(meta.owner!==started.owner)throw new Error('请重新登录以恢复当前账号。')
  if(pending?.owner===started.owner&&pending?.epoch===started.epoch)return pending.promise
  const base=safeApiBase(getApp()?.globalData?.apiBaseUrl)||DEFAULT_API_BASE
- const current=()=>owner()===started.owner&&epoch()===started.epoch&&wx.getStorageSync('stemistSessionToken')===started.token
- const promise=(async()=>{
+ let expired=false,task=null,watchdog=null
+ const current=()=>!expired&&owner()===started.owner&&epoch()===started.epoch&&wx.getStorageSync('stemistSessionToken')===started.token
+ const deadline=new Promise((resolve,reject)=>{watchdog=setTimeout(()=>{expired=true;reject(new Error('账号连接超时，输入已保留，请重试。'));try{task?.abort()}catch{}},25000)})
+ const work=(async()=>{
   let code=''
   if(meta.kind==='wechat')code=await new Promise((resolve,reject)=>{
    if(!wx.login)return reject(new Error('微信登录暂时不可用。'))
@@ -32,12 +34,12 @@ async function refreshNativeSession(){
   const cookie=meta.kind==='password'?wx.getStorageSync('stemistNativeSessionCookie'):''
   if(!code&&!cookie)throw new Error('登录已过期，请重新登录；草稿仍保留。')
   if(!current())throw new Error('账号已变化。')
-  const result=await new Promise((resolve,reject)=>wx.request({
+  const result=await new Promise((resolve,reject)=>{task=wx.request({
    url:base+(code?'/api/auth/wechat':'/api/auth/status'),method:code?'POST':'GET',timeout:12000,
    header:code?{'Content-Type':'application/json'}:{Cookie:'stem_session='+cookie},...(code?{data:{code}}:{}),
    success:r=>r.statusCode===200?resolve(r.data):reject(new Error('登录续期未完成，请重新登录。')),
    fail:()=>reject(new Error('账号连接超时，输入已保留。')),
-  }))
+  })})
   if(!current())throw new Error('账号已变化。')
   const id=String(result?.id||result?.identity?.id||result?.user?.id||'')
   if(id!==started.owner||!result.authenticated||typeof result.accessToken!=='string'||Date.parse(result.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(result.expiresAt)))throw new Error('账号续期状态未确认，请重新登录。')
@@ -45,7 +47,8 @@ async function refreshNativeSession(){
   const profile=result.identity||result.user||result,saved=wx.getStorageSync('stemistUser')||{}
   wx.setStorageSync('stemistUser',{...saved,displayName:profile.displayName??saved.displayName??'',avatarDataUrl:profile.avatarDataUrl??saved.avatarDataUrl??''})
   return result.accessToken
- })().finally(()=>{if(pending?.promise===promise)pending=null})
+ })()
+ const promise=Promise.race([work,deadline]).finally(()=>{clearTimeout(watchdog);if(pending?.promise===promise)pending=null})
  pending={owner:started.owner,epoch:started.epoch,promise}
  return promise
 }

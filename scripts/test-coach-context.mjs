@@ -8,6 +8,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const source = fs.readFileSync(path.join(root, 'pages/coach/index.js'), 'utf8')
 let pageConfig
 const fakeRequire = (name) => {
+  if (name === '../../utils/coachSession') return miniRuntime().load('utils/coachSession')
   if (name === '../../utils/operationProgress') return miniRuntime().load('utils/operationProgress')
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {}, readDraft: () => null, scheduleDraft: () => {}, clearDraft: () => {}, cancelDraft: () => {} }
   if (name === '../../utils/coach') return { coachHelpPolicy:()=>({solutionDisabled:false}),normalizeCoachFeature:value=>['steps','answers'].includes(String(value||''))?String(value):'',normalizeHelpIntent:value=>String(value||''),runCoach: async () => ({ answer: 'ok', mode: 'ai', providerStatus: 'connected', coachState: { label: 'AI 已连接' } }) }

@@ -12,11 +12,15 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
     id: 'esbuild-academic-identifiers-v1',
-    paths: Object.freeze(['utils/academicAnswer.js', 'utils/nativeMath.js']),
-    options: Object.freeze({ minifyIdentifiers: true, keepNames: true }),
+    paths: Object.freeze(['utils/academicAnswer.js', 'utils/nativeMath.js','utils/nativeAnswer.js']),
+    options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
   }),Object.freeze({
     id: 'esbuild-coach-network-identifiers-v1',
     paths: Object.freeze(['utils/api.js','utils/image.js']),
+    options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
+    id: 'esbuild-coach-stream-identifiers-v1',
+    paths: Object.freeze(['utils/coach.js','utils/nativeSession.js','utils/coachSession.js','utils/coachStream.js','utils/operationProgress.js','utils/nativeCoachPhoto.js','pages/coach/index.js','pages/stem/coach.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
   })]),
   options: Object.freeze({

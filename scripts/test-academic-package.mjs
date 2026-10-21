@@ -23,5 +23,5 @@ for(const source of ['**解题步骤**\n1. 减去 3。\n\n**最终答案**\n\\[x
  for(const key of ['academicAnswer','modularAnswer'])assert.equal(JSON.stringify(after[key](source)),JSON.stringify(before[key](source)))
 }
 for(const key of Object.keys(before))assert.equal(after[key].name,before[key].name)
-assert.equal(transformNativePackageFile('utils/coach.js',Buffer.from('function named(){return 1}')).transform,'esbuild-whitespace-v1')
+assert.equal(transformNativePackageFile('utils/share.js',Buffer.from('function named(){return 1}')).transform,'esbuild-whitespace-v1')
 console.log('Academic package: targeted compression, output/name parity and unchanged other transforms PASS')

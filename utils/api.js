@@ -27,7 +27,7 @@ return error
 function isAuthError(error) {
 return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
-function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null, onDispatched = null, onTask = null, isCancelled = null } = {}) {
+function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null, onDispatched = null, onTask = null, isCancelled = null, stream = null, streamCurrent = null } = {}) {
 const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
 return new Promise((resolve, reject) => {
 let settled=false
@@ -35,6 +35,7 @@ const request = {
 url: `${origin}${path}`,
 method: String(method || 'POST').toUpperCase(),
 timeout,
+...(stream?{enableChunked:true,dataType:'text',responseType:'text'}:{}),
 header: {
 ...(origin === ieltsBaseUrl() && path.startsWith('/api/native/ielts/') ? { 'X-STEMist-Catalog': 'native-topics-v1' } : {}),
 ...(String(method || 'POST').toUpperCase() === 'GET' ? {} : { 'Content-Type': 'application/json' }),
@@ -45,8 +46,9 @@ header: {
 success(response) {
 if(settled||isCancelled?.())return
 settled=true
-const payload = response.data || {}
+let payload = response.data || {}
 if (response.statusCode >= 200 && response.statusCode < 300) {
+try{if(stream){streamCurrent?.();payload=stream.finish(response.data)}}catch(error){reject(error);return}
 try{if(authCheck)authCheck(payload)}catch(error){reject(error);return}
 captureNativeCookie(origin,path,response)
 resolve(payload)
@@ -71,6 +73,10 @@ reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网�
 if (data !== undefined && data !== null) request.data = data
 const task=wx.request(request)
 if(typeof onTask==='function')onTask(task)
+if(stream&&typeof task?.onChunkReceived==='function')task.onChunkReceived(({data})=>{
+if(settled||isCancelled?.())return
+try{streamCurrent?.();stream.push(data)}catch(error){settled=true;reject(error);try{task.abort()}catch{}}
+})
 if(!settled&&typeof onDispatched==='function')try{onDispatched()}catch{}
 })
 }
@@ -87,16 +93,20 @@ return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false }
 function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
 return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
-function askCoach({ message, helpIntent = '', feature = '', persona = '', attemptId = '', context = {}, imageDataUrls = [], history = [], onStage = null }) {
+function askCoach({ message, helpIntent = '', feature = '', persona = '', attemptId = '', context = {}, imageDataUrls = [], history = [], onStage = null, onPartial = null, onCancelReady = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
 const timeout=images.length?COACH_IMAGE_TIMEOUT_MS:COACH_TEXT_TIMEOUT_MS
 return new Promise((resolve,reject)=>{
 let closed=false,task=null
-const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);settle(value)}
+const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
+const current=()=>{if(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')}
+const stream=typeof onPartial==='function'&&feature!=='tavern'?require('./coachStream').createCoachStream({onPreview:text=>{if(!closed){try{current();onPartial(text)}catch(error){finish(reject,error);try{task?.abort()}catch{}}}},onMeta:()=>{if(!closed&&typeof onStage==='function')onStage('analysis')}}):null
+const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);if(settle===reject&&value&&stream&&!isAuthError(value)&&!['account_changed','request_cancelled'].includes(value.code))value.partialAnswer=stream.partial();stream?.close();settle(value)}
 const timer=setTimeout(()=>{finish(reject,requestError('AI 请求超时，问题和图片已保留，请重试。',0,'network_timeout'));try{task?.abort()}catch{}},timeout)
-requestJson('/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}),...(feature?{feature}:{}),...(persona?{persona}:{}),...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
-timeout,isCancelled:()=>closed,onTask:value=>{task=value},
-onDispatched:()=>{if(!closed&&typeof onStage==='function')onStage('analysis')},
+if(typeof onCancelReady==='function')onCancelReady(()=>{finish(reject,requestError('请求已取消。',0,'request_cancelled'));try{task?.abort()}catch{}})
+requestJson(stream?'/api/ai/coach/stream':'/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}),...(feature?{feature}:{}),...(persona?{persona}:{}),...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
+timeout,stream,streamCurrent:current,isCancelled:()=>closed,onTask:value=>{task=value},
+onDispatched:()=>{if(!stream&&!closed&&typeof onStage==='function')onStage('analysis')},
 }).then(value=>finish(resolve,value),error=>finish(reject,error))
 })
 }
