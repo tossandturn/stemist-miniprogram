@@ -42,7 +42,9 @@ Prewarm evidence: a synthetic near-expiry hint triggered normal WeChat renewal b
 - Native screenshots: `photo.png`, `final-answer.png`, `partial-failure-final.png`.
 - The main-package safety budget remains 128 KiB below 2 MiB. Scoped identifier compression retains names/property names and is behavior-tested; no global property/syntax mangling.
 - The user-owned `project.config.json` stays unchanged (SHA256 A6D9C6A9CB8C4732F591272E9F18DB86C12628CB2AA5FEDECD9EFB97CE5705FA).
-- 1.0.52's previous upload is confirmed successful and reconciled in `releases/development.json`. The next upload must use 1.0.53, the clean candidate and official confirmation workflow; a pending confirmation is not success.
+- 1.0.52's previous upload is confirmed successful and reconciled in `releases/development.json`.
+- 1.0.53 candidate: `D:/CodexWork/coach-speed-20261021-candidate`, runtime commit `116053f0b05a65f3acaea7fe09412be8605a3733`, main source-package bytes 1,966,007 and headroom 131,145. Runtime manifest SHA256 `c328d508ab0223b91c24f1f741802f30f8c13d7e2deebda606046a63d598dc69`.
+- Official upload task `confirmation_upload_78b9b3cf-473e-4356-9e02-8b01d68b412b` returned **PENDING user confirmation**, not upload success. Do not resubmit or actively poll before user continuation. No review submission/public release.
 
 ## Reference attribution
 

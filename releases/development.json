@@ -1,7 +1,22 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.52",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.53",
+  "pendingUploads": [
+    {
+      "version": "1.0.53",
+      "status": "pending_confirmation",
+      "assignedOn": "2026-10-21",
+      "commit": "116053f0b05a65f3acaea7fe09412be8605a3733",
+      "project": "D:/CodexWork/coach-speed-20261021-candidate",
+      "taskId": "confirmation_upload_78b9b3cf-473e-4356-9e02-8b01d68b412b",
+      "officialInfo": "D:/CodexWork/coach-speed-20261021/upload-1.0.53-result.json",
+      "manifest": "D:/CodexWork/coach-speed-20261021-candidate-manifest.json",
+      "runtimeMainBytes": 1966007,
+      "runtimeMainHeadroomBytes": 131145,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    }
+  ],
   "reconciledUploads": [
     {
       "version": "1.0.52",
