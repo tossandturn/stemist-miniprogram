@@ -39,3 +39,5 @@ Reviewed original GitHub projects [mp-html](https://github.com/jin-yufeng/mp-htm
 ## Release
 
 Client rendering fixes require a new Mini Program package. This record is not an upload receipt. See `releases/development.json` for the actual assigned version and pending/success state.
+
+1.0.50 was assigned to source commit `92d4130905a57091a441f4da236e540d3a967ea8` and submitted to the official upload confirmation flow. Returned task `confirmation_upload_2981297b-5b7f-428e-a514-fb56738bad0d` is **pending confirmation**, not upload success. The clean candidate contains 319 verified runtime files, main package 1,965,795 bytes and 131,357 bytes source-budget headroom. No review submission or public publication was performed. Resume by querying this exact task after user confirmation; do not issue a duplicate upload.

@@ -1,7 +1,22 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.49",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.50",
+  "pendingUploads": [
+    {
+      "version": "1.0.50",
+      "status": "pending_confirmation",
+      "assignedOn": "2026-10-21",
+      "commit": "92d4130905a57091a441f4da236e540d3a967ea8",
+      "project": "D:/CodexWork/coach-format-20261021-candidate",
+      "taskId": "confirmation_upload_2981297b-5b7f-428e-a514-fb56738bad0d",
+      "officialInfo": "D:/CodexWork/coach-format-20261021/upload-1.0.50-result.json",
+      "manifest": "D:/CodexWork/coach-format-20261021-candidate-manifest.json",
+      "runtimeMainBytes": 1965795,
+      "runtimeMainHeadroomBytes": 131357,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    }
+  ],
   "reconciledUploads": [
     {
       "version": "1.0.49",
