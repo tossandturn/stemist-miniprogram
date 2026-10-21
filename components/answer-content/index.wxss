@@ -1,3 +1,20 @@
 .native-answer{font-size:16px;color:#18213d;line-height:1.75;word-break:break-word;}
 .answer-links{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
 .answer-links button{min-height:44px;width:100%;margin:0;padding:10px 12px;font-size:14px;line-height:1.6;text-align:left;}
+.academic-answer{min-width:0;overflow-wrap:break-word}
+.answer-section{margin:20px 0 0;min-width:0}
+.answer-section:first-child{margin-top:0}
+.answer-section-title{margin:0 0 10px;color:#5638c3;font-size:15px;font-weight:700;line-height:1.55}
+.answer-block{margin:8px 0;min-width:0}
+.answer-block:first-child{margin-top:0}.answer-block:last-child{margin-bottom:0}
+.section-result{padding:14px;border:1px solid #dcd3f4;border-radius:12px;background:#f7f4ff}
+.section-check{padding-top:16px;border-top:1px solid #e4e7f0}
+.section-check .answer-section-title{color:#316c5d}
+.answer-formula-scroll{width:100%;min-width:0}
+.answer-formula-content{display:inline-block;min-width:100%;padding:4px 8px;font-family:"Cambria Math","Times New Roman",serif;font-size:18px;white-space:nowrap;word-break:normal;overflow-wrap:normal}
+.block-formula{padding:0 0 0 10px;border-left:2px solid #e4dcf7}
+.section-result .block-formula{padding-left:0;border-left:0}
+.answer-step{display:flex;align-items:baseline;gap:8px;min-width:0}
+.answer-step-marker{flex:0 0 22px;color:#5638c3;font-weight:650;font-size:14px}
+.answer-step-content{flex:1;min-width:0}
+.answer-truncated{display:block;margin-top:16px;color:#80531a;font-size:13px}

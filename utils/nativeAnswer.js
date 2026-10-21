@@ -69,7 +69,7 @@ function dollarMath(value){
  if(/^[A-Z]{1,6}$/.test(source.trim()))return true
  return !(source.match(/[A-Za-z]+/g)||[]).some(word=>word.length>1&&!['sin','cos','tan','log','ln','lim','exp'].includes(word.toLowerCase()))
 }
-function answerContent(value){
+function answerSource(value){
  const original=String(value||''),source=original.slice(0,MAX_SOURCE),links=[],seen=new Set(),occurrences=linkOccurrences(source)
  let plain='',cursor=0
  for(const occurrence of occurrences){
@@ -80,6 +80,11 @@ function answerContent(value){
   cursor=occurrence.end
  }
  plain+=source.slice(cursor)
+ return {plain,links,sourceTruncated:original.length>MAX_SOURCE}
+}
+function answerContent(value){
+ const {plain:clean,links,sourceTruncated}=answerSource(value)
+ let plain=clean
  plain=plain
   .replace(/\\\(([\s\S]*?)\\\)|\\\[([\s\S]*?)\\\]/g,(_match,inline,display)=>inline??display)
   .replace(/\$\$([\s\S]*?)\$\$/g,(_match,display)=>display)
@@ -94,7 +99,7 @@ function answerContent(value){
   const heading=block.match(/^#{1,3}\s+([\s\S]*)/),content=heading?heading[1]:block,formula=!heading&&formulaBlock(content)
   return {name:heading?'h3':'p',attrs:{style:heading?'font-size:18px;line-height:1.6;margin:12px 0;':formula?'font-family:Cambria Math,Times New Roman,serif;font-size:17px;line-height:1.7;margin:12px 0;padding:10px 12px;background:#f7f5ff;border-left:3px solid #7357e8;border-radius:8px;overflow-wrap:anywhere;':'line-height:1.75;white-space:pre-wrap;margin:10px 0;'},children:inline(content,formula)}
  })
- if(original.length>MAX_SOURCE||allBlocks.length>MAX_BLOCKS||budget.truncated)nodes.push({name:'p',attrs:{style:'line-height:1.6;margin:12px 0;color:#865f1e;'},children:[{type:'text',text:'回答较长，当前页面仅显示前面的主要内容。'}]})
+ if(sourceTruncated||allBlocks.length>MAX_BLOCKS||budget.truncated)nodes.push({name:'p',attrs:{style:'line-height:1.6;margin:12px 0;color:#865f1e;'},children:[{type:'text',text:'回答较长，当前页面仅显示前面的主要内容。'}]})
  return {nodes,links}
 }
-module.exports={answerContent}
+module.exports={answerContent,answerSource,dollarMath}
