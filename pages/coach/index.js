@@ -179,11 +179,12 @@ if (!typedMessage&&!this.data.imagePath&&!entryImages.length) return this.setDat
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:value})}})
+let authExpired=false
 try {
 const entry=await this.prepareEntry()
 const {imagePaths,...entryContext}=entry
 const paths=[this.data.imagePath,...(Array.isArray(imagePaths)?imagePaths:[])].filter((path,index,array)=>path&&array.indexOf(path)===index).slice(0,2)
-const imageDataUrls=await Promise.all(paths.map(readAsJpegDataUrl))
+const imageDataUrls=await Promise.all(paths.map(path=>readAsJpegDataUrl(path,{coach:selected.product==='STEM Studio'})))
 if(!this.current())return
 const coachContext={ product: selected.product, skill: selected.id, inputMode: imageDataUrls.length?'photo':'text', stage: 'practice', source: 'stemist-miniprogram', ...(selected.id === 'stem-photo' ? this.data.routeContext : {}),...entryContext }
 const policy=coachHelpPolicy(coachContext)
@@ -217,8 +218,15 @@ wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { category: selected
 clearDraft('coach')
 progress.finish(true)
 } catch (error) {
+authExpired=isAuthError(error)
 if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始问题已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' })
-} finally { progress.finish(false);if (this.current()) this.setData({ loading: false }) }
+} finally {
+progress.finish(false)
+if(this.__coachProgress===progress){
+if(this.current())this.setData({loading:false})
+else if(!this.__disposed&&selected.product==='STEM Studio'){this.resetIdentity();this.setData({progress:{},...(authExpired?{authRequired:true,error:'登录已过期，请重新登录后继续。'}:{})})}
+}
+}
 },
 retry() { if (!this.data.loading) return this.submit() },
 openContext(event) {

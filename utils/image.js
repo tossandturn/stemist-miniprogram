@@ -1,12 +1,13 @@
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 const COMPRESSION_QUALITIES = [82, 65, 50, 35]
 
-function compressImage(filePath, quality = COMPRESSION_QUALITIES[0]) {
+function compressImage(filePath, quality = COMPRESSION_QUALITIES[0], dimensions = {}) {
   if (typeof wx.compressImage !== 'function') return Promise.resolve(filePath)
   return new Promise((resolve, reject) => {
     wx.compressImage({
       src: filePath,
       quality,
+      ...dimensions,
       success: ({ tempFilePath }) => resolve(tempFilePath || filePath),
       fail: () => resolve(filePath),
     })
@@ -51,10 +52,21 @@ function imageMime(data) {
   throw new Error('照片格式无法识别，请重新拍摄')
 }
 
-async function readImageDataUrl(filePath) {
+async function coachDimensions(filePath){
+ if(typeof wx.getImageInfo!=='function')return{}
+ return new Promise(resolve=>{
+  let done=false
+  const finish=info=>{if(done)return;done=true;clearTimeout(timer);const width=Number(info?.width)||0,height=Number(info?.height)||0,scale=2048/Math.max(width,height);resolve(Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0&&scale<1?{compressedWidth:Math.max(1,Math.round(width*scale)),compressedHeight:Math.max(1,Math.round(height*scale))}:{})}
+  const timer=setTimeout(()=>finish(),3000)
+  try{wx.getImageInfo({src:filePath,success:finish,fail:()=>finish()})}catch{finish()}
+ })
+}
+
+async function prepareImage(filePath,coach){
+  const dimensions=coach?await coachDimensions(filePath):{}
   let lastData = ''
   for (const quality of COMPRESSION_QUALITIES) {
-    const compressedPath = await compressImage(filePath, quality)
+    const compressedPath = await compressImage(filePath, quality, dimensions)
     const data = await readBase64(compressedPath)
     if (!data) throw new Error('照片内容为空，请重新拍摄')
     lastData = data
@@ -64,6 +76,14 @@ async function readImageDataUrl(filePath) {
   // ladder; never send an oversized payload to the Coach endpoint.
   if (lastData) throw new Error('照片太大，请重新拍摄更清晰且更紧凑的单题照片')
   throw new Error('照片内容为空，请重新拍摄')
+}
+
+function readImageDataUrl(filePath,options){
+ if(!options?.coach)return prepareImage(filePath,false)
+ return new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(new Error('图片准备超时，原图已保留，请重试。')),12000)
+  prepareImage(filePath,true).then(resolve,reject).finally(()=>clearTimeout(timer))
+ })
 }
 
 // Compatibility alias for existing photo consumers; it does not relabel bytes.

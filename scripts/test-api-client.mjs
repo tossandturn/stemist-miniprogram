@@ -33,6 +33,8 @@ vm.runInNewContext(source, {
   RegExp,
   Error,
   Object,
+  setTimeout,
+  clearTimeout,
 })
 
 const { askCoach, askIeltsCoach, getJson, isAuthError, requestJson } = module.exports

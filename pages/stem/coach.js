@@ -48,8 +48,9 @@ if (!this.data.imagePath) return this.setData({ error: '还没有题目照片，
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', syncStatus: '', syncFailed: false, syncing: false, coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 const progress=this.__coachProgress=createOperationTracker({key:'coach-photo',onChange:value=>{if(this.current())this.setData({progress:value})}})
+let authExpired=false
 try {
-const dataUrl = await readAsJpegDataUrl(this.data.imagePath)
+const dataUrl = await readAsJpegDataUrl(this.data.imagePath,{coach:true})
 if (!this.current()) return
 const policy=coachHelpPolicy(this.data.context)
 const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solution'?'hint':this.data.helpIntent
@@ -93,8 +94,8 @@ syncWarning = '本次 Coach 反馈已显示，但尚未写入云端学习记录�
 if (!this.current()) return
 wx.setStorageSync('stemistSubmission:stem-photo', { skill: 'STEM AI Coach', category: this.data.context.category || '', family: this.data.context.family || '', routeId: this.data.context.routeId || '', stage: this.data.context.stage || '', subjectCode: this.data.context.subjectCode || '', subject: this.data.context.subject || '', answer,helpIntent:result.helpIntent||'', attemptId: syncedAttemptId || this.__pendingSync?.attemptId || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', syncStatus, submittedAt: Date.now() })
 this.setData({ answer, warning: [coachState.warning || '', syncWarning].filter(Boolean).join('\n'), coachStatus: coachState.label || '反馈状态待确认', syncStatus, syncFailed: Boolean(syncWarning) })
-} catch (error) { if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始照片已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' }) }
-finally { progress.finish(false);if (this.current()) this.setData({ loading: false }) }
+} catch (error) { authExpired=isAuthError(error);if (this.current()) this.setData({ error: error.message || 'AI 暂时不可用，原始照片已保留。', canRetry: !isAuthError(error), authRequired: isAuthError(error), coachStatus: 'AI 暂不可用' }) }
+finally { progress.finish(false);if(this.__coachProgress===progress){if(this.current())this.setData({loading:false});else if(!this.__disposed){this.onShow();this.setData({loading:false,coachStatus:'',syncStatus:'',syncing:false,...(authExpired?{authRequired:true,error:'登录已过期，请重新登录后继续。'}:{})})}} }
 },
 retry() { if (!this.data.loading) this.ask() },
 openAccount() { this.__authResumeRequested=true;wx.navigateTo({ url: '/pages/account/auth' }) },

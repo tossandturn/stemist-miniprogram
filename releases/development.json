@@ -1,23 +1,24 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
   "highestAssignedVersion": "1.0.51",
-  "pendingUploads": [
+  "pendingUploads": [],
+  "reconciledUploads": [
     {
       "version": "1.0.51",
-      "status": "pending_confirmation",
-      "assignedOn": "2026-10-21",
+      "status": "upload_verified",
+      "observedOn": "2026-10-21",
+      "success": true,
       "commit": "f646bd216c1c7c18abb3096f6f456fb86780d06e",
       "project": "D:/CodexWork/coach-modules-20261021-candidate",
       "taskId": "confirmation_upload_9a24e41a-e1ed-43a2-b2f4-9aaeb698c4dd",
-      "officialInfo": "D:/CodexWork/coach-modules-20261021/upload-1.0.51-result.json",
+      "officialInfo": "D:/CodexWork/coach-no-reply-20261021/upload-1.0.51-observed.json",
       "manifest": "D:/CodexWork/coach-modules-20261021-candidate-manifest.json",
-      "runtimeMainBytes": 1965470,
-      "runtimeMainHeadroomBytes": 131682,
+      "compiledTotalBytes": 2401942,
+      "compiledMainBytes": 1965946,
+      "platformResultUpdatedAt": 1792577301459,
       "reviewSubmitted": false,
       "publicReleasePerformed": false
-    }
-  ],
-  "reconciledUploads": [
+    },
     {
       "version": "1.0.50",
       "status": "upload_verified",

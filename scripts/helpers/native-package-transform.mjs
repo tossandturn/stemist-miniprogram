@@ -14,6 +14,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
     id: 'esbuild-academic-identifiers-v1',
     paths: Object.freeze(['utils/academicAnswer.js', 'utils/nativeMath.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true }),
+  }),Object.freeze({
+    id: 'esbuild-coach-network-identifiers-v1',
+    paths: Object.freeze(['utils/api.js','utils/image.js']),
+    options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
   })]),
   options: Object.freeze({
     charset: 'utf8',
