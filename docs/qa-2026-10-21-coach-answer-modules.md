@@ -23,4 +23,4 @@ Research: [Tencent TDesign Mini Program](https://github.com/Tencent/tdesign-mini
 
 ## Version state
 
-The previous 1.0.50 upload was confirmed successful from task `confirmation_upload_2981297b-5b7f-428e-a514-fb56738bad0d`; it contains the earlier formula/section repair, not this two-card refinement. The next candidate is 1.0.51. Consult `releases/development.json` for its actual upload state. No public release was performed.
+The previous 1.0.50 upload was confirmed successful from task `confirmation_upload_2981297b-5b7f-428e-a514-fb56738bad0d`; it contains the earlier formula/section repair, not this two-card refinement. Candidate 1.0.51 is pinned to `f646bd216c1c7c18abb3096f6f456fb86780d06e` and has entered the official upload confirmation flow: task `confirmation_upload_9a24e41a-e1ed-43a2-b2f4-9aaeb698c4dd` is **pending confirmation**, not upload success. Source-budget main size is 1,965,470 bytes with 131,682 bytes headroom. Consult `releases/development.json` for the latest state; query this task on continuation instead of duplicating upload. No public release was performed.
