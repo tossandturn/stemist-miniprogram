@@ -6,7 +6,7 @@
 - All 78 Tarot cards and 64 hexagrams have an individual image. Tarot reversals rotate 180 degrees in both the thumbnail and enlarged view; the original source file is unchanged.
 - Three-card draws retain their server order and position labels. The native gallery supports previous/next, close, drag and 1–4x pinch configuration. Hexagrams have their exact named diagram; Tarot upright/reversed terminology is not applied to hexagrams.
 - Loading, failed image retry, bounded catalog requests, metadata caching and immutable image HTTP caching are included. Retrying an image or opening the gallery never draws again or calls the interpretation model.
-- The component lives in the Coach subpackage. Artwork remains on the backend, not in the Mini Program package. Main source package stays 1,966,007 bytes, with 131,145 bytes headroom.
+- The component lives in the Coach subpackage. Artwork remains on the backend, not in the Mini Program package. The transformed main package stays 1,966,007 bytes, with 131,145 bytes headroom (untransformed source: 2,031,799 bytes).
 - A native Object-property bridge exposed nested card arrays as contiguous numeric keys. Presentation now safely accepts only that bounded contiguous form; canonical draw validation and source receipts are unchanged.
 
 ## Images and provenance
@@ -50,3 +50,5 @@ Limits: the responsive replay and developer-tool checks are not physical-phone/i
 ## Client release
 
 The previous 1.0.54 upload was verified successful through its original confirmation task and reconciled in `releases/development.json`; it was not uploaded again. The next development version for artwork is 1.0.55. A client update is required for the new native gallery; future replacement artwork can use the backend catalog without repackaging images. Upload status is recorded separately and must not be inferred from passing tests or backend deployment.
+
+1.0.55 upload is now **PENDING CONFIRMATION**, task `confirmation_upload_4cef4d03-7a06-4c6c-a3e6-5dd9bb6dedf3`, runtime commit `667bc37f13047dab4b0b5dba49a958890739b713`. The official tool requires user confirmation in WeChat Developer Tools. It has not been polled or submitted again. No review/public release was performed. Clean candidate: `D:/CodexWork/tavern-draw-art-20261022-candidate`; source-owned IDE configuration hash is unchanged. The seven artwork-related runtime files in this candidate exactly match those exercised in the isolated native QA project; QA interceptors and server imagery are excluded.
