@@ -53,6 +53,10 @@ The previous 1.0.55 upload was independently confirmed successful and reconciled
 
 Upload confirmation, upload success, review submission and public publication are separate states. Record the actual receipt after requesting the official upload; pending is not success.
 
+Runtime commit: `4905a34386e909a9e851e1623331644d9913cf58`. Clean candidate: `D:/CodexWork/university-profiles-20261022-candidate`; runtime manifest SHA256 `eee19847d9b4a751add4421d308278446bf0ad4a99379e52bc6c9971aa5178bf`. All 327 runtime file hashes and the four changed curricula files match the tested artifacts. Main package remains 1,966,007 source-package bytes with 131,145 bytes of budget headroom. The source and transformed full suites passed again after the individual-record cache-expiry fix, followed by native acceptance on the refreshed final runtime.
+
+Official 1.0.56 upload task `confirmation_upload_4ee6547e-da86-4314-81b5-802488281565` returned **PENDING user confirmation**, not upload success. Confirm inside WeChat Developer Tools. Per `wechatide-skill`, do not actively poll or repeat the upload before user continuation; inspect this existing task first when resuming. No review submission or public publication was performed.
+
 ## Sources and rights
 
 GitHub-first references: [Hipo university domain registry](https://github.com/Hipo/university-domains-list) for identity structure and [Tencent TDesign Mini Program](https://github.com/Tencent/tdesign-miniprogram) for native image/layout patterns. No new dependency was installed.
