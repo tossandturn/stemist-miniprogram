@@ -27,10 +27,22 @@
    <view class="university-list">
     <view wx:for="{{visibleItems}}" wx:key="id" class="university-card">
      <view class="university-main">
-      <view class="rank-mark" aria-label="排名 {{item.rankLabel}}">{{item.rankLabel}}</view>
+      <view class="university-identity"><view class="university-logo {{item.logoSrc && item.logoTone === 'dark' ? 'logo-dark' : ''}}"><image wx:if="{{item.logoSrc}}" src="{{item.logoSrc}}" mode="aspectFit" lazy-load="{{true}}" data-id="{{item.id}}" data-logo-path="{{item.logoPath}}" binderror="onUniversityLogoError" aria-label="{{item.nameZh}} Logo" /><text wx:else class="logo-initial" aria-label="{{item.nameZh}} 校名缩写">{{item.logoInitial}}</text></view><view class="rank-mark" aria-label="排名 {{item.rankLabel}}">{{item.rankLabel}}</view></view>
       <view class="university-copy"><text class="university-name-zh">{{item.nameZh}}</text><text class="university-name-en">{{item.nameEn}}</text><text class="university-country">{{item.country}}</text></view>
      </view>
-     <view class="university-footer"><text class="university-host">{{item.hostname}}</text><button class="website-copy" data-id="{{item.id}}" bindtap="copyUniversity" aria-label="复制 {{item.nameZh}} 官网">复制官网</button></view>
+     <text wx:if="{{item.profileSummary}}" class="admission-summary">{{item.profileSummary}}</text>
+     <view class="university-footer"><text class="university-host">{{item.hostname}}</text><view class="university-actions"><button class="requirements-toggle" data-id="{{item.id}}" bindtap="showRequirements" aria-expanded="{{expandedId === item.id}}" aria-label="{{expandedId === item.id ? '收起' : '查看'}} {{item.nameZh}} 申请参考">{{expandedId === item.id ? '收起' : item.profileButtonLabel}}</button><button class="website-copy" data-id="{{item.id}}" bindtap="copyUniversity" aria-label="复制 {{item.nameZh}} 官网">复制官网</button></view></view>
+     <view wx:if="{{expandedId === item.id}}" class="requirements-panel">
+      <view wx:if="{{profileLoading}}" class="profile-loading" role="status">正在加载申请参考…</view>
+      <view wx:elif="{{profileError}}" class="profile-error" role="alert"><text>{{profileError}}</text><button class="secondary requirements-retry" bindtap="retryRequirements">重试</button></view>
+      <block wx:elif="{{activeProfile}}">
+       <view class="profile-heading"><text class="profile-kind">{{activeProfile.kind === 'verified-overview' ? '官方要求摘要' : '申请准备清单'}}</text><text class="profile-date">{{activeProfile.kind === 'verified-overview' ? '核验' : '更新'}} {{activeProfile.updatedOn}}</text></view>
+       <text class="profile-scope">{{activeProfile.scope}}</text>
+       <view wx:for="{{activeProfile.sections}}" wx:for-item="section" wx:key="label" class="requirement-section"><text class="requirement-label">{{section.label}}</text><text class="requirement-text">{{section.text}}</text></view>
+       <text class="profile-notice">{{activeProfile.notice}}</text>
+       <view class="admission-sources"><button wx:for="{{activeProfile.sources}}" wx:for-item="source" wx:key="id" class="admission-source" data-source="{{source.id}}" bindtap="copyAdmissionSource" aria-label="复制 {{source.title}} 链接">{{source.title}} · 复制链接</button></view>
+      </block>
+     </view>
     </view>
    </view>
    <view wx:if="{{loaded && !visibleItems.length}}" class="empty-state"><text class="empty-title">没有匹配的大学</text><text class="empty-detail">试试中文或英文校名。</text><button class="secondary" bindtap="clearSearch">清除搜索</button></view>

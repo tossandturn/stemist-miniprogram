@@ -1,23 +1,27 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
   "highestAssignedVersion": "1.0.55",
-  "pendingUploads": [
+  "pendingUploads": [],
+  "reconciledUploads": [
     {
       "version": "1.0.55",
-      "status": "pending_confirmation",
+      "status": "upload_verified",
       "assignedOn": "2026-10-22",
+      "observedOn": "2026-10-22",
+      "success": true,
       "commit": "667bc37f13047dab4b0b5dba49a958890739b713",
       "project": "D:/CodexWork/tavern-draw-art-20261022-candidate",
       "taskId": "confirmation_upload_4cef4d03-7a06-4c6c-a3e6-5dd9bb6dedf3",
-      "officialInfo": "D:/CodexWork/tavern-draw-art-20261022/upload-1.0.55-result.json",
+      "officialInfo": "D:/CodexWork/university-profiles-20261022/upload-1.0.55-observed.json",
       "manifest": "D:/CodexWork/tavern-draw-art-20261022-candidate-manifest.json",
       "runtimeMainBytes": 1966007,
       "runtimeMainHeadroomBytes": 131145,
+      "compiledTotalBytes": 2436357,
+      "compiledMainBytes": 1980555,
+      "platformResultUpdatedAt": 1792664995609,
       "reviewSubmitted": false,
       "publicReleasePerformed": false
-    }
-  ],
-  "reconciledUploads": [
+    },
     {
       "version": "1.0.54",
       "status": "upload_verified",
