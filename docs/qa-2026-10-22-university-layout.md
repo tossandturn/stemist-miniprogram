@@ -35,3 +35,7 @@ The browser replay validates layout under an explicit native-style 184 px button
 GitHub-first reference: [Tencent TDesign Mini Program](https://github.com/Tencent/tdesign-miniprogram), [cell long-text issue #2291](https://github.com/Tencent/tdesign-miniprogram/issues/2291). No dependency or third-party implementation was copied; the repair targets this app's measured native layout.
 
 Previous 1.0.53 upload is now independently confirmed successful and reconciled. This layout repair uses the next version, 1.0.54; official upload confirmation and public release must be reported separately. No production restart or backend deployment is needed.
+
+1.0.54 runtime commit: `1b6c012bada5a0a8a04ba5b24ea8d10f213e3085`. Clean candidate: `D:/CodexWork/university-layout-20261022-candidate`; runtime SHA256 `e0f4ad0c5f18008188d45ad7a06bff2602a9d5cd91f0f1474216efff6b00c32d`. Main package unchanged at 1,966,007 source-package bytes, 131,145 bytes of source-budget headroom.
+
+Official upload task `confirmation_upload_6e10368e-763e-47c3-9022-e2a7f9b6366d` returned **PENDING user confirmation**, not upload success. Do not duplicate the upload or actively poll before user continuation. No review submission/public release.

@@ -1,7 +1,22 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.53",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.54",
+  "pendingUploads": [
+    {
+      "version": "1.0.54",
+      "status": "pending_confirmation",
+      "assignedOn": "2026-10-22",
+      "commit": "1b6c012bada5a0a8a04ba5b24ea8d10f213e3085",
+      "project": "D:/CodexWork/university-layout-20261022-candidate",
+      "taskId": "confirmation_upload_6e10368e-763e-47c3-9022-e2a7f9b6366d",
+      "officialInfo": "D:/CodexWork/university-layout-20261022/upload-1.0.54-result.json",
+      "manifest": "D:/CodexWork/university-layout-20261022-candidate-manifest.json",
+      "runtimeMainBytes": 1966007,
+      "runtimeMainHeadroomBytes": 131145,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    }
+  ],
   "reconciledUploads": [
     {
       "version": "1.0.53",
