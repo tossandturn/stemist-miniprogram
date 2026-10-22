@@ -13,7 +13,7 @@
     "test:coach-context": "node scripts/test-coach-context.mjs",
     "test:coach-help-intents": "node scripts/test-coach-help-intents.mjs",
     "test:coach-four-modes": "node scripts/test-coach-four-modes.mjs",
-    "test:tavern-presets": "node scripts/test-tavern-presets.mjs && node scripts/test-tavern-layout.mjs && node scripts/test-tavern-keyboard.mjs && node scripts/test-tavern-media.mjs",
+    "test:tavern-presets": "node scripts/test-tavern-presets.mjs && node scripts/test-tavern-layout.mjs && node scripts/test-tavern-keyboard.mjs && node scripts/test-tavern-media.mjs && node scripts/test-tavern-draw-art.mjs",
     "test:tavern-divination": "node scripts/test-tavern-divination.mjs",
     "test:tavern-history": "node scripts/test-tavern-history.mjs",
     "test:tavern-fortune-page": "node scripts/test-tavern-fortune-page.mjs",

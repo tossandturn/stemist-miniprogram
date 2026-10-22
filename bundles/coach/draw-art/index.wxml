@@ -1,0 +1,32 @@
+<view wx:if="{{cards.length}}" class="draw-art">
+ <view class="art-grid {{three ? 'three' : 'single'}}" aria-label="本次娱乐抽取结果">
+  <view wx:for="{{cards}}" wx:key="key" class="art-card">
+   <text class="art-position">{{item.position}}</text>
+   <view class="art-frame">
+    <button class="art-open" data-key="{{item.key}}" bindtap="openPreview" disabled="{{!item.url || failed[item.key]}}" aria-label="{{'放大查看 ' + item.name + ' ' + item.orientationLabel}}">
+     <image wx:if="{{item.url && !failed[item.key]}}" class="art-image" src="{{item.url}}" mode="aspectFit" style="transform:rotate({{item.angle}}deg)" data-key="{{item.key}}" bindload="onImageLoad" binderror="onImageError" />
+    </button>
+    <view wx:if="{{failed[item.key] || (!catalogLoading && !item.url)}}" class="art-placeholder"><text class="art-placeholder-label">图片暂未加载</text><button class="art-retry" data-key="{{item.key}}" bindtap="retryImage" aria-label="{{'重新加载 ' + item.name + ' 的图片'}}">重试</button></view>
+    <view wx:elif="{{!loaded[item.key]}}" class="art-placeholder loading" role="status">加载牌面…</view>
+   </view>
+   <text class="art-name">{{item.shortName}}</text><text wx:if="{{item.orientationLabel}}" class="art-orientation">{{item.orientationLabel}}</text>
+  </view>
+ </view>
+ <text class="art-hint">点击图片放大查看</text>
+ <view wx:if="{{catalogError}}" class="art-error">{{catalogError}}</view>
+</view>
+<root-portal enable="{{true}}" wx:if="{{previewCards.length}}">
+ <view class="art-viewer" role="dialog" aria-modal="true" aria-label="抽取图片预览" catchtouchmove="stopTouch">
+  <view class="viewer-head"><view class="viewer-heading"><text class="viewer-name">{{previewCards[0].name}}</text><text class="viewer-position">{{previewCards[0].position}} {{previewCards[0].orientationLabel}}</text></view><button class="viewer-close" bindtap="closePreview" aria-label="关闭图片预览">关闭</button></view>
+  <view class="viewer-body">
+   <movable-area class="viewer-area" scale-area="{{true}}">
+    <movable-view wx:for="{{previewCards}}" wx:key="key" class="viewer-movable" direction="all" scale="{{true}}" scale-min="1" scale-max="4" scale-value="1" inertia="{{false}}">
+     <image wx:if="{{previewVisible && !previewError}}" class="viewer-image" src="{{item.url}}" mode="aspectFit" style="transform:rotate({{item.angle}}deg)" data-key="{{item.key}}" bindload="onPreviewLoad" binderror="onPreviewError" aria-label="{{item.name + ' ' + item.orientationLabel}}" />
+    </movable-view>
+   </movable-area>
+   <view wx:if="{{previewError}}" class="viewer-error"><text>图片暂未加载</text><button class="viewer-retry" bindtap="retryPreview">重试图片</button></view>
+   <view wx:elif="{{!previewLoaded}}" class="viewer-loading" role="status">加载大图…</view>
+  </view>
+  <view class="viewer-footer"><text class="viewer-help">双指缩放，拖动查看</text><view wx:if="{{cards.length > 1}}" class="viewer-pages"><button bindtap="previousPreview" disabled="{{previewIndex === 0}}">上一张</button><text>{{previewIndex + 1}} / {{cards.length}}</text><button bindtap="nextPreview" disabled="{{previewIndex >= cards.length - 1}}">下一张</button></view><button class="viewer-credit" bindtap="copyCredit">{{previewCards[0].credit.title}} · {{previewCards[0].credit.author}} · {{previewCards[0].credit.license}}<text>复制来源</text></button></view>
+ </view>
+</root-portal>

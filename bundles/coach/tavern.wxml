@@ -22,18 +22,18 @@
     <scroll-view id="tavern-chat" class="chat-list" scroll-y="true" scroll-top="{{chatScrollTop}}" enhanced="true" show-scrollbar="false" bindtap="dismissComposerKeyboard" aria-label="当前角色聊天记录">
       <view class="chat-inner">
         <view class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的对话' : '仅供休闲交流'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button><button class="history-action tavern-clear" bindtap="requestClear" disabled="{{loading || historyLoading}}">{{clearPending ? '重试清空' : '清空'}}</button></view></view>
-        <image wx:if="{{!turns.length && !keyboardOpen}}" class="chat-illustration" src="/bundles/coach/art/tavern-lounge.jpg" mode="aspectFit" aria-hidden="true" />
-        <view wx:if="{{!turns.length}}" class="chat-row assistant opening-row">
+        <image wx:if="{{!turns.length && !keyboardOpen && !draw}}" class="chat-illustration" src="/bundles/coach/art/tavern-lounge.jpg" mode="aspectFit" aria-hidden="true" />
+        <view wx:if="{{!turns.length && !draw}}" class="chat-row assistant opening-row">
           <image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
           <view class="chat-turn assistant"><text class="message-name">{{selected.name}}</text><text class="preset-opening-text">{{greeting}}</text></view>
         </view>
-        <view wx:if="{{!turns.length && !keyboardOpen}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
+        <view wx:if="{{!turns.length && !keyboardOpen && !draw}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
         <view wx:if="{{selected.divinationKind}}" class="fortune-panel">
           <view class="fortune-note">随机娱乐提示，不是科学预测，也不替你做决定。</view>
           <view wx:if="{{selected.divinationKind === 'tarot'}}" class="spread-options" role="group" aria-label="选择塔罗抽取方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">单张提示</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">三张主题</button></view>
         </view>
+        <tavern-draw-art wx:if="{{selected.divinationKind}}" id="tavern-draw-art" draw="{{draw}}" />
         <view wx:if="{{selected.divinationKind && draw}}" class="fortune-result-priority">
-          <view class="draw-grid {{draw.spread === 'three' ? 'three' : 'single'}}" aria-label="本次娱乐抽取结果"><view wx:for="{{draw.cards}}" wx:key="id" class="draw-card"><text class="draw-position">{{item.position}}</text><text class="draw-name">{{item.name}}</text><text wx:if="{{item.orientation}}" class="draw-orientation">{{item.orientation === 'upright' ? '正位' : '逆位'}}</text></view></view>
           <button wx:if="{{drawNeedsRedraw}}" class="secondary fortune-redraw" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">重新抽取</button>
           <button wx:elif="{{canRetry}}" class="secondary fortune-primary" bindtap="retryInterpretation" disabled="{{loading || examBlocked}}">重试解读</button>
           <button wx:else class="secondary fortune-redraw" bindtap="redrawFortune" disabled="{{loading || examBlocked}}">重新抽取</button>
