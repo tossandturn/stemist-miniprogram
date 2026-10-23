@@ -1,24 +1,28 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
   "highestAssignedVersion": "1.0.57",
-  "pendingUploads": [
+  "pendingUploads": [],
+  "reconciledUploads": [
     {
       "version": "1.0.57",
-      "status": "pending_user_confirmation",
+      "status": "upload_verified",
       "assignedOn": "2026-10-23",
       "commit": "ef441d433280e317190e725043f1d1e48fc69367",
       "project": "D:/CodexWork/tavern-persona-20261023-candidate",
       "taskId": "confirmation_upload_978ec41e-3a0e-4dbe-a08f-c8a6f8e7f413",
-      "officialInfo": "D:/CodexWork/tavern-persona-20261023/upload-1.0.57-result.json",
+      "officialInfo": "D:/CodexWork/university-admissions-20261023/wechat-previous.json",
       "manifest": "D:/CodexWork/tavern-persona-20261023-candidate-manifest.json",
       "runtimeMainBytes": 1966007,
       "runtimeMainHeadroomBytes": 131145,
       "runtimeManifestSha256": "8c19aeea7fd7a349b93d814e943eec30abc38bd3335f83039e94e1e0f84b7d26",
       "reviewSubmitted": false,
-      "publicReleasePerformed": false
-    }
-  ],
-  "reconciledUploads": [
+      "publicReleasePerformed": false,
+      "observedOn": "2026-10-23",
+      "success": true,
+      "compiledTotalBytes": 2451862,
+      "compiledMainBytes": 1980555,
+      "platformResultUpdatedAt": 1792750810403
+    },
     {
       "version": "1.0.56",
       "status": "upload_verified",
@@ -647,13 +651,34 @@
       "size": {
         "total": 2266421,
         "packages": [
-          { "name": "TOTAL", "size": 2266421 },
-          { "name": "main", "size": 1951347 },
-          { "name": "/bundles/account/", "size": 18937 },
-          { "name": "/bundles/announcements/", "size": 25692 },
-          { "name": "/bundles/coach/", "size": 83663 },
-          { "name": "/bundles/curricula/", "size": 81616 },
-          { "name": "/bundles/marking/", "size": 105166 }
+          {
+            "name": "TOTAL",
+            "size": 2266421
+          },
+          {
+            "name": "main",
+            "size": 1951347
+          },
+          {
+            "name": "/bundles/account/",
+            "size": 18937
+          },
+          {
+            "name": "/bundles/announcements/",
+            "size": 25692
+          },
+          {
+            "name": "/bundles/coach/",
+            "size": 83663
+          },
+          {
+            "name": "/bundles/curricula/",
+            "size": 81616
+          },
+          {
+            "name": "/bundles/marking/",
+            "size": 105166
+          }
         ]
       },
       "originalProjectConfigChanged": false,
@@ -670,13 +695,34 @@
       "size": {
         "total": 2264789,
         "packages": [
-          { "name": "TOTAL", "size": 2264789 },
-          { "name": "main", "size": 1951055 },
-          { "name": "/bundles/account/", "size": 18937 },
-          { "name": "/bundles/announcements/", "size": 25692 },
-          { "name": "/bundles/coach/", "size": 82727 },
-          { "name": "/bundles/curricula/", "size": 81576 },
-          { "name": "/bundles/marking/", "size": 104802 }
+          {
+            "name": "TOTAL",
+            "size": 2264789
+          },
+          {
+            "name": "main",
+            "size": 1951055
+          },
+          {
+            "name": "/bundles/account/",
+            "size": 18937
+          },
+          {
+            "name": "/bundles/announcements/",
+            "size": 25692
+          },
+          {
+            "name": "/bundles/coach/",
+            "size": 82727
+          },
+          {
+            "name": "/bundles/curricula/",
+            "size": 81576
+          },
+          {
+            "name": "/bundles/marking/",
+            "size": 104802
+          }
         ]
       },
       "originalProjectConfigChanged": false,
@@ -695,13 +741,34 @@
       "size": {
         "total": 2290610,
         "packages": [
-          { "name": "TOTAL", "size": 2290610 },
-          { "name": "main", "size": 1951296 },
-          { "name": "/bundles/account/", "size": 18937 },
-          { "name": "/bundles/announcements/", "size": 25692 },
-          { "name": "/bundles/coach/", "size": 82727 },
-          { "name": "/bundles/curricula/", "size": 107156 },
-          { "name": "/bundles/marking/", "size": 104802 }
+          {
+            "name": "TOTAL",
+            "size": 2290610
+          },
+          {
+            "name": "main",
+            "size": 1951296
+          },
+          {
+            "name": "/bundles/account/",
+            "size": 18937
+          },
+          {
+            "name": "/bundles/announcements/",
+            "size": 25692
+          },
+          {
+            "name": "/bundles/coach/",
+            "size": 82727
+          },
+          {
+            "name": "/bundles/curricula/",
+            "size": 107156
+          },
+          {
+            "name": "/bundles/marking/",
+            "size": 104802
+          }
         ]
       },
       "originalProjectConfigChanged": false,

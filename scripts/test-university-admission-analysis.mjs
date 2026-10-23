@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import {miniRuntime,settle} from './helpers/mini-runtime.mjs'
+
+const labels=['A-Level','IB','AP','语言','竞赛','科研／项目'],ids=['alevel','ib','ap','language','competition','research']
+const profile=()=>({schemaVersion:'stemist-university-profile-v1',id:'fixture-university',kind:'preparation-guide',updatedOn:'2026-10-23',scope:'International undergraduate',summary:'Fixture',notice:'No admission guarantee',sections:[{label:'Existing',text:'Preserve legacy content',sourceIds:[]}],sources:[{id:'official',title:'Official',url:'https://fixture.edu/admissions/'}],analysis:{schemaVersion:'undergraduate-six-dimensions-v1',updatedOn:'2026-10-23',summary:'Official requirements and AI guidance are separate.',modules:ids.map((id,i)=>({id,label:labels[i],status:'unverified',headline:'Not verified',detail:'Check the selected programme.',advice:'Prepare authentic evidence of your work.',sourceIds:[]}))}})
+const rt=miniRuntime(),service=rt.load('bundles/curricula/universityProfiles'),entry={id:'fixture-university',kind:'preparation-guide'}
+assert.equal(service.normalizeProfile(profile(),entry).analysis?.modules.length,6,'The client must preserve all six requested dimensions')
+const legacy=profile();delete legacy.analysis;assert.equal(service.normalizeProfile(legacy,entry).analysis,undefined)
+for(const change of [x=>x.analysis.modules.pop(),x=>x.analysis.modules[1].id='alevel',x=>x.analysis.modules[0].status='guaranteed-offer',x=>x.analysis.modules[0].status='official',x=>x.analysis.modules[0].sourceIds=['missing'],x=>x.analysis.modules[0].advice='<script>']){const value=profile();change(value);assert.throws(()=>service.normalizeProfile(value,entry))}
+const verified=profile();verified.analysis.modules[0]={...verified.analysis.modules[0],status:'course-specific',headline:'A*AA',sourceIds:['official']};assert.equal(service.normalizeProfile(verified,entry).analysis.modules[0].status,'course-specific')
+const directory={rankings:['qs-world','usnews-national'].map((id,i)=>({id,label:i?'U.S. News':'QS',scope:i?'national':'world',editionYear:2027,verifiedAt:'2026-10-23',items:[]})),examBoards:[{id:'ap'}]}
+const runtime=miniRuntime({modules:{'bundles/curricula/universityService':{fetchUniversityDirectory:async()=>({directory,source:'network'})},'bundles/curricula/universityProfiles':{fetchProfileIndex:async()=>({index:{items:[]}})}}}),page=runtime.page('bundles/curricula/universities');await page.onLoad();await settle();page.chooseRanking({currentTarget:{dataset:{ranking:'usnews-national'}}});assert.equal(page.data.currentRankingId,'usnews-national');assert.match(page.sharePath(),/ranking=usnews-national/);page.onUnload()
+const template=fs.readFileSync(new URL('../bundles/curricula/universities.wxml',import.meta.url),'utf8');assert.doesNotMatch(template,/<picker\b/,'QS and US ranking choice must remain visible, not a dropdown');assert.match(template,/ranking-tabs/);assert.match(template,/activeProfile\.analysis/);assert.match(template,/AI 准备建议/)
+assert.match(template,/<app-nav[^>]*show-ai="{{false}}"/,'Floating coaching shortcut must not cover long admissions content; bottom navigation remains available')
+console.log('University admissions: visible ranking tabs, six dimensions, official/advice separation and backward compatibility PASS')

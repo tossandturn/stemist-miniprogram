@@ -33,7 +33,7 @@ Page({
    this.__rankings=result.directory.rankings;this.__boards=result.directory.examBoards
    const requested=this.__requestedRanking&&this.__rankings.some(item=>item.id===this.__requestedRanking)?this.__requestedRanking:this.__rankings[0].id
    const boardId=this.__boards.some(item=>item.id===this.data.selectedBoardId)?this.data.selectedBoardId:this.__boards[0].id
-   const rankingOptions=this.__rankings.map(item=>({id:item.id,label:item.label}))
+   const rankingOptions=this.__rankings.map(item=>({id:item.id,label:item.label,shortLabel:item.id==='qs-world'?'QS 世界大学':'美国大学'}))
    const rankingIndex=Math.max(0,rankingOptions.findIndex(item=>item.id===requested))
    this.setData({loaded:true,dataSource:result.source,cacheNotice:result.source==='cache'?`网络不可用，正在显示 ${cachedLabel(result.cachedAt)} 保存的缓存数据。`:'',rankingOptions,rankingIndex,currentRankingId:requested,currentRanking:rankingMeta(this.__rankings[rankingIndex]),examBoards:this.__boards,selectedBoardId:boardId,currentBoard:this.__boards.find(item=>item.id===boardId)||null,query:'',queryDraft:''})
    this.updateRankingList(1)
@@ -48,7 +48,7 @@ Page({
  },
  chooseTab(event){const tab=safeOption(event?.currentTarget?.dataset?.tab,TABS,'');if(tab){if(tab!==this.data.activeTab){this.__detailToken++;this.setData({expandedId:'',activeProfile:null,profileLoading:false,profileError:''})}this.setData({activeTab:tab});if(tab==='rankings'&&!this.__profileMap?.size)this.loadProfileIndex()}},
  chooseRanking(event){
-  const index=Number(event?.detail?.value)
+  const requested=clean(event?.currentTarget?.dataset?.ranking),index=requested?this.__rankings.findIndex(item=>item.id===requested):Number(event?.detail?.value)
   if(!Number.isSafeInteger(index)||index<0||index>=this.__rankings.length)return
   const ranking=this.__rankings[index]
   this.__requestedRanking=ranking.id

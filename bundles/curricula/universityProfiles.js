@@ -10,6 +10,14 @@ const digest=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v)
 const kind=v=>['verified-overview','preparation-guide'].includes(v)
 const date=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v
 const pending=new Map()
+const ANALYSIS_IDS=['alevel','ib','ap','language','competition','research'],ANALYSIS_LABELS=['A-Level','IB','AP','语言','竞赛','科研／项目']
+const STATUS_LABELS={'official':'官网信息','course-specific':'按专业区分','holistic':'综合评审','not-required':'官网称非必需','unverified':'待核验'}
+function normalizeAnalysis(v,sources){
+ if(v===undefined)return undefined
+ if(v?.schemaVersion!=='undergraduate-six-dimensions-v1'||!date(v.updatedOn)||!text(v.summary,300)||!Array.isArray(v.modules)||v.modules.length!==6)fail()
+ const modules=v.modules.map((m,i)=>{if(m?.id!==ANALYSIS_IDS[i]||m.label!==ANALYSIS_LABELS[i]||!Object.prototype.hasOwnProperty.call(STATUS_LABELS,m.status)||!text(m.headline,160)||!text(m.detail,500)||!text(m.advice,500)||!Array.isArray(m.sourceIds)||m.sourceIds.length>6||new Set(m.sourceIds).size!==m.sourceIds.length||!m.sourceIds.every(id=>sources.has(id))||m.status!=='unverified'&&!m.sourceIds.length)fail();return{id:m.id,label:m.label,status:m.status,statusLabel:STATUS_LABELS[m.status],headline:m.headline,detail:m.detail,advice:m.advice,sourceIds:[...m.sourceIds]}})
+ return{schemaVersion:v.schemaVersion,updatedOn:v.updatedOn,summary:v.summary,modules}
+}
 function normalizeProfileIndex(v){
  if(v?.schemaVersion!=='stemist-university-profile-index-v1'||!text(v.revision,80)||!text(v.updatedAt,40)||!Number.isFinite(Date.parse(v.updatedAt))||!Array.isArray(v.items)||v.items.length<1||v.items.length>250||JSON.stringify(v).length>192*1024)fail()
  const ids=new Set(),aliases=new Set(),items=v.items.map(x=>{
@@ -23,7 +31,8 @@ function normalizeProfile(v,entry){
  if(v?.schemaVersion!=='stemist-university-profile-v1'||v.id!==entry.id||v.kind!==entry.kind||!kind(v.kind)||!date(v.updatedOn)||!text(v.scope,160)||!text(v.summary,160)||!text(v.notice,240)||!Array.isArray(v.sources)||v.sources.length<1||v.sources.length>10||!Array.isArray(v.sections)||v.sections.length<1||v.sections.length>6||JSON.stringify(v).length>16*1024)fail()
  const ids=new Set(),sources=v.sources.map(s=>{if(!id(s?.id)||ids.has(s.id)||!text(s.title,160)||!safeHttpsUrl(s.url))fail();ids.add(s.id);return{id:s.id,title:s.title,url:s.url}})
  const sections=v.sections.map(s=>{if(!text(s?.label,40)||!text(s.text,800)||!Array.isArray(s.sourceIds)||s.sourceIds.length>10||new Set(s.sourceIds).size!==s.sourceIds.length||!s.sourceIds.every(x=>ids.has(x))||v.kind==='verified-overview'&&!s.sourceIds.length)fail();return{label:s.label,text:s.text,sourceIds:[...s.sourceIds]}})
- return{schemaVersion:v.schemaVersion,id:v.id,kind:v.kind,updatedOn:v.updatedOn,scope:v.scope,summary:v.summary,notice:v.notice,sections,sources}
+ const analysis=normalizeAnalysis(v.analysis,ids)
+ return{schemaVersion:v.schemaVersion,id:v.id,kind:v.kind,updatedOn:v.updatedOn,scope:v.scope,summary:v.summary,notice:v.notice,sections,sources,...(analysis?{analysis}:{})}
 }
 function read(key,now){try{const v=wx.getStorageSync(key),age=now-Number(v?.at);return v?.base===origin()&&Number.isFinite(age)&&age>=0&&age<=7*DAY?v:null}catch{return null}}
 function save(key,value){try{wx.setStorageSync(key,value)}catch{}}
