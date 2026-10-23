@@ -1,24 +1,28 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
   "highestAssignedVersion": "1.0.56",
-  "pendingUploads": [
+  "pendingUploads": [],
+  "reconciledUploads": [
     {
       "version": "1.0.56",
-      "status": "pending_user_confirmation",
+      "status": "upload_verified",
       "assignedOn": "2026-10-22",
+      "observedOn": "2026-10-23",
+      "success": true,
       "commit": "4905a34386e909a9e851e1623331644d9913cf58",
       "project": "D:/CodexWork/university-profiles-20261022-candidate",
       "taskId": "confirmation_upload_4ee6547e-da86-4314-81b5-802488281565",
-      "officialInfo": "D:/CodexWork/university-profiles-20261022/upload-1.0.56-result.json",
+      "officialInfo": "D:/CodexWork/tavern-persona-20261023/wechat-previous.json",
       "manifest": "D:/CodexWork/university-profiles-20261022-candidate-manifest.json",
       "runtimeMainBytes": 1966007,
       "runtimeMainHeadroomBytes": 131145,
       "runtimeManifestSha256": "eee19847d9b4a751add4421d308278446bf0ad4a99379e52bc6c9971aa5178bf",
+      "compiledTotalBytes": 2451702,
+      "compiledMainBytes": 1980555,
+      "platformResultUpdatedAt": 1792683270444,
       "reviewSubmitted": false,
       "publicReleasePerformed": false
-    }
-  ],
-  "reconciledUploads": [
+    },
     {
       "version": "1.0.55",
       "status": "upload_verified",

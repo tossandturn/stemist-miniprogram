@@ -36,7 +36,7 @@ const keyboardMethods={
   if(wx.nextTick)wx.nextTick(scroll);else{clearTimeout(this.__chatScrollTimer);this.__chatScrollTimer=setTimeout(scroll,0)}
  },
  dismissComposerKeyboard(){if(this.__keyboardHeight||this.__composerFocused)wx.hideKeyboard?.();this.__keyboardHeight=0;this.__composerFocused=false;this.refreshComposerViewport()},
- onComposerConfirm(event){if(this.__disposed||!this.__pageVisible||this.data.loading||this.data.examBlocked||this.data.authRequired)return;const fortune=Boolean(this.data.selected.divinationKind);if(typeof event?.detail?.value==='string'){if(fortune)this.onFortuneQuestion(event);else this.onMessage(event)}return fortune?this.sendFortuneMessage():this.submit()},
- sendFortuneMessage(){if(this.data.loading||this.data.examBlocked||this.data.authRequired)return;if(this.data.drawNeedsRedraw)return this.redrawFortune();return this.data.draw?this.retryInterpretation():this.drawFortune()},
+ onComposerConfirm(event){if(this.__disposed||!this.__pageVisible||this.data.loading||this.data.examBlocked||this.data.authRequired)return;if(typeof event?.detail?.value==='string')this.onMessage(event);return this.submit()},
+ sendFortuneMessage(){return this.submit()},
 }
 module.exports={tavernViewport,keyboardData,keyboardMethods}

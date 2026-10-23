@@ -16,7 +16,7 @@
     "test:tavern-presets": "node scripts/test-tavern-presets.mjs && node scripts/test-tavern-layout.mjs && node scripts/test-tavern-keyboard.mjs && node scripts/test-tavern-media.mjs && node scripts/test-tavern-draw-art.mjs",
     "test:tavern-divination": "node scripts/test-tavern-divination.mjs",
     "test:tavern-history": "node scripts/test-tavern-history.mjs",
-    "test:tavern-fortune-page": "node scripts/test-tavern-fortune-page.mjs",
+    "test:tavern-fortune-page": "node scripts/test-tavern-fortune-page.mjs && node scripts/test-tavern-persona-chat.mjs",
     "test:tavern-icon-eol": "node scripts/test-tavern-icon-eol.mjs",
     "test:stem-photo": "node scripts/test-stem-photo-flow.mjs && node scripts/test-native-photo-writing.mjs && node scripts/test-native-photo-coach-ownership.mjs && node scripts/test-native-photo-cancel.mjs && node scripts/test-native-photo-exam.mjs && node scripts/test-native-coach-photo.mjs",
     "test:camera-page": "node scripts/test-camera-page.mjs && node scripts/test-camera-lifecycle.mjs",

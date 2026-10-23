@@ -128,7 +128,7 @@ staleRuntime.storage.set('stemistTavern:stale-owner:0:eastern-oracle',{owner:'st
 const stalePage=staleRuntime.page('bundles/coach/tavern');stalePage.onLoad()
 assert.equal(stalePage.data.draw.id,'expired-local')
 assert.equal(stalePage.data.drawNeedsRedraw,true)
-assert.match(stalePage.data.error,/过期|重新抽取/)
+assert.equal(stalePage.data.error,'','expired history does not present a blocking chat error')
 
 let authGuestRuntime
 authGuestRuntime=miniRuntime({modules:{'utils/api':{isAuthError:error=>error?.code==='auth_required',COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async()=>{authGuestRuntime.storage.delete('stemistUser');const error=new Error('登录已过期');error.code='auth_required';error.statusCode=401;throw error}}}})

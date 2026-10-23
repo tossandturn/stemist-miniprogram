@@ -34,7 +34,7 @@ assert.match(rule('.page.tavern-page.device-phone'), /padding-bottom:\s*calc\(96
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/)
 
 // These state and safety affordances must not be dropped by a layout fix.
-for (const attribute of ['bindtap="loadOlderHistory"','bindtap="returnLatestHistory"','bindtap="retryInterpretation"','bindtap="redrawFortune"','bindtap="openAccount"']) assert.ok(wxml.includes(attribute))
+for (const attribute of ['bindtap="loadOlderHistory"','bindtap="returnLatestHistory"','bindtap="retryInterpretation"','bindtap="drawFortune"','bindtap="openAccount"']) assert.ok(wxml.includes(attribute))
 assert.match(wxml, /AI 虚构角色/)
 assert.match(wxml, /disabled="{{loading \|\| !message \|\| examBlocked \|\| authRequired}}"/)
 console.log('Tavern native-width, keyboard-aware chat shell, compact header and recovery layout contracts passed.')

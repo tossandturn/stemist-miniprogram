@@ -29,14 +29,11 @@
         </view>
         <view wx:if="{{!turns.length && !keyboardOpen && !draw}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
         <view wx:if="{{selected.divinationKind}}" class="fortune-panel">
-          <view class="fortune-note">随机娱乐提示，不是科学预测，也不替你做决定。</view>
-          <view wx:if="{{selected.divinationKind === 'tarot'}}" class="spread-options" role="group" aria-label="选择塔罗抽取方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">单张提示</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}">三张主题</button></view>
+          <view class="fortune-note">可以直接聊天，也可以带着问题抽取。仅供娱乐，不是科学预测，也不替你做决定。</view>
         </view>
         <tavern-draw-art wx:if="{{selected.divinationKind}}" id="tavern-draw-art" draw="{{draw}}" />
-        <view wx:if="{{selected.divinationKind && draw}}" class="fortune-result-priority">
-          <button wx:if="{{drawNeedsRedraw}}" class="secondary fortune-redraw" bindtap="redrawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked}}">重新抽取</button>
-          <button wx:elif="{{canRetry}}" class="secondary fortune-primary" bindtap="retryInterpretation" disabled="{{loading || examBlocked}}">重试解读</button>
-          <button wx:else class="secondary fortune-redraw" bindtap="redrawFortune" disabled="{{loading || examBlocked}}">重新抽取</button>
+        <view wx:if="{{selected.divinationKind && draw && canRetry && retryKind === 'interpret' && !drawNeedsRedraw}}" class="fortune-result-priority">
+          <button class="secondary fortune-primary" bindtap="retryInterpretation" disabled="{{loading || examBlocked || authRequired}}">重试本次解读</button>
         </view>
         <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
           <image wx:if="{{item.role !== 'user'}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
@@ -56,7 +53,7 @@
             </view>
           </view>
         </view>
-        <view wx:if="{{loading && message && !selected.divinationKind}}" class="chat-row user"><view class="message-avatar user-avatar" aria-hidden="true">你</view><view class="chat-turn user"><text>{{message}}</text><text class="message-name">发送中</text></view></view>
+        <view wx:if="{{loading && message && !drawLoading && !interpretLoading}}" class="chat-row user"><view class="message-avatar user-avatar" aria-hidden="true">你</view><view class="chat-turn user"><text>{{message}}</text><text class="message-name">发送中</text></view></view>
         <view wx:if="{{loading}}" class="chat-row assistant"><image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" /><view class="chat-turn assistant typing-status" role="status">{{drawLoading ? '正在抽取…' : interpretLoading ? '正在解读…' : '正在回复…'}}</view></view>
         <view wx:if="{{error}}" class="error" role="alert">{{error}}</view><view wx:if="{{warning}}" class="warning">{{warning}}</view>
         <view wx:if="{{status && !loading && (error || clearPending)}}" class="status-line" role="status">{{status}}</view>
@@ -65,10 +62,13 @@
       <view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" class="chat-tail" aria-hidden="true"></view>
     </scroll-view>
     <view class="chat-composer">
-      <textarea wx:if="{{!selected.divinationKind}}" id="tavern-input" class="tavern-input" style="height:{{composerHeight}}px" value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="发消息…" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onMessage" bindconfirm="onComposerConfirm" aria-label="休闲聊天输入" />
-      <textarea wx:else id="fortune-input" class="tavern-input fortune-question" style="height:{{composerHeight}}px" value="{{question}}" maxlength="600" disabled="{{loading || examBlocked}}" placeholder="想问点什么（可选）" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onFortuneQuestion" bindconfirm="onComposerConfirm" aria-label="可选的娱乐问题" />
-      <button wx:if="{{!selected.divinationKind}}" id="tavern-send" class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked || authRequired}}">{{loading ? '回复中' : canRetry ? '重试' : '发送'}}</button>
-      <button wx:else id="fortune-send" class="primary tavern-submit" bindtap="sendFortuneMessage" loading="{{loading}}" disabled="{{loading || examBlocked || authRequired}}">{{loading ? '处理中' : drawNeedsRedraw ? '重抽' : draw ? '解读' : '抽取'}}</button>
+      <view wx:if="{{selected.divinationKind}}" class="fortune-tools">
+        <view wx:if="{{selected.divinationKind === 'tarot'}}" class="fortune-spreads" role="group" aria-label="下次抽牌方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}" aria-pressed="{{spread === 'single'}}">单张</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}" aria-pressed="{{spread === 'three'}}">三张</button></view>
+        <text wx:else class="fortune-tools-caption">抽一卦，也能接着聊</text>
+        <button id="fortune-draw" class="fortune-draw" bindtap="drawFortune" loading="{{drawLoading}}" disabled="{{loading || examBlocked || authRequired}}" aria-label="明确发起一次新的娱乐抽取">{{retryKind === 'draw' && error ? '重试抽取' : draw ? '再抽' : selected.divinationKind === 'tarot' ? '抽牌' : '抽签'}}</button>
+      </view>
+      <textarea id="tavern-input" class="tavern-input" style="height:{{composerHeight}}px" value="{{message}}" maxlength="1200" disabled="{{loading || examBlocked}}" placeholder="发消息…" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onMessage" bindconfirm="onComposerConfirm" aria-label="休闲聊天输入" />
+      <button id="tavern-send" class="primary tavern-submit" bindtap="submit" loading="{{loading}}" disabled="{{loading || !message || examBlocked || authRequired}}">{{loading ? '回复中' : canRetry && retryKind === 'chat' ? '重试' : '发送'}}</button>
     </view>
   </view>
   <view wx:if="{{!presetChosen && error}}" class="error">{{error}}</view>
