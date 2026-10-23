@@ -31,7 +31,7 @@ The full admissions requirements of all 184 schools have **not** been verified. 
 - Client runtime: `cd797792ad2305b0843e32dc296009c2f76e2efb`, pushed on the existing feature branch.
 - Backend public data: `a6c043a908f13d8dabc3c92ff5f060004fd2b705`, pushed and **DEPLOYED**. Readiness and post-deployment health pass; original files are recoverable.
 - 1.0.57 upload reconciled from official successful receipt.
-- **1.0.58: pending developer-tool confirmation**, task `confirmation_upload_ded0f1c4-21a8-4cc2-bee8-783fc44d9599`. Do not re-upload or poll until user continuation. No public release/review submission.
+- **1.0.58: upload verified**, task `confirmation_upload_ded0f1c4-21a8-4cc2-bee8-783fc44d9599`, reconciled from the official successful receipt during the following Coach-source task. No public release/review submission.
 - Clean candidate main runtime: 1,966,007 bytes; 131,145 bytes headroom. Native-tested changed files exactly match candidate hashes.
 - **NOT VERIFIED:** physical phone/tablet and platform approval/publication.
 
