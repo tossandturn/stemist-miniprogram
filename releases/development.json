@@ -1,7 +1,23 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.57",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.58",
+  "pendingUploads": [
+    {
+      "version": "1.0.58",
+      "assignedOn": "2026-10-23",
+      "commit": "cd797792ad2305b0843e32dc296009c2f76e2efb",
+      "project": "D:/CodexWork/university-admissions-20261023-candidate",
+      "taskId": "confirmation_upload_ded0f1c4-21a8-4cc2-bee8-783fc44d9599",
+      "officialInfo": "D:/CodexWork/university-admissions-20261023/upload-1.0.58-result.json",
+      "manifest": "D:/CodexWork/university-admissions-20261023-candidate-manifest.json",
+      "runtimeMainBytes": 1966007,
+      "runtimeMainHeadroomBytes": 131145,
+      "runtimeManifestSha256": "90f05ba91d852b19cae16e4a651646de33fd861b48480e0bab1a207ba57f27ac",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "status": "pending_user_confirmation"
+    }
+  ],
   "reconciledUploads": [
     {
       "version": "1.0.57",
