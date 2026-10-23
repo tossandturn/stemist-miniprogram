@@ -1,7 +1,23 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.56",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.57",
+  "pendingUploads": [
+    {
+      "version": "1.0.57",
+      "status": "pending_user_confirmation",
+      "assignedOn": "2026-10-23",
+      "commit": "ef441d433280e317190e725043f1d1e48fc69367",
+      "project": "D:/CodexWork/tavern-persona-20261023-candidate",
+      "taskId": "confirmation_upload_978ec41e-3a0e-4dbe-a08f-c8a6f8e7f413",
+      "officialInfo": "D:/CodexWork/tavern-persona-20261023/upload-1.0.57-result.json",
+      "manifest": "D:/CodexWork/tavern-persona-20261023-candidate-manifest.json",
+      "runtimeMainBytes": 1966007,
+      "runtimeMainHeadroomBytes": 131145,
+      "runtimeManifestSha256": "8c19aeea7fd7a349b93d814e943eec30abc38bd3335f83039e94e1e0f84b7d26",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    }
+  ],
   "reconciledUploads": [
     {
       "version": "1.0.56",

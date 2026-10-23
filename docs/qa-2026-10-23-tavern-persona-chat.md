@@ -33,4 +33,8 @@ Backend runtime commit `e01416b666339c779f3efc9cf27059af496b6976` is a four-file
 
 1.0.56 was independently confirmed uploaded successfully and reconciled before assigning the next version. The new frontend is intended for 1.0.57; the actual upload result must be appended, and pending confirmation is not upload success or public publication. User-owned `project.config.json` remains unchanged at SHA256 `A6D9C6A9CB8C4732F591272E9F18DB86C12628CB2AA5FEDECD9EFB97CE5705FA`.
 
+Final runtime commit: `ef441d433280e317190e725043f1d1e48fc69367`. Clean candidate: `D:/CodexWork/tavern-persona-20261023-candidate`; runtime manifest SHA256 `8c19aeea7fd7a349b93d814e943eec30abc38bd3335f83039e94e1e0f84b7d26`. All 327 runtime files and the four changed native-tested files were checked before upload. Main source-package size/headroom remain 1,966,007/131,145 bytes; no server artwork or QA fixtures enter the package.
+
+Official 1.0.57 upload task `confirmation_upload_978ec41e-3a0e-4dbe-a08f-c8a6f8e7f413` returned **PENDING user confirmation**, not upload success. Confirm inside WeChat Developer Tools. Per `wechatide-skill`, do not actively poll or reissue before user continuation; query this existing task first on resumption. No review submission/public publication was performed.
+
 References: [SillyTavern](https://github.com/SillyTavern/SillyTavern) informed persistent personality-led interaction; no code/dependency was imported. `ui-ux-pro-max` informed a separate accessible draw action and keyboard-safe common composer while preserving the established native design.
