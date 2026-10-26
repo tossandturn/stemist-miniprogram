@@ -244,18 +244,21 @@ assert.equal(authResumeCalls,2,'Same-owner login starts a fresh resume instead o
 assert.equal(authPage.data.message,'preserved application draft')
 
 // Explicit revision conflict is reconciled, then the same idempotency ID is rebased once.
+for(const conflictCode of ['admissions_conversation_revision_conflict','admissions_generated_result_pending']){
 let conflictRevision=0, conflictRequests=[]
 const conflictRuntime=miniRuntime({modules:{'utils/api':{isAuthError:()=>false},'bundles/coach/admissionsConversation':{
   cleanAdmissionsMessage:testClean,
   newClientTurnId:()=> 'revision-conflict-turn',resumeAdmissions:async()=>({conversation:record(conflictRevision),messages:[],nextBefore:''}),
   fetchAdmissionsMessages:async()=>({conversation:record(conflictRevision),messages:[],nextBefore:''}),deleteAdmissions:async({conversationId})=>({deleted:true,conversationId}),
-  sendAdmissions:async request=>{conflictRequests.push(request);if(conflictRequests.length===1)throw Object.assign(Error('conflict'),{statusCode:409,code:'admissions_conversation_revision_conflict'});return{mode:'ai',providerStatus:'connected',answer:'rebased answer',clientTurnId:request.clientTurnId,conversation:record(request.expectedRevision+1),turns:[{id:request.clientTurnId+':user',role:'user',content:request.message,sequence:3,status:'complete'},{id:request.clientTurnId+':assistant',role:'assistant',content:'rebased answer',sequence:4,status:'complete'}]}},
+  sendAdmissions:async request=>{conflictRequests.push(request);if(conflictRequests.length===1)throw Object.assign(Error('conflict'),{statusCode:409,code:conflictCode});return{mode:'ai',providerStatus:'connected',answer:'rebased answer',clientTurnId:request.clientTurnId,conversation:record(request.expectedRevision+1),turns:[{id:request.clientTurnId+':user',role:'user',content:request.message,sequence:3,status:'complete'},{id:request.clientTurnId+':assistant',role:'assistant',content:'rebased answer',sequence:4,status:'complete'}]}},
 }}})
 conflictRuntime.storage.set('stemistUser',{id:'conflict-owner'});conflictRuntime.storage.set('stemistSessionToken','token')
 const conflictPage=conflictRuntime.page('bundles/coach/admissions');conflictPage.onLoad();conflictPage.onShow();await settle();await settle();conflictPage.onMessage({detail:{value:'retry safely'}});await conflictPage.submit()
 conflictRevision=1;await conflictPage.returnLatestHistory();await conflictPage.submit()
 assert.deepEqual(conflictRequests.map(item=>item.expectedRevision),[0,1])
 assert.equal(conflictRequests[0].clientTurnId,conflictRequests[1].clientTurnId)
+conflictPage.onUnload()
+}
 
 // A new request must not leave the device until its idempotency record is durable.
 let persistBlocked=false,persistSends=0

@@ -5,7 +5,7 @@ const {mergeTavernMessages}=require('./tavernConversation')
 const {cleanAdmissionsMessage,newClientTurnId,resumeAdmissions,fetchAdmissionsMessages,deleteAdmissions,sendAdmissions}=require('./admissionsConversation')
 const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest'),epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const LOCAL_CLEAR_FENCES=new Map()
-const revisionConflict=error=>Number(error?.statusCode)===409&&/revision_conflict/.test(String(error?.code||''))
+const revisionConflict=error=>Number(error?.statusCode)===409&&/revision_conflict|generated_result_pending/.test(String(error?.code||''))
 const confirmedDeleted=error=>Number(error?.statusCode)===410&&String(error?.code||'')==='admissions_conversation_deleted'
 const canonicalDraft=value=>{try{return cleanAdmissionsMessage(String(value||''))}catch{return''}}
 const normalizedDraftLength=value=>Array.from(String(value||'').replaceAll(String.fromCharCode(0),'').replace(/\r\n?/g,'\n').trim()).length

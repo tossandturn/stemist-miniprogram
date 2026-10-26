@@ -23,7 +23,7 @@ function safeError(error){
  const code=String(error?.code||''),statusCode=Number(error?.statusCode)||0
  const labels={admissions_commit_deferred:'回答已生成并安全保留，但尚未写入对话；请点击“重试保存”，不会再次调用 AI。',admissions_generation_indeterminate:'生成结果尚无法确认。为避免重复调用 AI，已停止发送；请刷新记录确认，或清空后重新开始。',admissions_turn_in_progress:'上一条消息仍在处理中，请稍后重试。',tavern_turn_in_progress:'上一条消息仍在处理中，请稍后重试。',admissions_conversation_revision_conflict:'对话已更新，请刷新记录后重试。',tavern_revision_conflict:'对话已更新，请刷新记录后重试。',tavern_conversation_revision_conflict:'对话已更新，请刷新记录后重试。',network_timeout:'回复超时，输入已保留，请重试。',request_cancelled:'已停止等待，输入已保留。'}
  const original=String(error?.message||'')
- const message=labels[code]||(statusCode===401?'请登录后继续。':statusCode===429?'请求较多，请稍后重试。':/[\u4e00-\u9fff]/.test(original)&&!/(?:https?:|bearer|secret|api.key|stack)/i.test(original)?original.slice(0,240):'本次回复未完成，输入已保留，请重试。')
+ const message=(code==='admissions_generated_result_pending'?'上一条回答仍待保存，请刷新记录后重试。':labels[code])||(statusCode===401?'请登录后继续。':statusCode===429?'请求较多，请稍后重试。':/[\u4e00-\u9fff]/.test(original)&&!/(?:https?:|bearer|secret|api.key|stack)/i.test(original)?original.slice(0,240):'本次回复未完成，输入已保留，请重试。')
  return Object.assign(Error(message),{code,statusCode,...receiptFields(error),...(error?.partialAnswer?{partialAnswer:String(error.partialAnswer)}:{})})
 }
 async function read(path,body,options){const current=identity();try{const result=await requestJson(path,body,options);current();return result}catch(error){throw safeError(error)}}
