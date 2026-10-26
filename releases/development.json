@@ -1,8 +1,26 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.60",
+  "highestAssignedVersion": "1.0.61",
   "pendingUploads": [],
   "reconciledUploads": [
+    {
+      "version": "1.0.61",
+      "assignedOn": "2026-10-27",
+      "commit": "ac9eaf003bf622263f52cab61ccefc55c394469e",
+      "project": "D:/CodexWork/ielts-teacher-20261027-candidate",
+      "officialInfo": "D:\\CodexWork\\ielts-teacher-20261027\\upload-result.json",
+      "manifest": "D:/CodexWork/ielts-teacher-20261027-candidate-manifest.json",
+      "runtimeMainBytes": 1961756,
+      "runtimeMainHeadroomBytes": 135396,
+      "runtimeManifestSha256": "f45f0ec4374c79e8741b536ecd99f4a0fa6decd848d663d38f74735d3c418ea3",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "status": "upload_verified",
+      "observedOn": "2026-10-27",
+      "success": true,
+      "compiledTotalBytes": 2513877,
+      "compiledMainBytes": 1988120
+    },
     {
       "version": "1.0.60",
       "assignedOn": "2026-10-27",
