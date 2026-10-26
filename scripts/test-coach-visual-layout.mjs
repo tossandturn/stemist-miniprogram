@@ -16,7 +16,7 @@ assert.match(read('pages/coach/index.wxml'),/helpIntent === 'check-work' \? '检
 assert.match(rule(hub,'.mode-detail'),/font-weight:\s*400/)
 assert.match(marking,/\.marking-page button\.history-item\s*\{[^}]*width:\s*100%/)
 assert.match(marking,/\.marking-page button\.optional-toggle\s*\{[^}]*font-size:\s*13px/)
-for(const id of ['steps','answers','pdf','tavern']){
+for(const id of ['steps','answers','pdf','tavern','admissions']){
  const svg=read(`bundles/coach/mode-icons/${id}.svg`)
  assert.match(svg,/viewBox="0 0 48 48"/)
  assert.match(svg,/stroke-linecap="round"/)

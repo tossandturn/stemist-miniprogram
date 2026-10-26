@@ -4,13 +4,13 @@ import {deferred,miniRuntime,settle} from './helpers/mini-runtime.mjs'
 
 const app=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8'))
 const coachPackage=app.subPackages?.find(item=>item.root==='bundles/coach')
-assert.deepEqual(coachPackage?.pages,['index','tavern'],'Coach hub and tavern must be lazy ordinary subpackage pages')
+assert.deepEqual(coachPackage?.pages,['index','tavern','admissions'],'Coach hub, tavern and admissions must be lazy ordinary subpackage pages')
 
 const hubRuntime=miniRuntime()
 hubRuntime.storage.set('stemistCoachEntry',{owner:'student-a',epoch:0,key:'entry:key',context:{skill:'reading'}})
 const hub=hubRuntime.page('bundles/coach/index')
 hub.onLoad({source:'competition',category:'competition',routeId:'bpho',entry:'entry:key'})
-assert.deepEqual(hub.data.modes.map(item=>item.id),['steps','answers','pdf','tavern'],'hub must expose exactly four primary functions')
+assert.deepEqual(hub.data.modes.map(item=>item.id),['steps','answers','pdf','tavern','admissions'],'hub preserves the original four modes and adds the independent admissions advisor')
 for(const [id,target] of [
   ['steps',/^\/pages\/coach\/index\?.*feature=steps/],
   ['answers',/^\/pages\/coach\/index\?.*feature=answers/],

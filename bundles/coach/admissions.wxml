@@ -1,0 +1,36 @@
+<view class="admissions-page {{deviceClass}} {{orientation}} {{keyboardOpen ? 'keyboard-open' : ''}} {{keyboardOpen && chatViewportHeight < 260 ? 'compact-chat' : ''}}" style="height:{{chatViewportHeight}}px">
+  <view class="advisor-header">
+    <image class="advisor-avatar" src="/bundles/coach/mode-icons/admissions.svg" mode="aspectFit" aria-hidden="true" />
+    <view class="advisor-heading"><text class="advisor-title">留学申请顾问</text><text class="advisor-subtitle">AI 老师 · 规划、分析与文书</text></view>
+    <button class="quiet-button" bindtap="requestClear" disabled="{{loading || historyLoading || authRequired}}">{{clearPending ? '重试清空' : '清空'}}</button>
+  </view>
+  <scroll-view class="chat-list" scroll-y="true" scroll-top="{{chatScrollTop}}" enhanced="true" show-scrollbar="false" bindtap="dismissComposerKeyboard" aria-label="申请咨询对话">
+    <view class="chat-inner">
+      <view class="history-actions"><button wx:if="{{historyBrowsing || error}}" class="quiet-button" bindtap="returnLatestHistory" disabled="{{loading || historyLoading || authRequired || clearPending}}">刷新最新</button><button wx:if="{{hasOlderHistory}}" class="quiet-button" bindtap="loadOlderHistory" disabled="{{loading || historyLoading || clearPending}}">更早记录</button></view>
+      <view wx:if="{{!turns.length && !loading && !historyLoading && !clearPending}}" class="advisor-welcome">
+        <text class="welcome-title">把申请，一步步理清楚。</text>
+        <text class="welcome-copy">可以聊选校、分析背景，也可以贴一段文书来修改。先告诉我你想解决的事，不用一次填完所有资料。</text>
+        <view class="starter-grid"><button wx:for="{{starters}}" wx:key="title" class="starter-button" data-index="{{index}}" bindtap="useStarter" disabled="{{authRequired}}">{{item.title}}</button></view>
+        <text class="advisor-note">不保证录取。官方要求以对应年份、专业官网为准；文书基于真实经历，请勿发送证件号码或账号密码。</text>
+      </view>
+      <view wx:if="{{historyLoading}}" class="status-line" role="status">正在恢复对话…</view>
+      <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
+        <text class="message-label">{{item.role === 'user' ? '你' : '申请顾问 · AI'}}</text>
+        <view class="chat-bubble {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" compact="{{true}}" academic="{{true}}" /></view>
+        <button wx:if="{{item.role === 'assistant'}}" class="copy-button" data-id="{{item.id}}" bindtap="copyReply" aria-label="复制这条申请建议">复制</button>
+      </view>
+      <view wx:if="{{loading && message}}" class="chat-row user"><text class="message-label">你</text><view class="chat-bubble user"><text>{{message}}</text></view></view>
+      <view wx:if="{{partialAnswer}}" class="chat-row assistant"><text class="message-label">申请顾问 · AI</text><view class="chat-bubble assistant"><answer-content text="{{partialAnswer}}" compact="{{true}}" academic="{{true}}" /><text wx:if="{{!loading}}" class="partial-note">回复未完成，仅显示已收到的部分内容。</text></view></view>
+      <view wx:if="{{loading}}" class="status-line" role="status">{{status}}</view>
+      <view wx:if="{{clearPending}}" class="notice" role="status">云端清空尚未确认，请点击右上角“重试清空”。</view>
+      <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>
+      <view wx:if="{{warning}}" class="notice">{{warning}}</view>
+      <button wx:if="{{authRequired}}" class="login-button" bindtap="openAccount">登录后开始咨询</button>
+    </view>
+  </scroll-view>
+  <view class="advisor-composer">
+    <text class="input-label">{{canRetry ? '输入已保留，可继续重试' : '你的问题或文书草稿'}}</text>
+    <textarea id="admissions-input" class="advisor-input" style="height:{{composerHeight}}px" value="{{message}}" maxlength="12000" disabled="{{loading || authRequired || clearPending}}" placeholder="说说申请目标，或粘贴文书…" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onMessage" bindconfirm="onComposerConfirm" aria-label="申请问题或文书草稿，最多12000字符" />
+    <button class="send-button" bindtap="submit" loading="{{loading}}" disabled="{{loading || historyLoading || (!message && receiptState !== 'commit-deferred') || authRequired || clearPending || sendBlocked}}">{{loading ? '回复中' : receiptState === 'indeterminate' ? '等待确认' : receiptState === 'commit-deferred' ? '重试保存' : canRetry ? '重试' : '发送'}}</button>
+  </view>
+</view>
