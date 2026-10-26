@@ -8,4 +8,8 @@ Readable streaming text and closed formulas now paint without waiting for the ne
 
 PASS: full `npm run test:all`; source-action unit and actual page-state tests; isolated WeChat simulator offer/confirm/decline/answer-retention checks. Package main size 1,961,704 bytes with 135,448 bytes headroom; the 128 KiB minimum is unchanged. Only the existing identifier-minification strategy was extended to the new helper and PDF download/cache utilities; their source behavior and download/resume tests are unchanged.
 
-This inline, non-blocking interaction follows the existing UI tokens and native touch targets. No new popup, new main page, provider credential or persistent student-photo store was added. Release and live timing are pending final acceptance. Physical-phone testing remains NOT VERIFIED.
+This inline, non-blocking interaction follows the existing UI tokens and native touch targets. No new popup, new main page, provider credential or persistent student-photo store was added. Physical-phone testing remains NOT VERIFIED.
+
+Backend runtime `dc8f22d377f24cf0e06bf584da5ad7af2238c8f7` is deployed. Three fresh public-image cases completed answers without any source-index reads, followed by successful separate confirmed source lookups. Answer-only completion was 6.62 / 7.91 / 3.19 s versus the preceding combined workflow's 13.67 / 12.65 / 5.88 s; these are small server-side samples, not phone latency guarantees. IELTS, Tavern and model reasoning settings are unchanged.
+
+Client runtime `e24529d887a94e5ff3da8d92765707499c4971a1` is frozen for **1.0.59**. The official upload request returned **pending user confirmation**; it is not yet recorded as successful. No formal review/public publication occurred. The original IDE configuration hash remains unchanged. The release ledger records the pending upload so a future task must reconcile it rather than upload a duplicate.

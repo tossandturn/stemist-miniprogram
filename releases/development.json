@@ -1,7 +1,23 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.58",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.59",
+  "pendingUploads": [
+    {
+      "version": "1.0.59",
+      "assignedOn": "2026-10-26",
+      "commit": "e24529d887a94e5ff3da8d92765707499c4971a1",
+      "project": "D:/CodexWork/coach-answer-first-20261026-candidate",
+      "taskId": "confirmation_upload_d36e7450-2fc3-44d5-898c-3dd33b4b9fcf",
+      "officialInfo": "D:\\CodexWork\\coach-answer-first-20261026/upload-result.json",
+      "manifest": "D:/CodexWork/coach-answer-first-20261026-candidate-manifest.json",
+      "runtimeMainBytes": 1961704,
+      "runtimeMainHeadroomBytes": 135448,
+      "runtimeManifestSha256": "ca98d26f725cecbf3d156dad1f8cb60f69146fbaf6d66a217fb8cb7078496b40",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "status": "pending_user_confirmation"
+    }
+  ],
   "reconciledUploads": [
     {
       "version": "1.0.58",
