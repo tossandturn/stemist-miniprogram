@@ -1,0 +1,8 @@
+@import "./admissions.wxss";
+.ielts-teacher-page .advisor-avatar{background:#eef0ff}
+.ielts-teacher-page .starter-button{min-height:44px;background:#eef0ff;color:#5638c3;border-color:#dedffa}
+.teacher-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.ielts-teacher-page .teacher-link{width:100%;min-height:44px;padding:10px 8px;background:#fff;color:#5638c3;border:1px solid #d7dce8}
+.ielts-teacher-page .advisor-composer{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.ielts-teacher-page.keyboard-open .advisor-composer{padding-bottom:8px}
+@media(max-width:375px){.teacher-links{grid-template-columns:1fr}}

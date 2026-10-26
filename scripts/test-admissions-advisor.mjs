@@ -379,5 +379,5 @@ assert.equal(indeterminateRestored.data.partialAnswer,'')
 
 const hubStyle=fs.readFileSync(new URL('../bundles/coach/index.wxss',import.meta.url),'utf8')
 assert.ok(hubStyle.indexOf('.mode-detail{')<hubStyle.indexOf('.mode-admissions .mode-detail{'),'Base Coach typography rule remains independently testable')
-assert.match(hubStyle,/\.coach-hub-page\.device-tablet \.mode-admissions\s*\{[^}]*padding-left:\s*(?:9[0-9]|[1-9]\d{2,})px/,'Tablet admissions text keeps clear of its absolute icon')
+assert.doesNotMatch(hubStyle,/\.coach-hub-page\.device-tablet \.mode-admissions\s*\{/,'Admissions uses the same stacked tablet card layout as every other Coach mode')
 console.log('PASS admissions advisor: entry, isolation, restore, streaming, canonical completion, replay, clear, history, and keyboard contracts')
