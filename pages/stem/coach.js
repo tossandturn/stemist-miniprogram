@@ -5,6 +5,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { isAuthError } = require('../../utils/api')
 const {createOperationTracker}=require('../../utils/operationProgress')
 const {warmCoachSession}=require('../../utils/coachSession')
+const {offerCoachSource,lookupCoachSource,clearCoachSource}=require('../../utils/coachSource')
 const owner=()=>String((wx.getStorageSync('stemistUser')||{}).id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 
@@ -29,12 +30,13 @@ const policy=coachHelpPolicy(context)
 this.setData({ imagePath: path || '', context, contextLabel: label, syncFailed: Boolean(pendingSync), syncStatus: pendingSync ? '上次反馈尚未同步' : '',solutionDisabled:policy.solutionDisabled })
 },
 onHide(){this.__stopWarm?.()},
-onUnload() { this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose() },
+onUnload() { clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose() },
 current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
 onShow() {
 syncDevice(this)
 if(this.__authResumeRequested&&wx.getStorageSync('stemistSessionToken')&&owner()!=='guest'&&(this.__owner==='guest'||this.__owner===owner())){this.__owner=owner();this.__epoch=epoch();this.__authResumeRequested=false;wx.setStorageSync('stemistCroppedImageMeta',{owner:this.__owner,epoch:this.__epoch,path:this.data.imagePath});this.setData({authRequired:false,error:''})}
 if(!this.current()){this.__coachProgress?.dispose();this.setData({imagePath:'',answer:'',message:'',warning:'',error:'账号已变化，请重新拍照。',canRetry:false,authRequired:false,loading:false,progress:{},helpIntent:'',solutionDisabled:false})}
+if(!this.current())clearCoachSource(this)
 this.__stopWarm?.();if(this.current())this.__stopWarm=warmCoachSession();else{this.__cancelCoach?.();this.__cancelCoach=null}
 },
 onResize() { syncDevice(this) },
@@ -48,6 +50,7 @@ this.setData({helpIntent:intent,error:'',authRequired:false})
 async ask() {
 if (this.data.loading||!this.current()) return
 if (!this.data.imagePath) return this.setData({ error: '还没有题目照片，请先拍摄并裁剪' })
+clearCoachSource(this)
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', syncStatus: '', syncFailed: false, syncing: false, coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 this.__receiving=false
@@ -75,6 +78,7 @@ const answer = result.answer
 const coachState = result.coachState || {}
 progress.finish(true)
 this.setData({answer,coachStatus:coachState.label||'反馈状态待确认',syncStatus:'正在同步学习记录…'})
+offerCoachSource(this,{message:this.data.message.trim(),context:{...this.data.context,stage:this.data.context.stage||'practice'},imageDataUrls:[dataUrl]},{...result,completed})
 this.__coachWarning = coachState.warning || ''
 this.__pendingSync = { owner:this.__owner,epoch:this.__epoch,attemptId: nextAttemptId(), context: this.data.context, answer, helpIntent:result.helpIntent||'',coachMode: result.mode || '', providerStatus: result.providerStatus || '' }
 wx.setStorageSync('stemistPendingAttemptSync', this.__pendingSync)
@@ -104,6 +108,8 @@ this.setData({ answer, warning: [coachState.warning || '', syncWarning].filter(B
 finally { progress.finish(false);if(this.__coachProgress===progress){this.__cancelCoach=null;if(this.current())this.setData({loading:false});else if(!this.__disposed){this.onShow();this.setData({loading:false,coachStatus:'',syncStatus:'',syncing:false,...(authExpired?{authRequired:true,error:'登录已过期，请重新登录后继续。'}:{})})}} }
 },
 retry() { if (!this.data.loading) this.ask() },
+identifySource(){return lookupCoachSource(this)},
+dismissSource(){clearCoachSource(this)},
 openAccount() { this.__authResumeRequested=true;wx.navigateTo({ url: '/pages/account/auth' }) },
 async retrySync() {
 if (this.data.loading || this.data.syncing || !this.__pendingSync||!this.current()||this.__pendingSync.owner!==this.__owner||this.__pendingSync.epoch!==this.__epoch) return

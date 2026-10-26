@@ -49,6 +49,9 @@ const unauthorized=setup();await settle();const unauthorizedReject=assert.reject
 unauthorized.request.success({statusCode:401,data:{error:'fixture'}});await unauthorizedReject
 assert.equal(unauthorized.previews.length,0)
 const parser=miniRuntime().load('utils/coachStream')
+assert.equal(parser.liveAnswer('## 答案\n答案是'),'## 答案\n答案是','Readable text should not wait for punctuation or a paragraph')
+assert.equal(parser.liveAnswer('## 答案\n\\(x=4\\)'),'## 答案\n\\(x=4\\)','A completed formula is readable before the next newline')
+assert.equal(parser.liveAnswer('## 答案\n\\(x='),'','Unfinished formulas must remain hidden')
 assert.equal(parser.stableAnswer('## 答案\n$$x='),'')
 assert.equal(parser.stableAnswer('完成。\n**尚未完成'),'完成。')
 assert.equal(parser.stableAnswer('完成。\n```\nx='),'完成。')

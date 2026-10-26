@@ -27,7 +27,7 @@ function stableAnswer(text){
   if(c==='\\'){
    const next=source[i+1]
    if(!math&&(next==='('||next==='[')){math=next==='('?')':']';i++;continue}
-   if(math&&next===math){math='';i++;continue}
+   if(math&&next===math){math='';i++;if(!bold)safe=i+1;continue}
    if(next==='$'||next==='\\'){i++;continue}
   }
   if(c==='$'){const marker=source[i+1]==='$'?'$$':'$';if(!math)math=marker;else if(math===marker)math='';i+=marker.length-1;continue}
@@ -39,10 +39,15 @@ function stableAnswer(text){
  return result.replace(/^\s*#{1,6}[^\n]*(?:\n|$)/gm,'').trim()?result:''
 }
 
+function liveAnswer(text){
+ const source=String(text||'').slice(0,40000),safe=stableAnswer(source),tail=source.slice(safe.length)
+ if(!/[\\`$*{}<>]/.test(tail)&&!/^\s*#{1,6}[^\n]*$/.test(tail)&&source.replace(/^\s*#{1,6}[^\n]*(?:\n|$)/gm,'').trim())return source.trimEnd()
+ return safe
+}
 function createCoachStream({onPreview=()=>{},onMeta=()=>{}}={}){
  const decoder=utf8Decoder();let buffer='',answer='',preview='',terminal=null,timer=null,closed=false,allow=false,received=false,wire=0,lastPaint=0
  const error=code=>Object.assign(new Error('回答连接中断，已收到的内容不是完整答案，请重试。'),{code,partialAnswer:stableAnswer(answer)})
- const paint=()=>{timer=null;if(closed||!allow)return;const next=stableAnswer(answer);if(next===preview)return;preview=next;lastPaint=Date.now();onPreview(next)}
+ const paint=()=>{timer=null;if(closed||!allow)return;const next=liveAnswer(answer);if(next===preview)return;preview=next;lastPaint=Date.now();onPreview(next)}
  const schedule=()=>{if(!lastPaint)paint();else if(!timer)timer=setTimeout(paint,120)}
  const dispatch=block=>{
   let name='message',data=[]
@@ -72,4 +77,4 @@ function createCoachStream({onPreview=()=>{},onMeta=()=>{}}={}){
   return terminal
  },partial:()=>stableAnswer(answer),close(){closed=true;clearTimeout(timer);timer=null}}
 }
-module.exports={createCoachStream,stableAnswer}
+module.exports={createCoachStream,stableAnswer,liveAnswer}

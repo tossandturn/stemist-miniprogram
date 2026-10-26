@@ -8,6 +8,7 @@ const {readAsJpegDataUrl}=require('../../utils/image')
 const {readCoachPhoto,consumeCoachPhotoAutoSubmit,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 const {createOperationTracker}=require('../../utils/operationProgress')
 const {warmCoachSession}=require('../../utils/coachSession')
+const {offerCoachSource,lookupCoachSource,clearCoachSource}=require('../../utils/coachSource')
 
 const PRODUCT_CATEGORIES = new Set(['alevel', 'competition', 'ielts'])
 const STEM_FAMILIES = new Set(['exam', 'competition', 'admissions'])
@@ -82,6 +83,7 @@ const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
 resetIdentity(){
+clearCoachSource(this)
 this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null
 this.__coachProgress?.dispose();this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
 this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false,helpIntent:'',feature:'',solutionDisabled:false})
@@ -102,13 +104,15 @@ if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.set
 },
 onResize() { syncDevice(this) },
 onHide(){this.__stopWarm?.()},
-onUnload() { this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
+onUnload() { clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
 restorePhoto(){
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId)
+if(imagePath!==this.data.imagePath)clearCoachSource(this)
 const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers')
 this.setData({imagePath,imageSource:imagePath?'已裁剪':''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
 },
 discardAttachedPhoto(){
+clearCoachSource(this)
 clearCoachPhoto(this.identity())
 if(this.data.imagePath||this.data.imageSource)this.setData({imagePath:'',imageSource:''})
 },
@@ -152,6 +156,7 @@ chooseContext(event) {
 if (!this.current() || this.data.loading) return
 const contextId = String(event.currentTarget.dataset.context || '')
 if (!CONTEXTS.some((item) => item.id === contextId)) return
+clearCoachSource(this)
 if(contextId!==this.data.contextId)this.discardAttachedPhoto()
 if(this.__entry?.skill!==contextId){this.__entry=null;this.__entryKey='';this.__historyKey='stemistCoachTurns:'+this.__owner+':'+contextId;const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]}
 const selected=CONTEXTS.find(item=>item.id===contextId)||CONTEXTS[0],policy=coachHelpPolicy({product:selected.product,skill:selected.id,...(contextId==='stem-photo'?this.data.routeContext:{})})
@@ -181,6 +186,7 @@ if (this.data.loading||!this.current()) return
 const selected = CONTEXTS.find((item) => item.id === this.data.contextId) || CONTEXTS[0]
 const entryImages=Array.isArray(this.__entry?.imagePaths)?this.__entry.imagePaths:[]
 if (!typedMessage&&!this.data.imagePath&&!entryImages.length) return this.setData({ error: '请先拍照、上传图片，或写下你的问题。' })
+clearCoachSource(this)
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 this.__receiving=false
@@ -220,6 +226,7 @@ this.setData({answer:result.partialAnswer||'',warning:coachState.warning||'',err
 return
 }
 this.setData({ answer: result.answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
+offerCoachSource(this,{message:typedMessage,context:coachContext,imageDataUrls},{...result,completed})
 if(result.mode==='ai'&&result.providerStatus==='connected'){
 this.__history=[...this.__history,{role:'user',content:result.requestMessage||typedMessage},{role:'assistant',content:result.answer}].slice(-12)
 try{wx.setStorageSync(this.__historyKey,this.__history)}catch{this.setData({draftStatus:'对话暂未保存，请检查本机空间'})}
@@ -240,6 +247,8 @@ else if(!this.__disposed&&selected.product==='STEM Studio'){this.resetIdentity()
 }
 },
 retry() { if (!this.data.loading) return this.submit() },
+identifySource(){return lookupCoachSource(this)},
+dismissSource(){clearCoachSource(this)},
 openContext(event) {
 const selected = CONTEXTS.find((item) => item.id === String(event.currentTarget.dataset.context || ''))
 if (selected) wx.navigateTo({ url: selected.page })
