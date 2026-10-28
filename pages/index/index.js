@@ -23,7 +23,6 @@ entryPoints: ENTRY_POINTS,
 secondaryLinks: [{id:'university-directory',label:'大学排名与官网',action:{kind:'page',target:'university-directory'}}],
 entryLoading: '',
 entryError: '',
-wechatLoading: false,
 recentActivity: null,
 summary: { completedThisWeek: 0, draftCount: 0, submissionCount: 0 },
 announcement: null,
@@ -92,18 +91,7 @@ this.setData({ announcement: items[0] || null, announcementUnread: items.some((i
 if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcement: null, announcementUnread: false, announcementError: true })
 } finally { if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcementLoading: false }) }
 },
-async loginWechat() {
-if (this.data.wechatLoading) return
-if (wx.getStorageSync('stemistSessionToken')) return wx.navigateTo({ url: '/pages/account/auth' })
-this.setData({ wechatLoading: true, entryError: '' })
-try {
-const result = await ensureWeChatSession({ silent: false })
-this.setData({ user: result.user || null, aiStatus: result.user ? 'AI 已连接' : '登录后使用 AI' })
-if (result.user) wx.showToast({ title: '微信登录成功', icon: 'success' })
-} catch {
-this.setData({ entryError: '微信登录暂时不可用；可以先浏览入口，提交 AI 前再到 Account 重试。' })
-} finally { this.setData({ wechatLoading: false }) }
-},
+loginWechat(){wx.navigateTo({url:'/bundles/account/auth',fail:()=>this.setData({entryError:'账号页面未能打开，请重试。'})})},
 openEntry(event) {
 const id = String(event.currentTarget.dataset.entry || '')
 const url = ENTRY_URLS[id]

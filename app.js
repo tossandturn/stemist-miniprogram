@@ -23,10 +23,9 @@ App({
       const envVersion = String(accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion || '').toLowerCase()
       this.globalData.debugMode = envVersion === 'develop' || envVersion === 'trial'
     } catch { this.globalData.debugMode = false }
-    // wx.login is silent. Start the exchange in the background so the first
-    // entry card can usually open with an already-linked shared account. A
-    // missing server adapter must never prevent the mini-program shell from
-    // launching; the account page remains the explicit recovery path.
+    // Background startup may refresh an existing session, but a guest remains
+    // a guest until they explicitly choose WeChat login on the account page.
+    // Authentication availability must never block the Mini Program shell.
     ensureWeChatSession({ silent: true }).then((result) => { this.globalData.wechatAuth = result }).catch((error) => { this.globalData.wechatAuth = { status: 'unavailable', errorCode: error && error.code } })
   },
   onShow() { this.globalData.deviceProfile = readDeviceProfile() },

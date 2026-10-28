@@ -1,7 +1,6 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const {recentRecords}=require('../../utils/nativeRecords')
 const {requestIeltsLearning}=require('../../utils/ieltsLearning')
-const {ensureWeChatSession}=require('../../utils/wechatAuth')
 const {learningState,learningReport}=require('../../utils/nativeLearning')
 Page({
   ...require('../../utils/share').public,
@@ -21,7 +20,7 @@ Page({
  moreReport(){const all=this.__report?.result?.details||[],count=this.data.reportRows.length+10;this.setData({reportRows:all.slice(0,count),reportHasMore:count<all.length})},
  inputCode(event){this.setData({code:String(event.detail.value||'').slice(0,100),error:''})},
  async redeem(){if(this.data.busy||!this.data.code.trim())return;this.setData({busy:true,error:''});try{await requestIeltsLearning('/api/redeem',{code:this.data.code.trim()});if(!this.__disposed){this.setData({code:'',status:'已提交激活'});await this.loadAccount()}}catch(e){if(!this.__disposed)this.setData({error:e.message})}finally{if(!this.__disposed)this.setData({busy:false})}},
- async signIn(){if(this.data.busy)return;this.setData({busy:true,error:''});try{await ensureWeChatSession({silent:false});if(!this.__disposed)this.refresh()}catch(e){if(!this.__disposed)this.setData({error:e.message||'微信登录未完成'})}finally{if(!this.__disposed)this.setData({busy:false})}},
+ signIn(){if(this.data.busy)return;wx.navigateTo({url:'/bundles/account/auth',fail:()=>this.setData({error:'账号页面未能打开，请重试。'})})},
  account(){wx.navigateTo({url:'/pages/account/auth'})},
  back(){wx.navigateBack()}
 })

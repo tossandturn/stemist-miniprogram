@@ -13,6 +13,8 @@ vm.runInNewContext(source, {
   module,
   exports: module.exports,
   Promise,
+  setTimeout,
+  clearTimeout,
   String,
   Object,
   Error,

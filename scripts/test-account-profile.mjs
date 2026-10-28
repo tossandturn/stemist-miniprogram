@@ -72,7 +72,7 @@ failSave=false;await retryPage.submit({detail:{value:{nickname:retryPage.data.di
 assert.equal(retryPage.data.saved,true)
 
 const loginReply=deferred()
-const leaving=miniRuntime({modules:{'utils/wechatAuth':{ensureWeChatSession:()=>loginReply.promise}},wx:{showToast(){}}})
+const leaving=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:loginReply.promise,cancel:()=>true})}},wx:{showToast(){}}})
 const accountPage=leaving.page('bundles/account/auth');accountPage.onShow()
 const login=accountPage.loginWechat();accountPage.onHide();accountPage.goBack()
 loginReply.resolve({user:{id:'ielts:42'}});await login
@@ -80,37 +80,36 @@ assert.equal(leaving.calls.some(call=>call.url==='/bundles/account/profile'),fal
 const redirect=leaving.page('pages/account/auth');redirect.onLoad()
 assert.equal(leaving.calls.at(-1).url,'/bundles/account/auth','old shared account links stay valid')
 
-// A first WeChat login with no user-confirmed avatar or nickname opens the
-// native onboarding route. It is owner-scoped so another account cannot
-// inherit a previous user's skipped prompt.
+// WeChat login establishes identity only. Avatar/nickname remain an optional,
+// explicitly opened profile page and never become an onShow/login loop.
 let firstWechatRuntime
-firstWechatRuntime=miniRuntime({modules:{'utils/wechatAuth':{ensureWeChatSession:async()=>{
+firstWechatRuntime=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:Promise.resolve().then(()=>{
  firstWechatRuntime.storage.set('stemistSessionToken','wechat-session')
  firstWechatRuntime.storage.set('stemistUser',{id:'ielts:700',username:'wechat_700',displayName:'',avatarDataUrl:''})
  return {user:firstWechatRuntime.storage.get('stemistUser')}
-}}},wx:{showToast(){}}})
+}),cancel:()=>false})}},wx:{showToast(){}}})
 const firstWechatPage=firstWechatRuntime.page('bundles/account/auth');firstWechatPage.onShow()
 await firstWechatPage.loginWechat()
-assert.equal(firstWechatRuntime.calls.at(-1).url,'/bundles/account/profile?onboarding=1','first incomplete WeChat profile must use the clear native onboarding route')
-assert.equal(firstWechatRuntime.storage.get('stemistProfileOnboarding:ielts%3A700'),'shown','dismissal marker must be scoped to the authenticated owner')
+assert.equal(firstWechatRuntime.calls.some(call=>String(call.url||'').includes('/bundles/account/profile')),false,'A first login must not force optional profile setup')
+firstWechatPage.editProfile()
+assert.equal(firstWechatRuntime.calls.at(-1).url,'/bundles/account/profile','Profile remains available as an explicit user action')
 
 let secondWechatRuntime
-secondWechatRuntime=miniRuntime({modules:{'utils/wechatAuth':{ensureWeChatSession:async()=>{
+secondWechatRuntime=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:Promise.resolve().then(()=>{
  secondWechatRuntime.storage.set('stemistSessionToken','wechat-session')
  secondWechatRuntime.storage.set('stemistUser',{id:'ielts:701',username:'wechat_701',displayName:'',avatarDataUrl:''})
  return {user:secondWechatRuntime.storage.get('stemistUser')}
-}}},wx:{showToast(){}}})
-secondWechatRuntime.storage.set('stemistProfileOnboarding:ielts%3A700','shown')
+}),cancel:()=>false})}},wx:{showToast(){}}})
 const secondWechatPage=secondWechatRuntime.page('bundles/account/auth');secondWechatPage.onShow()
 await secondWechatPage.loginWechat()
-assert.equal(secondWechatRuntime.calls.at(-1).url,'/bundles/account/profile?onboarding=1','a different account must still receive its own onboarding prompt')
+assert.equal(secondWechatRuntime.calls.length,0,'A different account is not forced into profile setup either')
 
 const silentWechat=miniRuntime({wx:{showToast(){}}})
 silentWechat.storage.set('stemistSessionToken','silent-wechat-token')
 silentWechat.storage.set('stemistUser',{id:'ielts:702',username:'wechat_702',displayName:'',avatarDataUrl:''})
 silentWechat.storage.set('stemistSessionMeta',{kind:'wechat',owner:'ielts:702',expiresAt:new Date(Date.now()+300000).toISOString()})
 const silentWechatPage=silentWechat.page('bundles/account/auth');silentWechatPage.onShow()
-assert.equal(silentWechat.calls.at(-1).url,'/bundles/account/profile?onboarding=1','a silently restored WeChat account must receive the same profile onboarding when opening Account')
+assert.equal(silentWechat.calls.length,0,'A restored WeChat session never auto-opens optional profile setup')
 
 const passwordProfile=miniRuntime({wx:{showToast(){}}})
 passwordProfile.storage.set('stemistSessionToken','password-token')
@@ -118,11 +117,6 @@ passwordProfile.storage.set('stemistUser',{id:'ielts:703',username:'password_703
 passwordProfile.storage.set('stemistSessionMeta',{kind:'password',owner:'ielts:703',expiresAt:new Date(Date.now()+300000).toISOString()})
 const passwordProfilePage=passwordProfile.page('bundles/account/auth');passwordProfilePage.onShow()
 assert.equal(passwordProfile.calls.length,0,'password accounts must not be redirected into the WeChat-specific profile onboarding')
-
-const onboarding=miniRuntime({modules:{'utils/api':{requestJson:async()=>({protocol:'stem-user-profile-v1',profile:initial})}},wx:{showToast(){}}})
-onboarding.storage.set('stemistSessionToken','fixture');onboarding.storage.set('stemistUser',{id:'ielts:42'})
-const onboardingPage=onboarding.page('bundles/account/profile');await onboardingPage.onLoad({onboarding:'1'})
-assert.equal(onboardingPage.data.onboarding,true,'onboarding route must render a distinct profile-completion state')
 
 for(const mode of ['wechat','password']){
  const late=deferred()

@@ -2,15 +2,17 @@
   <stemist-header title="我的账号" action-text="返回" bind:action="goBack" />
   <app-nav active="account" source="account" is-tablet="{{isTablet}}" />
   <view class="panel account-form">
-    <block wx:if="{{user}}"><image wx:if="{{user.avatarDataUrl}}" class="account-avatar" src="{{user.avatarDataUrl}}" mode="aspectFill" aria-label="我的头像" /><view class="card-title">{{user.displayName || user.username}}</view><button class="text-button" bindtap="editProfile">{{user.displayName ? '修改头像与昵称' : '使用微信头像与昵称'}}</button><button class="text-button" bindtap="logout">退出登录</button></block>
+    <block wx:if="{{user}}"><image wx:if="{{user.avatarDataUrl}}" class="account-avatar" src="{{user.avatarDataUrl}}" mode="aspectFill" aria-label="我的头像" /><view class="card-title">{{userLabel}}</view><view class="account-purpose">账号身份用于同步学习记录并由服务端识别可用会员权益；头像与昵称为可选资料。</view><button class="text-button" bindtap="editProfile">{{user.displayName ? '修改头像与昵称（可选）' : '设置头像与昵称（可选）'}}</button><button class="text-button" bindtap="logout">退出登录</button></block>
     <block wx:else>
+      <view class="card-title">微信登录</view>
+      <view class="account-purpose">登录用于同步学习记录并识别已有会员权益。不会自动读取微信头像、昵称或手机号。</view>
       <button class="primary wechat-login" bindtap="loginWechat" loading="{{wechatLoading}}" disabled="{{loading || wechatLoading}}">微信一键登录</button>
+      <button class="text-button guest-exit" bindtap="goBack">暂不登录，返回浏览</button>
       <button class="text-button" bindtap="toggleCredentials">{{showCredentials ? '收起账号登录' : '使用 IELTSist 账号'}}</button>
       <block wx:if="{{showCredentials}}">
         <view class="field-label">用户名</view><input class="input" data-field="username" value="{{username}}" maxlength="24" cursor-spacing="24" placeholder="IELTSist 用户名" bindinput="onInput" />
         <view class="field-label">密码</view><input class="input" data-field="password" password value="{{password}}" maxlength="128" cursor-spacing="24" placeholder="请输入密码" bindinput="onInput" />
-        <button class="primary" bindtap="submit" loading="{{loading}}" disabled="{{loading || wechatLoading}}">{{mode === 'login' ? '登录' : '注册'}}</button>
-        <button class="text-button" bindtap="toggleMode">{{mode === 'login' ? '创建账号' : '返回登录'}}</button>
+        <button class="primary" bindtap="submit" loading="{{loading}}" disabled="{{loading || wechatLoading}}">登录已有账号</button>
       </block>
     </block>
     <view wx:if="{{error}}" class="error">{{error}}</view>
