@@ -1,8 +1,21 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.63",
+  "highestAssignedVersion": "1.0.64",
   "pendingUploads": [],
   "reconciledUploads": [
+    {
+      "version": "1.0.64",
+      "assignedOn": "2026-10-29",
+      "commit": "59ef223669ad855f9487c27e24ed4d77ac5adb17",
+      "project": "D:/CodexWork/paper-download-quota/development-1.0.64-ready",
+      "officialInfo": "D:/CodexWork/paper-download-quota/wechat-upload-receipt.json",
+      "manifest": "D:/CodexWork/paper-download-quota/development-1.0.64-ready-manifest.json",
+      "success": true,
+      "originalProjectConfigChanged": false,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "quotaGloballyEnabled": false
+    },
     {
       "version": "1.0.63",
       "assignedOn": "2026-10-28",
