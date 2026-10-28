@@ -16,7 +16,7 @@ const paths=await photos.persistCoachPhotos(['/temp/q.jpg','/temp/answer.jpg'],w
 assert.equal(paths.length,2)
 assert.equal(photos.readCoachPhoto(who,'stem-photo','unrelated'),'','a different entry must never see the prepared question')
 assert.equal(photos.consumeCoachPhotoAutoSubmit(who,'stem-photo','answers','unrelated'),'')
-const page=runtime.page('pages/coach/index');page.onLoad({source:'practice',feature:'answers',entry:key});page.onShow()
+const page=runtime.page('pages/coach/index');page.onLoad({source:'practice',feature:'answers',entry:encodeURIComponent(key)});page.onShow()
 await settle();await settle()
 assert.equal(requests.length,1)
 assert.equal(requests[0].message,entry.initialMessage)

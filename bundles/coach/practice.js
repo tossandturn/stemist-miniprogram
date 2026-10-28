@@ -7,7 +7,7 @@ const {deviceState,syncDevice}=require('../../utils/page')
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({busy:false,label:'正在准备错题',error:'',number:'',source:'',percent:null,bytes:'',authRequired:false}),
- onLoad(options={}){this.__options=options;this.__cancelled=false;this.__disposed=false;this.__leaving=false},
+ onLoad(options={}){const decode=value=>{try{return decodeURIComponent(String(value||''))}catch{return ''}};this.__options={sessionId:decode(options.sessionId),questionId:decode(options.questionId)};this.__cancelled=false;this.__disposed=false;this.__leaving=false},
  onReady(){this.prepare()},
  onShow(){syncDevice(this);if(this.data.authRequired&&wx.getStorageSync('stemistSessionToken'))this.setData({authRequired:false,error:'',label:'已登录，点击继续准备'})},
  onResize(){syncDevice(this)},

@@ -27,4 +27,5 @@ await bridge.prepare();assert.equal(renders,1,'navigation retry must reuse commi
 assert.equal(copies,1)
 valid=false;await bridge.prepare();assert.match(bridge.data.error,/变化/)
 bridge.onUnload();assert.equal(cleared,1)
+const encoded=b.page('bundles/coach/practice');encoded.onLoad({sessionId:session.id,questionId:'paper%3Aq1'});assert.equal(encoded.__options.questionId,'paper:q1','native WeChat query values arrive percent-encoded')
 console.log('Chapter Coach page: explicit mistake-only tap, duplicate-tap guard, navigation retry and stale-question cancellation passed.')

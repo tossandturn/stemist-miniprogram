@@ -51,7 +51,8 @@ onLoad(options) {
 this.__disposed = false;this.__mediaRequest=0
 this.__mode=normalizeCoachFeature(options?.feature)
 this.__owner=String(wx.getStorageSync('stemistUser')?.id||'guest');this.__epoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
-this.__entry=takeCoachEntry(String(options?.entry||''));this.__entryKey=String(options?.entry||'');this.__history=[]
+try{this.__entryKey=decodeURIComponent(String(options?.entry||''))}catch{this.__entryKey='invalid-entry'}
+this.__entry=takeCoachEntry(this.__entryKey);this.__history=[]
 const draft = readDraft('coach')
 const source = String(options && options.source || '').toLowerCase()
 const sourceContext = ['ielts', 'listening', 'reading', 'writing'].includes(source) ? source : ['stem-photo', 'capture', 'alevel', 'competition', 'papers', 'notebook', 'practice'].includes(source) ? 'stem-photo' : ''
