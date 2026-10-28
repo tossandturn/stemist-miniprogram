@@ -21,7 +21,7 @@ import {deferred,miniRuntime,settle} from './helpers/mini-runtime.mjs'
  const r=miniRuntime({modules:{
   'utils/coach':{runCoach:async()=>{coachCalls++;return{}}},
   'utils/coachEntry':{takeCoachEntry:()=>({skill:'stem-photo',title:'Owner A entry',imagePaths:['/app/a-entry.jpg']}),focusPassage:value=>value},
-  'utils/nativeCoachPhoto':{readCoachPhoto:()=>photo,clearCoachPhoto(){photo=''}},
+  'utils/nativeCoachPhoto':{readCoachPhoto:()=>photo,readCoachPhotoPaths:()=>photo?[photo]:[],clearCoachPhoto(){photo=''}},
   'utils/nativeCaptions':{loadCaptions:async()=>({words:[]})},
   'utils/image':{readAsJpegDataUrl:async()=>''},
  }})

@@ -18,7 +18,7 @@ const fakeRequire = (name) => {
   if (name === '../../utils/coachEntry') return { takeCoachEntry: () => null, focusPassage: value => value }
   if (name === '../../utils/nativeCaptions') return { loadCaptions: async () => ({words:[]}) }
   if (name === '../../utils/image') return { readAsJpegDataUrl: async () => {throw Error('No photo belongs to this text-only context')} }
-  if (name === '../../utils/nativeCoachPhoto') return { readCoachPhoto: () => '', clearCoachPhoto: () => true }
+  if (name === '../../utils/nativeCoachPhoto') return { readCoachPhoto: () => '', readCoachPhotoPaths: () => [], clearCoachPhoto: () => true, clearCoachPhotoEntry: () => false }
   throw new Error(`unexpected module ${name}`)
 }
 vm.runInNewContext(source, { Page: (config) => { pageConfig = config }, require: fakeRequire, wx: { getStorageSync: () => '', setStorageSync: () => {}, navigateTo: () => {} }, String, Number, Boolean, Object, Array, Set, Date, Promise, Error })
