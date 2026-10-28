@@ -25,6 +25,6 @@ User request: after a chapter-practice mistake, let the student choose to automa
 
 ## References / UI
 
-- Official GitHub sample searched first: `wechat-miniprogram/miniprogram-demo`, canvas example at commit `0fe5c7df8e90582dd0b89e283df7fe32e04413f9`. No dependency installation or third-party code copy planned.
+- Official GitHub sample searched first: [WeChat canvas example](https://github.com/wechat-miniprogram/miniprogram-demo/blob/0fe5c7df8e90582dd0b89e283df7fe32e04413f9/miniprogram/packageAPI/pages/page/canvas/canvas.js). The installed application uses the newer 2D canvas path; no third-party code or dependency was copied.
 - Keep STEMist's established purple/white tokens and native header/buttons. UI skill search favours accessible contrast, real loading feedback and 44px controls; its generic app-store landing layout and font suggestions do not fit this in-app workflow.
 - Load only current-question assets with bounded caching; do not download full paper PDFs as part of this handoff.

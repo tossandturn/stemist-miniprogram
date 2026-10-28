@@ -32,3 +32,5 @@ Evidence directory: `D:/CodexWork/chapter-mistake-coach-20261029/` — `full-tes
 ## Release boundary
 
 Client-only change based on uploaded 1.0.64. Development upload is distinct from review/public release. No server restart/deployment, provider configuration change, IELTS random-exam fix, payment/IAP change or global download-quota activation is included. Original project IDE configuration remains user-owned and unchanged.
+
+**UPLOADED:** 1.0.65, official WeChat CLI success at 2026-10-29 04:19:02 Asia/Shanghai. Frozen package commit `96ed5cad1220c2e6b296f88d45f222abea7f75ae`; identical runtime hash to the native acceptance candidate. No review submitted or public release performed. Both local release ledgers reconciled; unfinished payment work remains separate.
