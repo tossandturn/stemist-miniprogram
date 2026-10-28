@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 const drawn=[],exports=[],removed=[],progress=[]
 const ctx={clearRect(){},fillRect(...a){drawn.push(['background',...a])},fillText(...a){drawn.push(['text',...a])},drawImage(...a){drawn.push(['image',...a.slice(1)])},measureText:t=>({width:String(t).length*26})}
-const canvas={getContext:()=>ctx,createImage(){const img={width:1000,height:1400};Object.defineProperty(img,'src',{set(){queueMicrotask(()=>img.onload())}});return img}}
+const canvas={getContext:()=>ctx,requestAnimationFrame(){/* offscreen/native frame callback may never fire */},createImage(){const img={width:1000,height:1400};Object.defineProperty(img,'src',{set(){queueMicrotask(()=>img.onload())}});return img}}
 const runtime=miniRuntime({wx:{env:{USER_DATA_PATH:'/owned'},downloadFile(o){queueMicrotask(()=>o.success({statusCode:200,tempFilePath:'/temp/source.jpg'}));return{abort(){},onProgressUpdate(fn){fn({totalBytesWritten:100,totalBytesExpectedToWrite:100})}}},getFileSystemManager:()=>({statSync(){return{size:1000}},unlink(o){removed.push(o.filePath)}}),canvasToTempFilePath(o){exports.push([o.destWidth,o.destHeight]);o.success({tempFilePath:'/temp/export-'+exports.length+'.jpg'})}},modules:{'utils/nativePractice':{}}})
 const render=runtime.load('bundles/coach/practiceRender')
 const review={number:'1',source:'9702 s25 qp 12',prompt:'',assets:[{url:'https://stem.ieltsist.com/question-assets/paper/qp-1.jpg',kind:'question',page:1,region:[0,.25,1,.75],imageSize:[1000,1400]}]}

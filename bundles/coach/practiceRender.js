@@ -68,7 +68,9 @@ async function renderReview(review,canvas,{guard=()=>{},onProgress=()=>{},setAbo
      b.lines.forEach((line,i)=>ctx.fillText(line,b.x,b.y+i*40))
     }else ctx.drawImage(b.image,b.sx,b.sy+b.sourceY,b.width,b.sourceHeight,b.x,b.y,b.drawWidth,b.drawHeight)
    }
-   await bounded(resolve=>{if(canvas.requestAnimationFrame)canvas.requestAnimationFrame(resolve);else setTimeout(resolve,16)},'图片绘制')
+   // A 2D draw is synchronous; some native offscreen nodes never deliver RAF.
+   // Yield once for the export bridge, but never wait indefinitely for visibility.
+   await bounded(resolve=>{const timer=setTimeout(resolve,32);canvas.requestAnimationFrame?.(()=>{clearTimeout(timer);resolve()});return ()=>clearTimeout(timer)},'图片绘制')
    guard()
    const output=await bounded((resolve,reject)=>wx.canvasToTempFilePath({canvas,x:0,y:0,width:panel.width,height:panel.height,destWidth:panel.width,destHeight:panel.height,fileType:'jpg',quality:.9,success:r=>{if(!resolve(r.tempFilePath))removeTemp(r.tempFilePath)},fail:()=>reject(Error('题图保存失败，请重试。'))}),'题图导出')
    outputs.push(output);guard()
