@@ -1,8 +1,27 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.62",
+  "highestAssignedVersion": "1.0.63",
   "pendingUploads": [],
   "reconciledUploads": [
+    {
+      "version": "1.0.63",
+      "assignedOn": "2026-10-28",
+      "commit": "3ba0380901e5ac6900cb67ed4022f6c7f92da26b",
+      "project": "D:/CodexWork/membership-trial-20261028-candidate",
+      "officialInfo": "D:\\CodexWork\\membership-trial-20261028\\upload-result.json",
+      "manifest": "D:/CodexWork/membership-trial-20261028-candidate-manifest.json",
+      "runtimeMainBytes": 1963832,
+      "runtimeMainHeadroomBytes": 133320,
+      "runtimeManifestSha256": "2147eb0a05faf214f9b6b7669b147a78e4e14395b743d1cbac0b2ab7f55aa7f7",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false,
+      "status": "upload_verified",
+      "observedOn": "2026-10-28",
+      "success": true,
+      "compiledTotalBytes": 2554243,
+      "compiledMainBytes": 1990012
+    },
     {
       "version": "1.0.62",
       "assignedOn": "2026-10-28",
