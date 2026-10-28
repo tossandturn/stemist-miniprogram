@@ -40,6 +40,7 @@ function manualClock(){
   now:()=>time,
   setTimer(fn,delay){const key=++id;timers.set(key,{fn,at:time+delay});return key},
   clearTimer(key){timers.delete(key)},
+  jump(ms){time+=ms},
   tick(ms){time+=ms;for(const [key,timer] of [...timers])if(timer.at<=time){timers.delete(key);timer.fn()}},
  }
 }
@@ -116,6 +117,16 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
 
 // Binary Range/resume coverage uses real-sized PDF bodies, persistent files,
 // validators and corruption cases in test-pdf-range-cache.mjs.
+{
+ const h=controllerHarness();await h.controller.open(request('a'));const task=h.downloads[0]
+ task.progress({totalBytesWritten:100,totalBytesExpectedToWrite:1000})
+ h.clock.tick(10);task.progress({totalBytesWritten:200,totalBytesExpectedToWrite:1000})
+ h.clock.jump(100);task.progress({totalBytesWritten:300,totalBytesExpectedToWrite:1000})
+ assert.equal(h.state.downloadedBytes,300)
+ h.clock.tick(0)
+ assert.equal(h.state.downloadedBytes,300,'an overdue throttle callback must not overwrite a newer native progress event')
+ h.controller.dispose()
+}
 
 {
  const h=controllerHarness();h.setScope('scope-a')

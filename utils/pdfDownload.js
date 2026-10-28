@@ -149,8 +149,8 @@ if(context.networkSettled||disposed||context.generation!==generation)return
 if(!transferCurrent(context))return
 if(state.phase==='verifying')return
 const downloaded=Math.max(0,Number(event?.totalBytesWritten)||0),total=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0)
-const model=progressState(event,context.metrics.observe(downloaded,total),state.downloadedBytes),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
-if(elapsed>=throttleMs){emitProgress(context,model);return}
+const model=progressState(event,context.metrics.observe(downloaded,total),Math.max(state.downloadedBytes,pendingProgress?.downloadedBytes||0)),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
+if(elapsed>=throttleMs){clearProgress();emitProgress(context,model);return}
 pendingProgress=model
 if(progressTimer!==null)return
 progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pendingProgress=null;if(pending)emitProgress(context,pending)},Math.max(0,throttleMs-elapsed))
