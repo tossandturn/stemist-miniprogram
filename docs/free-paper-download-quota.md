@@ -24,6 +24,18 @@ Baseline is released 1.0.63, excluding the unfinished dual-platform payment cand
 
 ## References and design checks
 
+## Delivery receipt (2026-10-29, Asia/Shanghai)
+
+- Development upload **PASS**: version **1.0.64**, runtime commit `59ef223669ad855f9487c27e24ed4d77ac5adb17`, runtime manifest `9373e895d04cde53a582ba5d2ccd00d518e2b6deb4f00a1721cdde823c6474f2`. Official upload returned success; no review submission or public release was performed.
+- Backend code **DEPLOYED, QUOTA OFF**: `364aa47d74d456e452562de56038196361fc43fc`; exactly five allowlisted source files, preserved question catalogues, environment, databases and payment configuration. Verified code rollback retained.
+- A transient resource gate failure stopped the first staging attempt before any remote file was created. After external resource recovery, fresh pre/post staging and activation gates passed. The one STEM restart initially encountered startup I/O/502, so further mutations stopped; read-only reconciliation then confirmed exactly one restart, unchanged IELTS process, full resource health and matching active file hashes. Do not blindly rerun the restart command.
+- Public-domain acceptance **PASS**: CIE QP/MS and AP/IB samples each returned `206` for first/resumed byte ranges and `304` for matching ETag. Anonymous success and absence of quota headers confirm global enforcement remains OFF.
+- Native UI **PASS with synthetic transport**: actual packaged component/controller rendered the third-file limit, verified cache with zero network, and explicit expired-login recovery. Screenshots were inspected. Real-device/live-enforcement acceptance remains **NOT VERIFIED**.
+- Release ledger reconciled to **1.0.64** in both the candidate and original workspaces. The original user-owned `project.config.json` hash is unchanged. The unfinished Apple IAP candidate was not uploaded.
+- Required rollout step: make the compatible client available to public users before enabling both server quota flags; do not infer public availability from a development upload.
+
+## References and design checks
+
 - Atomic counter inspiration: https://github.com/animir/node-rate-limiter-flexible (no code/dependency copied; a relative rolling window is not a Beijing calendar day).
 - SQLite transaction API: https://github.com/nodejs/node/blob/main/doc/api/sqlite.md.
 - Exact-path PDF compaction: https://esbuild.github.io/api/#minify. Keep names, leave other modules' rules unchanged, verify actual transformed behavior.
