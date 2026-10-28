@@ -251,7 +251,7 @@ function harness({data=source,failAt=-1,damage=false}={}){
  await assert.rejects(h.acquire({owner:'current-owner|1',version:'no-temporary',fileName:'no-temporary.pdf'}).promise,error=>error.code==='pdf_storage_full')
  assert.equal(h.files.has(pausedPath),true,'storage failure without temporary preview preserves paused public bytes');assert.equal(h.files.has(privatePath),true,'storage failure without temporary preview preserves private files')
 }
-for(const failure of [{errno:1300202,errMsg:'writeFile:fail'},{errno:1300201,errMsg:'writeFile:fail system error'},{errno:1300013,errMsg:'writeFile:fail permission denied'},{errno:1300002,errMsg:'writeFile:fail no such file /user/limit-paper.pdf'}]){
+for(const failure of [{errno:1300202,errMsg:'writeFile:fail'},{errno:1300201,errMsg:'writeFile:fail system error'},{errno:1300013,errMsg:'writeFile:fail permission denied'},{errno:1300002,errMsg:'writeFile:fail no such file /user/limit-paper.pdf'},{errMsg:'writeFile:fail no such file /user/limit-paper.pdf'}]){
  const h=harness(),manager=h.wx.getFileSystemManager(),privatePath='/user/native-writing/keep-student.jpg',completePath='/user/pdf-cache/pdf-keep-complete/keep.pdf'
  h.files.set(privatePath,Buffer.from('private answer'))
  h.files.set(completePath,Buffer.from(source))
@@ -273,10 +273,29 @@ for(const failure of [{errno:1300202,errMsg:'writeFile:fail'},{errno:1300201,err
  assert.deepEqual(h.files.get(saved.path),original,'temporary fallback must retain the durable prefix for future resume')
  assert.equal(h.storage.get(h.module.REGISTRY).find(r=>r.path===saved.path).offset,saved.offset)
 }
-{
- const h=harness(),fs=h.wx.getFileSystemManager();fs.mkdirSync=()=>{throw {errno:1300201,errMsg:'mkdir:fail system error'}}
+for(const errno of [1300201,1300202]){
+ const h=harness(),fs=h.wx.getFileSystemManager();fs.mkdirSync=()=>{throw {errno,errMsg:'mkdir:fail'}}
  h.wx.downloadFile=o=>{setImmediate(()=>{h.files.set('/tmp/directory-recovery.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/directory-recovery.pdf'})});return{abort(){},onProgressUpdate(){}}}
- assert.equal(await h.acquire().promise,'/tmp/directory-recovery.pdf','cache directory failure may still use verified system temporary files')
+ let reason;assert.equal(await h.acquire({onTemporary:e=>reason=e}).promise,'/tmp/directory-recovery.pdf','cache directory failure may still use verified system temporary files')
+ assert.equal(reason.errno,errno,'mkdir errno must not be replaced by accessSync missing-directory error')
+ assert.equal(reason.code,errno===1300202?'pdf_storage_full':'pdf_storage')
+}
+{
+ const h=harness(),fs=h.wx.getFileSystemManager();fs.writeFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'writeFile:fail'}))
+ h.wx.downloadFile=()=>{throw {errno:1300013,errMsg:'downloadFile:fail permission denied'}}
+ await assert.rejects(h.acquire().promise,e=>e.code==='pdf_storage'&&!/空间不足|释放/.test(e.message),'synchronous temporary API failure is not always quota exhaustion')
+}
+for(const errno of [1300202,1300013]){
+ const h=harness();h.wx.getFileSystemManager().writeFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'writeFile:fail'}))
+ h.wx.downloadFile=o=>{queueMicrotask(()=>o.fail({errno,errMsg:'downloadFile:fail'}));return{abort(){},onProgressUpdate(){}}}
+ await assert.rejects(h.acquire().promise,e=>e.code===(errno===1300202?'pdf_storage_full':'pdf_storage'),'asynchronous temporary storage failure keeps its filesystem category')
+}
+{
+ const h=harness({failAt:1});await assert.rejects(h.acquire().promise);const before=h.storage.get(h.module.REGISTRY)[0];h.setFail(-1)
+ h.wx.getFileSystemManager().appendFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'appendFile:fail'}))
+ let started=false,aborted=0;h.wx.downloadFile=()=>{started=true;return{abort(){aborted++},onProgressUpdate(){}}}
+ const transfer=h.acquire();await waitFor(()=>started);transfer.release();await assert.rejects(transfer.promise,e=>e.code==='pdf_cancelled')
+ assert.equal(aborted,1);assert.equal(h.storage.get(h.module.REGISTRY)[0].offset,before.offset);assert.ok(h.files.has(before.path))
 }
 {
  const h=harness(),fs=h.wx.getFileSystemManager();fs.writeFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'writeFile:fail system error'}))

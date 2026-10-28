@@ -9,7 +9,7 @@ const bytes=d=>Object.prototype.toString.call(d)==='[object ArrayBuffer]'?new Ui
 const binary=d=>d.byteOffset===0&&d.byteLength===d.buffer.byteLength?d.buffer:d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)
 const problem=(code,message)=>Object.assign(Error(message),{code})
 function storageFailure(operation,error){
- const errno=Number(error?.errno??error?.errCode),official=Number.isInteger(errno)&&errno>=1300000&&errno<1400000,full=official?errno===1300202:/limit|quota|no space|storage.*full|exceed|空间/i.test(String(error?.errMsg||error?.message||''))
+ const errno=Number(error?.errno??error?.errCode),text=String(error?.errMsg||error?.message||'').replace(/^[\w.]+:fail\s*/,'').trim(),full=Number.isInteger(errno)&&errno!==0?errno===1300202:/^(?:exceed.*file storage limit|(?:the maximum size of the )?file storage limit.*exceed|storage full|no space left|ENOSPC|quota exceeded|空间不足)/i.test(text)
  return Object.assign(problem(full?'pdf_storage_full':'pdf_storage',full?'本机存储空间不足，请释放已下载的缓存后重试。':operation==='readFile'?'文件读取失败，请重试。':'文件暂时无法保存到本机，请重试。'),{operation,errno:Number.isInteger(errno)?errno:0})
 }
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
@@ -172,7 +172,7 @@ function acquirePdf(options){
    result=await new Promise((resolve,reject)=>{
     let settled=false,item={batch,task:null,cancel:error=>{const active=item.task;finish(reject,error);try{active?.abort?.()}catch{}}},finish=(fn,value)=>{if(settled)return;settled=true;requests.delete(item);fn(value)}
     requests.add(item)
-    try{item.task=wxApi.downloadFile({url,header:pdfAccessHeaders(url,accessToken),timeout:180000,success:r=>finish(resolve,r),fail:()=>finish(reject,pdfAccessError(accessStatus,accessHeaders)||problem('pdf_network','临时预览下载中断，请重试。'))});item.task?.onHeadersReceived?.(r=>{accessHeaders=r.header||{};accessStatus=r.statusCode});item.task?.onProgressUpdate?.(r=>{if(!settled&&!stopped)progress(Number(r.totalBytesWritten)||0,Number(r.totalBytesExpectedToWrite)||record.total)})}catch{const active=item.task;finish(reject,problem('pdf_storage_full','临时文件未能准备，请重试。'));try{active?.abort?.()}catch{}}
+    try{item.task=wxApi.downloadFile({url,header:pdfAccessHeaders(url,accessToken),timeout:180000,success:r=>finish(resolve,r),fail:e=>finish(reject,pdfAccessError(accessStatus,accessHeaders)||(Number(e?.errno??e?.errCode)>=1300000?storageFailure('downloadFile',e):problem('pdf_network','临时预览下载中断，请重试。')))});item.task?.onHeadersReceived?.(r=>{accessHeaders=r.header||{};accessStatus=r.statusCode});item.task?.onProgressUpdate?.(r=>{if(!settled&&!stopped)progress(Number(r.totalBytesWritten)||0,Number(r.totalBytesExpectedToWrite)||record.total)})}catch(error){const active=item.task;finish(reject,storageFailure('downloadFile',error));try{active?.abort?.()}catch{}}
    })
   }finally{release?.()}
   check();const p=String(result.tempFilePath||result.filePath||'')
@@ -230,7 +230,7 @@ function acquirePdf(options){
     const dir=folder+'/pdf-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9)
     record={schema:1,key,url,owner,version,path:dir+'/'+fileName,offset:0,total:first.total,etag:first.etag,used:Date.now()}
     reserve(record.path)
-    try{fs.mkdirSync(dir,true)}catch{try{fs.accessSync(dir)}catch(error){throw storageFailure('mkdir',error)}}
+    try{fs.mkdirSync(dir,true)}catch(error){try{fs.accessSync(dir)}catch{throw storageFailure('mkdir',error)}}
     await releaseSpace();await call('writeFile',{filePath:record.path,data:binary(first.data)});record.offset=first.data.length;put(record);guard(batch)
    }else if(record.offset<first.data.length){
     await append(record.offset,first.data.subarray(record.offset),batch,false)
