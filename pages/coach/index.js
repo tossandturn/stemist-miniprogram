@@ -114,8 +114,10 @@ const binding=this.__entryKey&&!this.__entry?'missing-entry':this.__entryKey
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId,binding)
 if(imagePath!==this.data.imagePath)clearCoachSource(this)
 const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers',binding)
-this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?'题目与作答已保存':'已裁剪'):''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
+const count=readCoachPhotoPaths(this.identity(),this.data.contextId,binding).length
+this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?`已保存 ${count} 张 · 轻点查看`:'已裁剪'):''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
 },
+previewPhotos(){if(!this.current()||!this.data.imagePath)return;const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey);if(paths.length)wx.previewImage({current:paths[0],urls:paths})},
 discardAttachedPhoto(){
 clearCoachSource(this)
 clearCoachPhoto(this.identity())
