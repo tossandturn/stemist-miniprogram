@@ -321,9 +321,9 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
  const destination=makeController();await destination.open(req);assert.equal(downloads.length,1,'a public PDF opened during the native-document transition remains reusable on return');assert.equal(opens.length,2);destination.dispose();source.dispose()
 }
 const componentWxml=read('components/pdf-download-progress/index.wxml'),componentWxss=read('components/pdf-download-progress/index.wxss')
-{
+for(const outcome of ['success','fail']){
  const h=controllerHarness();await h.controller.open(request('a'));h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://cached.pdf'});h.opens[0].success({})
- let release;h.wxApi.getFileSystemManager().access=options=>{release=options.success}
+ let release;h.wxApi.getFileSystemManager().access=options=>{release=options[outcome]}
  const pending=h.controller.open(request('a'));await Promise.resolve();h.storage.set('stemistUser',{id:'student-2'});release({});await pending
  assert.equal(h.opens.length,1);assert.equal(h.states.at(-1).active,false,'late cache lookup must retire preparing state');h.controller.dispose()
 }

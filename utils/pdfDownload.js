@@ -157,7 +157,7 @@ progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pen
 }
 const startDownload=context=>{
 const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
-if(!current(context))return false
+if(!transferCurrent(context))return false
 context.metrics.reset();publish({visible:true,phase:'preparing',active:true,authRequired:false,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
 const handle=acquirePdf({wxApi,url:key,accessToken:context.identity.token,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
