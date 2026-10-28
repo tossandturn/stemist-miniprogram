@@ -251,4 +251,46 @@ function harness({data=source,failAt=-1,damage=false}={}){
  await assert.rejects(h.acquire({owner:'current-owner|1',version:'no-temporary',fileName:'no-temporary.pdf'}).promise,error=>error.code==='pdf_storage_full')
  assert.equal(h.files.has(pausedPath),true,'storage failure without temporary preview preserves paused public bytes');assert.equal(h.files.has(privatePath),true,'storage failure without temporary preview preserves private files')
 }
-console.log('Native PDF: bounded chunks, persisted resume, completed-only reclamation, active/partial/private preservation, verified temporary fallback, ETag, SHA-256 and controller lifecycle passed.')
+for(const failure of [{errno:1300202,errMsg:'writeFile:fail'},{errno:1300201,errMsg:'writeFile:fail system error'},{errno:1300013,errMsg:'writeFile:fail permission denied'},{errno:1300002,errMsg:'writeFile:fail no such file /user/limit-paper.pdf'}]){
+ const h=harness(),manager=h.wx.getFileSystemManager(),privatePath='/user/native-writing/keep-student.jpg',completePath='/user/pdf-cache/pdf-keep-complete/keep.pdf'
+ h.files.set(privatePath,Buffer.from('private answer'))
+ h.files.set(completePath,Buffer.from(source))
+ h.storage.set(h.module.REGISTRY,[{schema:1,key:'keep-complete',owner:'other|1',url:URL,version:'other',path:completePath,total:source.length,offset:source.length,etag:'"'+digest(source)+'"',used:1}])
+ manager.writeFile=o=>queueMicrotask(()=>o.fail(failure))
+ let downloads=0
+ h.wx.downloadFile=o=>{downloads++;setImmediate(()=>{h.files.set('/tmp/save-recovery.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/save-recovery.pdf'})});return{abort(){},onProgressUpdate(fn){fn({totalBytesWritten:128,totalBytesExpectedToWrite:source.length})}}}
+ const result=await h.acquire().promise
+ assert.equal(result,'/tmp/save-recovery.pdf',String(failure.errno)+' should offer verified temporary viewing instead of stopping at 0%')
+ assert.equal(downloads,1)
+ assert.deepEqual(h.files.get(privatePath),Buffer.from('private answer'))
+ if(failure.errno!==1300202)assert.ok(h.files.has(completePath),'non-quota errors must not evict unrelated completed files')
+}
+{
+ const h=harness({failAt:1});await assert.rejects(h.acquire().promise,e=>e.code==='pdf_network');const saved=h.storage.get(h.module.REGISTRY)[0],original=Buffer.from(h.files.get(saved.path));h.setFail(-1)
+ h.wx.getFileSystemManager().appendFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'appendFile:fail system error'}))
+ h.wx.downloadFile=o=>{setImmediate(()=>{h.files.set('/tmp/append-recovery.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/append-recovery.pdf'})});return{abort(){},onProgressUpdate(){}}}
+ assert.equal(await h.acquire().promise,'/tmp/append-recovery.pdf')
+ assert.deepEqual(h.files.get(saved.path),original,'temporary fallback must retain the durable prefix for future resume')
+ assert.equal(h.storage.get(h.module.REGISTRY).find(r=>r.path===saved.path).offset,saved.offset)
+}
+{
+ const h=harness(),fs=h.wx.getFileSystemManager();fs.mkdirSync=()=>{throw {errno:1300201,errMsg:'mkdir:fail system error'}}
+ h.wx.downloadFile=o=>{setImmediate(()=>{h.files.set('/tmp/directory-recovery.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/directory-recovery.pdf'})});return{abort(){},onProgressUpdate(){}}}
+ assert.equal(await h.acquire().promise,'/tmp/directory-recovery.pdf','cache directory failure may still use verified system temporary files')
+}
+{
+ const h=harness(),fs=h.wx.getFileSystemManager();fs.writeFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'writeFile:fail system error'}))
+ h.wx.downloadFile=o=>{let notify;setImmediate(()=>{notify?.({totalBytesWritten:100,totalBytesExpectedToWrite:source.length});h.files.set('/tmp/ui-recovery.pdf',Buffer.from(source));o.success({statusCode:200,tempFilePath:'/tmp/ui-recovery.pdf'})});return{abort(){},onProgressUpdate(fn){notify=fn}}}
+ const states=[],controller=h.r.load('utils/pdfDownload').createPdfDownloadController({wxApi:h.wx,onState:s=>states.push({...s})});controller.setScope('save-error')
+ await controller.open({url:URL,scope:'save-error',fileName:'save-error.pdf',cacheVersion:'v1',expectedBytes:source.length,sha256:digest(source)})
+ await waitFor(()=>controller.getState().phase==='opened')
+ assert.ok(states.some(s=>s.phase==='downloading'&&s.message.includes('缓存暂不可用')))
+ assert.ok(states.every(s=>!s.message.includes('空间不足')),'unknown I/O must not be presented as disk exhaustion')
+ assert.match(controller.getState().message,/临时打开.*未保存/)
+ controller.dispose()
+}
+{
+ const h=harness();h.wx.getFileSystemManager().readFile=o=>queueMicrotask(()=>o.fail({errno:1300201,errMsg:'readFile:fail system error'}))
+ await assert.rejects(h.acquire().promise,e=>e.code==='pdf_storage'&&/读取/.test(e.message)&&!/释放|空间不足/.test(e.message),'a read failure must not tell the student to erase storage')
+}
+console.log('Native PDF: bounded chunks, persisted resume, completed-only reclamation, active/partial/private preservation, verified temporary fallback, errno storage recovery, ETag, SHA-256 and controller lifecycle passed.')

@@ -8,6 +8,10 @@ const header=(h,n)=>{const k=Object.keys(h||{}).find(k=>k.toLowerCase()===n.toLo
 const bytes=d=>Object.prototype.toString.call(d)==='[object ArrayBuffer]'?new Uint8Array(d):ArrayBuffer.isView(d)?new Uint8Array(d.buffer,d.byteOffset,d.byteLength):null
 const binary=d=>d.byteOffset===0&&d.byteLength===d.buffer.byteLength?d.buffer:d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)
 const problem=(code,message)=>Object.assign(Error(message),{code})
+function storageFailure(operation,error){
+ const errno=Number(error?.errno??error?.errCode),official=Number.isInteger(errno)&&errno>=1300000&&errno<1400000,full=official?errno===1300202:/limit|quota|no space|storage.*full|exceed|空间/i.test(String(error?.errMsg||error?.message||''))
+ return Object.assign(problem(full?'pdf_storage_full':'pdf_storage',full?'本机存储空间不足，请释放已下载的缓存后重试。':operation==='readFile'?'文件读取失败，请重试。':'文件暂时无法保存到本机，请重试。'),{operation,errno:Number.isInteger(errno)?errno:0})
+}
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
 const contentRange=s=>{const m=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(s);if(!m)return null;const n=m.slice(1).map(Number);return n.every(Number.isSafeInteger)?{start:n[0],end:n[1],total:n[2]}:null}
 function pdfAccessHeaders(url,token){return /^https:\/\/stem\.ieltsist\.com\/(?:local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf|api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,199})$/i.test(url)&&!/\.\.|%2e|%2f|%5c/i.test(url)&&typeof token==='string'&&/^[A-Za-z0-9._-]{1,4096}$/.test(token)?{Authorization:'Bearer '+token}:{}}
@@ -76,7 +80,7 @@ function acquirePdf(options){
   for(const item of foreign){if(active.has(item.path))continue;if(!all&&list.filter(x=>x.key!==key).reduce((n,x)=>n+x.offset,0)<=available)break;list=list.filter(x=>x.path!==item.path);save(list);await unlink(item.path)}
  }
  const call=async(method,args)=>{
-  const attempt=()=>new Promise((resolve,reject)=>{try{fs[method]({...args,success:resolve,fail:e=>reject(problem(/limit|quota|no space|storage.*full|exceed|空间/i.test(String(e?.errMsg||''))?'pdf_storage_full':'pdf_storage','文件保存失败，请释放一些小程序存储后重试。'))})}catch{reject(problem('pdf_storage','文件保存失败，请重试。'))}})
+  const attempt=()=>new Promise((resolve,reject)=>{try{fs[method]({...args,success:resolve,fail:e=>reject(storageFailure(method,e))})}catch(error){reject(storageFailure(method,error))}})
   try{return await attempt()}catch(error){if(error.code!=='pdf_storage_full'||!['writeFile','appendFile'].includes(method))throw error;await releaseSpace(true);check();return attempt()}
  }
  const read=async(p,start,length)=>bytes((await call('readFile',{filePath:p,position:start,length})).data)
@@ -158,9 +162,9 @@ function acquirePdf(options){
   const actual=hash.digest();if(expected&&actual!==expected)return false
   record.sha256=actual;return true
  }
- async function temporary(){
-  if(typeof wxApi.downloadFile!=='function')throw problem('pdf_storage_full','本机空间不足，请清理下载缓存后重试。')
-  try{onTemporary()}catch{}phase('downloading',0,record.total);progress(0,record.total)
+ async function temporary(cause){
+  if(typeof wxApi.downloadFile!=='function')throw cause||problem('pdf_storage','临时下载不可用，请更新微信后重试。')
+  try{onTemporary(cause)}catch{}phase('downloading',0,record.total);progress(0,record.total)
   const batch={error:null,total:record.total},slot=requestSlot(wxApi);waitingSlots.set(slot,batch);let release,result,accessHeaders={},accessStatus
   try{release=await slot.promise}finally{waitingSlots.delete(slot)}
   try{
@@ -224,9 +228,9 @@ function acquirePdf(options){
    if(record&&(record.etag!==first.etag||record.total!==first.total)){forget(record);record=null;first=await probe(batch);batch.total=first.total;guard(batch);if(first.data.length<5||String.fromCharCode(...first.data.subarray(0,5))!=='%PDF-')throw problem('pdf_integrity','下载内容不是完整 PDF。')}
    if(!record){
     const dir=folder+'/pdf-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,9)
-    try{fs.mkdirSync(dir,true)}catch{fs.accessSync(dir)}
     record={schema:1,key,url,owner,version,path:dir+'/'+fileName,offset:0,total:first.total,etag:first.etag,used:Date.now()}
     reserve(record.path)
+    try{fs.mkdirSync(dir,true)}catch{try{fs.accessSync(dir)}catch(error){throw storageFailure('mkdir',error)}}
     await releaseSpace();await call('writeFile',{filePath:record.path,data:binary(first.data)});record.offset=first.data.length;put(record);guard(batch)
    }else if(record.offset<first.data.length){
     await append(record.offset,first.data.subarray(record.offset),batch,false)
@@ -237,7 +241,7 @@ function acquirePdf(options){
    if(!await verify(record))throw problem('pdf_integrity','PDF 完整性校验失败，请重新下载。')
    check();put({...record,used:Date.now()});return record.path
   }catch(error){
-   if(error?.code==='pdf_storage_full'&&record)return temporary()
+   if(record&&['pdf_storage','pdf_storage_full'].includes(error?.code)&&['writeFile','appendFile','mkdir'].includes(error.operation))try{return await temporary(error)}finally{if(record.offset===0)await unlink(record.path)}
    if(record&&record.offset===0){await unlink(record.path);record=null}
    if(['pdf_source_changed','pdf_invalid_range','pdf_checkpoint','pdf_integrity'].includes(error?.code)){forget(record);record=null;if(error.code==='pdf_source_changed'&&restarts++===0&&!stopped)return run()}
    throw error

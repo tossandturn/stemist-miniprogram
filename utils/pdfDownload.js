@@ -115,7 +115,7 @@ const rememberOpened=()=>{if(context.cacheAfterOpen&&sameIdentity(wxApi,context.
 const evictShared=()=>{if(context.cacheTarget?.shared&&sameIdentity(wxApi,context.identity))evict(context.cacheTarget,filePath)}
 let settled=false
 try{
-wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(transferCurrent(context))publish({visible:true,phase:'opened',active:false,message:context.fromCache?'已从下载缓存打开':'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(transferCurrent(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
+wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(transferCurrent(context))publish({visible:true,phase:'opened',active:false,message:context.temporaryPreview?'已临时打开，本次未保存到下载缓存':context.fromCache?'已从下载缓存打开':'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(transferCurrent(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
 }catch(error){evictShared();return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}
 return true
 }
@@ -135,13 +135,13 @@ if(!['connecting','downloading','verifying'].includes(phase)||!transferCurrent(c
 clearProgress();context.metrics.reset()
 const metrics=phase==='downloading'?context.metrics.observe(saved,total):NO_METRICS
 const model=progressState({totalBytesWritten:saved,totalBytesExpectedToWrite:total},metrics)
-const message=phase==='connecting'?'正在连接并确认'+context.request.label+'…':phase==='verifying'?(context.temporaryPreview?'临时预览下载完成，正在校验 PDF…':'下载完成，正在校验 PDF…'):(context.temporaryPreview?'本机空间不足，正在下载临时预览…':'正在下载'+context.request.label+'…')
+const message=phase==='connecting'?'正在连接并确认'+context.request.label+'…':phase==='verifying'?(context.temporaryPreview?'临时预览下载完成，正在校验 PDF…':'下载完成，正在校验 PDF…'):(context.temporaryPreview?context.temporaryLabel+'，正在下载临时预览…':'正在下载'+context.request.label+'…')
 publish({...model,visible:true,phase,active:true,message,error:'',canCancel:true,canRetry:false})
 return true
 }
 const emitProgress=(context,model)=>{
 if(!transferCurrent(context)||context.networkSettled||!['connecting','downloading'].includes(state.phase))return false
-lastProgressAt=now();publish({...model,visible:true,phase:'downloading',active:true,message:context.temporaryPreview?'本机空间不足，正在下载临时预览…':'正在下载'+context.request.label+'…',error:'',canCancel:true,canRetry:false})
+lastProgressAt=now();publish({...model,visible:true,phase:'downloading',active:true,message:context.temporaryPreview?context.temporaryLabel+'，正在下载临时预览…':'正在下载'+context.request.label+'…',error:'',canCancel:true,canRetry:false})
 return true
 }
 const queueProgress=(context,event)=>{
@@ -160,7 +160,7 @@ const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=sa
 if(!transferCurrent(context))return false
 context.metrics.reset();publish({visible:true,phase:'preparing',active:true,authRequired:false,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
-const handle=acquirePdf({wxApi,url:key,accessToken:context.identity.token,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
+const handle=acquirePdf({wxApi,url:key,accessToken:context.identity.token,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:error=>{if(current(context)){context.temporaryPreview=true;context.temporaryLabel=error?.code==='pdf_storage_full'?'本机空间不足':'缓存暂不可用';publish({message:context.temporaryLabel+'，正在准备临时预览…',...NO_METRICS})}}})
 if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
 }
 if(context.request.sha256&&pdfAccessHeaders(key,'check').Authorization)return fail(context,'当前微信无法校验试卷文件，请更新微信后重试。')
