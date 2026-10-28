@@ -23,3 +23,5 @@ Final candidate commit: `f4b4da2907a5845ea7c98a9c76515515c2ef2873`. Runtime SHA-
 Artifacts: `D:/CodexWork/pdf-save-recovery-20261029/`, including `native-acceptance.json`, `baseline-io.json`, `native-*.json`, `native-fs-probe.json`, `full-tests-final.log` and screenshot evidence. Tests used isolated guest project storage, never a real student's account. Probe files were exact newly created paths; injected API wrappers are restored after testing.
 
 References: [WeChat official API typings](https://github.com/wechat-miniprogram/api-typings/blob/master/types/wx/lib.wx.api.d.ts) for errno, writeFile ArrayBuffer and downloadFile temporary paths; [official sample repository](https://github.com/wechat-miniprogram/miniprogram-demo), searched before implementation, with no third-party source copied.
+
+**UPLOADED:** development 1.0.66, 2026-10-29 04:54:59 Asia/Shanghai, official CLI success. Frozen commit `aad9925a99021e932d287c4d7f088886ada443d3`, runtime identical to the final tested candidate. Both local release ledgers reconciled. No review/public release or backend mutation.
