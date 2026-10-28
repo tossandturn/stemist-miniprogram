@@ -1,0 +1,17 @@
+<view class="page review-page {{deviceClass}} {{orientation}}">
+  <stemist-header title="错题讲解" compact="{{true}}" />
+  <view class="review-card">
+    <view class="review-kicker">AI Coach</view>
+    <view class="review-title">{{number ? '第 ' + number + ' 题，一起弄懂' : '准备本题讲解'}}</view>
+    <view class="subtle">{{source}}</view>
+    <view class="review-status" aria-live="polite">{{label}}</view>
+    <progress wx:if="{{percent !== null}}" percent="{{percent}}" stroke-width="6" activeColor="#6846d8" backgroundColor="#ebe5fa" show-info="{{true}}" />
+    <view wx:if="{{bytes}}" class="subtle">{{bytes}}</view>
+    <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>
+    <button wx:if="{{authRequired}}" class="primary" bindtap="openAccount">登录并继续</button>
+    <button wx:elif="{{!busy}}" class="primary" bindtap="prepare">{{error ? '重试' : '继续准备'}}</button>
+    <button class="secondary" bindtap="cancel">返回练习</button>
+    <view class="review-note">只处理这一题。图片保存在小程序内，不写入手机相册。</view>
+  </view>
+  <canvas type="2d" id="review-canvas" class="review-canvas" aria-hidden="true"></canvas>
+</view>

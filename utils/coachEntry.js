@@ -7,8 +7,10 @@ function stageCoachEntry(context){
  return key
 }
 function takeCoachEntry(key){
- const entry=wx.getStorageSync('stemistCoachEntry');wx.removeStorageSync('stemistCoachEntry')
- return entry&&entry.key===key&&entry.owner===owner()&&entry.epoch===epoch()&&Date.now()-entry.at<120000?entry.context:null
+ const entry=wx.getStorageSync('stemistCoachEntry');if(!entry||entry.key!==key)return null
+ wx.removeStorageSync('stemistCoachEntry')
+ const age=Date.now()-entry.at
+ return entry.owner===owner()&&entry.epoch===epoch()&&age>=0&&age<120000?entry.context:null
 }
 function focusPassage(text,section){
  const input=String(text||''),matches=[...input.matchAll(/\bREADING\s+PASSAGE\s+([123])\b/gi)]

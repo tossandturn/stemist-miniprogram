@@ -7,6 +7,7 @@ const speakingExport=wx.getStorageSync('stemistSpeakingExportPath')
 const pendingWritingPhoto=wx.getStorageSync('stemistWritingPhoto')
 const pendingStemPhoto=wx.getStorageSync('stemistCroppedImage')
 const pendingCoachPhoto=wx.getStorageSync('stemistCoachPhoto')
+const pendingCoachPhotos=wx.getStorageSync('stemistCoachPhotoMeta')?.paths
 const paperInputs=wx.getStorageSync('stemistWholePaperFiles')
 wx.removeStorageSync('stemistSessionToken')
 wx.removeStorageSync('stemistUser')
@@ -57,7 +58,7 @@ if(speakingExport===`${wx.env.USER_DATA_PATH}/ielts-speaking-transcript.txt`)fs.
 const writingDirectory=`${wx.env.USER_DATA_PATH}/native-writing/`
 writingPhotos.filter(path=>String(path).startsWith(writingDirectory)&&/^writing-[a-z0-9-]+\.jpg$/.test(String(path).slice(writingDirectory.length))).forEach(filePath=>fs.unlink({filePath,fail(){}}))
 const coachDirectory=`${wx.env.USER_DATA_PATH}/native-coach/`
-if(String(pendingCoachPhoto||'').startsWith(coachDirectory)&&/^coach-[a-z0-9-]+\.jpg$/.test(String(pendingCoachPhoto).slice(coachDirectory.length)))fs.unlink({filePath:pendingCoachPhoto,fail(){}})
+for(const path of [pendingCoachPhoto,...(Array.isArray(pendingCoachPhotos)?pendingCoachPhotos:[])])if(String(path||'').startsWith(coachDirectory)&&/^coach-[a-z0-9-]+\.jpg$/.test(String(path).slice(coachDirectory.length)))fs.unlink({filePath:path,fail(){}})
 } catch { /* A device without stored photos has nothing to remove. */ }
 }
 wx.removeStorageSync('stemistSpeakingExportPath')

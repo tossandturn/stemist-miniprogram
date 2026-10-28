@@ -27,6 +27,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
     paths: Object.freeze(['utils/pdfDownload.js','utils/pdfRangeCache.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
   }),Object.freeze({
+    id: 'esbuild-chapter-handoff-compact-v1',
+    paths: Object.freeze(['utils/nativePractice.js','utils/nativeCoachPhoto.js','utils/session.js','pages/stem/practice.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-coach-stream-identifiers-v1',
     paths: Object.freeze(['utils/coach.js','utils/nativeSession.js','utils/coachSession.js','utils/coachStream.js','utils/operationProgress.js','utils/nativeCoachPhoto.js','pages/coach/index.js','pages/stem/coach.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),

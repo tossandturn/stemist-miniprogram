@@ -52,6 +52,11 @@
           <view class="subtle">供学习复盘，不作为正式成绩。</view>
           <view wx:for="{{results}}" wx:key="label" class="part-feedback"><view class="feedback-score"><text>{{item.label}}</text><text>{{item.score}} / {{item.maxScore}}</text></view><view class="feedback-text"><answer-content text="{{item.summary}}" academic="{{true}}"/></view></view>
         </view>
+        <view wx:if="{{canAskCoach}}" class="feedback-panel">
+          <view class="answer-heading">这题没弄懂？</view>
+          <view class="subtle">自动带上本题图片和你的作答，讲清答案、步骤和错因。</view>
+          <button class="primary" bindtap="askCoach" disabled="{{busy || coachOpening}}" loading="{{coachOpening}}">问 AI Coach</button>
+        </view>
         <view class="question-actions"><button class="secondary" data-index="{{index - 1}}" disabled="{{index === 0 || busy}}" bindtap="goQuestion">上一题</button><button wx:if="{{index + 1 < total}}" class="primary" data-index="{{index + 1}}" disabled="{{busy}}" bindtap="goQuestion">下一题</button><button wx:else class="primary" bindtap="backToTopics" disabled="{{busy}}">保存并返回</button></view>
       </view>
     </view>

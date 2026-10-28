@@ -13,6 +13,7 @@ for(const [page,state,template=page+'.wxml'] of surfaces){
  assert.match(read(template),new RegExp('<pdf-download-progress[^>]*state="\\{\\{'+state+'\\}\\}"'),page+' renders its transfer state')
 }
 const expected=[
+ 'bundles/coach/practiceRender.js',
  'bundles/marking/reportDownload.js','pages/ielts/writingReportDownload.js',
  'utils/listeningAudioCache.js','utils/listeningAudioRangeCache.js','utils/pdfDownload.js','utils/pdfRangeCache.js',
 ].sort(),transports=[]
@@ -23,4 +24,7 @@ for(const directory of ['pages','components','utils','bundles'])for(const relati
 }
 assert.deepEqual(transports.sort(),expected,'Every new binary download transport must be mapped to a visible progress surface and tested')
 for(const file of expected)assert.match(read(file),/onProgress|\.progress\(/,file+' publishes measured transfer progress')
+assert.match(read('bundles/coach/practice.wxml'),/<progress[^>]*percent="\{\{percent\}\}"/,'chapter image preparation renders real transfer progress')
+assert.match(read('bundles/coach/practice.js'),/loaded\/total\*100/,'chapter progress is measured bytes, not a timer')
+assert.match(read('scripts/test-chapter-coach-render.mjs'),/p\.loaded===100&&p\.total===100/,'chapter download progress has a runtime regression')
 console.log('Download coverage: A-Level/AP/IB papers and answers, whole-paper answer/report/temporary preview, IELTS writing reports and listening audio all render shared bars.')

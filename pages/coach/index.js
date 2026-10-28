@@ -5,7 +5,7 @@ const {requestIeltsLearning}=require('../../utils/ieltsLearning')
 const {takeCoachEntry,focusPassage}=require('../../utils/coachEntry')
 const {loadCaptions}=require('../../utils/nativeCaptions')
 const {readAsJpegDataUrl}=require('../../utils/image')
-const {readCoachPhoto,consumeCoachPhotoAutoSubmit,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
+const {readCoachPhoto,readCoachPhotoPaths,consumeCoachPhotoAutoSubmit,clearCoachPhoto,clearCoachPhotoEntry}=require('../../utils/nativeCoachPhoto')
 const {createOperationTracker}=require('../../utils/operationProgress')
 const {warmCoachSession}=require('../../utils/coachSession')
 const {offerCoachSource,lookupCoachSource,clearCoachSource}=require('../../utils/coachSource')
@@ -56,6 +56,7 @@ const draft = readDraft('coach')
 const source = String(options && options.source || '').toLowerCase()
 const sourceContext = ['ielts', 'listening', 'reading', 'writing'].includes(source) ? source : ['stem-photo', 'capture', 'alevel', 'competition', 'papers', 'notebook', 'practice'].includes(source) ? 'stem-photo' : ''
 const next = {}
+if(this.__entryKey&&!this.__entry){clearCoachPhotoEntry(this.identity(),this.__entryKey);next.error='题目上下文已过期，请返回练习重试。'}
 const routeId = String(options && options.routeId || '').trim()
 const stage = String(options && options.stage || '').trim()
 const subjectCode = String(options && options.subjectCode || '').trim()
@@ -75,6 +76,7 @@ const selectedContext=CONTEXTS[next.contextIndex]||CONTEXTS[0]
 const policy=coachHelpPolicy({product:selectedContext.product,skill:selectedContext.id,...(next.routeContext||{}),...(this.__entry||{})})
 next.solutionDisabled=policy.solutionDisabled
 if(this.__mode){next.feature=policy.solutionDisabled&&this.__mode==='answers'?'steps':this.__mode;next.helpIntent=next.feature==='steps'?'hint':'worked-solution'}
+if(this.__entry?.initialMessage)next.message=String(this.__entry.initialMessage).slice(0,12000)
 if (draft && (draft.entryKey||'')===this.__entryKey && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
 if (Object.keys(next).length) this.setData(next)
 this.__historyKey='stemistCoachTurns:'+this.__owner+':'+(this.__entryKey||this.data.contextId)
@@ -83,6 +85,7 @@ const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
 resetIdentity(){
+clearCoachPhoto(this.identity())
 clearCoachSource(this)
 this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null
 this.__coachProgress?.dispose();this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
@@ -106,10 +109,11 @@ onResize() { syncDevice(this) },
 onHide(){this.__stopWarm?.()},
 onUnload() { clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
 restorePhoto(){
-const imagePath=readCoachPhoto(this.identity(),this.data.contextId)
+const binding=this.__entryKey&&!this.__entry?'missing-entry':this.__entryKey
+const imagePath=readCoachPhoto(this.identity(),this.data.contextId,binding)
 if(imagePath!==this.data.imagePath)clearCoachSource(this)
-const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers')
-this.setData({imagePath,imageSource:imagePath?'已裁剪':''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
+const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers',binding)
+this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?'题目与作答已保存':'已裁剪'):''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
 },
 discardAttachedPhoto(){
 clearCoachSource(this)
@@ -194,8 +198,9 @@ const progress=this.__coachProgress=createOperationTracker({key:this.data.imageP
 let authExpired=false
 try {
 const entry=await this.prepareEntry()
-const {imagePaths,...entryContext}=entry
-const paths=[this.data.imagePath,...(Array.isArray(imagePaths)?imagePaths:[])].filter((path,index,array)=>path&&array.indexOf(path)===index).slice(0,2)
+const {imagePaths,initialMessage,...entryContext}=entry
+const managed=this.data.imagePath?readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey):[]
+const paths=[this.data.imagePath,...managed,...(Array.isArray(imagePaths)?imagePaths:[])].filter((path,index,array)=>path&&array.indexOf(path)===index).slice(0,2)
 const imageDataUrls=await Promise.all(paths.map(path=>readAsJpegDataUrl(path,{coach:selected.product==='STEM Studio'})))
 if(!this.current())return
 const coachContext={ product: selected.product, skill: selected.id, inputMode: imageDataUrls.length?'photo':'text', stage: 'practice', source: 'stemist-miniprogram', ...(selected.id === 'stem-photo' ? this.data.routeContext : {}),...entryContext }

@@ -237,6 +237,8 @@ try {
   for(const suite of pdfSuites){
     execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
   }
+  const chapterSuites=['test-chapter-coach.mjs','test-chapter-coach-render.mjs','test-chapter-coach-handoff.mjs','test-chapter-coach-page.mjs','test-native-practice.mjs','test-native-source-regions.mjs','test-native-choice.mjs','test-native-coach-photo.mjs','test-coach-four-modes.mjs','test-session-cleanup.mjs']
+  for(const suite of chapterSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
 
   assert.equal(check.mainPackageBytes, firstReceipt.mainPackage.bytes)
   assert.equal(check.mainPackageHeadroom, firstReceipt.mainPackage.headroom)
@@ -253,6 +255,7 @@ try {
     verifiedFiles: firstReceipt.files.length,
     offlineReadingQuestions: reading.questions.length,
     packagedPdfSuites: pdfSuites.length,
+    packagedChapterSuites: chapterSuites.length,
   }))
 } finally {
   for (const [relative, before] of Object.entries(protectedBefore)) {
