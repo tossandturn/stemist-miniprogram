@@ -22,8 +22,6 @@ User-confirmed rule: a signed-in free account may download two different hosted 
 
 Baseline is released 1.0.63, excluding the unfinished dual-platform payment candidate. The backend quota is a separate double-gated feature, default OFF. Do not enable general restrictions before compatible clients are available. No payment, pricing, refund, IELTS provider, question content or existing user data is changed here. Subsequent upload/deployment receipts must record their actual status; this source document is not proof of activation.
 
-## References and design checks
-
 ## Delivery receipt (2026-10-29, Asia/Shanghai)
 
 - Development upload **PASS**: version **1.0.64**, runtime commit `59ef223669ad855f9487c27e24ed4d77ac5adb17`, runtime manifest `9373e895d04cde53a582ba5d2ccd00d518e2b6deb4f00a1721cdde823c6474f2`. Official upload returned success; no review submission or public release was performed.
