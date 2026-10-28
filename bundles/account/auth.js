@@ -35,6 +35,7 @@ Page({
  },
  openPrivacy(){wx.navigateTo({url:'/pages/legal/privacy'})},
  editProfile(){wx.navigateTo({url:'/bundles/account/profile'})},
+ openMembership(){wx.navigateTo({url:'/bundles/account/membership'})},
  openIeltsAccount(){wx.navigateTo({url:'/pages/ielts/home?view=subscription'})},
  logout(){
   if(this.data.loading||this.data.wechatLoading||this._passwordAttempt)return

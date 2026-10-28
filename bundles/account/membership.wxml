@@ -1,0 +1,60 @@
+<view class="page {{deviceClass}} {{orientation}} membership-page">
+  <stemist-header compact="{{true}}" title="会员中心" action-text="返回" bind:action="goBack" />
+  <app-nav active="account" source="account" is-tablet="{{isTablet}}" />
+  <view class="member-layout">
+    <view class="member-main">
+      <view class="panel membership-card">
+        <view class="member-eyebrow">STEMist · 全功能会员</view>
+        <view class="member-heading">一次购买，固定 30 天</view>
+        <view wx:if="{{plan}}" class="member-price"><text class="currency">¥</text><text>{{plan.priceLabel}}</text><text class="period">/ 30 天</text></view>
+        <view wx:else class="member-price-loading">{{loading ? '正在加载会员方案…' : '会员方案暂未加载'}}</view>
+        <view class="member-terms">手动续费 · 非自动续费</view>
+        <view wx:if="{{entitlement && entitlement.active}}" class="member-active" role="status">会员已生效<text class="member-expiry">有效期至 {{expiryLabel}}</text></view>
+        <view wx:elif="{{entitlement && !entitlement.active}}" class="member-status">{{expiryLabel ? '会员已到期' : '当前未开通会员'}}<text wx:if="{{expiryLabel}}" class="member-expiry">到期时间 {{expiryLabel}}</text></view>
+        <view wx:elif="{{loggedIn && loading}}" class="member-status">正在确认会员状态…</view>
+      </view>
+      <view wx:if="{{trialMode && loggedIn && canonicalUserId && !checkoutEnabled && checkoutLabel === '等待固定测试买家配置'}}" class="panel test-account-card">
+        <view class="card-title">体验版测试账号</view>
+        <text class="test-account-help">复制此标识，用于配置固定安卓测试买家；它不是 OpenID 或支付凭证。</text>
+        <view class="test-account-row"><text selectable="true">测试账号标识：{{canonicalUserId}}</text><button class="secondary copy-account" bindtap="copyTestUserId">复制</button></view>
+      </view>
+      <view class="panel member-checkout">
+        <view wx:if="{{trialMode}}" class="trial-warning" role="alert">体验版使用真实支付，仅限已授权安卓账号。</view>
+        <view wx:if="{{!isAndroid}}" class="setup-note" role="status">当前体验仅支持安卓；iOS 不发起购买。</view>
+        <view wx:if="{{!checkoutEnabled && !loading && plan}}" class="setup-note" role="status">{{checkoutNote}}</view>
+        <checkbox-group wx:if="{{checkoutEnabled && loggedIn && plan}}" bindchange="consentChanged">
+          <label class="consent-label"><checkbox value="confirm" checked="{{consent}}" disabled="{{busy}}" color="#7357e8" /><text>确认以 ¥{{plan.priceLabel}} 购买 30 天会员，非自动续费；体验测试也可能真实扣款。</text></label>
+        </checkbox-group>
+        <button wx:if="{{!loggedIn}}" class="primary member-cta" bindtap="login" disabled="{{loading}}">登录查看会员</button>
+        <button wx:else class="primary member-cta" bindtap="purchase" loading="{{busy}}" disabled="{{loading || busy || !checkoutEnabled || !consent || phase === 'confirming'}}">{{!checkoutEnabled ? checkoutLabel : busy ? '正在处理…' : pendingOrderId ? (phase === 'canceled' ? '继续支付同一原订单' : '订单确认中') : entitlement && entitlement.active ? '续费 30 天' : '开通全功能会员'}}</button>
+        <view wx:if="{{phase === 'creating' || phase === 'paying' || phase === 'confirming'}}" class="member-progress" role="status"><view class="member-dot"></view><text>{{phase === 'creating' ? '正在准备原订单' : phase === 'paying' ? '等待本人确认微信支付' : '正在等待服务端确认'}}</text></view>
+        <view wx:if="{{notice}}" class="member-notice {{phase === 'success' ? 'member-success' : ''}}" role="status">{{notice}}</view>
+        <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>
+        <button wx:if="{{pendingOrderId}}" class="secondary member-refresh" data-id="{{pendingOrderId}}" bindtap="checkOrder" disabled="{{busy}}">刷新订单 {{pendingOrderShort}}</button>
+        <button class="text-button member-refresh" bindtap="refresh" disabled="{{loading || busy}}">刷新会员状态</button>
+      </view>
+      <view class="panel member-benefits">
+        <view class="card-title">会员功能</view>
+        <view class="benefits">
+          <view class="benefit"><view class="benefit-mark" aria-hidden="true"></view><view><view class="benefit-title">学科练习与试卷</view><view class="benefit-detail">A-Level、AP、IB 等现有学习功能</view></view></view>
+          <view class="benefit"><view class="benefit-mark" aria-hidden="true"></view><view><view class="benefit-title">AI Coach 与整卷批改</view><view class="benefit-detail">步骤提示、答案询问、PDF 阅卷与学习辅导</view></view></view>
+          <view class="benefit"><view class="benefit-mark" aria-hidden="true"></view><view><view class="benefit-title">IELTS 学习工具</view><view class="benefit-detail">听、说、读、写与学习记录</view></view></view>
+        </view>
+        <text class="member-footnote">会员提供现有功能使用权限，资料以当前可用内容为准。支付回调不等于开通成功，以服务端会员状态为准。</text>
+      </view>
+    </view>
+    <view class="panel member-orders">
+      <view class="card-title">开通记录</view>
+      <text class="member-empty" wx:if="{{!loggedIn}}">登录后查看自己的订单。</text>
+      <text class="member-empty" wx:elif="{{orderError}}">{{orderError}}</text>
+      <text class="member-empty" wx:elif="{{loading}}">正在加载…</text>
+      <text class="member-empty" wx:elif="{{!orders.length}}">暂无开通记录。</text>
+      <view class="member-order" wx:for="{{orders}}" wx:key="id">
+        <view class="order-row"><text class="order-name">全功能月卡</text><text class="order-price">¥{{item.priceLabel}}</text></view>
+        <view class="order-row order-meta"><text>{{item.createdLabel}}</text><text>{{item.statusLabel}}</text></view>
+        <view class="order-row"><text class="order-id">订单尾号 {{item.shortId}}</text><button class="text-button order-check" data-id="{{item.id}}" bindtap="checkOrder" disabled="{{busy}}">查看结果</button></view>
+      </view>
+      <text class="member-empty" wx:if="{{hasMore}}">当前展示最近的开通记录。</text>
+    </view>
+  </view>
+</view>

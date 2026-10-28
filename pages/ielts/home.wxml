@@ -29,9 +29,10 @@
  <view wx:if="{{view === 'subscription' && !recordDetail}}" class="native-membership">
 <view class="records-title">{{membership.active ? '会员已生效' : '会员状态'}}</view>
 <text wx:if="{{membership}}">{{membership.plan}} · {{membership.expiresAt}}</text>
+<button class="primary" bindtap="openMembership">打开会员中心</button>
 <button wx:if="{{!user}}" class="primary" bindtap="signIn" loading="{{busy}}">微信登录</button>
 <view class="redemption">
-<text>激活码</text>
+<text>已有激活码（其他方式）</text>
 <input value="{{code}}" bindinput="inputCode" placeholder="输入激活码"/>
 <button class="primary" bindtap="redeem" disabled="{{busy || !code}}">激活</button>
 </view>
