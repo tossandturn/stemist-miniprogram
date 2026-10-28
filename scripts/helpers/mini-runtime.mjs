@@ -4,7 +4,8 @@ import vm from 'node:vm'
 import {transformNativePackageFile} from './native-package-transform.mjs'
 
 export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
-  const root = path.resolve(import.meta.dirname, '../..')
+  const packagedRoot=process.env.STEMIST_TEST_RUNTIME_ROOT
+  const root = packagedRoot?path.resolve(packagedRoot):path.resolve(import.meta.dirname, '../..')
   const storage = new Map()
   const calls = []
   const api = {
@@ -42,7 +43,7 @@ export function miniRuntime({ wx = {}, modules = {}, globals = {} } = {}) {
       ...globals,
     }
     const source=fs.readFileSync(filename)
-    vm.runInNewContext((process.env.STEMIST_TEST_PACKAGED==='1'?transformNativePackageFile(normalized+'.js',source).bytes:source).toString('utf8'), context, { filename })
+    vm.runInNewContext((!packagedRoot&&process.env.STEMIST_TEST_PACKAGED==='1'?transformNativePackageFile(normalized+'.js',source).bytes:source).toString('utf8'), context, { filename })
     const exported = definition || module.exports
     cache.set(normalized, exported)
     return exported

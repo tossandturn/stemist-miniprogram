@@ -1,0 +1,30 @@
+# Free hosted paper downloads
+
+User-confirmed rule: a signed-in free account may download two different hosted paper/answer PDFs per Beijing calendar day. A-Level, AP and IB share the allowance. The server identifies files by verified SHA-256. Same-day retry/resume does not consume again; a locally verified complete cache does not contact the server. Active members have no daily file-count limit.
+
+## Client behavior
+
+- Send the captured short-lived account bearer only to the exact STEM PDF endpoint allowlist. Never put credentials in URLs, UI state or cache records.
+- Preserve partial files on authentication, quota and service errors. Expired login offers an explicit login action; cancellation/back remains available on the existing account page.
+- A late old-token response cannot clear a renewed session; a late old-account response retires its own transfer and cannot alter a new account or replacement request.
+- Distinguish daily allowance exhaustion from generic rate limiting. Do not automatically open payment or retry an exhausted allowance.
+- Legacy AP/IB identifiers use the same Range/digest validation as current identifiers. Do not fall back to an unverified hosted PDF when a catalogue digest is known.
+- Keep real byte progress and ETA, complete-cache-first behavior, storage-pressure temporary preview verification and source-version checks.
+
+## Verification
+
+- `npm run test:all`: PASS, including actual WeChat WXML/WXSS compilers and all download suites. The optional external local-paper fixture audit is skipped because that unrelated corpus is outside this checkout.
+- `test:package-minification`: two deterministic builds, 348 files verified; four PDF suites execute against actual packaged modules. Main package is 1,965,232 bytes with 131,920 bytes headroom (minimum 131,072 unchanged).
+- Separate backend tests cover atomic multi-connection grants, final-slot races, Beijing midnight, membership expiry, actual signed/native-cookie authentication, malformed authority and both CIE/AP/IB file routes.
+- Physical Android/iPhone download and payment acceptance are not implied by these tests.
+
+## Release boundary
+
+Baseline is released 1.0.63, excluding the unfinished dual-platform payment candidate. The backend quota is a separate double-gated feature, default OFF. Do not enable general restrictions before compatible clients are available. No payment, pricing, refund, IELTS provider, question content or existing user data is changed here. Subsequent upload/deployment receipts must record their actual status; this source document is not proof of activation.
+
+## References and design checks
+
+- Atomic counter inspiration: https://github.com/animir/node-rate-limiter-flexible (no code/dependency copied; a relative rolling window is not a Beijing calendar day).
+- SQLite transaction API: https://github.com/nodejs/node/blob/main/doc/api/sqlite.md.
+- Exact-path PDF compaction: https://esbuild.github.io/api/#minify. Keep names, leave other modules' rules unchanged, verify actual transformed behavior.
+- UI/UX skill checks preserve existing visual tokens, real loading feedback, 44px login/retry actions, readable quota text and reduced-motion handling.

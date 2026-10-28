@@ -38,7 +38,9 @@ function harness({data=source,failAt=-1,damage=false}={}){
 }
 {
  const h=harness(),alternate='https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'b'.repeat(24)+'-'+ 'c'.repeat(16)
- for(const [index,url] of [URL,alternate].entries()){const handle=h.acquire({url,version:'id-shape-'+index,fileName:'AP_ID_Shape_'+index+'.pdf'});assert.ok(handle,'both deployed curriculum file-id shapes must use native Range');await handle.promise;handle.release()}
+ const legacy='https://stem.ieltsist.com/api/stem/curriculum-papers/files/ap-calc-ab-2025-frq-qp'
+ for(const [index,url] of [URL,alternate,legacy].entries()){const handle=h.acquire({url,version:'id-shape-'+index,fileName:'AP_ID_Shape_'+index+'.pdf'});assert.ok(handle,'deployed hash and legacy curriculum IDs must use verified native Range');await handle.promise;handle.release()}
+ await assert.rejects(h.acquire({url:legacy,version:'bad-content',expectedSha256:'f'.repeat(64)}).promise,e=>e.code==='pdf_integrity','Legacy AP/IB bytes must match the catalogue digest')
  const invalid=[
   'https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'd'.repeat(31),
   'https://stem.ieltsist.com/api/stem/curriculum-papers/files/file-'+ 'd'.repeat(24)+'--'+ 'e'.repeat(16),
@@ -218,6 +220,14 @@ function harness({data=source,failAt=-1,damage=false}={}){
  assert.ok(h.storage.get(h.module.REGISTRY).some(item=>item.key===paused.key&&item.offset<item.total),'temporary preview never claims or deletes a durable partial checkpoint')
 }
 {
+ for(const status of [401,429]){
+  const h=harness({failAt:1});await assert.rejects(h.acquire().promise,e=>e.code==='pdf_network')
+  const saved=h.storage.get(h.module.REGISTRY)[0].offset;h.setFail(-1)
+  h.wx.getFileSystemManager().appendFile=o=>queueMicrotask(()=>o.fail({errMsg:'file storage limit exceeded'}))
+  h.wx.downloadFile=o=>{let listener;setImmediate(()=>{listener?.({statusCode:status,header:{'X-Pdf-Access-Code':status===401?'pdf_auth_required':'pdf_daily_limit_reached'}});o.fail({errMsg:'download interrupted'})});return{abort(){},onHeadersReceived(fn){listener=fn},onProgressUpdate(){}}}
+  await assert.rejects(h.acquire().promise,e=>e.code===(status===401?'pdf_auth_required':'pdf_daily_limit_reached'))
+  assert.equal(h.storage.get(h.module.REGISTRY)[0].offset,saved,'Denied temporary fallback must retain the partial checkpoint')
+ }
  const h=harness(),records=[],partials=[]
  for(let used=1;used<=8;used++){const path=`/user/pdf-cache/pdf-reclaim-partial-${used}/partial-${used}.pdf`,record={schema:1,key:`reclaim-partial-${used}`,owner:'paused|1',url:URL,version:'v',path,offset:100,total:source.length,etag:'"paused"',used};records.push(record);partials.push(path);h.files.set(path,Buffer.alloc(100,used))}
  for(let used=9;used<=18;used++){const path=`/user/pdf-cache/pdf-reclaim-complete-${used}/complete-${used}.pdf`;records.push({schema:1,key:`reclaim-complete-${used}`,owner:'complete|1',url:URL,version:'v',path,offset:source.length,total:source.length,etag:'"complete"',used});h.files.set(path,Buffer.from(source))}

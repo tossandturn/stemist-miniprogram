@@ -1,5 +1,5 @@
 const DEFAULT_THROTTLE_MS=100
-const {acquirePdf}=require('./pdfRangeCache')
+const {acquirePdf,pdfAccessHeaders,pdfAccessError}=require('./pdfRangeCache')
 const {createDownloadMetrics}=require('./downloadMetrics')
 const DEFAULT_CACHE_LIMIT=4
 const DEFAULT_CACHE_TTL_MS=5*60*1000
@@ -15,7 +15,7 @@ return subject+'_20'+season.slice(1)+'_'+({m:'春季',s:'夏季',w:'秋冬季'}[
 }
 function safePdfFileName(value){const name=String(value||'').trim();return name&&name.length<=160&&/\.pdf$/i.test(name)&&!/[\\/:*?"<>|\u0000-\u001f]|\.\.|%2e|%2f|%5c/i.test(name)?name:''}
 
-function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false}}
+function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,authRequired:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false}}
 
 function formatBytes(value){
 const bytes=Math.max(0,Number(value)||0)
@@ -47,7 +47,7 @@ const cacheTtlMs=Math.max(1000,Math.min(30*60*1000,Number(options.cacheTtlMs)||D
 const cache=new Map()
 let publicCache=sharedPublicCaches.get(wxApi)
 if(!publicCache){publicCache=new Map();sharedPublicCaches.set(wxApi,publicCache)}
-let state=initialPdfDownloadState(),scope='',scopeIdentity=identitySnapshot(wxApi),disposed=false,generation=0,downloadTask=null,rangeDownload=null,progressListener=null,progressTimer=null,pendingProgress=null,lastProgressAt=null,lastRequest=null,resumeOnShow=false,resumeOnNetwork=false
+let state=initialPdfDownloadState(),scope='',scopeIdentity=identitySnapshot(wxApi),disposed=false,generation=0,downloadTask=null,rangeDownload=null,progressListener=null,headerListener=null,progressTimer=null,pendingProgress=null,lastProgressAt=null,lastRequest=null,resumeOnShow=false,resumeOnNetwork=false
 const networkChanged=event=>{if(!disposed&&event?.isConnected&&resumeOnNetwork&&state.phase==='error'&&lastRequest){resumeOnNetwork=false;retry()}}
 wxApi.onNetworkStatusChange?.(networkChanged)
 
@@ -60,16 +60,22 @@ try{return isScopeCurrent(context.scope)!==false}catch{return false}
 const clearProgress=()=>{if(progressTimer!==null)clearTimer(progressTimer);progressTimer=null;pendingProgress=null;lastProgressAt=null}
 const detachTask=abort=>{
 const task=downloadTask,listener=progressListener
+if(headerListener&&typeof task?.offHeadersReceived==='function')try{task.offHeadersReceived(headerListener)}catch{};headerListener=null
 downloadTask=null;progressListener=null;clearProgress()
 if(rangeDownload){if(abort)rangeDownload.release();rangeDownload=null}
 if(listener&&typeof task?.offProgressUpdate==='function')try{task.offProgressUpdate(listener)}catch{}
 if(abort&&typeof task?.abort==='function')try{task.abort()}catch{}
 }
 const invalidate=abort=>{generation++;detachTask(abort)}
+const transferCurrent=context=>{
+if(current(context))return true
+if(!disposed&&context.generation===generation){invalidate(true);lastRequest=null;resumeOnShow=false;resumeOnNetwork=false;publish(initialPdfDownloadState())}
+return false
+}
 const fail=(context,error)=>{
 if(!current(context))return false
 detachTask(false)
-context.metrics?.reset();publish({visible:true,phase:'error',active:false,message:'',error,...NO_METRICS,canCancel:false,canRetry:Boolean(lastRequest),collapsed:false})
+context.metrics?.reset();publish({visible:true,phase:'error',active:false,authRequired:false,message:'',error,...NO_METRICS,canCancel:false,canRetry:Boolean(lastRequest),collapsed:false})
 return false
 }
 const cacheTarget=(request,identity)=>{
@@ -102,14 +108,14 @@ resolve(false)
 })
 const evict=(target,filePath)=>{const entry=target?.store.get(target.key);if(entry?.filePath===filePath)target.store.delete(target.key)}
 const openLocal=(context,filePath)=>{
-if(!current(context))return false
+if(!transferCurrent(context))return false
 if(typeof wxApi.openDocument!=='function')return fail(context,'当前微信环境不支持打开 PDF，请在真机微信中重试。')
 const unsupported=error=>/not support|not implemented|simulator|devtools|开发者工具|模拟器/i.test(String(error?.errMsg||error?.message||''))
 const rememberOpened=()=>{if(context.cacheAfterOpen&&sameIdentity(wxApi,context.identity))remember(context.cacheAfterOpen,filePath)}
 const evictShared=()=>{if(context.cacheTarget?.shared&&sameIdentity(wxApi,context.identity))evict(context.cacheTarget,filePath)}
 let settled=false
 try{
-wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(current(context))publish({visible:true,phase:'opened',active:false,message:context.fromCache?'已从下载缓存打开':'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(current(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
+wxApi.openDocument({filePath,fileType:'pdf',showMenu:true,success:()=>{if(settled)return;settled=true;rememberOpened();if(transferCurrent(context))publish({visible:true,phase:'opened',active:false,message:context.fromCache?'已从下载缓存打开':'文档已打开',error:'',canCancel:false,canRetry:false,collapsed:false})},fail:error=>{if(settled)return;settled=true;evictShared();if(transferCurrent(context))fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}})
 }catch(error){evictShared();return fail(context,unsupported(error)?'当前微信环境不支持打开 PDF，请在真机微信中重试。':'PDF 未能打开，请重试。')}
 return true
 }
@@ -120,12 +126,12 @@ const percent=knownTotal?Math.max(0,Math.min(99,Number.isFinite(calculated)?calc
 return{downloadedBytes,totalBytes,downloadedLabel:formatBytes(downloadedBytes),totalLabel:knownTotal?formatBytes(totalBytes):'',knownTotal,percent,...metrics}
 }
 const setTransferPhase=(context,phase,saved=0,total=0)=>{
-if(['checking-cache','cached'].includes(phase)&&current(context)&&!context.networkSettled){
+if(['checking-cache','cached'].includes(phase)&&transferCurrent(context)&&!context.networkSettled){
 clearProgress();context.metrics.reset();if(phase==='cached')context.fromCache=true
 publish({...progressState({totalBytesWritten:saved,totalBytesExpectedToWrite:total}),...NO_METRICS,visible:true,phase:'verifying',active:true,message:phase==='cached'?'已找到下载缓存，正在打开…':'正在读取已下载的'+context.request.label+'…',error:'',canCancel:true,canRetry:false,...(phase==='cached'?{percent:100}:{})})
 return true
 }
-if(!['connecting','downloading','verifying'].includes(phase)||!current(context)||context.networkSettled)return false
+if(!['connecting','downloading','verifying'].includes(phase)||!transferCurrent(context)||context.networkSettled)return false
 clearProgress();context.metrics.reset()
 const metrics=phase==='downloading'?context.metrics.observe(saved,total):NO_METRICS
 const model=progressState({totalBytesWritten:saved,totalBytesExpectedToWrite:total},metrics)
@@ -134,13 +140,13 @@ publish({...model,visible:true,phase,active:true,message,error:'',canCancel:true
 return true
 }
 const emitProgress=(context,model)=>{
-if(!current(context)||context.networkSettled||!['connecting','downloading'].includes(state.phase))return false
+if(!transferCurrent(context)||context.networkSettled||!['connecting','downloading'].includes(state.phase))return false
 lastProgressAt=now();publish({...model,visible:true,phase:'downloading',active:true,message:context.temporaryPreview?'本机空间不足，正在下载临时预览…':'正在下载'+context.request.label+'…',error:'',canCancel:true,canRetry:false})
 return true
 }
 const queueProgress=(context,event)=>{
 if(context.networkSettled||disposed||context.generation!==generation)return
-if(!current(context)){invalidate(true);state={...initialPdfDownloadState()};return}
+if(!transferCurrent(context))return
 if(state.phase==='verifying')return
 const downloaded=Math.max(0,Number(event?.totalBytesWritten)||0),total=Math.max(0,Number(event?.totalBytesExpectedToWrite)||0)
 const model=progressState(event,context.metrics.observe(downloaded,total),state.downloadedBytes),elapsed=lastProgressAt===null?Infinity:Math.max(0,now()-lastProgressAt)
@@ -152,13 +158,15 @@ progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pen
 const startDownload=context=>{
 const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
 if(!current(context))return false
-context.metrics.reset();publish({visible:true,phase:'preparing',active:true,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
+context.metrics.reset();publish({visible:true,phase:'preparing',active:true,authRequired:false,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
-const handle=acquirePdf({wxApi,url:key,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
+const handle=acquirePdf({wxApi,url:key,accessToken:context.identity.token,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:()=>{if(current(context)){context.temporaryPreview=true;publish({message:'本机空间不足，正在准备临时预览…',...NO_METRICS})}}})
 if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
 }
+if(context.request.sha256&&pdfAccessHeaders(key,'check').Authorization)return fail(context,'当前微信无法校验试卷文件，请更新微信后重试。')
 function success(result){
-if(context.networkSettled||!current(context))return
+if(context.networkSettled||!transferCurrent(context))return
+const denied=pdfAccessError(result?.statusCode,{...context.responseHeaders,...result?.header});if(denied){failure(denied);return}
 context.networkSettled=true
 const latestProgress=pendingProgress||{downloadedBytes:state.downloadedBytes,totalBytes:state.totalBytes,downloadedLabel:state.downloadedLabel,totalLabel:state.totalLabel,knownTotal:state.knownTotal,percent:state.percent,etaSeconds:state.etaSeconds,speedLabel:state.speedLabel,remainingLabel:state.remainingLabel}
 detachTask(false)
@@ -175,16 +183,25 @@ publish({...completedProgress,visible:true,phase:'opening',active:true,message:c
 openLocal(context,filePath)
 }
 function failure(error){
-if(context.networkSettled||!current(context))return
+if(context.networkSettled||!transferCurrent(context))return
+error=pdfAccessError(context.responseStatus,context.responseHeaders)||error
 context.networkSettled=true
 if(pendingProgress)publish(pendingProgress)
 const saved=state.downloadedBytes,total=state.totalBytes
-const detail=['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
+if(error?.code==='pdf_auth_required'){
+const changed=String(wxApi.getStorageSync?.('stemistSessionToken')||'')!==context.identity.token
+fail(context,changed?'登录状态已更新，请重试。':error.message);publish({authRequired:!changed,canRetry:changed})
+if(!changed&&context.identity.token)require('./session').clearLocalSession({preserveDrafts:true});return
+}
+if(['pdf_daily_limit_reached','pdf_access_denied'].includes(error?.code)){fail(context,error.message);publish({canRetry:false});return}
+if(['pdf_quota_unavailable','pdf_rate_limited'].includes(error?.code)){fail(context,error.message);return}
+const detail=error?.httpStatus||['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
 resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)
 fail(context,detail||(context.rangeBacked&&saved>0?'下载中断，已保存 '+formatBytes(saved)+(total?' / '+formatBytes(total):'')+'；点击重试继续下载。':'下载未完成，请检查网络后重试。'))
 }
 publish({phase:'connecting',message:'正在连接并确认'+context.request.label+'…'})
-try{downloadTask=wxApi.downloadFile({url:key,...(base&&file?{filePath:base+'/'+file}:{}),timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}
+try{downloadTask=wxApi.downloadFile({url:key,header:pdfAccessHeaders(key,context.identity.token),...(base&&file?{filePath:base+'/'+file}:{}),timeout:30000,success,fail:failure})}catch{return fail(context,'文件下载未能启动，请重试。')}
+headerListener=result=>{if(current(context)&&!context.networkSettled){context.responseHeaders=result.header||{};context.responseStatus=result.statusCode}};downloadTask?.onHeadersReceived?.(headerListener)
 progressListener=event=>queueProgress(context,event)
 if(typeof downloadTask?.onProgressUpdate==='function')try{downloadTask.onProgressUpdate(progressListener)}catch{}
 return true
@@ -195,7 +212,7 @@ const normalized={url:String(request.url||''),cacheKey:String(request.cacheKey||
 if(!/^https:\/\/[^\s]+$/i.test(normalized.url)){
 lastRequest=null;publish({...initialPdfDownloadState(),visible:true,phase:'error',error:'PDF 地址不可用。'});return false
 }
-if(normalized.scope!==scope)setScope(normalized.scope)
+if(normalized.scope!==scope||!sameIdentity(wxApi,scopeIdentity))setScope(normalized.scope)
 if(state.active&&lastRequest?.ownerKey===normalized.ownerKey)return false
 invalidate(true);const context={generation,scope,identity:identitySnapshot(wxApi),request:normalized,networkSettled:false,metrics:createDownloadMetrics({now})};lastRequest=normalized
 const target=cacheTarget(normalized,context.identity),entry=target?.store.get(target.key)
@@ -207,7 +224,7 @@ const cacheFolder=String(wxApi.env?.USER_DATA_PATH||'')+'/pdf-cache/'
 if(cached&&!cached.startsWith(cacheFolder)){
 publish({visible:true,phase:'preparing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false})
 if(await cachedFileExists(cached)){
-if(!current(context))return false
+if(!transferCurrent(context))return false
 context.cacheTarget=target
 target.store.delete(target.key);target.store.set(target.key,entry)
 publish({phase:'opening',active:true,message:'已找到临时文件，正在打开…',canCancel:false,canRetry:false})

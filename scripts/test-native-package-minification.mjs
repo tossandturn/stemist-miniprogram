@@ -164,6 +164,11 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
 }
 
 assertMixedCommonJsTransform()
+const pdfTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('utils/pdfRangeCache.js'))
+assert.equal(pdfTransform.id,'esbuild-pdf-transfer-compact-v1','PDF transfer gets its own reviewed compact transform rather than reducing headroom')
+assert.equal(pdfTransform.options.minifySyntax,true)
+assert.equal(pdfTransform.options.keepNames,true)
+assert.deepEqual([...pdfTransform.paths].sort(),['utils/pdfDownload.js','utils/pdfRangeCache.js'])
 assert.equal(NATIVE_PACKAGE_TRANSFORM.engine, 'esbuild')
 assert.equal(NATIVE_PACKAGE_TRANSFORM.version, '0.28.2')
 assert.deepEqual(NATIVE_PACKAGE_TRANSFORM.options, {
@@ -228,6 +233,11 @@ try {
   assert.equal(reading.questions.length, 40)
   assert.equal(networkRequests, 0, 'the transformed package must preserve the offline-first IELTS path')
 
+  const pdfSuites=['test-pdf-download-progress.mjs','test-pdf-range-cache.mjs','test-pdf-transfer-pipeline.mjs','test-pdf-download-access.mjs']
+  for(const suite of pdfSuites){
+    execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
+  }
+
   assert.equal(check.mainPackageBytes, firstReceipt.mainPackage.bytes)
   assert.equal(check.mainPackageHeadroom, firstReceipt.mainPackage.headroom)
   assert.equal(check.sourceMainPackageBytes, firstReceipt.sourceMainPackageBytes)
@@ -242,6 +252,7 @@ try {
     deterministicBuilds: 2,
     verifiedFiles: firstReceipt.files.length,
     offlineReadingQuestions: reading.questions.length,
+    packagedPdfSuites: pdfSuites.length,
   }))
 } finally {
   for (const [relative, before] of Object.entries(protectedBefore)) {

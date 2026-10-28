@@ -4,5 +4,6 @@ Component({
   cancel(){this.triggerEvent('cancel')},
   retry(){this.triggerEvent('retry')},
   toggle(){this.triggerEvent('toggle')},
+  login(){if(this.data.state?.authRequired)wx.navigateTo({url:'/bundles/account/auth'})},
  }
 })

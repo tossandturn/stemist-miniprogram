@@ -3,13 +3,23 @@ const REGISTRY='stemistPdfRanges',KiB=1024,PROBE=256*KiB,START_CHUNK=256*KiB,MIN
 const PDF_CACHE_LIMITS=Object.freeze({files:MAX_FILES,bytes:MAX_BYTES})
 const activePdfFiles=new WeakMap()
 const globalPdfRequests=new WeakMap()
-const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/file-[a-f0-9]{24}(?:[a-f0-9]{8}|-[a-f0-9]{16})|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
+const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/(?:file-[a-f0-9]{24}(?:[a-f0-9]{8}|-[a-f0-9]{16})|(?:ap|ib)-[A-Za-z0-9][A-Za-z0-9._-]{0,195})|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
 const header=(h,n)=>{const k=Object.keys(h||{}).find(k=>k.toLowerCase()===n.toLowerCase());return k===undefined?'':String(h[k]).trim()}
 const bytes=d=>Object.prototype.toString.call(d)==='[object ArrayBuffer]'?new Uint8Array(d):ArrayBuffer.isView(d)?new Uint8Array(d.buffer,d.byteOffset,d.byteLength):null
 const binary=d=>d.byteOffset===0&&d.byteLength===d.buffer.byteLength?d.buffer:d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)
 const problem=(code,message)=>Object.assign(Error(message),{code})
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
 const contentRange=s=>{const m=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(s);if(!m)return null;const n=m.slice(1).map(Number);return n.every(Number.isSafeInteger)?{start:n[0],end:n[1],total:n[2]}:null}
+function pdfAccessHeaders(url,token){return /^https:\/\/stem\.ieltsist\.com\/(?:local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf|api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,199})$/i.test(url)&&!/\.\.|%2e|%2f|%5c/i.test(url)&&typeof token==='string'&&/^[A-Za-z0-9._-]{1,4096}$/.test(token)?{Authorization:'Bearer '+token}:{}}
+function pdfAccessError(status,headers){
+ const code=header(headers,'x-pdf-access-code')
+ if(Number(status)===401)return problem('pdf_auth_required','请登录后继续下载，已保存进度不会丢失。')
+ if([403,429].includes(Number(status))&&code==='pdf_daily_limit_reached')return problem(code,'今日免费额度已用完，真题与答案合计 2 份；北京时间每天 00:00 重置，已缓存文件仍可打开。')
+ if(Number(status)===403)return problem('pdf_access_denied','此文件暂不可下载，请返回刷新目录。')
+ if(Number(status)===429)return problem('pdf_rate_limited','请求较多，请稍后重试。')
+ if(Number(status)>=500)return Object.assign(problem(code==='pdf_quota_unavailable'?code:'pdf_network','下载服务暂不可用（HTTP '+Number(status)+'），请稍后重试。'),{httpStatus:Number(status)})
+ return null
+}
 
 function requestSlot(wxApi){
  let pool=globalPdfRequests.get(wxApi);if(!pool){pool={active:0,queue:[]};globalPdfRequests.set(wxApi,pool)}
@@ -38,7 +48,7 @@ async function reclaimCompletedPublicPdfs(wxApi,isCurrent=()=>true){
 }
 
 function acquirePdf(options){
- const {wxApi,url,owner,version='',fileName,expectedBytes=0,expectedSha256='',onProgress=()=>{},onTemporary=()=>{},onPhase=()=>{}}=options
+ const {wxApi,url,owner,version='',fileName,expectedBytes=0,expectedSha256='',accessToken='',onProgress=()=>{},onTemporary=()=>{},onPhase=()=>{}}=options
  const root=String(wxApi.env?.USER_DATA_PATH||''),fs=wxApi.getFileSystemManager?.()
  if(!URL_OK.test(url)||/\.\.|%2e|%2f|%5c/i.test(url)||!root||!fs||/\.\.|%2e|%2f|%5c/i.test(fileName)||!/^[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(fileName)||typeof wxApi.request!=='function'||!['writeFile','appendFile','readFile','statSync','mkdirSync','accessSync','unlink'].every(k=>typeof fs[k]==='function'))return null
  const folder=root+'/pdf-cache',owned=p=>typeof p==='string'&&p.startsWith(folder+'/')&&!(/\.\.|%2e|%2f|%5c/i.test(p.slice(folder.length+1)))&&/^pdf-[a-z0-9-]+\/[A-Za-z0-9_\u4e00-\u9fff .()%-]+\.pdf$/.test(p.slice(folder.length+1))
@@ -71,6 +81,7 @@ function acquirePdf(options){
  }
  const read=async(p,start,length)=>bytes((await call('readFile',{filePath:p,position:start,length})).data)
  function headerError(meta,start,end,total,tag,allowEof){
+  const denied=pdfAccessError(meta?.statusCode,meta?.header||meta?.headers);if(denied)return denied
   const h=meta?.header||meta?.headers||{},rawStatus=meta?.statusCode,status=rawStatus===undefined||rawStatus===null||rawStatus===''?NaN:Number(rawStatus),rawLength=header(h,'content-length'),length=rawLength===''?0:Number(rawLength),rawTag=header(h,'etag'),t=etag(rawTag),rawRange=header(h,'content-range'),cr=rawRange?contentRange(rawRange):null
   if(Number.isFinite(status)&&status!==206)return problem(status===200?'pdf_source_changed':'pdf_invalid_range',status===200?'文件来源已更新，请重新下载。':'文件分段校验失败，请重新下载。')
   if(rawLength!==''&&(!Number.isSafeInteger(length)||length<0||length>end-start+1))return problem('pdf_invalid_range','文件分段校验失败，请重新下载。')
@@ -91,7 +102,7 @@ function acquirePdf(options){
     const finish=(fn,value)=>{if(settled)return;settled=true;clearTimeout(timer);if(listener&&typeof item.task?.offHeadersReceived==='function')try{item.task.offHeadersReceived(listener)}catch{}requests.delete(item);fn(value)}
     requests.add(item);timer=setTimeout(()=>item.cancel(problem('pdf_timeout','文件分段下载超时。')),20000)
     try{
-     item.task=wxApi.request({url,method:'GET',responseType:'arraybuffer',timeout:20000,header:{Range:'bytes='+start+'-'+end,...(tag?{'If-Range':tag}:{})},success:r=>finish(resolve,{response:r,activeMs:Date.now()-started}),fail:e=>{const raw=String(e?.errMsg||'');finish(reject,problem(/domain|合法域名/i.test(raw)?'pdf_domain':'pdf_network',/domain|合法域名/i.test(raw)?'服务连接配置需要更新，请使用最新版小程序。':'网络中断，请重试。'))}})
+     item.task=wxApi.request({url,method:'GET',responseType:'arraybuffer',timeout:20000,header:{...pdfAccessHeaders(url,accessToken),Range:'bytes='+start+'-'+end,...(tag?{'If-Range':tag}:{})},success:r=>finish(resolve,{response:r,activeMs:Date.now()-started}),fail:e=>{const raw=String(e?.errMsg||'');finish(reject,problem(/domain|合法域名/i.test(raw)?'pdf_domain':'pdf_network',/domain|合法域名/i.test(raw)?'服务连接配置需要更新，请使用最新版小程序。':'网络中断，请重试。'))}})
      if(!settled&&typeof item.task?.onHeadersReceived==='function'){listener=meta=>{const error=headerError(meta,start,end,totalFor(batch),tag,allowEof);if(error)item.cancel(error)};item.task.onHeadersReceived(listener)}
     }catch{const active=item.task;finish(reject,problem('pdf_network','网络连接失败，请重试。'));try{active?.abort?.()}catch{}}
    })
@@ -99,6 +110,7 @@ function acquirePdf(options){
  }
  const totalFor=batch=>Number(batch?.total)||0
  function checked(result,start,end,total=0,tag='',allowEof=false){
+  const denied=pdfAccessError(result.response?.statusCode,result.response?.header);if(denied)throw denied
   const r=result.response,status=Number(r.statusCode),data=bytes(r.data),cr=contentRange(header(r.header,'content-range')),t=etag(header(r.header,'etag')),length=Number(header(r.header,'content-length'))
   if(status===200)throw problem('pdf_source_changed','文件来源已更新，请重新下载。')
   if(status!==206||!cr||cr.total<5||cr.total>MAX_FILE||cr.start!==start||cr.end!==(allowEof?Math.min(end,cr.total-1):end)||cr.end>=cr.total||!data||data.length!==cr.end-cr.start+1||!Number.isSafeInteger(length)||length!==data.length||!t||!/^application\/pdf(?:;|$)/i.test(header(r.header,'content-type')))throw problem('pdf_invalid_range','文件分段校验失败，请重新下载。')
@@ -149,17 +161,18 @@ function acquirePdf(options){
  async function temporary(){
   if(typeof wxApi.downloadFile!=='function')throw problem('pdf_storage_full','本机空间不足，请清理下载缓存后重试。')
   try{onTemporary()}catch{}phase('downloading',0,record.total);progress(0,record.total)
-  const batch={error:null,total:record.total},slot=requestSlot(wxApi);waitingSlots.set(slot,batch);let release,result
+  const batch={error:null,total:record.total},slot=requestSlot(wxApi);waitingSlots.set(slot,batch);let release,result,accessHeaders={},accessStatus
   try{release=await slot.promise}finally{waitingSlots.delete(slot)}
   try{
    guard(batch);if(slot.error)throw slot.error
    result=await new Promise((resolve,reject)=>{
     let settled=false,item={batch,task:null,cancel:error=>{const active=item.task;finish(reject,error);try{active?.abort?.()}catch{}}},finish=(fn,value)=>{if(settled)return;settled=true;requests.delete(item);fn(value)}
     requests.add(item)
-    try{item.task=wxApi.downloadFile({url,timeout:180000,success:r=>finish(resolve,r),fail:()=>finish(reject,problem('pdf_network','临时预览下载中断，请重试。'))});item.task?.onProgressUpdate?.(r=>{if(!settled&&!stopped)progress(Number(r.totalBytesWritten)||0,Number(r.totalBytesExpectedToWrite)||record.total)})}catch{const active=item.task;finish(reject,problem('pdf_storage_full','临时文件未能准备，请重试。'));try{active?.abort?.()}catch{}}
+    try{item.task=wxApi.downloadFile({url,header:pdfAccessHeaders(url,accessToken),timeout:180000,success:r=>finish(resolve,r),fail:()=>finish(reject,pdfAccessError(accessStatus,accessHeaders)||problem('pdf_network','临时预览下载中断，请重试。'))});item.task?.onHeadersReceived?.(r=>{accessHeaders=r.header||{};accessStatus=r.statusCode});item.task?.onProgressUpdate?.(r=>{if(!settled&&!stopped)progress(Number(r.totalBytesWritten)||0,Number(r.totalBytesExpectedToWrite)||record.total)})}catch{const active=item.task;finish(reject,problem('pdf_storage_full','临时文件未能准备，请重试。'));try{active?.abort?.()}catch{}}
    })
   }finally{release?.()}
   check();const p=String(result.tempFilePath||result.filePath||'')
+  const denied=pdfAccessError(result.statusCode,{...accessHeaders,...result.header});if(denied)throw denied
   if(Number(result.statusCode)!==200||!p)throw problem('pdf_integrity','临时 PDF 校验失败，请重新下载。')
   phase('verifying',record.total,record.total)
   if(!await verify({path:p,total:record.total}))throw problem('pdf_integrity','临时 PDF 校验失败，请重新下载。')
@@ -234,4 +247,4 @@ function acquirePdf(options){
   const promise=run().finally(()=>{clearTimeout(hard);for(const p of reservations){const count=(active.get(p)||1)-1;if(count)active.set(p,count);else active.delete(p)}active.delete(key);done()})
   return{promise,release(){if(stopped)return;stopped=true;cancelAll(problem('pdf_cancelled','已暂停下载。'))},invalidate(){forget(record)}}
  }
- module.exports={acquirePdf,reclaimCompletedPublicPdfs,REGISTRY,PDF_CACHE_LIMITS}
+ module.exports={acquirePdf,reclaimCompletedPublicPdfs,REGISTRY,PDF_CACHE_LIMITS,pdfAccessHeaders,pdfAccessError}

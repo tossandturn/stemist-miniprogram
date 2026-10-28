@@ -31,7 +31,7 @@ page.setData({mode:'exam-simulation'});page.openPdf({currentTarget:{dataset:{id:
 page.onUnload()
 
 const {createPdfDownloadController,initialPdfDownloadState}=miniRuntime().load('utils/pdfDownload')
-assert.deepEqual(Object.keys(initialPdfDownloadState()).sort(),['active','canCancel','canRetry','collapsed','downloadedBytes','downloadedLabel','error','etaSeconds','itemId','knownTotal','label','message','ownerKey','percent','phase','remainingLabel','speedLabel','totalBytes','totalLabel','visible'].sort())
+assert.deepEqual(Object.keys(initialPdfDownloadState()).sort(),['active','authRequired','canCancel','canRetry','collapsed','downloadedBytes','downloadedLabel','error','etaSeconds','itemId','knownTotal','label','message','ownerKey','percent','phase','remainingLabel','speedLabel','totalBytes','totalLabel','visible'].sort())
 
 function manualClock(){
  let time=1000,id=0
@@ -235,7 +235,8 @@ const request=(suffix='a')=>({url:`https://stem.ieltsist.com/local-pdf/9702/${su
  const h=controllerHarness();h.setScope('scope-l');await h.controller.open(request('l'));const first=h.downloads[0]
  h.setScope('scope-next');assert.equal(first.aborted,1);first.options.success({statusCode:200,tempFilePath:'wxfile://late-scope.pdf'});assert.equal(h.opens.length,0)
  await h.controller.open({...request('n'),scope:'scope-next'});const second=h.downloads[1];h.storage.set('stemistUser',{id:'student-2'});second.progress({progress:20,totalBytesWritten:20,totalBytesExpectedToWrite:100});second.options.success({statusCode:200,tempFilePath:'wxfile://late-account.pdf'});assert.equal(second.aborted,1);assert.equal(h.opens.length,0,'an account change must invalidate progress and late success callbacks')
- h.setScope('scope-next');assert.equal(h.state.phase,'idle','the next explicit lifecycle/scope sync clears stale busy UI after an account change')
+ assert.equal(h.states.at(-1).active,false,'identity change must publish idle to the page without requiring a lifecycle event')
+ h.setScope('scope-next');assert.equal(h.state.phase,'idle')
  h.controller.dispose();assert.equal(h.controller.getState().active,false)
 }
 
@@ -320,6 +321,21 @@ for(const pagePath of ['pages/papers/index','pages/stem/paper']){
  const destination=makeController();await destination.open(req);assert.equal(downloads.length,1,'a public PDF opened during the native-document transition remains reusable on return');assert.equal(opens.length,2);destination.dispose();source.dispose()
 }
 const componentWxml=read('components/pdf-download-progress/index.wxml'),componentWxss=read('components/pdf-download-progress/index.wxss')
+{
+ const h=controllerHarness();await h.controller.open(request('a'));h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://cached.pdf'});h.opens[0].success({})
+ let release;h.wxApi.getFileSystemManager().access=options=>{release=options.success}
+ const pending=h.controller.open(request('a'));await Promise.resolve();h.storage.set('stemistUser',{id:'student-2'});release({});await pending
+ assert.equal(h.opens.length,1);assert.equal(h.states.at(-1).active,false,'late cache lookup must retire preparing state');h.controller.dispose()
+}
+for(const outcome of ['success','fail']){
+ const h=controllerHarness();await h.controller.open(request('a'));h.downloads[0].options.success({statusCode:200,tempFilePath:'wxfile://opening.pdf'});h.storage.set('stemistUser',{id:'student-2'});h.opens[0][outcome]({})
+ assert.equal(h.states.at(-1).active,false,'late native document callback must retire opening state');h.controller.dispose()
+}
+{
+ const h=controllerHarness();await h.controller.open(request('a'));const task=h.downloads[0]
+ task.progress({totalBytesWritten:10,totalBytesExpectedToWrite:100});task.progress({totalBytesWritten:20,totalBytesExpectedToWrite:100});h.storage.set('stemistUser',{id:'student-2'});h.clock.tick(200)
+ assert.equal(h.states.at(-1).active,false,'throttled progress must retire stale page state');h.controller.dispose()
+}
 assert.match(componentWxml,/bindtap="cancel"/);assert.match(componentWxml,/bindtap="retry"/);assert.match(componentWxml,/收起/);assert.match(componentWxml,/aria-label/)
 assert.match(componentWxss,/min-height:\s*44px/)
 assert.match(componentWxss,/\.pdf-progress-toggle\s*\{[^}]*flex:\s*0\s+0\s+64px/,'native default button width must not squeeze the progress message into a narrow column')
