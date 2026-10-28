@@ -1,7 +1,7 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.64",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.65",
+  "pendingUploads": [{"version":"1.0.65","assignedOn":"2026-10-29","scope":"chapter mistake images to AI Coach","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.65-ready"}],
   "reconciledUploads": [
     {
       "version": "1.0.64",
