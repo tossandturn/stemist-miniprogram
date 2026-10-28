@@ -34,7 +34,9 @@
 - 原生最终复验：12 条 PASS，包括旧密码迟到 Set-Cookie 与两个首页统一入口。
 - 独立代码审查：PASS，无本轮范围内未解决阻断；结果见任务目录 `review.md/json`。
 - 主包：1,963,558 bytes；余量 133,594 bytes，高于 131,072-byte 保留线 2,522 bytes。后续主包增长需要重跑检查。
-- 开发版上传：待收尾记录，目标 1.0.62；未提交审核/正式发布。
+- 开发版上传：**1.0.62 上传成功**。官方工具回执 `success: true`；编译总包 2,517,358 bytes，主包 1,989,707 bytes。未提交审核/正式发布。
+- 运行时代码提交：`2abfb6a04c79cf75171107a4ffbc3df6a6935ce5`，已推送并核对远端同分支 SHA。冻结上传目录 `D:/CodexWork/wechat-login-20261028-candidate`，完整 manifest 与 `upload-result.json` 在任务目录旁/内留存。
+- 用户原有 `project.config.json` 保持原 SHA256 `A6D9C6A9CB8C4732F591272E9F18DB86C12628CB2AA5FEDECD9EFB97CE5705FA`，没有加入提交。没有 SSH 或业务服务器修改。
 
 ## 不作出的承诺
 

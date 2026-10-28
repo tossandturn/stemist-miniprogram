@@ -1,8 +1,26 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.61",
+  "highestAssignedVersion": "1.0.62",
   "pendingUploads": [],
   "reconciledUploads": [
+    {
+      "version": "1.0.62",
+      "assignedOn": "2026-10-28",
+      "commit": "2abfb6a04c79cf75171107a4ffbc3df6a6935ce5",
+      "project": "D:/CodexWork/wechat-login-20261028-candidate",
+      "officialInfo": "D:\\CodexWork\\wechat-login-20261028\\upload-result.json",
+      "manifest": "D:/CodexWork/wechat-login-20261028-candidate-manifest.json",
+      "runtimeMainBytes": 1963558,
+      "runtimeMainHeadroomBytes": 133594,
+      "runtimeManifestSha256": "7ed653695cf9418e07ea37d61f8de6ba7ac4f98bfbc5409510eeb5c6ba802f3a",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "status": "upload_verified",
+      "observedOn": "2026-10-28",
+      "success": true,
+      "compiledTotalBytes": 2517358,
+      "compiledMainBytes": 1989707
+    },
     {
       "version": "1.0.61",
       "assignedOn": "2026-10-27",
