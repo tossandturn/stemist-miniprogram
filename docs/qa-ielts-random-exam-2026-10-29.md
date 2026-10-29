@@ -23,3 +23,5 @@ Physical Android/iPhone/iPad, real server exam creation and completing/submittin
 Artifacts: `D:/CodexWork/ielts-exam-cold-start-20261029/` — `live-catalog-result.json`, `native-acceptance.json`, native state/screenshot files and `full-tests-final.log`. Candidate runtime commit: `071aadc5d2211150b96c871e55896b08293068c3`.
 
 Reference: [TanStack's official repository discussion about persisted stale data versus awaited refresh](https://github.com/TanStack/query/issues/8075). The implementation is a narrow extension of this app's existing loader; no external code/dependency copied.
+
+**UPLOADED:** development 1.0.67. Official asynchronous upload task returned `status=success` and `result.success=true`, confirmed at 2026-10-29 16:36:50 Asia/Shanghai. Frozen commit `77f150afa945e050b9e902e7db917aea6bf89083`; runtime identical to native acceptance. No review/public release. Both local ledgers reconciled; user IDE configuration unchanged.
