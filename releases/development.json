@@ -1,7 +1,7 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.67",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.68",
+  "pendingUploads": [{"version":"1.0.68","assignedOn":"2026-10-29","commit":"c24dddd584830ee7b6126072f83ab43336aa1d4d","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.68-ready","status":"waiting_user_confirmation","receipt":"D:/CodexWork/coach-recovery-20261029/wechat-upload-receipt.json"}],
   "reconciledUploads": [
     {"version":"1.0.67","assignedOn":"2026-10-29","uploadConfirmedAt":"2026-10-29T08:36:50.864Z","commit":"77f150afa945e050b9e902e7db917aea6bf89083","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.67-ready","officialInfo":"D:/CodexWork/ielts-exam-cold-start-20261029/wechat-upload-receipt.json","manifest":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.67-ready-manifest.json","runtimeManifestSha256":"0e7ac730da5d00f9060ed7c2f6956b9795b27ae75bd8bde258b75cab4337ce16","success":true,"originalProjectConfigChanged":false,"reviewSubmitted":false,"publicReleasePerformed":false,"backendChanged":false},
     {"version":"1.0.66","assignedOn":"2026-10-29","uploadedAt":"2026-10-28T20:54:59.475Z","commit":"aad9925a99021e932d287c4d7f088886ada443d3","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.66-ready","officialInfo":"D:/CodexWork/pdf-save-recovery-20261029/wechat-upload-receipt.json","manifest":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.66-ready-manifest.json","runtimeManifestSha256":"e61229f2d662ee5966478b84de3ee8a4cc6473a273b84fd493f5a164ef973777","success":true,"originalProjectConfigChanged":false,"reviewSubmitted":false,"publicReleasePerformed":false,"backendChanged":false},
