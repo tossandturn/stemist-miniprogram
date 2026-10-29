@@ -7,13 +7,24 @@ const ORDER_ID=/^M[a-f0-9]{30}$/
 const failure=(message,code='membership_invalid')=>Object.assign(new Error(message),{code})
 const text=(value,max=120)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,max):''
 const exact=(value,keys)=>Boolean(value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).sort().join('|')===keys.slice().sort().join('|'))
+function devicePlatform(){try{const info=typeof wx.getDeviceInfo==='function'?wx.getDeviceInfo():wx.getSystemInfoSync();return String(info?.platform||'').toLowerCase()}catch{return''}}
+function paymentCapability(){
+ const platform=devicePlatform();if(!['android','ios'].includes(platform))return{platform,reason:'platform_unavailable',available:false}
+ if(platform==='ios'){
+  let version='';try{version=String((typeof wx.getAppBaseInfo==='function'?wx.getAppBaseInfo():wx.getSystemInfoSync())?.version||'')}catch{}
+  const match=/^(\d+)\.(\d+)\.(\d+)$/.exec(version),parts=match?.slice(1).map(Number)
+  if(!parts||!(parts[0]>8||parts[0]===8&&(parts[1]>0||parts[1]===0&&parts[2]>=68)))return{platform,reason:'ios_version_unsupported',available:false}
+ }
+ const available=typeof wx.requestVirtualPayment==='function';return{platform,reason:available?'ready':'payment_unsupported',available}
+}
+function assertPaymentPlatform(platform){const capability=paymentCapability();if(platform!==capability.platform||!['android','ios'].includes(platform))throw failure('订单平台与当前设备不一致。','membership_platform_unavailable');if(!capability.available)throw failure(capability.reason==='ios_version_unsupported'?'苹果支付需要微信 8.0.68 或更新版本。':'当前微信版本缺少支付能力。',capability.reason);return platform}
 const context=()=>({owner:String(wx.getStorageSync('stemistUser')?.id||'guest'),epoch:Number(wx.getStorageSync('stemistPrivacyEpoch'))||0})
 function assertContext(expected){const current=context();if(current.owner!==expected.owner||current.epoch!==expected.epoch)throw failure('账号已变化，请重新打开会员中心。','account_changed')}
 function protocol(value){if(!value||value.protocol!==PROTOCOL)throw failure('会员服务暂未就绪，请稍后重试。');return value}
 function assertUser(value,expected){assertContext(expected);const id=String(value?.userId||'');if(!/^ielts:\d+$/.test(id)||id!==expected.owner)throw failure('会员账号校验未完成，请重新登录。','account_changed');return id}
 function planData(plan){if(!plan||plan.id!==PLAN_ID||plan.priceFen!==2880||plan.currency!=='CNY'||plan.durationDays!==30||plan.autoRenew!==false)throw failure('会员方案暂不可用，请刷新后重试。');return{id:PLAN_ID,title:text(plan.title,50)||'全功能月卡',priceFen:2880,priceLabel:'28.80',currency:'CNY',durationDays:30,autoRenew:false}}
 function entitlementData(value){if(!value||typeof value.active!=='boolean')throw failure('会员状态暂未确认，请重试。');if(value.active&&(!Number.isFinite(Date.parse(value.expiresAt))||Date.parse(value.expiresAt)<=Date.now()))throw failure('会员状态已变化，请刷新确认。');return{active:value.active,planId:text(value.planId),startsAt:value.startsAt||null,expiresAt:value.expiresAt||null,version:value.version}}
-function orderData(order){if(!order||!ORDER_ID.test(order.id||'')||!Object.prototype.hasOwnProperty.call(STATUS_LABELS,order.status)||order.planId!==PLAN_ID||!Number.isSafeInteger(order.priceFen)||order.priceFen<=0||order.currency!=='CNY'||order.durationDays!==30)throw failure('订单信息暂未确认，请刷新订单。');return{id:order.id,status:order.status,statusLabel:STATUS_LABELS[order.status],planId:PLAN_ID,priceFen:order.priceFen,priceLabel:(order.priceFen/100).toFixed(2),currency:'CNY',durationDays:30,createdAt:order.createdAt||null,expiresAt:order.expiresAt||null,paidAt:order.paidAt||null}}
+function orderData(order){if(!order||!ORDER_ID.test(order.id||'')||!Object.prototype.hasOwnProperty.call(STATUS_LABELS,order.status)||order.planId!==PLAN_ID||!Number.isSafeInteger(order.priceFen)||order.priceFen<=0||order.currency!=='CNY'||order.durationDays!==30||order.platform!=null&&!['android','ios'].includes(order.platform))throw failure('订单信息暂未确认，请刷新订单。');return{id:order.id,platform:order.platform||null,status:order.status,statusLabel:STATUS_LABELS[order.status],planId:PLAN_ID,priceFen:order.priceFen,priceLabel:(order.priceFen/100).toFixed(2),currency:'CNY',durationDays:30,createdAt:order.createdAt||null,expiresAt:order.expiresAt||null,paidAt:order.paidAt||null}}
 async function privateRequest(path,data,method='GET'){
  const expected=context();if(expected.owner==='guest'||!wx.getStorageSync('stemistSessionToken'))throw failure('请先登录后开通会员。','auth_required')
  const result=protocol(await requestIeltsLearning(path,data,{method,timeout:20000}));assertUser(result,expected);return result
@@ -24,10 +35,22 @@ async function fetchCatalog(){
  assertContext(expected)
  if(typeof value.commerce?.checkoutEnabled!=='boolean'||typeof value.enforcement?.enabled!=='boolean'||value.enforcement.appliesToExistingUsers!==true)throw failure('会员服务暂未就绪，请稍后重试。')
  const validatedPlan=planData(value.plan)
- const providers=Array.isArray(value.commerce.providers)?value.commerce.providers.filter(item=>item?.id==='wechat_virtual').map(item=>({id:'wechat_virtual',enabled:item.enabled===true,reason:text(item.reason),platforms:Array.isArray(item.platforms)?item.platforms.filter(platform=>platform==='android'):[]})):[]
+ const providers=Array.isArray(value.commerce.providers)?value.commerce.providers.filter(item=>item?.id==='wechat_virtual').map(item=>({id:'wechat_virtual',enabled:item.enabled===true,reason:text(item.reason),platforms:Array.isArray(item.platforms)?item.platforms.filter(platform=>['android','ios'].includes(platform)):[]})):[]
+ const capability=paymentCapability(),platform=capability.platform
+ let source=platform==='android'?value.commerce.canary:null,serverEnabled=value.commerce.checkoutEnabled,serverReason=text(value.commerce.reason)
+ const descriptors=value.commerce.platformCanaries
+ if(authenticated&&descriptors!=null){
+  if(typeof descriptors!=='object'||Array.isArray(descriptors)||Object.keys(descriptors).some(key=>!['android','ios'].includes(key)))throw failure('测试支付平台授权无效。','membership_checkout_unavailable')
+  const selected=Object.prototype.hasOwnProperty.call(descriptors,platform)?descriptors[platform]:null
+  if(selected!=null){
+   if(!exact(selected,['platform','checkoutEnabled','reason','mode','expiresAt','remainingNewOrders','recovery'])||selected.platform!==platform||typeof selected.checkoutEnabled!=='boolean'||typeof selected.reason!=='string')throw failure('测试支付平台授权无效。','membership_checkout_unavailable')
+   source={mode:selected.mode,expiresAt:selected.expiresAt,remainingNewOrders:selected.remainingNewOrders,recovery:selected.recovery};serverEnabled=selected.checkoutEnabled;serverReason=selected.reason
+  }
+ }
+ // Production eligibility still comes from the authenticated server catalog and
+ // its explicit per-platform provider allowlist. An Android canary never grants iOS.
  let canary=null,canaryCanStart=false,resumeCanceled=false
- if(authenticated&&value.commerce.canary!==null){
-  const source=value.commerce.canary
+ if(authenticated&&source!=null){
   if(!exact(source,['mode','expiresAt','remainingNewOrders','recovery'])||source.mode!=='single-testbuyer'||![0,1].includes(source.remainingNewOrders)||!Number.isFinite(Date.parse(source.expiresAt)))throw failure('测试支付授权无效，当前不会扣款。','membership_checkout_unavailable')
   let recovery=null
   if(source.recovery!==null){
@@ -45,23 +68,24 @@ async function fetchCatalog(){
   }else canaryCanStart=source.remainingNewOrders===1
   canary={mode:'single-testbuyer',expiresAt:new Date(Date.parse(source.expiresAt)).toISOString(),remainingNewOrders:source.remainingNewOrders,recovery}
  }
- const platform=String(wx.getSystemInfoSync()?.platform||'').toLowerCase(),providerReady=providers.some(item=>item.enabled&&item.platforms.includes('android')),platformEligible=platform==='android'&&providerReady,apiAvailable=typeof wx.requestVirtualPayment==='function'
- const available=platformEligible&&apiAvailable,expires=Date.parse(canary?.expiresAt)
- const reasonAllows=value.commerce.reason==='testbuyer_canary'||value.commerce.reason==='testbuyer_canary_recovery_required'&&Boolean(canary?.recovery)
+ const providerReady=providers.some(item=>item.enabled&&item.platforms.includes(platform)),available=providerReady&&capability.available,expires=Date.parse(canary?.expiresAt)
+ const reasonAllows=serverReason==='testbuyer_canary'||serverReason==='testbuyer_canary_recovery_required'&&Boolean(canary?.recovery)
  const canaryReady=authenticated&&canaryCanStart&&Number.isFinite(expires)&&expires>Date.now()&&expires-Date.now()<=MAX_CANARY_MS&&reasonAllows
- const normalReady=authenticated&&value.commerce.canary===null&&value.commerce.reason==='ready'
- const checkoutEnabled=Boolean(value.commerce.checkoutEnabled&&(normalReady||canaryReady)&&available)
- const serverReason=text(value.commerce.reason)
- const reason=checkoutEnabled?'ready':value.commerce.checkoutEnabled&&!platformEligible?'platform_unavailable':value.commerce.checkoutEnabled&&!apiAvailable?'payment_unsupported':serverReason
- return{protocol:PROTOCOL,plan:validatedPlan,commerce:{checkoutEnabled,reason,providers,canary,resumeCanceled:checkoutEnabled&&resumeCanceled},enforcement:{enabled:value.enforcement.enabled,appliesToExistingUsers:true}}
+ const normalReady=authenticated&&source==null&&value.commerce.canary===null&&serverReason==='ready'
+ const pending=normalReady?readPending():null,normalCanStart=normalReady&&!['launched','submitted','unknown'].includes(pending?.paymentAttemptState)
+ if(normalReady&&pending?.orderId&&pending.paymentAttemptState==='canceled')resumeCanceled=true
+ const checkoutEnabled=Boolean(serverEnabled&&(normalCanStart||canaryReady)&&available)
+ const reason=checkoutEnabled?'ready':serverEnabled&&!capability.available?capability.reason:serverEnabled&&!providerReady?'platform_unavailable':normalReady&&!normalCanStart?'testbuyer_canary_recovery_required':serverReason
+ return{protocol:PROTOCOL,plan:validatedPlan,commerce:{checkoutEnabled,reason,platform,providers,canary,resumeCanceled:checkoutEnabled&&resumeCanceled},enforcement:{enabled:value.enforcement.enabled,appliesToExistingUsers:true}}
 }
 async function fetchStatus(){const value=await privateRequest('/api/membership/status');return{...value,userId:String(value.userId),entitlement:entitlementData(value.entitlement)}}
 async function fetchOrders(){const value=await privateRequest('/api/membership/orders');if(!Array.isArray(value.orders)||value.orders.length>50)throw failure('订单列表暂未加载完成。');return{orders:value.orders.map(orderData),hasMore:value.hasMore===true}}
 async function fetchOrder(id){if(!ORDER_ID.test(id||''))throw failure('订单编号无效。');const value=await privateRequest('/api/membership/orders/'+encodeURIComponent(id)),order=orderData(value.order);if(order.id!==id)throw failure('订单编号不匹配。');return{order,entitlement:entitlementData(value.entitlement)}}
-async function createOrder({idempotencyKey,wxCode,platform}){if(!/^[A-Za-z0-9_-]{8,128}$/.test(idempotencyKey||''))throw failure('请重新发起开通。');if(platform!=='android')throw failure('当前体验仅支持 Android。','membership_platform_unavailable');const value=await privateRequest('/api/membership/orders',{planId:PLAN_ID,idempotencyKey,wxCode:text(wxCode,256),platform:'android',clientCapability:CAPABILITY},'POST'),order=orderData(value.order),entitlement=value.entitlement?entitlementData(value.entitlement):null;return{userId:String(value.userId),order,payment:value.payment,entitlement}}
+async function createOrder({idempotencyKey,wxCode,platform}){if(!/^[A-Za-z0-9_-]{8,128}$/.test(idempotencyKey||''))throw failure('请重新发起开通。');assertPaymentPlatform(platform);const value=await privateRequest('/api/membership/orders',{planId:PLAN_ID,idempotencyKey,wxCode:text(wxCode,256),platform,clientCapability:CAPABILITY},'POST'),order=orderData(value.order),entitlement=value.entitlement?entitlementData(value.entitlement):null;if(order.platform!==platform)throw failure('订单平台尚未确认，请刷新原订单。','membership_platform_unavailable');return{userId:String(value.userId),order,payment:value.payment,entitlement}}
 async function invokePayment(checkout,plan){
  const expected=context();assertUser(checkout,expected)
  const order=orderData(checkout?.order),currentPlan=planData(plan)
+ assertPaymentPlatform(order.platform)
  if(order.status!=='pending'||order.priceFen!==currentPlan.priceFen||order.currency!==currentPlan.currency||order.durationDays!==currentPlan.durationDays)throw failure('订单金额或会员方案已变化，请刷新订单。')
  const payment=checkout?.payment,input=payment?.parameters
  if(payment?.provider!=='wechat_virtual'||!input||typeof input.signData!=='string')throw failure('当前支付通道尚未开通。','payment_unavailable')
@@ -77,10 +101,10 @@ async function invokePayment(checkout,plan){
   fail(result){try{assertContext(expected)}catch(error){reject(error);return}const canceled=/cancel|取消/i.test(String(result?.errMsg||''));try{mark(canceled?'canceled':'unknown')}catch(error){reject(error);return}reject(failure(canceled?'已取消支付，可继续支付原订单。':'支付结果待确认，请查看订单，勿重复付款。',canceled?'payment_canceled':'payment_unconfirmed'))},
  }))
 }
-const pendingKey=()=> 'stemistMembershipPending:'+encodeURIComponent(context().owner)
-function readPending(){const key=pendingKey(),value=wx.getStorageSync(key),current=context();if(current.owner==='guest'||value?.owner!==current.owner||!/^[A-Za-z0-9_-]{8,128}$/.test(value.idempotencyKey||''))return null;if(value.epoch!==current.epoch){wx.removeStorageSync(key);return null}return{idempotencyKey:value.idempotencyKey,orderId:ORDER_ID.test(value.orderId||'')?value.orderId:'',paymentAttemptState:['not_started','launched','submitted','unknown','canceled'].includes(value.paymentAttemptState)?value.paymentAttemptState:value.orderId?'unknown':'not_started'}}
-function rememberPending(value){const current=context();if(current.owner==='guest'||!/^[A-Za-z0-9_-]{8,128}$/.test(value.idempotencyKey||''))throw failure('请先登录后开通会员。');wx.setStorageSync(pendingKey(),{owner:current.owner,epoch:current.epoch,idempotencyKey:value.idempotencyKey,orderId:ORDER_ID.test(value.orderId||'')?value.orderId:'',paymentAttemptState:['not_started','launched','submitted','unknown','canceled'].includes(value.paymentAttemptState)?value.paymentAttemptState:'not_started'})}
+const pendingKey=()=> 'stemistMembershipPending:'+encodeURIComponent(context().owner)+(devicePlatform()==='android'?'':':'+devicePlatform())
+function readPending(){const key=pendingKey(),value=wx.getStorageSync(key),current=context(),platform=devicePlatform();if(!['android','ios'].includes(platform)||current.owner==='guest'||value?.owner!==current.owner||!/^[A-Za-z0-9_-]{8,128}$/.test(value.idempotencyKey||'')||(value.platform||'android')!==platform)return null;if(value.epoch!==current.epoch){wx.removeStorageSync(key);return null}return{platform,idempotencyKey:value.idempotencyKey,orderId:ORDER_ID.test(value.orderId||'')?value.orderId:'',paymentAttemptState:['not_started','launched','submitted','unknown','canceled'].includes(value.paymentAttemptState)?value.paymentAttemptState:value.orderId?'unknown':'not_started'}}
+function rememberPending(value){const current=context(),platform=devicePlatform();if(!['android','ios'].includes(platform)||value.platform&&value.platform!==platform)throw failure('订单平台与当前设备不一致。','membership_platform_unavailable');if(current.owner==='guest'||!/^[A-Za-z0-9_-]{8,128}$/.test(value.idempotencyKey||''))throw failure('请先登录后开通会员。');wx.setStorageSync(pendingKey(),{owner:current.owner,epoch:current.epoch,platform,idempotencyKey:value.idempotencyKey,orderId:ORDER_ID.test(value.orderId||'')?value.orderId:'',paymentAttemptState:['not_started','launched','submitted','unknown','canceled'].includes(value.paymentAttemptState)?value.paymentAttemptState:'not_started'})}
 function forgetPending(){wx.removeStorageSync(pendingKey())}
 const newIdempotencyKey=()=> 'member-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,14)+Math.random().toString(36).slice(2,14)
 
-module.exports={PROTOCOL,PLAN_ID,CAPABILITY,context,assertContext,planData,orderData,fetchCatalog,fetchStatus,fetchOrders,fetchOrder,createOrder,invokePayment,readPending,rememberPending,forgetPending,newIdempotencyKey}
+module.exports={PROTOCOL,PLAN_ID,CAPABILITY,devicePlatform,context,assertContext,planData,orderData,fetchCatalog,fetchStatus,fetchOrders,fetchOrder,createOrder,invokePayment,readPending,rememberPending,forgetPending,newIdempotencyKey}

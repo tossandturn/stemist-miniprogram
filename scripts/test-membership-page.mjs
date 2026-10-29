@@ -10,21 +10,22 @@ const orderId='M'+'a'.repeat(30)
 const order={id:orderId,status:'pending',statusLabel:'待支付',planId:plan.id,priceFen:2880,priceLabel:'28.80',currency:'CNY',durationDays:30,createdAt:new Date().toISOString()}
 const inactive={active:false,planId:'',startsAt:null,expiresAt:null,version:0}
 
-function pageRuntime({enabled=false,resumeCanceled=false,pendingState='',orderState='pending',catalogReason='',invokeGate=null,envVersion='trial',payment=true,createOrderId=orderId,createStatus='pending',createEntitlement=null}={}){
+function pageRuntime({enabled=false,resumeCanceled=false,pendingState='',orderState='pending',catalogReason='',invokeGate=null,envVersion='trial',payment=true,createOrderId=orderId,createStatus='pending',createEntitlement=null,platform='android',fetchedOrders=[]}={}){
+ const inputs=[]
  let pending=pendingState?{idempotencyKey:'server-recovery-key',orderId,paymentAttemptState:pendingState}:resumeCanceled?{idempotencyKey:'server-recovery-key',orderId,paymentAttemptState:'canceled'}:null,creates=0,invokes=0,reads=0,sequence=[],currentOrderState=orderState
  const runtime=miniRuntime({modules:{'bundles/account/membershipData':{
   context:()=>({owner:String(runtime.storage.get('stemistUser')?.id||'guest'),epoch:Number(runtime.storage.get('stemistPrivacyEpoch'))||0}),
   assertContext:expected=>{if(expected.owner!==String(runtime.storage.get('stemistUser')?.id||'guest')||expected.epoch!==(Number(runtime.storage.get('stemistPrivacyEpoch'))||0))throw Error('账号已变化')},
   fetchCatalog:async()=>({plan,commerce:{checkoutEnabled:enabled,reason:catalogReason||(enabled?'ready':'setup_required'),resumeCanceled},enforcement:{enabled:false}}),
-  fetchStatus:async()=>({userId:String(runtime.storage.get('stemistUser')?.id||'guest'),entitlement:inactive}),fetchOrders:async()=>({orders:[],hasMore:false}),
+  fetchStatus:async()=>({userId:String(runtime.storage.get('stemistUser')?.id||'guest'),entitlement:inactive}),fetchOrders:async()=>({orders:fetchedOrders,hasMore:false}),
   fetchOrder:async id=>{reads++;sequence.push('GET '+id);return{order:{...order,status:currentOrderState,statusLabel:currentOrderState},entitlement:currentOrderState==='fulfilled'?{...inactive,active:true,expiresAt:new Date(Date.now()+86400000).toISOString()}:inactive}},
-  createOrder:async input=>{creates++;sequence.push('POST '+input.idempotencyKey);return{userId:'ielts:42',order:{...order,id:createOrderId,status:createStatus},entitlement:createEntitlement,...(payment?{payment:{provider:'wechat_virtual',parameters:{fixture:true}}}:{})}},
+  createOrder:async input=>{inputs.push(input);creates++;sequence.push('POST '+input.idempotencyKey);return{userId:'ielts:42',order:{...order,id:createOrderId,status:createStatus,platform},entitlement:createEntitlement,...(payment?{payment:{provider:'wechat_virtual',parameters:{fixture:true}}}:{})}},
   invokePayment:async()=>{invokes++;sequence.push('INVOKE');if(invokeGate)await invokeGate.promise;return{submitted:true}},
   readPending:()=>pending,rememberPending:value=>{pending={...value}},forgetPending:()=>{pending=null},newIdempotencyKey:()=> 'new-key-must-not-be-used',
- }},wx:{getAccountInfoSync:()=>({miniProgram:{envVersion}}),getSystemInfoSync:()=>({platform:'android',windowWidth:390,windowHeight:844,deviceType:'phone'}),login:options=>options.success({code:'fresh-wx-code'}),setClipboardData:options=>{runtime.copied=options.data;options.success?.({})}}})
+ }},wx:{getAccountInfoSync:()=>({miniProgram:{envVersion}}),getSystemInfoSync:()=>({platform,version:'8.0.68',windowWidth:390,windowHeight:844,deviceType:'phone'}),login:options=>options.success({code:'fresh-wx-code'}),setClipboardData:options=>{runtime.copied=options.data;options.success?.({})}}})
  runtime.storage.set('stemistUser',{id:'ielts:42',username:'opaque'})
  runtime.storage.set('stemistSessionToken','fixture-token')
- return{runtime,pending:()=>pending,counts:()=>({creates,invokes,reads}),sequence,setOrderState:value=>{currentOrderState=value}}
+ return{runtime,inputs,pending:()=>pending,counts:()=>({creates,invokes,reads}),sequence,setOrderState:value=>{currentOrderState=value}}
 }
 
 const safe=pageRuntime(),safePage=safe.runtime.page('bundles/account/membership')
@@ -103,9 +104,13 @@ hiddenPage.onUnload()
 
 const markup=fs.readFileSync(new URL('../bundles/account/membership.wxml',import.meta.url),'utf8')
 const style=fs.readFileSync(new URL('../bundles/account/membership.wxss',import.meta.url),'utf8')
+assert.ok(/<app-nav[^>]*show-ai="{{false}}"/.test(markup),'Payment warnings must not be covered by the unrelated floating Coach entry')
 assert.match(markup,/¥{{plan\.priceLabel}}/);assert.match(markup,/30 天/);assert.match(markup,/非自动续费/)
 assert.match(markup,/<stemist-header[^>]*compact="{{true}}"/,'Membership uses the compact native header to keep purchase controls in the first viewport')
-assert.match(markup,/体验版使用真实支付，仅限已授权安卓账号/)
+assert.match(markup,/体验版使用真实支付，仅限已授权测试账号/)
+assert.match(markup,/同一账号.*共享/)
+assert.match(markup,/App Store/)
+assert.doesNotMatch(markup,/仅支持安卓|iOS 不发起购买/)
 assert.match(markup,/测试账号标识/);assert.match(markup,/copyTestUserId/)
 assert.match(markup,/不是 OpenID/,'Test identifier is explicitly distinguished from platform identity and secrets')
 assert.match(markup,/wx:if="{{trialMode && loggedIn && canonicalUserId && !checkoutEnabled && checkoutLabel === '等待固定测试买家配置'}}"/,'Test-ID diagnostic card is shown only while waiting for buyer authorization, never after recovery or fulfillment')
@@ -121,5 +126,19 @@ const homeSource=fs.readFileSync(new URL('../pages/ielts/home.js',import.meta.ur
 assert.match(homeSource,/openMembership/);assert.match(homeMarkup,/打开会员中心/);assert.match(homeMarkup,/激活码/);assert.match(homeMarkup,/其他方式|已有/)
 
 const logout=miniRuntime();logout.storage.set('stemistUser',{id:'ielts:42'});logout.storage.set('stemistMembershipPending:ielts%3A42',{owner:'ielts:42',idempotencyKey:'private-key',orderId});logout.load('utils/session').clearLocalSession({preserveDrafts:true});assert.ok(logout.storage.has('stemistMembershipPending:ielts%3A42'),'401 preserves same-owner recovery pointer');logout.storage.set('stemistUser',{id:'ielts:42'});logout.load('utils/session').clearLocalSession();assert.equal(logout.storage.has('stemistMembershipPending:ielts%3A42'),false,'Explicit logout removes private membership pointer')
+
+const iphone=pageRuntime({platform:'ios',enabled:true}),iphonePage=iphone.runtime.page('bundles/account/membership')
+iphonePage.onLoad();await iphonePage.onShow();iphonePage.setData({consent:true});await iphonePage.purchase()
+assert.equal(iphone.inputs.at(-1)?.platform,'ios','iPhone page must send its own platform, not Android')
+assert.equal(iphone.counts().invokes,1)
+iphonePage.onUnload()
+const other=pageRuntime({platform:'ios',fetchedOrders:[{...order,platform:'android'}]}),otherPage=other.runtime.page('bundles/account/membership')
+otherPage.onLoad();await otherPage.onShow()
+assert.equal(other.pending(),null,'Order list from Android must not become iPhone pending payment')
+assert.equal(otherPage.data.orders.length,1,'All own platform orders remain visible for query')
+assert.equal(other.counts().invokes,0)
+otherPage.onUnload()
+const oldVersion=pageRuntime({platform:'ios',catalogReason:'ios_version_unsupported'}),oldPage=oldVersion.runtime.page('bundles/account/membership')
+oldPage.onLoad();await oldPage.onShow();assert.match(oldPage.data.checkoutNote,/8\.0\.68/);oldPage.onUnload()
 
 console.log('Membership page: safe-off, trial ID, exact canceled resume, terminal/no-grant, visibility, routes and cleanup PASS')

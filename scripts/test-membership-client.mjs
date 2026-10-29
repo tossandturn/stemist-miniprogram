@@ -4,7 +4,7 @@ import {miniRuntime} from './helpers/mini-runtime.mjs'
 const protocol='stemist-membership-v1'
 const plan={id:'all-access-month',title:'全功能月卡',priceFen:2880,currency:'CNY',durationDays:30,autoRenew:false}
 const orderId='M'+'a'.repeat(30)
-const order={id:orderId,status:'pending',planId:plan.id,priceFen:2880,currency:'CNY',durationDays:30,createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+900000).toISOString()}
+const order={id:orderId,status:'pending',platform:'android',planId:plan.id,priceFen:2880,currency:'CNY',durationDays:30,createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+900000).toISOString()}
 const enforcement={enabled:false,appliesToExistingUsers:true}
 const expiresAt=new Date(Date.now()+60*60*1000).toISOString()
 const provider={id:'wechat_virtual',enabled:true,reason:'testbuyer_canary',platforms:['android']}
