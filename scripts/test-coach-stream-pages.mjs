@@ -26,3 +26,12 @@ let warmed=0
 const i=miniRuntime({modules:{'utils/coachSession':{warmCoachSession:()=>{warmed++;return()=>{}}},'utils/coach':{runCoach:async o=>{assert.equal(o.onPartial,undefined);return{completed:true,answer:'IELTS unchanged',mode:'ai',providerStatus:'connected'}}}}})
 const ip=i.page('pages/coach/index');ip.onLoad({source:'writing'});ip.onShow();ip.setData({message:'essay'});await ip.submit();ip.onUnload();assert.equal(warmed,0)
 console.log('Streaming pages: live preview, partial failure, no false submission, late callback, unload abort, IELTS isolation PASS')
+
+let reads=0;const payloads=[]
+const cached=miniRuntime({modules:{'utils/coach':{runCoach:async o=>{payloads.push(o.imageDataUrls[0]);throw Object.assign(new Error('synthetic disconnect'),{code:'coach_job_pending'})}},'utils/image':{readAsJpegDataUrl:async()=>{reads++;return 'data:image/jpeg;base64,synthetic-'+reads}},'utils/coachSession':{warmCoachSession:()=>()=>{}}}})
+const cp=cached.page('pages/coach/index');cp.onLoad({feature:'answers'});cp.setData({message:'fixture',imagePath:'/owned/question.jpg'})
+await cp.submit();await cp.submit()
+assert.equal(reads,1,'Retry must reuse prepared image bytes, preserving the original job fingerprint')
+assert.equal(payloads[0],payloads[1])
+cp.setData({imagePath:'/owned/next-question.jpg'});await cp.submit();assert.equal(reads,2,'A new image is not served from the prior prepared cache')
+cp.onUnload();assert.equal(cp.__coachImageCache,null,'Page exit discards prepared private image bytes')

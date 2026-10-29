@@ -18,4 +18,10 @@ const wait=blocked.load('utils/image').readAsJpegDataUrl('retained.jpg',{coach:t
 assert.ok([...timers.values()].some(t=>t.ms===12000),'image SDK stalls are also bounded')
 ;[...timers.values()].find(t=>t.ms===12000).fn()
 assert.match((await wait).message,/图片.*超时/)
+const sized=bytes=>{const b=Buffer.alloc(bytes,1);b[0]=255;b[1]=216;b[2]=255;return b.toString('base64')}
+const sizes=[];let quality=0
+const upload=miniRuntime({wx:{getImageInfo:o=>o.success({width:2048,height:1536}),compressImage:o=>{quality=o.quality;sizes.push(quality);o.success({tempFilePath:'compressed.jpg'})},getFileSystemManager:()=>({readFile:o=>o.success({data:sized(quality===82?1200*1024:650*1024)})})}})
+const prepared=await upload.load('utils/image').readAsJpegDataUrl('camera.jpg',{coach:true})
+assert.ok(Buffer.from(prepared.split(',')[1],'base64').length<=768*1024,'Coach uploads must target a bounded sub-megabyte payload, not stop at 4 MB')
+assert.deepEqual(sizes,[82,65])
 console.log('STEM Coach image budget: proportional resize, preserved quality, no upscale, bounded preparation and unchanged IELTS PASS')

@@ -70,11 +70,11 @@ async function prepareImage(filePath,coach){
     const data = await readBase64(compressedPath)
     if (!data) throw new Error('照片内容为空，请重新拍摄')
     lastData = data
-    if (base64ByteLength(data) <= MAX_IMAGE_BYTES) return `data:${imageMime(data)};base64,${data}`
+    if (base64ByteLength(data) <= (coach ? 768 * 1024 : MAX_IMAGE_BYTES)) return `data:${imageMime(data)};base64,${data}`
   }
   // Keep this error deterministic and actionable after the bounded quality
   // ladder; never send an oversized payload to the Coach endpoint.
-  if (lastData) throw new Error('照片太大，请重新拍摄更清晰且更紧凑的单题照片')
+  if (lastData) throw new Error(coach?'照片较大，请裁剪为一道题后重试，原图已保留。':'照片太大，请重新拍摄更清晰且更紧凑的单题照片')
   throw new Error('照片内容为空，请重新拍摄')
 }
 

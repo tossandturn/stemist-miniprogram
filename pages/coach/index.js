@@ -86,6 +86,7 @@ const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
 resetIdentity(){
+this.__coachImageCache=null
 clearCoachPhoto(this.identity())
 clearCoachSource(this)
 this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null
@@ -108,7 +109,7 @@ if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.set
 },
 onResize() { syncDevice(this) },
 onHide(){this.__stopWarm?.()},
-onUnload() { clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
+onUnload() { this.__coachImageCache=null;clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
 restorePhoto(){
 const binding=this.__entryKey&&!this.__entry?'missing-entry':this.__entryKey
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId,binding)
@@ -119,6 +120,7 @@ this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-pra
 },
 previewPhotos(){if(!this.current()||!this.data.imagePath)return;const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey);if(paths.length)wx.previewImage({current:paths[0],urls:paths})},
 discardAttachedPhoto(){
+this.__coachImageCache=null
 clearCoachSource(this)
 clearCoachPhoto(this.identity())
 if(this.data.imagePath||this.data.imageSource)this.setData({imagePath:'',imageSource:''})
@@ -204,8 +206,10 @@ const entry=await this.prepareEntry()
 const {imagePaths,initialMessage,...entryContext}=entry
 const managed=this.data.imagePath?readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey):[]
 const paths=[this.data.imagePath,...managed,...(Array.isArray(imagePaths)?imagePaths:[])].filter((path,index,array)=>path&&array.indexOf(path)===index).slice(0,2)
-const imageDataUrls=await Promise.all(paths.map(path=>readAsJpegDataUrl(path,{coach:selected.product==='STEM Studio'})))
+const imageKey=selected.product==='STEM Studio'&&paths.length?JSON.stringify([this.identity(),this.__mediaRequest,paths]):''
+const imageDataUrls=imageKey&&this.__coachImageCache?.key===imageKey?this.__coachImageCache.images:await Promise.all(paths.map(path=>readAsJpegDataUrl(path,{coach:selected.product==='STEM Studio'})))
 if(!this.current())return
+if(imageKey)this.__coachImageCache={key:imageKey,images:imageDataUrls}
 const coachContext={ product: selected.product, skill: selected.id, inputMode: imageDataUrls.length?'photo':'text', stage: 'practice', source: 'stemist-miniprogram', ...(selected.id === 'stem-photo' ? this.data.routeContext : {}),...entryContext }
 const policy=coachHelpPolicy(coachContext)
 const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solution'?'hint':this.data.helpIntent
