@@ -3,15 +3,6 @@
   "highestAssignedVersion": "1.0.74",
   "pendingUploads": [
     {
-      "version": "1.0.74",
-      "assignedOn": "2026-10-30",
-      "commit": "2add27757489a3b2d83e60f5413c8868f156dc6f",
-      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready-r3",
-      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready-r3-manifest.json",
-      "runtimeManifestSha256": "a9f823ffadbe21d7d572ae300a5469ecee24ed29fc527900024f42d7858bedfb",
-      "status": "prepared_not_uploaded"
-    },
-    {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",
       "commit": "be7b40e1cef297129e3e023965fd832b77a3999e",
@@ -35,6 +26,20 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.74",
+      "assignedOn": "2026-10-30",
+      "uploadConfirmedAt": "2026-10-29T22:18:30.036Z",
+      "commit": "2add27757489a3b2d83e60f5413c8868f156dc6f",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready-r3",
+      "officialInfo": "D:/CodexWork/university-coach-ui-20261030/wechat-upload-receipt.json",
+      "runtimeManifestSha256": "a9f823ffadbe21d7d572ae300a5469ecee24ed29fc527900024f42d7858bedfb",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false,
+      "nativeDirectoryAcceptance": "D:/CodexWork/university-coach-ui-20261030/verification.json"
+    },
     {
       "version": "1.0.73",
       "assignedOn": "2026-10-30",

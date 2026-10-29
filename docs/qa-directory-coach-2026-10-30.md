@@ -27,3 +27,9 @@ No backend code deployment, restart, model switch, payment change, admissions-fa
 Physical phone, real WeChat scan login, physical iPad and assistive-technology behavior have not been newly verified. Model output is probabilistic and specific current policies need official evidence. Development upload, experience designation and public release are separate states; record the official upload receipt before claiming upload success.
 
 References and design decisions are in [the implementation plan](plans/2026-10-30-directory-coach-ui.md). Product `ui-ux-pro-max` guidance informed target sizes, hierarchy, spacing, wrapping and safe-area checks; existing product tokens were preserved.
+
+## Upload receipt
+
+Development version **1.0.74** uploaded successfully through the official WeChat developer-tool interface. The final runtime is commit `2add27757489a3b2d83e60f5413c8868f156dc6f`, manifest SHA-256 `a9f823ffadbe21d7d572ae300a5469ecee24ed29fc527900024f42d7858bedfb`, 365 runtime files and 133,645 bytes of main-package headroom. The final source full suite, eleven frozen-package suites and aggregate release verification passed. The revised live school reply identified MIT, requested the three intake fields and treated application mechanisms as unverified instead of repeating the earlier department-based claim. This is the observed finite replay outcome, not a universal factual guarantee.
+
+Official success was observed on 2026-10-30 at 06:18 Beijing time; receipt: `wechat-upload-receipt.json`. Both local release ledgers are reconciled. Earlier candidate directories were never uploaded. Experience designation has not been independently changed/verified, and no review submission or public release was performed. The logged-in Chrome automation connection did not respond; the user was asked to select 1.0.74 as the experience version. No browser-login data was read or exported.
