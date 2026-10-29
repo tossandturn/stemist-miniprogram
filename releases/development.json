@@ -38,7 +38,9 @@
       "reviewSubmitted": false,
       "publicReleasePerformed": false,
       "trialDesignationVerified": false,
-      "nativeCropAcceptance": "D:/CodexWork/coach-crop-20261030/verification.json"
+      "nativeCropAcceptance": "D:/CodexWork/coach-crop-20261030/verification.json",
+      "trialDesignationUserConfirmed": true,
+      "trialDesignationUserConfirmedOn": "2026-10-30"
     },
     {
       "version": "1.0.72",
