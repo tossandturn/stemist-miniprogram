@@ -7,7 +7,7 @@ const TYPES={listening:'listeningTests',reading:'readingTests',writing:'writingT
 const PUBLIC_INDEX='stemistPublicIeltsCatalog'
 const CAMBRIDGE_WRITING=/^cam\d+-w-test\d+-task[12]$/
 const SOURCE_REVISION=/^[a-f0-9]{64}$/
-let snapshot=null,pending=null,loadedAt=0,lastAttemptAt=0,refreshTimer=null,catalogVersion='',baseVersion='',bundledTasks=null
+let snapshot=null,pending=null,loadedAt=0,lastAttemptAt=0,refreshTimer=null,catalogVersion='',baseVersion='',bundledTasks=null,catalogFetched=false
 const listeners=new Set()
 function subscribeIeltsContent(listener){listeners.add(listener);return ()=>listeners.delete(listener)}
 const taskCache=new Map(),taskPending=new Map()
@@ -40,7 +40,7 @@ function normalizeCatalog(payload){catalogVersion=String(payload.version||'');ba
 function validCatalog(payload){return payload?.schemaVersion==='native-ielts-catalog-v1'&&Object.values(TYPES).every(key=>Array.isArray(payload[key])&&payload[key].length<3000)}
 function refreshCatalog(){
  if(pending)return pending
- clearTimeout(refreshTimer);refreshTimer=null;lastAttemptAt=Date.now()
+ clearTimeout(refreshTimer);refreshTimer=null;lastAttemptAt=Date.now();catalogFetched=false
  pending=requestIeltsJson('/api/native/ielts/catalog',undefined,{method:'GET',timeout:12000}).catch(error=>{
   // Compatibility during a rolling server release only. A network failure
   // must not trigger a second multi-megabyte download.
@@ -49,15 +49,15 @@ function refreshCatalog(){
  }).then(payload=>{
   if(!payload||!Object.values(TYPES).every(key=>Array.isArray(payload[key])&&payload[key].length<3000))throw new Error('题库返回不完整，请重试。')
   const previousVersion=catalogVersion
-  snapshot=normalizeCatalog(payload);loadedAt=Date.now()
+  snapshot=normalizeCatalog(payload);loadedAt=Date.now();catalogFetched=true
   if(validCatalog(payload)){try{wx.setStorageSync(PUBLIC_INDEX,{payload,at:loadedAt,builtAgainst:BOOTSTRAP.catalog.version})}catch{/* Public cache must never prevent opening a task. */}}
   if(previousVersion!==catalogVersion)for(const listener of listeners){try{listener(snapshot)}catch{/* A disposed view must not break public cache refresh. */}}
   return snapshot
  }).finally(()=>{pending=null})
  return pending
 }
-async function loadIeltsContent({refresh=false}={}){
- if(refresh)return refreshCatalog()
+async function loadIeltsContent({refresh=false,requireFresh=false}={}){
+ if(refresh||requireFresh&&(pending||!catalogFetched||Date.now()-loadedAt<0||Date.now()-loadedAt>=300000))return refreshCatalog()
  if(!snapshot){const saved=wx.getStorageSync(PUBLIC_INDEX),useSaved=validCatalog(saved?.payload)&&saved.builtAgainst===BOOTSTRAP.catalog.version;const payload=useSaved?saved.payload:BOOTSTRAP.catalog;snapshot=normalizeCatalog(payload);loadedAt=useSaved?Number(saved.at)||0:0}
  if(Date.now()-loadedAt>=300000&&!pending&&!refreshTimer&&Date.now()-lastAttemptAt>30000){
   refreshTimer=setTimeout(()=>{refreshTimer=null;if(!taskPending.size)refreshCatalog().catch(()=>{})},5000);refreshTimer?.unref?.()

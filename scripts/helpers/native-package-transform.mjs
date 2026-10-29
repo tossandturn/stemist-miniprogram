@@ -27,6 +27,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
     paths: Object.freeze(['utils/pdfDownload.js','utils/pdfRangeCache.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
   }),Object.freeze({
+    id: 'esbuild-ielts-exam-compact-v1',
+    paths: Object.freeze(['utils/nativeExam.js','utils/ieltsContent.js','pages/ielts/exam.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-chapter-handoff-compact-v1',
     paths: Object.freeze(['utils/nativePractice.js','utils/nativeCoachPhoto.js','utils/session.js','pages/stem/practice.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),

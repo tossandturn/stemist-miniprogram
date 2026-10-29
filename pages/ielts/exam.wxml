@@ -1,19 +1,22 @@
 <view class="page {{deviceClass}} {{orientation}} native-exam-page">
 <stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/>
 <ai-fab wx:if="{{!examKey || submitted}}" source="ielts" category="ielts"/>
- <view wx:if="{{loading}}" class="loading-state">正在整理套题…</view>
-<view wx:if="{{error}}" class="error">{{error}}</view>
+ <view wx:if="{{loading}}" class="loading-state" aria-live="polite">正在更新模考题库…</view>
+<view wx:if="{{error}}" class="error" role="alert">{{error}}</view>
+<button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">登录后继续</button>
+<button wx:elif="{{!examKey && error && !loading}}" class="secondary" bindtap="load" disabled="{{busy}}">重新加载题库</button>
 <view wx:if="{{!examKey}}" class="exam-setup">
-<picker wx:if="{{context === 'same-test'}}" range="{{choices}}" range-key="title" value="{{choiceIndex}}" bindchange="choose">
-<view class="exam-picker">{{choices[choiceIndex].title || '暂无完整套题'}}</view>
+<picker wx:if="{{context === 'same-test'}}" range="{{choices}}" range-key="title" value="{{choiceIndex}}" bindchange="choose" disabled="{{loading || busy || !catalogReady}}">
+<view class="exam-picker">{{choices[choiceIndex].title || (catalogReady ? '暂无完整套题' : '等待题库更新')}}</view>
 </picker>
 <text>听力、阅读、两篇写作与口语</text>
-<button class="primary" loading="{{busy}}" disabled="{{busy || loading || (context === 'same-test' && !choices.length)}}" bindtap="start">开始模拟</button>
+<text wx:if="{{context === 'random-exam'}}">各部分独立随机组合；开始后题目固定。</text>
+<button class="primary" loading="{{busy}}" disabled="{{busy || loading || !catalogReady || (context === 'same-test' && !choices.length)}}" bindtap="start">{{busy ? '正在组卷…' : context === 'random-exam' ? '随机组卷并开始' : '开始模拟'}}</button>
 </view>
  <view wx:else>
 <view class="exam-modules">
 <button wx:for="{{cards}}" wx:key="id" class="exam-module" data-module="{{item.id}}" bindtap="openModule" disabled="{{submitted}}">
-<text>{{item.title}}</text>
+<view class="exam-module-main"><text class="exam-module-title">{{item.title}}</text><text class="exam-source">{{item.source}}</text></view>
 <text>{{item.complete ? '已保存' : '进入练习'}}</text>
 </button>
 </view>

@@ -19,17 +19,21 @@ function completeSets(bank){
   return reading&&task1&&task2&&speaking&&writingSourceReady(task1)&&writingSourceReady(task2)?[{id:'cam'+listening.book+'-test'+listening.test,title:'Cambridge '+listening.book+' · Test '+listening.test,listening,reading,writing:[task1,task2],speaking}]:[]
  })
 }
-async function examChoices(){return completeSets(await loadIeltsContent())}
-async function newExam(context,selected){
+async function examCatalog(){try{return await loadIeltsContent({requireFresh:true})}catch{throw new Error('题库目录更新失败，请检查网络后重试。')}}
+async function examChoices(){return completeSets(await examCatalog())}
+async function newExam(context,selected,{cancelled=()=>false}={}){
  const expectedOwner=owner(),expectedEpoch=epoch()
- const all=await loadIeltsContent(),bank=Object.fromEntries(Object.entries(all).map(([module,tasks])=>[module,tasks.filter(t=>/^cam\d+-/.test(t.id))])),pick=items=>items[Math.floor(Math.random()*items.length)]
- if(expectedOwner!==owner()||expectedEpoch!==epoch())throw new Error('账号已变化。')
+ const check=()=>{if(expectedOwner!==owner()||expectedEpoch!==epoch())throw new Error('账号已变化。');if(cancelled())throw new Error('已取消本次组卷。')}
+ check()
+ const all=await examCatalog(),bank=Object.fromEntries(Object.entries(all).map(([module,tasks])=>[module,tasks.filter(t=>/^cam\d+-/.test(t.id))])),pick=items=>items[Math.floor(Math.random()*items.length)]
+ check()
  const sources=context==='same-test'?completeSets(bank).find(set=>set.id===selected):{id:'random',title:'随机模拟',listening:pick(bank.listening),reading:pick(bank.reading),writing:[pick(bank.writing.filter(t=>/task1$/i.test(t.id)&&writingSourceReady(t))),pick(bank.writing.filter(t=>/task2$/i.test(t.id)&&writingSourceReady(t)))],speaking:pick(bank.speaking)}
  if(!sources||!sources.listening||!sources.reading||!sources.speaking||sources.writing.some(t=>!t))throw new Error('当前题库还不能组成完整模拟。')
  const key='mini-exam-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)
  const exam={key,owner:owner(),epoch:epoch(),context,title:sources.title,sources:{listening:sources.listening.id,reading:sources.reading.id,writing:sources.writing.map(t=>t.id),speaking:sources.speaking.id},sourceRevisions:{writing:sources.writing.map(t=>t.sourceRevision)},modules:{},startedAt:Date.now(),submitted:false}
  const manifest={examId:sources.id,seed:key,bankVersion:'ieltsist-server',generatorVersion:'native-exam-v1',listeningSourceId:exam.sources.listening,readingSourceId:exam.sources.reading,writingSourceIds:exam.sources.writing,speakingSourceId:exam.sources.speaking}
  const capability=await requestIeltsLearning('/api/objective/exams',{clientExamKey:key,context,listeningTaskId:exam.sources.listening,readingTaskId:exam.sources.reading,manifest})
+ check()
  if(!capability?.examId||!capability.examToken)throw new Error('模拟状态未确认，请重试。')
  exam.capability=capability;exam.manifest=capability.manifest||manifest;saveExam(exam);return exam
 }

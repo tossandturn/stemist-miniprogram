@@ -6,6 +6,8 @@
     "esbuild": "0.28.2"
   },
   "scripts": {
+    "test:ielts-exam": "node scripts/test-native-exam-catalog.mjs && node scripts/test-native-exam-page.mjs",
+    "pretest:native-ielts": "npm run test:ielts-exam",
     "test": "node scripts/test-contract.mjs",
     "test:device": "node scripts/test-device-profile.mjs",
     "test:crop": "node scripts/test-crop-math.mjs && node scripts/test-crop-gesture-stability.mjs && node scripts/test-crop-export.mjs",
