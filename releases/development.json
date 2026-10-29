@@ -1,7 +1,7 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.66",
-  "pendingUploads": [],
+  "highestAssignedVersion": "1.0.67",
+  "pendingUploads": [{"version":"1.0.67","assignedOn":"2026-10-29","scope":"IELTS cross-paper random exam and cold-start catalogue fix","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.67-ready"}],
   "reconciledUploads": [
     {"version":"1.0.66","assignedOn":"2026-10-29","uploadedAt":"2026-10-28T20:54:59.475Z","commit":"aad9925a99021e932d287c4d7f088886ada443d3","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.66-ready","officialInfo":"D:/CodexWork/pdf-save-recovery-20261029/wechat-upload-receipt.json","manifest":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.66-ready-manifest.json","runtimeManifestSha256":"e61229f2d662ee5966478b84de3ee8a4cc6473a273b84fd493f5a164ef973777","success":true,"originalProjectConfigChanged":false,"reviewSubmitted":false,"publicReleasePerformed":false,"backendChanged":false},
     {"version":"1.0.65","assignedOn":"2026-10-29","uploadedAt":"2026-10-28T20:19:02.267Z","commit":"96ed5cad1220c2e6b296f88d45f222abea7f75ae","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.65-ready","officialInfo":"D:/CodexWork/chapter-mistake-coach-20261029/wechat-upload-receipt.json","manifest":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.65-ready-manifest.json","runtimeManifestSha256":"f61d9ad108036902236665a7bd969b8c8c6c8ea59029d1eaedebb5e719d7aa3d","success":true,"originalProjectConfigChanged":false,"reviewSubmitted":false,"publicReleasePerformed":false,"backendChanged":false},
