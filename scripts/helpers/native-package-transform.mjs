@@ -11,6 +11,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
+    id: 'esbuild-directory-home-compact-v1',
+    paths: Object.freeze(['pages/index/index.js','utils/productConfig.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-crop-recovery-compact-v1',
     paths: Object.freeze(['pages/crop/crop.js','pages/coach/index.js','utils/crop.js','pages/stem/camera.js','pages/stem/paper.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),

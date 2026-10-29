@@ -164,6 +164,11 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
 }
 
 assertMixedCommonJsTransform()
+const directoryTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('pages/index/index.js'))
+assert.equal(directoryTransform.id,'esbuild-directory-home-compact-v1')
+assert.deepEqual([...directoryTransform.paths].sort(),['pages/index/index.js','utils/productConfig.js'])
+assert.equal(directoryTransform.options.keepNames,true)
+assert.equal(directoryTransform.options.minifySyntax,true)
 const pdfTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('utils/pdfRangeCache.js'))
 assert.equal(pdfTransform.id,'esbuild-pdf-transfer-compact-v1','PDF transfer gets its own reviewed compact transform rather than reducing headroom')
 assert.equal(pdfTransform.options.minifySyntax,true)

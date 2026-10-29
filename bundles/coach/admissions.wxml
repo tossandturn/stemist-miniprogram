@@ -7,7 +7,14 @@
   <scroll-view class="chat-list" scroll-y="true" scroll-top="{{chatScrollTop}}" enhanced="true" show-scrollbar="false" bindtap="dismissComposerKeyboard" aria-label="申请咨询对话">
     <view class="chat-inner">
       <view class="history-actions"><button wx:if="{{historyBrowsing || error}}" class="quiet-button" bindtap="returnLatestHistory" disabled="{{loading || historyLoading || authRequired || clearPending}}">刷新最新</button><button wx:if="{{hasOlderHistory}}" class="quiet-button" bindtap="loadOlderHistory" disabled="{{loading || historyLoading || clearPending}}">更早记录</button></view>
-      <view wx:if="{{!turns.length && !loading && !historyLoading && !clearPending}}" class="advisor-welcome">
+      <view wx:if="{{directoryEntry}}" class="directory-context-card">
+        <view class="directory-context-heading"><text class="directory-context-label">{{directoryEntry.kind === 'university' ? '从大学目录带入' : '从课程官网带入'}}</text><button class="quiet-button" bindtap="dismissDirectoryEntry" disabled="{{loading}}" aria-label="收起学校或课程资料卡，保留输入框内容">收起资料</button></view>
+        <text class="directory-context-title">{{directoryEntry.title}}</text><text class="directory-context-subtitle">{{directoryEntry.subtitle}}</text>
+        <text class="directory-context-note">{{directoryEntryNote}}</text>
+        <view class="directory-context-actions"><button class="context-official" bindtap="copyDirectoryOfficial">复制官网</button><button wx:if="{{directoryEntryPending}}" class="context-use" bindtap="useDirectoryQuestion" disabled="{{loading || historyLoading || clearPending || sendBlocked}}">使用这份提问</button><button wx:if="{{canRestoreDirectoryDraft}}" class="context-restore" bindtap="restoreDirectoryDraft" disabled="{{loading}}">恢复原草稿</button></view>
+      </view>
+      <view wx:elif="{{directoryEntryNote}}" class="notice" role="status">{{directoryEntryNote}}</view>
+      <view wx:if="{{!directoryEntry && !turns.length && !loading && !historyLoading && !clearPending}}" class="advisor-welcome">
         <text class="welcome-title">把申请，一步步理清楚。</text>
         <text class="welcome-copy">可以聊选校、分析背景，也可以贴一段文书来修改。先告诉我你想解决的事，不用一次填完所有资料。</text>
         <view class="starter-grid"><button wx:for="{{starters}}" wx:key="title" class="starter-button" data-index="{{index}}" bindtap="useStarter" disabled="{{authRequired}}">{{item.title}}</button></view>

@@ -7,6 +7,7 @@
   </view>
   <button class="text-button directory-share" open-type="share">分享</button>
  </view>
+ <view wx:if="{{coachEntryError}}" class="error directory-entry-error" role="alert">{{coachEntryError}}</view>
  <view wx:if="{{loading}}" class="directory-loading" role="status">正在加载大学目录…</view>
  <view wx:elif="{{error && !loaded}}" class="error" role="alert"><text>{{error}}</text><button class="secondary retry-action" bindtap="retry">重新加载</button></view>
  <block wx:else>
@@ -27,11 +28,12 @@
    <view class="university-list">
     <view wx:for="{{visibleItems}}" wx:key="id" class="university-card">
      <view class="university-main">
-      <view class="university-identity"><view class="university-logo {{item.logoSrc && item.logoTone === 'dark' ? 'logo-dark' : ''}}"><image wx:if="{{item.logoSrc}}" src="{{item.logoSrc}}" mode="aspectFit" lazy-load="{{true}}" data-id="{{item.id}}" data-logo-path="{{item.logoPath}}" binderror="onUniversityLogoError" aria-label="{{item.nameZh}} Logo" /><text wx:else class="logo-initial" aria-label="{{item.nameZh}} 校名缩写">{{item.logoInitial}}</text></view><view class="rank-mark" aria-label="排名 {{item.rankLabel}}">{{item.rankLabel}}</view></view>
+      <view class="university-identity"><view class="university-logo {{item.logoSrc && item.logoTone === 'dark' ? 'logo-dark' : ''}}"><image wx:if="{{item.logoSrc}}" src="{{item.logoSrc}}" mode="aspectFit" lazy-load="{{true}}" data-id="{{item.id}}" data-logo-path="{{item.logoPath}}" binderror="onUniversityLogoError" aria-label="{{item.nameZh}} Logo" /><text wx:else class="logo-initial" aria-label="{{item.nameZh}} 校名缩写">{{item.logoInitial}}</text></view><view class="rank-mark {{item.rank <= 3 ? 'rank-top' : ''}}" aria-label="排名 {{item.rankLabel}}">{{item.rankLabel}}</view></view>
       <view class="university-copy"><text class="university-name-zh">{{item.nameZh}}</text><text class="university-name-en">{{item.nameEn}}</text><text class="university-country">{{item.country}}</text></view>
      </view>
      <text wx:if="{{item.profileSummary}}" class="admission-summary">{{item.profileSummary}}</text>
      <view class="university-footer"><text class="university-host">{{item.hostname}}</text><view class="university-actions"><button class="requirements-toggle" data-id="{{item.id}}" bindtap="showRequirements" aria-expanded="{{expandedId === item.id}}" aria-label="{{expandedId === item.id ? '收起' : '查看'}} {{item.nameZh}} 申请参考">{{expandedId === item.id ? '收起' : item.profileButtonLabel}}</button><button class="website-copy" data-id="{{item.id}}" bindtap="copyUniversity" aria-label="复制 {{item.nameZh}} 官网">复制官网</button></view></view>
+     <button class="university-coach" data-id="{{item.id}}" bindtap="openUniversityCoach" disabled="{{!!coachOpening}}" loading="{{coachOpening === item.id}}" aria-label="和 AI Coach 聊聊 {{item.nameZh}} 的申请"><view class="coach-button-copy"><text>和 AI Coach 聊聊</text><text class="coach-button-hint">带入这所学校，咨询申请与准备</text></view><text class="coach-button-arrow" aria-hidden="true">›</text></button>
      <view wx:if="{{expandedId === item.id}}" class="requirements-panel">
       <view wx:if="{{profileLoading}}" class="profile-loading" role="status">正在加载申请参考…</view>
       <view wx:elif="{{profileError}}" class="profile-error" role="alert"><text>{{profileError}}</text><button class="secondary requirements-retry" bindtap="retryRequirements">重试</button></view>
@@ -56,10 +58,16 @@
    <view wx:if="{{pageCount > 1}}" class="directory-pagination"><button class="secondary" disabled="{{pageNumber <= 1}}" bindtap="previousPage">上一页</button><text>{{pageNumber}} / {{pageCount}}</text><button class="secondary" disabled="{{pageNumber >= pageCount}}" bindtap="nextPage">下一页</button></view>
   </block>
   <block wx:else>
-   <view class="board-tabs" role="tablist" aria-label="选择课程体系"><button wx:for="{{examBoards}}" wx:key="id" class="board-tab {{selectedBoardId === item.id ? 'active' : ''}}" data-board="{{item.id}}" bindtap="chooseBoard" role="tab" aria-selected="{{selectedBoardId === item.id}}">{{item.label}}</button></view>
-   <view wx:if="{{currentBoard}}" class="official-card">
-    <text class="official-label">{{currentBoard.label}} 官方课程入口</text><text class="official-organization">{{currentBoard.organization}}</text><text class="official-host">{{currentBoard.hostname}}</text><button class="primary official-copy" bindtap="copyOfficial">复制官网链接</button><text class="official-note">复制后请在浏览器中打开。</text>
+   <view class="official-intro"><text class="official-heading">找到适合你的课程路线</text><text class="official-note">先了解课程，再结合目标地区与专业规划选课。</text></view>
+   <view class="official-grid">
+    <view wx:for="{{examBoards}}" wx:key="id" class="official-card board-{{item.id}}" id="course-{{item.id}}">
+     <view class="official-card-head"><view class="course-mark" aria-hidden="true">{{item.label}}</view><text class="official-label">官方课程入口</text></view>
+     <text class="official-organization">{{item.organization}}</text><text class="official-host">{{item.hostname}}</text>
+     <button class="course-coach" data-board="{{item.id}}" bindtap="openCourseCoach" disabled="{{!!coachOpening}}" loading="{{coachOpening === item.id}}" aria-label="和 AI Coach 聊聊 {{item.label}} 课程">和 AI Coach 聊 {{item.label}}</button>
+     <button class="official-copy" data-board="{{item.id}}" bindtap="copyOfficial" aria-label="复制 {{item.label}} 官网链接">复制官网链接 <text aria-hidden="true">↗</text></button>
+    </view>
    </view>
+   <text class="official-note official-browser-note">官网链接复制后可在浏览器打开；AI 建议不替代官方说明。</text>
   </block>
   <view wx:if="{{error && loaded}}" class="error" role="alert">{{error}}</view>
  </block>

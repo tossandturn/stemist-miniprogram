@@ -1,6 +1,7 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const {fetchUniversityDirectory}=require('./universityService')
 const {fetchProfileIndex,fetchProfile,profileAssetUrl}=require('./universityProfiles')
+const {openDirectoryCoach}=require('./directoryCoachEntry')
 
 const PAGE_SIZE=20
 const TABS=new Set(['rankings','official'])
@@ -13,7 +14,7 @@ const cachedLabel=value=>{const date=new Date(Number(value));if(!Number.isFinite
 const rankingMeta=ranking=>ranking?{editionYear:ranking.editionYear,verifiedAt:dateLabel(ranking.verifiedAt),scopeLabel:ranking.scope==='world'?'全球大学':'美国综合大学',sourceUrl:ranking.sourceUrl,methodologyUrl:ranking.methodologyUrl}:null
 
 Page({
- data:deviceState({activeTab:'rankings',loading:false,loaded:false,error:'',dataSource:'',cacheNotice:'',rankingOptions:[],rankingIndex:0,currentRankingId:'',currentRanking:null,queryDraft:'',query:'',filteredCount:0,visibleItems:[],pageNumber:1,pageCount:0,examBoards:[],selectedBoardId:'ap',currentBoard:null,expandedId:'',profileLoading:false,profileError:'',activeProfile:null}),
+ data:deviceState({activeTab:'rankings',loading:false,loaded:false,error:'',dataSource:'',cacheNotice:'',rankingOptions:[],rankingIndex:0,currentRankingId:'',currentRanking:null,queryDraft:'',query:'',filteredCount:0,visibleItems:[],pageNumber:1,pageCount:0,examBoards:[],selectedBoardId:'ap',currentBoard:null,expandedId:'',profileLoading:false,profileError:'',activeProfile:null,coachOpening:'',coachEntryError:''}),
  onLoad(options={}){
   this.__disposed=false;this.__requestId=0;this.__rankings=[];this.__boards=[]
   this.__profileMap=new Map();this.__failedLogos=new Set();this.__detailToken=0
@@ -116,7 +117,21 @@ Page({
   if(!url)return
   wx.setClipboardData({data:url,success:()=>{if(!this.__disposed)wx.showToast({title,icon:'success'})},fail:()=>{if(!this.__disposed)wx.showToast({title:'复制失败，请重试',icon:'none'})}})
  },
- copyOfficial(){this.copyUrl(this.data.currentBoard?.url,'官网链接已复制')},
+ copyOfficial(event){const id=clean(event?.currentTarget?.dataset?.board),board=id?this.__boards.find(item=>item.id===id):this.data.currentBoard;this.copyUrl(board?.url,'官网链接已复制')},
+ openUniversityCoach(event){
+  const id=clean(event?.currentTarget?.dataset?.id),ranking=this.__rankings.find(item=>item.id===this.data.currentRankingId),entity=this.data.visibleItems.find(item=>item.id===id)
+  if(entity&&ranking)this.openDirectoryConversation({kind:'university',entity,ranking})
+ },
+ openCourseCoach(event){
+  const id=clean(event?.currentTarget?.dataset?.board),entity=this.__boards.find(item=>item.id===id)
+  if(entity)this.openDirectoryConversation({kind:'course',entity})
+ },
+ openDirectoryConversation(input){
+  if(this.__disposed||this.data.coachOpening)return
+  this.setData({coachOpening:input.entity.id,coachEntryError:''})
+  const complete=()=>{if(!this.__disposed)this.setData({coachOpening:''})},error=message=>{if(!this.__disposed)this.setData({coachEntryError:message})}
+  try{openDirectoryCoach(input,{onError:error,onComplete:complete})}catch{complete();error('咨询资料暂未准备好，请刷新目录后重试。')}
+ },
  copyUniversity(event){
   const ranking=this.__rankings.find(item=>item.id===this.data.currentRankingId),item=ranking?.items.find(value=>value.id===clean(event?.currentTarget?.dataset?.id))
   if(item)this.copyUrl(item.website,'官网链接已复制')

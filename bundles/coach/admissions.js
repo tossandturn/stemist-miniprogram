@@ -1,5 +1,6 @@
 const {createAdvisorPage}=require('./advisorPage')
 const conversation=require('./admissionsConversation')
+const {withDirectoryCoachEntry}=require('./directoryCoachEntry')
 
 const STARTERS=Object.freeze([
  {title:'申请规划',text:'请像申请老师一样帮我做国际本科申请规划。先了解我的课程体系、目标地区和专业，再给我准备顺序。'},
@@ -8,7 +9,7 @@ const STARTERS=Object.freeze([
  {title:'申请邮件',text:'请帮我拟一封发给大学招生办公室的英文邮件，并用中文解释。先确认收件对象、目的和需要表达的真实信息。'},
 ])
 
-Page(createAdvisorPage({
+Page(withDirectoryCoachEntry(createAdvisorPage({
  storagePrefix:'stemistAdmissions',
  persona:'admissions-advisor',
  errorPrefix:'admissions_',
@@ -33,4 +34,4 @@ Page(createAdvisorPage({
   clearContent:'将清除这位顾问的云端对话和本机草稿，不影响做题记录或休闲酒馆。',
   clearStatus:'已清空申请咨询',
  },
-}))
+})))

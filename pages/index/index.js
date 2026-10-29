@@ -115,6 +115,7 @@ openStem() { wx.navigateTo({ url: '/pages/stem/capture' }) },
 openPractice() { wx.navigateTo({ url: '/pages/practice/index' }) },
 openPapers() { wx.navigateTo({ url: '/pages/papers/index' }) },
 openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
+openUniversities() { wx.navigateTo({ url: '/bundles/curricula/universities',fail:()=>this.setData({entryError:'大学目录暂未打开，请重试。'}) }) },
 openCoach() { wx.navigateTo({ url: '/bundles/coach/index' }) },
 openAnnouncements() { wx.navigateTo({ url: '/bundles/announcements/index' }) },
 openIelts(event) {

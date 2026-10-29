@@ -8,6 +8,16 @@
     <text wx:elif="{{announcementError}}" class="home-announcement-summary">公告暂未加载，点击重试。</text>
     <text wx:else class="home-announcement-summary">暂无公告</text>
   </view>
+  <view class="home-shortcuts" aria-label="大学与学习账号快捷入口">
+    <button class="home-shortcut shortcut-university" bindtap="openUniversities" aria-label="大学排名与官网，查看大学和课程并向 AI Coach 咨询">
+      <image class="shortcut-art" src="/design-system/campus-entry.svg" mode="aspectFit" aria-hidden="true" />
+      <text class="shortcut-title">大学排名与官网</text><text class="shortcut-detail">选校 · 课程 · AI 咨询</text><text class="shortcut-action">探索大学与课程 <text aria-hidden="true">›</text></text>
+    </button>
+    <button class="home-shortcut shortcut-account" bindtap="openAccount" aria-label="我的学习账号，查看学习记录、会员与个人设置">
+      <image class="shortcut-art" src="/design-system/account-entry.svg" mode="aspectFit" aria-hidden="true" />
+      <text class="shortcut-title">我的学习账号</text><text class="shortcut-detail">学习记录 · 会员与设置</text><text class="shortcut-action">{{user ? '进入我的账号' : '登录或查看账号'}} <text aria-hidden="true">›</text></text>
+    </button>
+  </view>
   <view class="home-heading">{{homeHeading}}</view>
   <view class="entry-grid">
     <button wx:for="{{entryPoints}}" wx:key="id" class="entry-card entry-{{item.tone}}" data-entry="{{item.id}}" bindtap="openEntry" loading="{{entryLoading === item.id}}" disabled="{{!!entryLoading}}">
@@ -17,7 +27,6 @@
     </button>
   </view>
   <view wx:if="{{entryError}}" class="error">{{entryError}}</view>
-  <button wx:for="{{secondaryLinks}}" wx:key="id" class="home-account text-button" data-secondary="{{item.id}}" bindtap="openSecondary">{{item.label}}</button>
-  <navigator class="home-account" url="/pages/account/auth">我的学习记录与账号</navigator>
+  <block wx:for="{{secondaryLinks}}" wx:key="id"><button wx:if="{{item.id !== 'university-directory'}}" class="home-account text-button" data-secondary="{{item.id}}" bindtap="openSecondary">{{item.label}}</button></block>
   <button class="home-share secondary" open-type="share">分享给好友</button>
 </view>
