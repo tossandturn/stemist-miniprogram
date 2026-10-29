@@ -55,13 +55,17 @@ function withDirectoryCoachEntry(base){
   restoreDirectoryDraft(){
    if(!this.current()||this.data.loading||this.__pending||!this.__directoryPreviousDraft)return
    base.onMessage.call(this,{detail:{value:this.__directoryPreviousDraft}});this.__directoryPreviousDraft=''
-   this.setData({directoryEntryPending:true,canRestoreDirectoryDraft:false,directoryEntryNote:'已恢复原草稿，尚未发送新学校或课程的问题。'})
+   this.setData({directoryEntry:null,directoryEntryPending:false,canRestoreDirectoryDraft:false,directoryEntryNote:''})
   },
   dismissDirectoryEntry(){
    if(!this.current()||this.data.loading)return
    this.setData({directoryEntry:null,directoryEntryPending:false,directoryEntryNote:'',canRestoreDirectoryDraft:false});this.__directoryPreviousDraft=''
   },
   copyDirectoryOfficial(){if(this.current()&&this.data.directoryEntry)wx.setClipboardData({data:this.data.directoryEntry.officialUrl})},
+  submit(){
+   if(this.data.directoryEntryPending){this.setData({directoryEntryNote:'请先选择“使用这份提问”或“保留当前草稿”，避免把上一所学校的问题发出去。'});return Promise.resolve()}
+   return base.submit.call(this)
+  },
   openAccount(){this.__directoryGuestLogin=this.__owner==='guest'&&Boolean(this.data.directoryEntry);base.openAccount.call(this)},
   async clearConversation(){const result=await base.clearConversation.call(this);if(result&&this.current())this.dismissDirectoryEntry();return result},
  }

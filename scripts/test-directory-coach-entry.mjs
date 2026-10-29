@@ -27,6 +27,7 @@ const next=runtime.page('bundles/coach/admissions');next.onLoad({directoryEntry:
 assert.equal(next.data.directoryEntry.title,'AP');assert.equal(next.data.directoryEntryPending,true)
 assert.match(next.data.message,/合成大学/,'unsent old draft is not silently replaced')
 next.useDirectoryQuestion();assert.ok(modal);modal.success({confirm:false});assert.match(next.data.message,/合成大学/)
+await next.submit();assert.equal(sends,0,'a pending new entity must not send the previous entity draft by accident')
 next.useDirectoryQuestion();modal.success({confirm:true});assert.match(next.data.message,/College Board/);assert.match(next.data.message,/apstudents.collegeboard.org/)
 assert.equal(next.data.canRestoreDirectoryDraft,true);next.restoreDirectoryDraft();assert.match(next.data.message,/合成大学/)
 assert.equal(sends,0)

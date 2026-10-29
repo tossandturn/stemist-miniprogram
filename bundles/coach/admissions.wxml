@@ -8,7 +8,7 @@
     <view class="chat-inner">
       <view class="history-actions"><button wx:if="{{historyBrowsing || error}}" class="quiet-button" bindtap="returnLatestHistory" disabled="{{loading || historyLoading || authRequired || clearPending}}">刷新最新</button><button wx:if="{{hasOlderHistory}}" class="quiet-button" bindtap="loadOlderHistory" disabled="{{loading || historyLoading || clearPending}}">更早记录</button></view>
       <view wx:if="{{directoryEntry}}" class="directory-context-card">
-        <view class="directory-context-heading"><text class="directory-context-label">{{directoryEntry.kind === 'university' ? '从大学目录带入' : '从课程官网带入'}}</text><button class="quiet-button" bindtap="dismissDirectoryEntry" disabled="{{loading}}" aria-label="收起学校或课程资料卡，保留输入框内容">收起资料</button></view>
+        <view class="directory-context-heading"><text class="directory-context-label">{{directoryEntry.kind === 'university' ? '从大学目录带入' : '从课程官网带入'}}</text><button class="quiet-button" bindtap="dismissDirectoryEntry" disabled="{{loading}}" aria-label="收起学校或课程资料卡，保留输入框内容">{{directoryEntryPending ? '保留当前草稿' : '收起资料'}}</button></view>
         <text class="directory-context-title">{{directoryEntry.title}}</text><text class="directory-context-subtitle">{{directoryEntry.subtitle}}</text>
         <text class="directory-context-note">{{directoryEntryNote}}</text>
         <view class="directory-context-actions"><button class="context-official" bindtap="copyDirectoryOfficial">复制官网</button><button wx:if="{{directoryEntryPending}}" class="context-use" bindtap="useDirectoryQuestion" disabled="{{loading || historyLoading || clearPending || sendBlocked}}">使用这份提问</button><button wx:if="{{canRestoreDirectoryDraft}}" class="context-restore" bindtap="restoreDirectoryDraft" disabled="{{loading}}">恢复原草稿</button></view>
@@ -38,6 +38,6 @@
   <view class="advisor-composer">
     <text class="input-label">{{canRetry ? '输入已保留，可继续重试' : '你的问题或文书草稿'}}</text>
     <textarea id="admissions-input" class="advisor-input" style="height:{{composerHeight}}px" value="{{message}}" maxlength="12000" disabled="{{loading || authRequired || clearPending}}" placeholder="说说申请目标，或粘贴文书…" cursor-spacing="0" adjust-position="{{false}}" hold-keyboard="{{true}}" show-confirm-bar="{{false}}" confirm-type="send" bindfocus="onComposerFocus" bindblur="onComposerBlur" bindkeyboardheightchange="onComposerKeyboard" bindlinechange="onComposerLineChange" bindinput="onMessage" bindconfirm="onComposerConfirm" aria-label="申请问题或文书草稿，最多12000字符" />
-    <button class="send-button" bindtap="submit" loading="{{loading}}" disabled="{{loading || historyLoading || (!message && receiptState !== 'commit-deferred') || authRequired || clearPending || sendBlocked}}">{{loading ? '回复中' : receiptState === 'indeterminate' ? '等待确认' : receiptState === 'commit-deferred' ? '重试保存' : canRetry ? '重试' : '发送'}}</button>
+    <button class="send-button" bindtap="submit" loading="{{loading}}" disabled="{{loading || historyLoading || (!message && receiptState !== 'commit-deferred') || authRequired || clearPending || sendBlocked || directoryEntryPending}}">{{directoryEntryPending ? '待选择' : loading ? '回复中' : receiptState === 'indeterminate' ? '等待确认' : receiptState === 'commit-deferred' ? '重试保存' : canRetry ? '重试' : '发送'}}</button>
   </view>
 </view>
