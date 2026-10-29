@@ -9,3 +9,5 @@ The regression uses the real page and membership service with synthetic HTTP/nat
 The backend counterpart validates the real JSON `biz_meta.attach` envelope, retains the closed order, records provider closure evidence, and atomically reserves a fresh key only for a verified closed attempt. Existing compatible clients can recover by refreshing the original order and then membership state.
 
 Source: https://developers.weixin.qq.com/miniprogram/dev/api/payment/wx.requestVirtualPayment.html
+
+Native developer-tool verification passed: cancellation after foregrounding during a query outage stayed visibly cancelled; verified closure restored eligibility without initiating payment; explicit reconfirmation used a different synthetic trade number. Version 1.0.71 is prepared from b3e56e4, all 361 frozen files verified, and upload was requested. This is not yet confirmation that the user's experience version changed. Backend 8430641 was deployed and its exact real cancelled-order query returned status 6 successfully; no payment or refund was initiated by the agent.
