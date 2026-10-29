@@ -27,9 +27,10 @@ import {miniRuntime,deferred,settle} from './helpers/mini-runtime.mjs'
 }
 console.log('Native exam setup: catalogue loading/error/retry, explicit one-shot start and leaving-page guards PASS')
 {
- const exam={sources:{listening:'cam15-l-test1',reading:'cam16-r-test3',writing:['cam17-w-test2-task1','cam18-w-test4-task2'],speaking:'cam15-s-test1'},modules:{},submitted:false}
+ const exam={sources:{listening:'cam15-l-test1',reading:'cam16-r-test3',writing:['cam17-w-test2-task1','cam18-w-test4-task2'],speaking:'cam18-s-page100'},modules:{},submitted:false}
  const r=miniRuntime({modules:{'utils/nativeExam':{readExam:()=>exam}}}),p=r.page('pages/ielts/exam');p.onLoad({mode:'random-exam',examKey:'existing'})
  assert.equal(p.data.cards[0].source,'Cambridge 15 · Test 1')
  assert.equal(p.data.cards[1].source,'Cambridge 16 · Test 3')
  assert.equal(p.data.cards[3].source,'Cambridge 18 · Test 4')
+ assert.equal(p.data.cards[4].source,'Cambridge 18 · 第 100 页')
 }

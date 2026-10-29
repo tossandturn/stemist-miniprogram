@@ -4,14 +4,14 @@ import {miniRuntime,deferred,settle} from './helpers/mini-runtime.mjs'
 const task=(id,extra={})=>({id,book:15,test:1,title:id,...extra})
 const payload={schemaVersion:'native-ielts-catalog-v1',version:'exam-ready-v1',listeningTests:[task('cam15-l-test1')],readingTests:[task('cam15-r-test1')],speakingSets:[task('cam15-s-test1')],writingTasks:[task('cam15-w-test1-task1',{sourceAvailability:'ready',sourceRevision:'a'.repeat(64)}),task('cam15-w-test1-task2',{sourceAvailability:'ready',sourceRevision:'b'.repeat(64)}),task('cam16-w-test1-task1',{sourceAvailability:'pending-review'})]}
 function setup({random}={}){
- const requests=[],creates=[],remote=deferred();let response=()=>remote.promise,time=Date.now()
+ const requests=[],creates=[],remote=deferred();let response=()=>remote.promise,time=Date.now(),createResponse=data=>({examId:'test-exam',examToken:'local-test-capability',manifest:data.manifest})
  class Clock extends Date{static now(){return time}}
  const r=miniRuntime({globals:{Date:Clock,...(random?{Math:Object.assign(Object.create(Math),{random})}:{})},modules:{
   'utils/api':{IELTS_API_BASE:'https://ieltsist.com',requestIeltsJson:async(path,data,options)=>{requests.push({path,options});return response()}},
-  'utils/ieltsLearning':{requestIeltsLearning:async(path,data)=>{creates.push({path,data});return{examId:'test-exam',examToken:'local-test-capability',manifest:data.manifest}}},
+  'utils/ieltsLearning':{requestIeltsLearning:async(path,data)=>{creates.push({path,data});return createResponse(data)}},
  }})
  r.storage.set('stemistUser',{id:'test-student'})
- return{r,remote,requests,creates,api:r.load('utils/nativeExam'),content:r.load('utils/ieltsContent'),respond:fn=>response=fn,advance:ms=>time+=ms}
+ return{r,remote,requests,creates,api:r.load('utils/nativeExam'),content:r.load('utils/ieltsContent'),respond:fn=>response=fn,respondCreate:fn=>createResponse=fn,advance:ms=>time+=ms}
 }
 {
  const s=setup(),attempt=s.api.newExam('random-exam').then(value=>({value}),error=>({error}))
@@ -70,3 +70,12 @@ console.log('Native exam catalogue: cold/legacy cache, awaited refresh, concurre
  assert.ok((await s.api.newExam('random-exam')).key,'random assembly still works when no complete same-test set exists')
 }
 console.log('Random assembly: independent cross-paper sources, new draws, fixed restored attempts and no same-test dependency PASS')
+for(const mutation of ['owner','cancel']){
+ const s=setup(),capability=deferred();let cancelled=false;s.respond(async()=>payload);s.respondCreate(()=>capability.promise)
+ const result=s.api.newExam('random-exam',undefined,{cancelled:()=>cancelled}).catch(e=>e);await settle();assert.equal(s.creates.length,1)
+ if(mutation==='owner')s.r.storage.set('stemistUser',{id:'new-owner'});else cancelled=true
+ capability.resolve({examId:'late-exam',examToken:'synthetic-capability'})
+ assert.match((await result).message,/账号已变化|取消/)
+ assert.equal([...s.r.storage.keys()].filter(k=>k.startsWith(s.api.PREFIX)).length,0,'late capability must not persist into another account or a cancelled page')
+}
+console.log('Late exam-create response: owner change and cancelled page never persist a local exam PASS')
