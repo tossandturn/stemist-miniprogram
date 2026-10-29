@@ -5,10 +5,10 @@
     {
       "version": "1.0.74",
       "assignedOn": "2026-10-30",
-      "commit": "9d01d51fc8c9d03e570d07d391b2f5e9dc09e626",
-      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready",
-      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready-manifest.json",
-      "runtimeManifestSha256": "59c65e4a8b310ba497a79ff13f37ba1170337c9bd3451c5911d792c3f5cac8ab",
+      "commit": "f3a805f375cce28e24dcfe0060664a5589ec61a1",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready-r2",
+      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.74-ready-r2-manifest.json",
+      "runtimeManifestSha256": "c71758642aef20c145a272eeaf9737830eff78001489c4f5079beb1d1763c581",
       "status": "prepared_not_uploaded"
     },
     {
