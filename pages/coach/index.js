@@ -197,7 +197,7 @@ clearCoachSource(this)
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 this.__receiving=false
-const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active?{...value,label:'正在生成答案…'}:value})}})
+const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active&&value.phase!=='recovering'?{...value,label:'正在生成答案…'}:value})}})
 let authExpired=false
 try {
 const entry=await this.prepareEntry()

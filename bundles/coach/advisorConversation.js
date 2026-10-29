@@ -1,5 +1,5 @@
 const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
-const {createCoachStream}=require('../../utils/coachStream')
+const {createCoachStream}=require('./responseStream')
 const {normalizeTavernEnvelope,newClientTurnId}=require('./tavernConversation')
 
 const MESSAGE_MAX=12000

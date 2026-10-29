@@ -95,19 +95,19 @@ return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
 function askCoach({ message, helpIntent = '', feature = '', persona = '', attemptId = '', context = {}, imageDataUrls = [], history = [], onStage = null, onPartial = null, onCancelReady = null }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
+if(feature!=='tavern')return require('./coachJob').askCoachJob({message,...(helpIntent?{helpIntent}:{}),...(feature?{feature}:{}),...(attemptId?{attemptId}:{}),context,imageDataUrls:images,history:history.slice(-10)},{request:requestJson,onStage,onPartial,onCancelReady})
 const timeout=images.length?COACH_IMAGE_TIMEOUT_MS:COACH_TEXT_TIMEOUT_MS
 return new Promise((resolve,reject)=>{
 let closed=false,task=null
 const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const current=()=>{if(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')}
-const stream=typeof onPartial==='function'&&feature!=='tavern'?require('./coachStream').createCoachStream({onPreview:text=>{if(!closed){try{current();onPartial(text)}catch(error){finish(reject,error);try{task?.abort()}catch{}}}},onMeta:()=>{if(!closed&&typeof onStage==='function')onStage('analysis')}}):null
-const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);if(settle===reject&&value&&stream&&!isAuthError(value)&&!['account_changed','request_cancelled'].includes(value.code))value.partialAnswer=stream.partial();stream?.close();settle(value)}
+const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);settle(value)}
 const timer=setTimeout(()=>{finish(reject,requestError('AI 请求超时，问题和图片已保留，请重试。',0,'network_timeout'));try{task?.abort()}catch{}},timeout)
 if(typeof onCancelReady==='function')onCancelReady(()=>{finish(reject,requestError('请求已取消。',0,'request_cancelled'));try{task?.abort()}catch{}})
-requestJson(stream?'/api/ai/coach/stream':'/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}),...(feature?{feature}:{}),...(persona?{persona}:{}),...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
-timeout,stream,streamCurrent:current,isCancelled:()=>closed,onTask:value=>{task=value},
-onDispatched:()=>{if(!stream&&!closed&&typeof onStage==='function')onStage('analysis')},
-}).then(value=>finish(resolve,value),error=>finish(reject,error))
+requestJson('/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}),feature,persona,...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
+timeout,isCancelled:()=>closed,onTask:value=>{task=value},
+onDispatched:()=>{if(!closed&&typeof onStage==='function')onStage('analysis')},
+}).then(value=>{try{current();finish(resolve,value)}catch(error){finish(reject,error)}},error=>finish(reject,error))
 })
 }
 function askIeltsCoach({ message, helpIntent = '', context = {}, imageDataUrls = [], history = [], onStage = null }) {

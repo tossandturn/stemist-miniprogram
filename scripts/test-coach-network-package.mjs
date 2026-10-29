@@ -12,15 +12,15 @@ const load=(file,runtime,globals)=>{
 }
 let request,aborts=0,clears=0;const timers=new Map();let serial=0
 const globals={setTimeout:(fn,ms)=>{timers.set(++serial,{fn,ms});return serial},clearTimeout:id=>timers.delete(id)}
-const r=miniRuntime({modules:{'utils/nativeSession':{refreshNativeSession:async()=>{},captureNativeCookie(){}},'utils/session':{clearLocalSession(){clears++}}},wx:{request:o=>{request=o;return{abort(){aborts++}}}}})
+const r=miniRuntime({globals,modules:{'utils/nativeSession':{refreshNativeSession:async()=>{},captureNativeCookie(){}},'utils/session':{clearLocalSession(){clears++}}},wx:{request:o=>{request=o;return{abort(){aborts++}}}}})
 const api=load('utils/api',r,globals)
 assert.equal(api.askCoach.name,'askCoach')
 const pending=api.askCoach({message:'fixture'}).catch(e=>e);await settle()
-assert.equal(request.url,'https://stem.ieltsist.com/api/ai/coach')
-assert.equal([...timers.values()][0].ms,55000)
-;[...timers.values()][0].fn();assert.equal((await pending).code,'network_timeout');assert.equal(aborts,1)
+assert.match(request.url,/^https:\/\/stem\.ieltsist\.com\/api\/ai\/coach\/jobs\/cj-/)
+assert.equal([...timers.values()][0].ms,120000)
+;[...timers.values()][0].fn();assert.equal((await pending).code,'coach_job_pending');assert.equal(aborts,1)
 request.success({statusCode:401,data:{}});assert.equal(clears,0)
-const success=api.askCoach({message:'fixture'});await settle();request.success({statusCode:200,data:{answer:'x=4'}});assert.equal((await success).answer,'x=4');assert.equal(timers.size,0)
+const success=api.askCoach({message:'fixture'});await settle();assert.equal(request.method,'GET');request.success({statusCode:200,data:{id:request.url.split('/').pop(),status:'succeeded',result:{answer:'x=4'}}});assert.equal((await success).answer,'x=4');assert.equal(timers.size,0)
 const jpeg=Buffer.from([255,216,255,224,0,16,74,70,73,70]).toString('base64');let compressed
 const imageRuntime=miniRuntime({wx:{getImageInfo:o=>o.success({width:4032,height:3024}),compressImage:o=>{compressed=o;o.success({tempFilePath:'compressed.jpg'})},getFileSystemManager:()=>({readFile:o=>o.success({data:jpeg})})}})
 const image=load('utils/image',imageRuntime,{setTimeout,clearTimeout})

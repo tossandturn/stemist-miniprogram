@@ -19,6 +19,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
     paths: Object.freeze(['utils/api.js','utils/image.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
   }),Object.freeze({
+    id: 'esbuild-coach-recovery-compact-v1',
+    paths: Object.freeze(['utils/coachJob.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-source-action-identifiers-v1',
     paths: Object.freeze(['utils/coachSource.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),

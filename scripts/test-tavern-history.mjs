@@ -6,11 +6,11 @@ await import('./test-tavern-long-memory.mjs')
 await import('./test-tavern-long-memory-page.mjs')
 
 let requestOptions
-const runtime=miniRuntime({wx:{request:options=>{requestOptions=options;options.success({statusCode:200,data:{mode:'ai',providerStatus:'connected',answer:'academic ok'}})}}})
+const runtime=miniRuntime({wx:{request:options=>{requestOptions=options;options.success({statusCode:202,data:{id:options.url.split('/').pop(),status:'succeeded',result:{mode:'ai',providerStatus:'connected',answer:'academic ok'}}})}}})
 runtime.storage.set('stemistUser',{id:'academic-owner'});runtime.storage.set('stemistSessionToken','fixture-session')
 const twentyFive=Array.from({length:25},(_,index)=>[{role:'user',content:`user-${index+1}`},{role:'assistant',content:`assistant-${index+1}`}]).flat()
 await runtime.load('utils/api').askCoach({message:'academic unchanged',context:{product:'STEM Studio'},history:twentyFive})
-assert.equal(requestOptions.url,'https://stem.ieltsist.com/api/ai/coach')
+assert.match(requestOptions.url,/^https:\/\/stem\.ieltsist\.com\/api\/ai\/coach\/jobs\/cj-/)
 assert.equal(requestOptions.data.history.length,10,'ordinary academic askCoach remains on its existing 10-message bound')
 assert.equal(requestOptions.data.history[0].content,'user-21')
 
@@ -22,4 +22,4 @@ for(const directory of ['pages','components','utils']){
  while(pending.length){const current=pending.pop();for(const entry of fs.readdirSync(current,{withFileTypes:true})){const target=new URL(entry.name+(entry.isDirectory()?'/':''),current);if(entry.isDirectory())pending.push(target);else if(entry.name.endsWith('.js'))assert.doesNotMatch(fs.readFileSync(target,'utf8'),/tavernConversation/,'academic and main-package modes stay unchanged')}}
 }
 
-console.log('Tavern long-memory child contract and unchanged academic Coach transport passed.')
+console.log('Tavern long-memory isolation and preserved academic history bound passed.')

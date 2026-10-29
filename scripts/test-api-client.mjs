@@ -16,6 +16,7 @@ const wx = {
 }
 const module = { exports: {} }
 let sessionCleanupOptions
+let jobPayload
 const fakeRequire = (name) => name === './ieltsLearning' ? {requestIeltsLearning:(...args)=>module.exports.requestIeltsJson(...args)} : name === './nativeSession' ? {captureNativeCookie(){},refreshNativeSession:async()=>{}} : name === './session' ? { clearLocalSession: (options) => {
   sessionCleanupOptions = options
   delete storage.stemistSessionToken
@@ -25,7 +26,7 @@ vm.runInNewContext(source, {
   module,
   exports: module.exports,
   wx,
-  require: fakeRequire,
+  require: name=>name==='./coachJob'?{askCoachJob:(payload,options)=>{jobPayload=payload;return options.request('/api/ai/coach/jobs/cj-synthetic123456789',payload,{timeout:30000})}}:fakeRequire(name),
   getApp: () => ({ globalData: { apiBaseUrl: 'https://stem.ieltsist.com', ieltsApiBaseUrl: 'https://ieltsist.com' } }),
   Promise,
   String,
@@ -50,9 +51,12 @@ assert.equal(requestOptions.header.Authorization, undefined, 'native catalog neg
 
 response = { statusCode: 200, data: { ok: true } }
 await askCoach({ message: 'text', context: {}, imageDataUrls: [] })
-assert.equal(requestOptions.timeout, 55000)
+assert.equal(requestOptions.timeout, 30000)
+assert.match(requestOptions.url,/\/coach\/jobs\/cj-/)
+assert.equal(jobPayload.message,'text')
 await askCoach({ message: 'photo', context: {}, imageDataUrls: ['data:image/jpeg;base64,ZmFrZQ=='] })
-assert.equal(requestOptions.timeout, 60000)
+assert.equal(requestOptions.timeout, 30000)
+assert.equal(jobPayload.imageDataUrls.length,1)
 await askCoach({message:'rest',feature:'tavern',persona:'keeper',attemptId:'opaque-attempt',context:{skill:'tavern'},imageDataUrls:[]})
 assert.equal(requestOptions.data.feature,'tavern')
 assert.equal(requestOptions.data.persona,'keeper')
