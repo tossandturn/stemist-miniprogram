@@ -113,10 +113,12 @@ onUnload() { this.__coachImageCache=null;clearCoachSource(this,false);this.__dis
 restorePhoto(){
 const binding=this.__entryKey&&!this.__entry?'missing-entry':this.__entryKey
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId,binding)
-if(imagePath!==this.data.imagePath)clearCoachSource(this)
+const changed=imagePath!==this.data.imagePath
+if(changed){clearCoachSource(this);this.__coachImageCache=null}
 const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers',binding)
-const count=readCoachPhotoPaths(this.identity(),this.data.contextId,binding).length
-this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?`已保存 ${count} 张 · 轻点查看`:'已裁剪'):''},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
+const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,binding),count=paths.length
+if(imagePath&&this.__entry?.imagePaths)this.__entry.imagePaths=paths
+this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?`已保存 ${count} 张 · 轻点查看`:'已裁剪'):'',...(changed&&imagePath?{error:'',canRetry:false}:{})},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
 },
 previewPhotos(){if(!this.current()||!this.data.imagePath)return;const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey);if(paths.length)wx.previewImage({current:paths[0],urls:paths})},
 discardAttachedPhoto(){
@@ -129,12 +131,16 @@ photoContext(){
 const selected=CONTEXTS.find(item=>item.id===this.data.contextId)||CONTEXTS[0]
 const routeContext={...this.data.routeContext}
 if(selected.product==='IELTSist')routeContext.category='ielts'
-return {contextId:selected.id,product:selected.product,routeContext,feature:this.__mode?this.data.feature:''}
+return {contextId:selected.id,product:selected.product,routeContext,feature:this.__mode?this.data.feature:'',entryKey:this.__entryKey||''}
 },
-openCrop(path){
+recropImage(){
+if(!this.current()||this.data.loading||this.data.mediaBusy||!this.data.imagePath)return
+this.setData({mediaBusy:true});this.openCrop(this.data.imagePath,true)
+},
+openCrop(path,recrop=false){
 if(!this.current()||!path)return
 const captureId=Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)
-const returnInfo={route:'coach-home',context:this.photoContext(),captureId,createdAt:Date.now()}
+const returnInfo={route:'coach-home',context:this.photoContext(),captureId,recrop,createdAt:Date.now()}
 try{wx.setStorageSync('stemistCropReturn',returnInfo)}catch{this.setData({mediaBusy:false,error:'图片路线暂未保存，请检查本机空间后重试。'});return}
 wx.navigateTo({url:'/pages/crop/crop?src='+encodeURIComponent(path),fail:()=>{const current=wx.getStorageSync('stemistCropReturn');if(current?.captureId===captureId)wx.removeStorageSync('stemistCropReturn');if(this.current())this.setData({mediaBusy:false,error:'无法打开裁剪页，请重试。'})}})
 },

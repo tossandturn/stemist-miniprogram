@@ -22,7 +22,9 @@ button.coach-media-primary:active{background:#5536c3}
 .album-icon-small{border:2px solid currentColor;border-radius:5px;overflow:hidden}
 .album-sun{position:absolute;right:3px;top:3px;width:5px;height:5px;border:1.5px solid currentColor;border-radius:50%}
 .album-mountain{position:absolute;left:3px;bottom:-4px;width:13px;height:13px;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg)}
-.coach-actions{display:flex;justify-content:center;margin-top:8px}
+.coach-actions{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:8px}
+.coach-photo-tools{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.coach-photo-tools button{min-height:44px;min-width:44px;width:auto;margin:0;padding:6px 8px;font-size:14px;}
 .coach-actions .text-button{min-height:44px}
 .coach-home-page.device-tablet .coach-scope-select,.coach-home-page.device-tablet .route-pill,.coach-home-page.device-tablet .coach-workspace,.coach-home-page.device-tablet .coach-actions{max-width:1120px;margin-left:auto;margin-right:auto}
 @media(min-width:900px){.coach-home-page.device-tablet.landscape .coach-workspace{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);gap:20px;align-items:start}.coach-photo-preview{height:300px}}

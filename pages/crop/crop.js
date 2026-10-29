@@ -1,13 +1,13 @@
 const { deviceState, syncDevice } = require('../../utils/page')
-const { computeCropRect, resizedCropSize } = require('../../utils/crop')
+const { computeCropRect, resizedCropSize,moveCropSelection } = require('../../utils/crop')
 const { attachPhoto } = require('../../utils/nativePractice')
 const {attachPaperPhoto}=require('../../utils/nativePaper')
 const {persistWritingPhoto,removeWritingPhoto}=require('../../utils/nativeWritingPhoto')
-const {persistCoachPhoto,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
+const {persistCoachPhotos,readCoachPhotoPaths,clearCoachPhoto}=require('../../utils/nativeCoachPhoto')
 
 Page({
 onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
-data: deviceState({ src: '', x: 0, y: 0, scale: 0.68, frameInstances:[{id:0}], busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
+data: deviceState({ src: '', x: 0, y: 0, scale: 1, selection:null,frameInstances:[{id:0}], busy: false, error: '', canvasWidth: 1, canvasHeight: 1, coachSource: 'crop', category: '', family: '', routeId: '', stage: '', subjectCode: '' }),
 onLoad(options) {
 this.__disposed=false
 this.__owner=String((wx.getStorageSync('stemistUser')||{}).id||'guest')
@@ -25,7 +25,18 @@ this.setData({ src, error: src ? '' : '没有找到照片，请返回重新拍�
 },
 onShow() { syncDevice(this);if(!this.cropActive())this.setData({src:'',busy:false,error:'账号已变化，请返回重新拍摄。'}) },
 onReady(){this.resetFrame()},
-onResize() { syncDevice(this) },
+onResize() {
+syncDevice(this)
+const before=this.__cropBounds,selection=this.data.selection,revision=this.__gestureRevision||0
+if(!before||!selection||this.data.busy||this.__selectionGesture)return
+const query=wx.createSelectorQuery().in(this);query.select('.crop-stage').boundingClientRect();query.exec(rects=>{
+const after=rects?.[0]
+if(!this.cropActive()||this.data.busy||this.__selectionGesture||revision!==(this.__gestureRevision||0)||!after?.width||!after?.height)return
+const rx=after.width/before.width,ry=after.height/before.height,width=Math.min(after.width,Math.max(88,selection.width*rx)),height=Math.min(after.height,Math.max(88,selection.height*ry)),transform=this.__transform||this.data
+this.__cropBounds={width:after.width,height:after.height};this.__transform={x:transform.x*rx,y:transform.y*ry,scale:transform.scale}
+this.setData({...this.__transform,selection:{left:Math.max(0,Math.min(after.width-width,selection.left*rx)),top:Math.max(0,Math.min(after.height-height,selection.top*ry)),width,height}})
+})
+},
 onUnload(){this.__disposed=true},
 cropActive(){return !this.__disposed&&(this.__owner===undefined||this.__owner===String((wx.getStorageSync('stemistUser')||{}).id||'guest'))&&(this.__epoch===undefined||this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))},
 clearOwnReturn(){const current=wx.getStorageSync('stemistCropReturn');if(!this.__returnInfo||(this.__returnInfo.captureId?current?.captureId===this.__returnInfo.captureId:JSON.stringify(current)===JSON.stringify(this.__returnInfo)))wx.removeStorageSync('stemistCropReturn')},
@@ -43,6 +54,26 @@ this.__transform=next
 },
 onGestureStart(){this.__gestureRevision=(this.__gestureRevision||0)+1},
 holdGesture(){},
+onSelectionStart(e){
+if(this.data.busy||!this.cropActive()||!this.data.selection||e.touches?.length!==1)return
+const point=e.touches[0],corner=String(e.currentTarget.dataset.corner||'')
+if(!['move','nw','ne','sw','se'].includes(corner))return
+this.onGestureStart();this.__selectionGesture={box:{...this.data.selection},x:point.clientX??point.pageX,y:point.clientY??point.pageY,corner}
+},
+onSelectionMove(e){
+const gesture=this.__selectionGesture,point=e.touches?.[0]
+if(this.data.busy||!this.cropActive()||!gesture||!point||!this.__cropBounds)return
+const dx=(point.clientX??point.pageX)-gesture.x,dy=(point.clientY??point.pageY)-gesture.y
+if(Number.isFinite(dx)&&Number.isFinite(dy))this.setData({selection:moveCropSelection(gesture.box,dx,dy,gesture.corner,this.__cropBounds)})
+},
+onSelectionEnd(){this.__selectionGesture=null},
+zoomFrame(e){
+if(this.data.busy||!this.cropActive()||!this.data.src)return
+const transform=this.__transform||this.data,delta=Number(e.currentTarget.dataset.delta)
+if(!Number.isFinite(delta))return
+const scale=Math.max(.3,Math.min(3,(Number(transform.scale)||1)+delta))
+this.onGestureStart();this.__transform={x:transform.x,y:transform.y,scale};this.setData(this.__transform)
+},
 resetFrame(){
 if(this.data.busy||!this.cropActive())return
 const revision=this.__gestureRevision||0,request=this.__resetRequest=(this.__resetRequest||0)+1
@@ -51,8 +82,9 @@ query.select('.crop-stage').boundingClientRect()
 query.exec(rects=>{
 const stage=rects?.[0]
 if(!this.cropActive()||this.data.busy||request!==this.__resetRequest||revision!==(this.__gestureRevision||0)||!stage?.width||!stage?.height)return
-this.__transform={x:stage.width*0.16,y:stage.height*0.16,scale:0.68}
-this.setData({...this.__transform,frameInstances:[{id:request}],error:''})
+this.__cropBounds={width:stage.width,height:stage.height};this.__selectionGesture=null
+this.__transform={x:0,y:0,scale:1}
+this.setData({...this.__transform,selection:{left:0,top:0,width:stage.width,height:stage.height},frameInstances:[{id:request}],error:''})
 })
 },
 confirm() {
@@ -89,11 +121,13 @@ if(!this.cropActive())return
 const output = resizedCropSize(sw, sh)
 const destWidth = output.width
 const destHeight = output.height
+const jpeg=this.__returnInfo?.route==='coach-home'&&this.__returnInfo.context?.contextId==='stem-photo'
+const format=jpeg?{fileType:'jpg',quality:.9}:{fileType:'png'}
 this.setData({ canvasWidth: destWidth, canvasHeight: destHeight }, () => {
 const source = sourcePath || this.data.src
-const done=({tempFilePath}={})=>{if(tempFilePath&&this.cropActive())this.finish(tempFilePath)}
-const legacy=()=>{if(!wx.createCanvasContext)return this.setData({busy:false,error:'当前设备不支持裁剪，请更新微信。'});const c=wx.createCanvasContext('cropCanvas',this);c.clearRect(0,0,destWidth,destHeight);c.drawImage(source,sx,sy,sw,sh,0,0,destWidth,destHeight);c.draw(false,()=>wx.canvasToTempFilePath({canvasId:'cropCanvas',x:0,y:0,width:destWidth,height:destHeight,destWidth,destHeight,fileType:'png',success:done,fail:()=>this.setData({busy:false,error:'裁剪失败，请重试。'})},this))}
-try{const q=wx.createSelectorQuery?.().in(this);if(!q?.select)return legacy();q.select('#cropCanvas2d').fields({node:true}).exec(r=>{const c=r?.[0]?.node;if(!c?.getContext||!c.createImage)return legacy();c.width=destWidth;c.height=destHeight;const i=c.createImage();i.onerror=legacy;i.onload=()=>{if(!this.cropActive())return;c.getContext('2d').drawImage(i,sx,sy,sw,sh,0,0,destWidth,destHeight);setTimeout(()=>wx.canvasToTempFilePath({canvas:c,x:0,y:0,width:destWidth,height:destHeight,destWidth,destHeight,fileType:'png',success:done,fail:legacy},this),0)};i.src=source})}catch{legacy()}
+const done=({tempFilePath}={})=>{if(!this.cropActive())return;if(tempFilePath)this.finish(tempFilePath);else this.setData({busy:false,error:'裁剪图片未生成，请重试。'})}
+const legacy=()=>{if(!wx.createCanvasContext)return this.setData({busy:false,error:'当前设备不支持裁剪，请更新微信。'});const c=wx.createCanvasContext('cropCanvas',this);c.clearRect(0,0,destWidth,destHeight);if(jpeg){c.setFillStyle('#fff');c.fillRect(0,0,destWidth,destHeight)}c.drawImage(source,sx,sy,sw,sh,0,0,destWidth,destHeight);c.draw(false,()=>wx.canvasToTempFilePath({canvasId:'cropCanvas',x:0,y:0,width:destWidth,height:destHeight,destWidth,destHeight,...format,success:done,fail:()=>this.setData({busy:false,error:'裁剪失败，请重试。'})},this))}
+try{const q=wx.createSelectorQuery?.().in(this);if(!q?.select)return legacy();q.select('#cropCanvas2d').fields({node:true}).exec(r=>{const c=r?.[0]?.node;if(!c?.getContext||!c.createImage)return legacy();c.width=destWidth;c.height=destHeight;const i=c.createImage();i.onerror=legacy;i.onload=()=>{if(!this.cropActive())return;const ctx=c.getContext('2d');if(jpeg){ctx.fillStyle='#fff';ctx.fillRect(0,0,destWidth,destHeight)}ctx.drawImage(i,sx,sy,sw,sh,0,0,destWidth,destHeight);setTimeout(()=>wx.canvasToTempFilePath({canvas:c,x:0,y:0,width:destWidth,height:destHeight,destWidth,destHeight,...format,success:done,fail:legacy},this),0)};i.src=source})}catch{legacy()}
 })
 },
 async finish(path) {
@@ -125,15 +159,16 @@ wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
 }
 if (returnInfo.route === 'coach-home') {
 const feature=['steps','answers'].includes(returnInfo.context?.feature)?returnInfo.context.feature:''
-try { path = await persistCoachPhoto(path, expected, { contextId: returnInfo.context?.contextId || 'stem-photo',feature,autoSubmitNonce:returnInfo.captureId }, { cancelled: () => !this.cropActive() }) } catch (error) { if(this.cropActive())this.setData({ busy: false, error: error.message || '图片尚未保存，请重试。' }); return }
+const contextId=String(returnInfo.context?.contextId||'stem-photo'),entryKey=String(returnInfo.context?.entryKey||'')
+const others=returnInfo.recrop?readCoachPhotoPaths(expected,contextId,entryKey).filter(p=>p!==this.data.src):[]
+try { path = (await persistCoachPhotos([path,...others].slice(0,2), expected, { contextId,entryKey,feature,autoSubmitNonce:returnInfo.recrop?'':returnInfo.captureId }, { cancelled: () => !this.cropActive() }))[0] } catch (error) { if(this.cropActive())this.setData({ busy: false, error: error.message || '图片尚未保存，请重试。' }); return }
 if (!this.cropActive()) { clearCoachPhoto(expected); return }
 this.clearOwnReturn()
 const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
 const index = pages.map((page) => page.route).lastIndexOf('pages/coach/index')
-const contextId=String(returnInfo.context?.contextId||'stem-photo')
 const routeContext=returnInfo.context?.routeContext||{}
 const source=contextId==='stem-photo'?'alevel':contextId
-const query=['source='+encodeURIComponent(source),feature?'feature='+feature:'',routeContext.category?'category='+encodeURIComponent(routeContext.category):'',routeContext.routeId?'routeId='+encodeURIComponent(routeContext.routeId):'',routeContext.stage?'stage='+encodeURIComponent(routeContext.stage):'',routeContext.subjectCode?'subjectCode='+encodeURIComponent(routeContext.subjectCode):''].filter(Boolean).join('&')
+const query=['source='+encodeURIComponent(source),feature?'feature='+feature:'',entryKey?'entry='+encodeURIComponent(entryKey):'',routeContext.category?'category='+encodeURIComponent(routeContext.category):'',routeContext.routeId?'routeId='+encodeURIComponent(routeContext.routeId):'',routeContext.stage?'stage='+encodeURIComponent(routeContext.stage):'',routeContext.subjectCode?'subjectCode='+encodeURIComponent(routeContext.subjectCode):''].filter(Boolean).join('&')
 const fallback = () => wx.redirectTo({ url: `/pages/coach/index?${query}` })
 if (index < 0) { fallback(); return }
 wx.navigateBack({ delta: pages.length - 1 - index, fail: fallback })
@@ -169,6 +204,6 @@ wx.redirectTo({ url: `/pages/stem/coach?src=${encodeURIComponent(path)}` })
 cancel() {
 this.__disposed=true
 this.clearOwnReturn()
-wx.navigateBack()
+wx.navigateBack({fail:()=>wx.reLaunch({url:'/pages/index/index'})})
 },
 })

@@ -29,4 +29,15 @@ function resizedCropSize(width, height, maximum = 1600) {
   return { width: Math.max(1, Math.round(sourceWidth * scale)), height: Math.max(1, Math.round(sourceHeight * scale)) }
 }
 
-module.exports = { computeCropRect, resizedCropSize }
+function moveCropSelection(box,dx,dy,corner,bounds){
+  const minWidth=Math.min(88,bounds.width),minHeight=Math.min(88,bounds.height)
+  if(corner==='move')return {...box,left:clamp(box.left+dx,0,bounds.width-box.width),top:clamp(box.top+dy,0,bounds.height-box.height)}
+  let left=box.left,top=box.top,right=left+box.width,bottom=top+box.height
+  if(corner.includes('w'))left=clamp(left+dx,0,right-minWidth)
+  if(corner.includes('e'))right=clamp(right+dx,left+minWidth,bounds.width)
+  if(corner.includes('n'))top=clamp(top+dy,0,bottom-minHeight)
+  if(corner.includes('s'))bottom=clamp(bottom+dy,top+minHeight,bounds.height)
+  return {left,top,width:right-left,height:bottom-top}
+}
+
+module.exports = { computeCropRect, resizedCropSize, moveCropSelection }

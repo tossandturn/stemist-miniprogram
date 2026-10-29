@@ -56,5 +56,11 @@ assert.match(fs.readFileSync(path.join(root,'pages/crop/crop.js'),'utf8'),/i\.on
 assert.match(fs.readFileSync(path.join(root,'pages/crop/crop.js'),'utf8'),/fileType:'png'/)
 assert.doesNotMatch(cropTemplate, /<movable-area[^>]*bindscale=/)
 assert.match(cropTemplate,/scale-min="0\.3"/)
-assert.match(fs.readFileSync(path.join(root,'pages/crop/crop.js'),'utf8'),/scale: 0\.68/)
+assert.match(fs.readFileSync(path.join(root,'pages/crop/crop.js'),'utf8'),/scale: 1/)
+const {moveCropSelection}=module.exports,box={left:30,top:40,width:200,height:220},bounds={width:390,height:440}
+assert.deepEqual(JSON.parse(JSON.stringify(moveCropSelection(box,40,60,'nw',bounds))),{left:70,top:100,width:160,height:160})
+assert.deepEqual(JSON.parse(JSON.stringify(moveCropSelection(box,500,500,'se',bounds))),{left:30,top:40,width:360,height:400})
+assert.equal(moveCropSelection(box,500,500,'nw',bounds).width,88,'corner touch regions cannot overlap')
+assert.deepEqual(JSON.parse(JSON.stringify(moveCropSelection(box,-500,600,'move',bounds))),{left:0,top:220,width:200,height:220})
+assert.match(cropTemplate,/catchtouchmove="onSelectionMove"/)
 console.log('Crop coordinate and aspect-ratio checks passed.')

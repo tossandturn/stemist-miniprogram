@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "Stemist · Crop evidence",
+  "navigationBarTitleText": "裁剪图片",
   "usingComponents": {
     "stemist-header": "/components/stemist-header/index",
     "ai-fab": "/components/ai-fab/index"

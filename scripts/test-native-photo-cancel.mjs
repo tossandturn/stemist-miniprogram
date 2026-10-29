@@ -18,5 +18,6 @@ stopped.storage.set('stemistCropReturn',a);const q=stopped.page('pages/crop/crop
 assert.equal(stopped.storage.has('stemistWritingPhoto'),false,'cancelled crop cannot publish a late image')
 const framed=miniRuntime({wx:{createSelectorQuery:()=>({in(){return this},select(){return this},boundingClientRect(){return this},exec(fn){fn([{width:400,height:440}])}})}})
 const frame=framed.page('pages/crop/crop');frame.onLoad({src:'/camera/a.jpg'});frame.onReady()
-assert.equal(frame.data.x,64);assert.equal(frame.data.y,70.4);assert.equal(frame.data.scale,0.68,'initial photograph is centred wholly inside the crop frame')
+assert.equal(frame.data.x,0);assert.equal(frame.data.y,0);assert.equal(frame.data.scale,1,'initial photograph is fitted wholly inside the adjustable crop frame')
+assert.equal(frame.data.selection.width,400);assert.equal(frame.data.selection.height,440)
 console.log('Native photo lifecycle: cancelled camera/crop cannot navigate late; captured question binding and fallback routes remain exact.')

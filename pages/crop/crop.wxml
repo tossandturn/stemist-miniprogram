@@ -1,15 +1,23 @@
 <view class="page {{deviceClass}} {{orientation}} crop-page">
-  <stemist-header eyebrow="STEMIST · EVIDENCE" title="裁剪照片"  action-text="取消" bind:action="cancel" />
-  <view class="crop-intro">拖动、缩放，让题目与答案留在框内。</view>
+  <stemist-header title="裁剪图片" action-text="取消" bind:action="cancel" />
+  <view class="crop-intro">拖动四角框选题目，框内可移动选区。</view>
   <movable-area class="crop-stage" scale-area="true">
     <movable-view wx:for="{{frameInstances}}" wx:key="id" class="crop-content" direction="all" x="{{x}}" y="{{y}}" scale="{{true}}" scale-value="{{scale}}" scale-min="0.3" scale-max="3" out-of-bounds="{{false}}" inertia="{{false}}" animation="{{false}}" disabled="{{busy}}" bindchange="onMove" bindscale="onScale" bindtouchstart="onGestureStart" catch:htouchmove="holdGesture" catch:vtouchmove="holdGesture">
       <image class="crop-image" src="{{src}}" mode="aspectFit" />
     </movable-view>
-    <view class="crop-box" aria-label="裁剪区域"></view>
+    <view wx:if="{{selection}}" class="crop-box" style="left:{{selection.left}}px;top:{{selection.top}}px;width:{{selection.width}}px;height:{{selection.height}}px;" data-corner="move" catchtouchstart="onSelectionStart" catchtouchmove="onSelectionMove" catchtouchend="onSelectionEnd" catchtouchcancel="onSelectionEnd" aria-label="拖动选区，调整保留的图片范围">
+      <view wx:for="{{['nw','ne','sw','se']}}" wx:key="*this" class="crop-handle {{item}}" data-corner="{{item}}" catchtouchstart="onSelectionStart" catchtouchmove="onSelectionMove" catchtouchend="onSelectionEnd" catchtouchcancel="onSelectionEnd" aria-label="拖动裁剪角点" />
+    </view>
   </movable-area>
-  <button class="text-button crop-reset" bindtap="resetFrame" disabled="{{busy}}">恢复整张照片</button>
-  <button class="primary" bindtap="confirm" loading="{{busy}}" disabled="{{busy || !src}}">使用裁剪后的照片</button>
-  <button class="secondary" bindtap="cancel">取消</button>
+  <view class="crop-tools">
+    <button class="secondary" data-delta="-0.2" bindtap="zoomFrame" disabled="{{busy || !src}}">缩小</button>
+    <button class="text-button crop-reset" bindtap="resetFrame" disabled="{{busy}}">恢复整张</button>
+    <button class="secondary" data-delta="0.2" bindtap="zoomFrame" disabled="{{busy || !src}}">放大</button>
+  </view>
+  <view class="crop-actions">
+    <button class="secondary" bindtap="cancel">取消</button>
+    <button class="primary" bindtap="confirm" loading="{{busy}}" disabled="{{busy || !src || !selection}}">使用选区</button>
+  </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
   <canvas type="2d" id="cropCanvas2d" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
   <canvas canvas-id="cropCanvas" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />

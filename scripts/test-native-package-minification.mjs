@@ -241,6 +241,8 @@ try {
   for(const suite of chapterSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
   const examSuites=['test-native-exam-catalog.mjs','test-native-exam-page.mjs','test-native-flow-contracts.mjs','test-writing-source-guard.mjs','test-native-bootstrap.mjs','test-native-content-loading.mjs']
   for(const suite of examSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
+  const cropSuites=['test-coach-recrop.mjs','test-crop-gesture-stability.mjs','test-crop-export.mjs','test-native-photo-cancel.mjs','test-camera-lifecycle.mjs','test-native-paper.mjs']
+  for(const suite of cropSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
 
   assert.equal(check.mainPackageBytes, firstReceipt.mainPackage.bytes)
   assert.equal(check.mainPackageHeadroom, firstReceipt.mainPackage.headroom)
@@ -259,6 +261,7 @@ try {
     packagedPdfSuites: pdfSuites.length,
     packagedChapterSuites: chapterSuites.length,
     packagedExamSuites: examSuites.length,
+    packagedCropSuites: cropSuites.length,
   }))
 } finally {
   for (const [relative, before] of Object.entries(protectedBefore)) {

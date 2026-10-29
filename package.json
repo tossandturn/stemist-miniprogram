@@ -36,7 +36,7 @@
     "test:attempt-sync": "node scripts/test-attempt-sync.mjs",
     "test:stem-coach-page": "node scripts/test-stem-coach-page.mjs",
     "test:route-mirror": "node scripts/test-route-mirror.mjs",
-    "test:image": "node scripts/test-image-pipeline.mjs",
+    "test:image": "node scripts/test-image-pipeline.mjs && node scripts/test-coach-recrop.mjs",
     "test:pages": "node scripts/test-page-contract.mjs",
     "test:wechat": "node scripts/test-wechat-compile.mjs",
     "test:navigation-shell": "node scripts/test-navigation-shell.mjs",

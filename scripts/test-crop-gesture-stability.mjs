@@ -18,7 +18,8 @@ page.resetFrame=reset
 page.resetFrame();page.onGestureStart();measure([{width:390,height:440}])
 assert.equal(writes.filter(p=>'x' in p||'scale' in p).length,0,'Late initial measurement must not override a started gesture')
 page.resetFrame();measure([{width:390,height:440}])
-assert.equal(page.data.scale,0.68);assert.equal(page.data.x,62.4)
+assert.equal(page.data.scale,1);assert.equal(page.data.x,0)
+assert.deepEqual(JSON.parse(JSON.stringify(page.data.selection)),{left:0,top:0,width:390,height:440},'reset exposes the whole source rather than pre-cropping student evidence')
 const first=page.data.frameInstances[0].id
 page.resetFrame();measure([{width:390,height:440}])
 assert.notEqual(page.data.frameInstances[0].id,first,'Explicit reset must reach native view even if bound command coordinates are unchanged')

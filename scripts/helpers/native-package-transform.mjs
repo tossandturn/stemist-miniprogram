@@ -11,6 +11,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
+    id: 'esbuild-crop-recovery-compact-v1',
+    paths: Object.freeze(['pages/crop/crop.js','pages/coach/index.js','utils/crop.js','pages/stem/camera.js','pages/stem/paper.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-academic-identifiers-v1',
     paths: Object.freeze(['utils/academicAnswer.js', 'utils/nativeMath.js','utils/nativeAnswer.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
