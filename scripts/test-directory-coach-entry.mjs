@@ -19,6 +19,8 @@ const page=runtime.page('bundles/coach/admissions');page.onLoad({directoryEntry:
 assert.equal(page.data.directoryEntry.title,university.nameZh)
 assert.match(page.data.message,/合成大学/);assert.match(page.data.message,/https:\/\/www.synthetic.edu/);assert.match(page.data.message,/2027/)
 assert.match(page.data.message,/未.*核验|不编造|待核实/);assert.equal(sends,0)
+assert.match(page.data.message,/按学校.*学院.*专业/,'unverified application mechanism must not be invented')
+assert.match(page.data.message,/网址.*不是.*网页正文/,'a link is not proof the model read the policy')
 assert.equal(receiver.consumeDirectoryEntry(first),null,'consumed once')
 page.onHide();page.onUnload()
 

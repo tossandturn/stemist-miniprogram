@@ -13,10 +13,10 @@ function directoryQuestion({kind,entity,ranking}){
   const english=value(entity.nameEn),country=value(entity.country,100),rank=value(entity.rankLabel,12),label=value(ranking?.label,140),year=ranking?.editionYear,source=safeHttpsUrl(ranking?.sourceUrl)
   if(!Number.isInteger(year)||year<2000||year>2100||!source)throw Error('榜单资料无效，请刷新目录。')
   subtitle=`${country} · ${label} ${year} · ${rank}`
-  prompt=`我想了解 ${title}（${english}）的国际本科申请。\n参考榜单：${label} ${year}，名次 ${rank}；${country}。\n学校官网：${officialUrl}\n榜单来源：${source}\n请围绕这所学校，先了解我的申请年份、课程体系和目标专业，再帮我梳理成绩、语言及活动/项目准备。区分官方要求、待核实信息和 AI 建议；不编造 A-Level、IB、AP 分数门槛、截止日期或录取概率，排名不是录取线。没有实时核验官网时请明确说明。`
+  prompt=`我想了解 ${title}（${english}）的国际本科申请。\n参考榜单：${label} ${year}，名次 ${rank}；${country}。\n学校官网：${officialUrl}\n榜单来源：${source}\n首轮请简短确认这所学校，只询问我的申请年份、课程体系和目标专业这三项，等我回复再展开。目标专业用于了解兴趣，不代表该校按专业招生。上面的网址不是已读取的网页正文；按学校、学院还是专业申请、本科与研究生申请机制、考试与语言政策都须有官方材料依据，未核实就标待核实，不要顺带断言。后续帮我梳理成绩、语言及活动/项目准备，区分官方要求、待核实信息和 AI 建议；不编造 A-Level、IB、AP 分数门槛、截止日期或录取概率，排名不是录取线。`
  }else{
   subtitle=value(entity.organization,120)
-  prompt=`我想了解 ${title} 课程体系（${subtitle}）。\n课程官网：${officialUrl}\n请先了解我目前的年级、已学课程以及目标地区/专业，再介绍课程结构、选课衔接、考核方式和升学准备。把课程考试规则与大学录取要求分开，区分官方说明、待核实信息和 AI 建议；不编造具体分数线、科目要求或截止日期，没有实时核验官网时请明确说明。`
+  prompt=`我想了解 ${title} 课程体系（${subtitle}）。\n课程官网：${officialUrl}\n首轮请简短确认课程，只询问我目前的年级、已学课程以及目标地区/专业这三项，等我回复再展开课程结构、选课衔接、考核方式和升学准备。上面的网址不是已读取的网页正文；把课程考试规则与大学录取要求分开，区分官方说明、待核实信息和 AI 建议，不编造具体分数线、科目要求或截止日期，没有实时核验官网时请明确说明。`
  }
  return{kind,id,title,subtitle,officialUrl,prompt}
 }

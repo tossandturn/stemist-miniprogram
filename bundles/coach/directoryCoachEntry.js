@@ -5,7 +5,7 @@ const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest')
 const epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 const text=(v,max)=>typeof v==='string'&&v.trim()===v&&v.length>0&&v.length<=max&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u202a-\u202e\u2066-\u2069]/.test(v)
 const publicUrl=v=>text(v,1000)&&/^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,63}(?:\/[^\s?#\\]*)?$/.test(v)&&!v.includes('/../')&&!/\.(?:local|internal|invalid|test|example|onion)(?:\/|$)/.test(v)
-function validEntry(entry){return entry&&['university','course'].includes(entry.kind)&&text(entry.id,100)&&text(entry.title,180)&&text(entry.subtitle,400)&&publicUrl(entry.officialUrl)&&text(entry.prompt,3000)&&entry.prompt.includes(entry.title)&&entry.prompt.includes(entry.officialUrl)}
+function validEntry(entry){return entry&&['university','course'].includes(entry.kind)&&text(entry.id,100)&&text(entry.title,180)&&text(entry.subtitle,400)&&publicUrl(entry.officialUrl)&&text(entry.prompt,6000)&&entry.prompt.includes(entry.title)&&entry.prompt.includes(entry.officialUrl)}
 function consumeDirectoryEntry(nonce){
  if(typeof nonce!=='string'||!/^[a-z0-9-]{8,70}$/.test(nonce))return null
  try{
@@ -63,6 +63,7 @@ function withDirectoryCoachEntry(base){
   },
   copyDirectoryOfficial(){if(this.current()&&this.data.directoryEntry)wx.setClipboardData({data:this.data.directoryEntry.officialUrl})},
   submit(){
+   if(!this.current())return Promise.resolve()
    if(this.data.directoryEntryPending){this.setData({directoryEntryNote:'请先选择“使用这份提问”或“保留当前草稿”，避免把上一所学校的问题发出去。'});return Promise.resolve()}
    return base.submit.call(this)
   },
