@@ -59,7 +59,7 @@ async function fetchCatalog(){
    const local=readPending()
    if(recovery.orderId){
     const same=local?.idempotencyKey===recovery.idempotencyKey&&local?.orderId===recovery.orderId,state=same&&['canceled','launched','submitted','unknown'].includes(local.paymentAttemptState)?local.paymentAttemptState:'unknown'
-    rememberPending({...recovery,paymentAttemptState:state});resumeCanceled=state==='canceled';canaryCanStart=resumeCanceled
+    rememberPending({...recovery,paymentAttemptState:state});canaryCanStart=false
    }else{
     const unsafe=Boolean(local?.orderId)||['launched','submitted','unknown'].includes(local?.paymentAttemptState)
     if(!unsafe)rememberPending({...recovery,paymentAttemptState:'not_started'})
@@ -72,8 +72,7 @@ async function fetchCatalog(){
  const reasonAllows=serverReason==='testbuyer_canary'||serverReason==='testbuyer_canary_recovery_required'&&Boolean(canary?.recovery)
  const canaryReady=authenticated&&canaryCanStart&&Number.isFinite(expires)&&expires>Date.now()&&expires-Date.now()<=MAX_CANARY_MS&&reasonAllows
  const normalReady=authenticated&&source==null&&value.commerce.canary===null&&serverReason==='ready'
- const pending=normalReady?readPending():null,normalCanStart=normalReady&&!['launched','submitted','unknown'].includes(pending?.paymentAttemptState)
- if(normalReady&&pending?.orderId&&pending.paymentAttemptState==='canceled')resumeCanceled=true
+ const pending=normalReady?readPending():null,normalCanStart=normalReady&&!pending?.orderId&&!['launched','submitted','unknown','canceled'].includes(pending?.paymentAttemptState)
  const checkoutEnabled=Boolean(serverEnabled&&(normalCanStart||canaryReady)&&available)
  const reason=checkoutEnabled?'ready':serverEnabled&&!capability.available?capability.reason:serverEnabled&&!providerReady?'platform_unavailable':normalReady&&!normalCanStart?'testbuyer_canary_recovery_required':serverReason
  return{protocol:PROTOCOL,plan:validatedPlan,commerce:{checkoutEnabled,reason,platform,providers,canary,resumeCanceled:checkoutEnabled&&resumeCanceled},enforcement:{enabled:value.enforcement.enabled,appliesToExistingUsers:true}}
@@ -93,12 +92,12 @@ async function invokePayment(checkout,plan){
  if(input.mode!=='short_series_goods'||input.signData.length>4096||!/^[a-f0-9]{64}$/i.test(input.paySig||'')||!/^[a-f0-9]{64}$/i.test(input.signature||'')||signed.outTradeNo!==order.id||signed.goodsPrice!==order.priceFen||signed.buyQuantity!==1||signed.currencyType!=='CNY'||signed.env!==0||typeof signed.productId!=='string'||!signed.productId||!signed.offerId)throw failure('支付参数与订单不一致，请刷新订单。')
  if(typeof wx.requestVirtualPayment!=='function')throw failure('当前微信版本暂不能使用此支付通道，请更新微信后重试。','payment_unsupported')
  assertContext(expected)
- const pending=readPending();if(pending?.orderId!==order.id||pending.idempotencyKey===''||!['not_started','canceled'].includes(pending.paymentAttemptState))throw failure('该订单正在确认，请勿重复发起支付。','payment_confirmation_pending')
+ const pending=readPending();if(pending?.orderId!==order.id||pending.idempotencyKey===''||pending.paymentAttemptState!=='not_started')throw failure('该订单正在确认，请勿重复发起支付。','payment_confirmation_pending')
  rememberPending({...pending,paymentAttemptState:'launched'})
  const mark=state=>{assertContext(expected);const current=readPending();if(current?.orderId===order.id&&current.idempotencyKey===pending.idempotencyKey)rememberPending({...current,paymentAttemptState:state})}
  return new Promise((resolve,reject)=>wx.requestVirtualPayment({mode:input.mode,signData:input.signData,paySig:input.paySig,signature:input.signature,
   success(){try{mark('submitted');resolve({submitted:true})}catch(error){reject(error)}},
-  fail(result){try{assertContext(expected)}catch(error){reject(error);return}const canceled=/cancel|取消/i.test(String(result?.errMsg||''));try{mark(canceled?'canceled':'unknown')}catch(error){reject(error);return}reject(failure(canceled?'已取消支付，可继续支付原订单。':'支付结果待确认，请查看订单，勿重复付款。',canceled?'payment_canceled':'payment_unconfirmed'))},
+  fail(result){try{assertContext(expected)}catch(error){reject(error);return}const canceled=Number(result?.errCode)===-2||/cancel|取消/i.test(String(result?.errMsg||''));try{mark(canceled?'canceled':'unknown')}catch(error){reject(error);return}reject(failure(canceled?'已取消支付，确认旧订单关闭后可重新开通。':'支付结果待确认，请查看订单，勿重复付款。',canceled?'payment_canceled':'payment_unconfirmed'))},
  }))
 }
 const pendingKey=()=> 'stemistMembershipPending:'+encodeURIComponent(context().owner)+(devicePlatform()==='android'?'':':'+devicePlatform())

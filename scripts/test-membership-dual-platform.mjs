@@ -41,7 +41,7 @@ for(const platformCanaries of [undefined,{}]){
 for(const platform of ['android','ios']){
  const f=fixture({platform});f.reply(f.catalog({checkoutEnabled:true,reason:'ready',platformCanaries:{}}))
  f.service.rememberPending({idempotencyKey:'production-resume-key',orderId,paymentAttemptState:'canceled'})
- assert.equal((await f.service.fetchCatalog()).commerce.resumeCanceled,true,'Production cancellation must resume the same order too')
+ assert.equal((await f.service.fetchCatalog()).commerce.resumeCanceled,false,'Cancellation never permits reuse of the WeChat trade number')
  f.service.rememberPending({idempotencyKey:'production-resume-key',orderId,paymentAttemptState:'unknown'})
  const uncertain=await f.service.fetchCatalog();assert.equal(uncertain.commerce.checkoutEnabled,false);assert.equal(uncertain.commerce.resumeCanceled,false)
  f.runtime.storage.delete('stemistSessionToken')
@@ -102,7 +102,7 @@ assert.equal(restored.commerce.checkoutEnabled,false,'A recovered order without 
 assert.equal(recovery.service.readPending().paymentAttemptState,'unknown')
 assert.equal(recovery.invocations(),0)
 recovery.service.rememberPending({idempotencyKey:'ios-recovered-key',orderId,paymentAttemptState:'canceled'})
-assert.equal((await recovery.service.fetchCatalog()).commerce.resumeCanceled,true)
+assert.equal((await recovery.service.fetchCatalog()).commerce.resumeCanceled,false)
 recovery.runtime.storage.delete('stemistUser');recovery.runtime.storage.delete('stemistSessionToken')
 assert.equal((await recovery.service.fetchCatalog()).commerce.checkoutEnabled,false,'A public response cannot grant test eligibility')
 

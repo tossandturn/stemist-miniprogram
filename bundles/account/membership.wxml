@@ -27,7 +27,7 @@
           <label class="consent-label"><checkbox value="confirm" checked="{{consent}}" disabled="{{busy}}" color="#7357e8" /><text>确认以 ¥{{plan.priceLabel}} 购买 30 天会员，非自动续费；体验测试也可能真实扣款。</text></label>
         </checkbox-group>
         <button wx:if="{{!loggedIn}}" class="primary member-cta" bindtap="login" disabled="{{loading}}">登录查看会员</button>
-        <button wx:else class="primary member-cta" bindtap="purchase" loading="{{busy}}" disabled="{{loading || busy || !checkoutEnabled || !consent || phase === 'confirming'}}">{{!checkoutEnabled ? checkoutLabel : busy ? '正在处理…' : pendingOrderId ? (phase === 'canceled' ? '继续支付同一原订单' : '订单确认中') : entitlement && entitlement.active ? '续费 30 天' : '开通全功能会员'}}</button>
+        <button wx:else class="primary member-cta" bindtap="purchase" loading="{{busy}}" disabled="{{loading || busy || !checkoutEnabled || !consent || phase === 'confirming'}}">{{!checkoutEnabled ? checkoutLabel : busy ? '正在处理…' : pendingOrderId ? '核验原订单' : entitlement && entitlement.active ? '续费 30 天' : '开通全功能会员'}}</button>
         <view wx:if="{{phase === 'creating' || phase === 'paying' || phase === 'confirming'}}" class="member-progress" role="status"><view class="member-dot"></view><text>{{phase === 'creating' ? '正在准备原订单' : phase === 'paying' ? '等待本人确认微信支付' : '正在等待服务端确认'}}</text></view>
         <view wx:if="{{notice}}" class="member-notice {{phase === 'success' ? 'member-success' : ''}}" role="status">{{notice}}</view>
         <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>

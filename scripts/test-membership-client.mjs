@@ -34,13 +34,13 @@ assert.equal((await service.fetchStatus()).userId,'ielts:42','Canonical copy ide
 reply={...reply,userId:'42'}
 await assert.rejects(service.fetchStatus(),/账号/,'Non-canonical numeric status ID is never accepted for test-buyer copy')
 
-// Exact owner/key/order cancellation recovery may resume the same order only.
+// Exact owner/key/order cancellation recovery stays query-only until closure.
 const recovery={idempotencyKey:'canary-same-order-key',orderId}
 service.rememberPending({...recovery,paymentAttemptState:'canceled'})
 reply=catalog({checkoutEnabled:true,reason:'testbuyer_canary_recovery_required',providers:[provider],canary:canary(recovery)})
 loaded=await service.fetchCatalog()
-assert.equal(loaded.commerce.checkoutEnabled,true)
-assert.equal(loaded.commerce.resumeCanceled,true)
+assert.equal(loaded.commerce.checkoutEnabled,false)
+assert.equal(loaded.commerce.resumeCanceled,false)
 assert.equal(service.readPending().paymentAttemptState,'canceled')
 assert.equal(runtime.storage.get('stemistMembershipPending:ielts%3A42').epoch,0,'Recovery pointer is privacy-epoch bound')
 runtime.storage.set('stemistPrivacyEpoch',1)
@@ -89,7 +89,7 @@ reply={protocol,userId:'ielts:42',order:{...order,status:'fulfilled'}}
 const unconfirmedFulfilled=await service.createOrder({idempotencyKey:recovery.idempotencyKey,wxCode:'fresh-code-unconfirmed',platform:'android'})
 assert.equal(unconfirmedFulfilled.entitlement,null,'Missing fulfilled entitlement remains explicitly unconfirmed for page reconciliation')
 reply={protocol,userId:'ielts:42',order,payment:{provider:'wechat_virtual',parameters:{mode:'short_series_goods',signData:JSON.stringify({offerId:'fixture-offer',buyQuantity:1,env:0,currencyType:'CNY',productId:plan.id,goodsPrice:2880,outTradeNo:orderId}),paySig:'a'.repeat(64),signature:'b'.repeat(64)}}}
-service.rememberPending({...recovery,paymentAttemptState:'canceled'})
+service.rememberPending({...recovery,paymentAttemptState:'not_started'})
 await service.invokePayment(checkout,plan)
 assert.equal(virtualCalls,1)
 assert.equal(service.readPending().paymentAttemptState,'submitted')
@@ -103,14 +103,14 @@ service.rememberPending({...recovery,paymentAttemptState:'not_started'})
 await assert.rejects(service.invokePayment(checkout,plan),/取消/)
 assert.equal(service.readPending().paymentAttemptState,'canceled')
 virtualResult='success'
-await service.invokePayment(checkout,plan)
-assert.equal(virtualCalls,3,'Explicit cancellation retries only the same checkout once')
+await assert.rejects(service.invokePayment(checkout,plan),/确认/)
+assert.equal(virtualCalls,2,'Explicit cancellation must not invoke the used trade number again')
 
 virtualResult='requestVirtualPayment:fail network'
 service.rememberPending({...recovery,paymentAttemptState:'not_started'})
 await assert.rejects(service.invokePayment(checkout,plan),/确认/)
 assert.equal(service.readPending().paymentAttemptState,'unknown')
 await assert.rejects(service.invokePayment(checkout,plan),/确认/)
-assert.equal(virtualCalls,4,'Unknown native outcome never opens another payment sheet')
+assert.equal(virtualCalls,3,'Unknown native outcome never opens another payment sheet')
 
 console.log('Membership client: canonical owner, trusted plan, exact canceled recovery, payload, native callback and storage boundaries PASS')
