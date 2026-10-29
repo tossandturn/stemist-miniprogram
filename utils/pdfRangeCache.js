@@ -3,7 +3,7 @@ const REGISTRY='stemistPdfRanges',KiB=1024,PROBE=256*KiB,START_CHUNK=256*KiB,MIN
 const PDF_CACHE_LIMITS=Object.freeze({files:MAX_FILES,bytes:MAX_BYTES})
 const activePdfFiles=new WeakMap()
 const globalPdfRequests=new WeakMap()
-const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/(?:file-[a-f0-9]{24}(?:[a-f0-9]{8}|-[a-f0-9]{16})|(?:ap|ib)-[A-Za-z0-9][A-Za-z0-9._-]{0,195})|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
+const URL_OK=/^https:\/\/stem\.ieltsist\.com\/(?:api\/stem\/curriculum-papers\/files\/(?:file-[a-f0-9]{24}(?:[a-f0-9]{8}|-[a-f0-9]{16})|(?:ap|ib)-[A-Za-z0-9][A-Za-z0-9._-]{0,195})|api\/stem\/ielts-papers\/files\/ielts-cam[0-9]+-[a-z0-9-]+-(?:qp|ak)|local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf)$/i
 const header=(h,n)=>{const k=Object.keys(h||{}).find(k=>k.toLowerCase()===n.toLowerCase());return k===undefined?'':String(h[k]).trim()}
 const bytes=d=>Object.prototype.toString.call(d)==='[object ArrayBuffer]'?new Uint8Array(d):ArrayBuffer.isView(d)?new Uint8Array(d.buffer,d.byteOffset,d.byteLength):null
 const binary=d=>d.byteOffset===0&&d.byteLength===d.buffer.byteLength?d.buffer:d.buffer.slice(d.byteOffset,d.byteOffset+d.byteLength)
@@ -14,7 +14,7 @@ function storageFailure(operation,error){
 }
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
 const contentRange=s=>{const m=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(s);if(!m)return null;const n=m.slice(1).map(Number);return n.every(Number.isSafeInteger)?{start:n[0],end:n[1],total:n[2]}:null}
-function pdfAccessHeaders(url,token){return /^https:\/\/stem\.ieltsist\.com\/(?:local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf|api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,199})$/i.test(url)&&!/\.\.|%2e|%2f|%5c/i.test(url)&&typeof token==='string'&&/^[A-Za-z0-9._-]{1,4096}$/.test(token)?{Authorization:'Bearer '+token}:{}}
+function pdfAccessHeaders(url,token){return /^https:\/\/stem\.ieltsist\.com\/(?:local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf|api\/stem\/ielts-papers\/files\/ielts-cam[0-9]+-[a-z0-9-]+-(?:qp|ak)|api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,199})$/i.test(url)&&!/\.\.|%2e|%2f|%5c/i.test(url)&&typeof token==='string'&&/^[A-Za-z0-9._-]{1,4096}$/.test(token)?{Authorization:'Bearer '+token}:{}}
 function pdfAccessError(status,headers){
  const code=header(headers,'x-pdf-access-code')
  if(Number(status)===401)return problem('pdf_auth_required','请登录后继续下载，已保存进度不会丢失。')
