@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.72",
+  "highestAssignedVersion": "1.0.73",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -26,6 +26,20 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.73",
+      "assignedOn": "2026-10-30",
+      "uploadConfirmedAt": "2026-10-29T19:43:50.671Z",
+      "commit": "7260844be5684a90335bf0d5f7d3ee3e93e2cf7a",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.73-ready",
+      "officialInfo": "D:/CodexWork/coach-crop-20261030/wechat-upload-receipt.json",
+      "runtimeManifestSha256": "7ba1f191b14a55b056bb8be1aabcc26b52b26951b63fa776c52c6862d681757d",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false,
+      "nativeCropAcceptance": "D:/CodexWork/coach-crop-20261030/verification.json"
+    },
     {
       "version": "1.0.72",
       "assignedOn": "2026-10-30",
