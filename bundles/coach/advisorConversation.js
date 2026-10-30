@@ -1,4 +1,5 @@
 const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
+const {coachEffortTimeout}=require('../../utils/coachEffort')
 const {createCoachStream}=require('./responseStream')
 const {normalizeTavernEnvelope,newClientTurnId}=require('./tavernConversation')
 
@@ -63,18 +64,18 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
   if(result?.deleted!==true||result.conversationId!==value)throw fail(text.invalidDelete)
   return result
  }
- async function send({message,conversationId,clientTurnId,expectedRevision,onPartial=()=>{},onStage=()=>{},onCancelReady=()=>{}}={}){
+ async function send({message,conversationId,clientTurnId,expectedRevision,reasoningEffort,onPartial=()=>{},onStage=()=>{},onCancelReady=()=>{}}={}){
   if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw fail(text.invalidRevision)
-  const body={message:cleanMessage(message),conversationId:id(conversationId),clientTurnId:id(clientTurnId),expectedRevision},current=identity()
+  const body={message:cleanMessage(message),conversationId:id(conversationId),clientTurnId:id(clientTurnId),expectedRevision,...(reasoningEffort!==undefined?{reasoningEffort}:{})},current=identity(),timeout=coachEffortTimeout(reasoningEffort,COACH_TEXT_TIMEOUT_MS||55000)
   return new Promise((resolve,reject)=>{
    let closed=false,task=null,timer=null,stream=null
    const abort=()=>{try{task?.abort()}catch{}}
    const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);if(settle===reject&&!['account_changed','auth_required','request_cancelled'].includes(value?.code)&&Number(value?.statusCode)!==401)value.partialAnswer=value.partialAnswer||stream?.partial?.()||'';stream?.close?.();settle(value)}
    const guarded=(callback,value)=>{if(closed)return;try{current();callback(value)}catch(error){finish(reject,safeError(error));abort()}}
    stream=createCoachStream({onPreview:value=>guarded(onPartial,value),onMeta:()=>guarded(onStage,'analysis')})
-   timer=setTimeout(()=>{finish(reject,fail(text.timeout,'network_timeout'));abort()},COACH_TEXT_TIMEOUT_MS||55000)
+   timer=setTimeout(()=>{finish(reject,fail(text.timeout,'network_timeout'));abort()},timeout)
    try{onCancelReady(()=>{finish(reject,fail(text.cancelled,'request_cancelled'));abort()})}catch(error){finish(reject,safeError(error));return}
-   Promise.resolve().then(()=>requestJson(streamPath,body,{timeout:COACH_TEXT_TIMEOUT_MS||55000,stream,streamCurrent:current,isCancelled:()=>closed,onTask:value=>{task=value},onDispatched:()=>guarded(onStage,'calling')})).then(result=>{
+   Promise.resolve().then(()=>requestJson(streamPath,body,{timeout,stream,streamCurrent:current,isCancelled:()=>closed,onTask:value=>{task=value},onDispatched:()=>guarded(onStage,'calling')})).then(result=>{
     try{
      current()
      if(result?.mode!=='ai'||result.providerStatus!=='connected'||result.partial===true||result.answerStatus==='partial'){const partialAnswer=String(result?.answer||'').trim();throw Object.assign(fail(text.incomplete,result?.code||code('incomplete')),{statusCode:Number(result?.statusCode)||0,...receiptFields(result),...(partialAnswer?{partialAnswer}:{})})}

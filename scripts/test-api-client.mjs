@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
@@ -17,7 +18,7 @@ const wx = {
 const module = { exports: {} }
 let sessionCleanupOptions
 let jobPayload
-const fakeRequire = (name) => name === './ieltsLearning' ? {requestIeltsLearning:(...args)=>module.exports.requestIeltsJson(...args)} : name === './nativeSession' ? {captureNativeCookie(){},refreshNativeSession:async()=>{}} : name === './session' ? { clearLocalSession: (options) => {
+const fakeRequire = (name) => name === './coachEffort' ? miniRuntime().load('utils/coachEffort') : name === './ieltsLearning' ? {requestIeltsLearning:(...args)=>module.exports.requestIeltsJson(...args)} : name === './nativeSession' ? {captureNativeCookie(){},refreshNativeSession:async()=>{}} : name === './session' ? { clearLocalSession: (options) => {
   sessionCleanupOptions = options
   delete storage.stemistSessionToken
   delete storage.stemistUser

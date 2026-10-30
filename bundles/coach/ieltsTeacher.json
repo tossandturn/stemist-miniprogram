@@ -1,1 +1,7 @@
-{"navigationBarTitleText":"雅思老师","usingComponents":{"answer-content":"/components/answer-content/index"}}
+{
+  "navigationBarTitleText": "雅思老师",
+  "usingComponents": {
+    "answer-content": "/components/answer-content/index",
+    "coach-effort": "/components/coach-effort/index"
+  }
+}

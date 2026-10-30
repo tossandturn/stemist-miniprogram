@@ -4,6 +4,7 @@
     <view class="advisor-heading"><text class="advisor-title">雅思老师</text><text class="advisor-subtitle">AI 老师 · 规划、讲解与文字练习</text></view>
     <button class="quiet-button" bindtap="requestClear" disabled="{{loading || historyLoading || authRequired}}">{{clearPending ? '重试清空' : '清空'}}</button>
   </view>
+  <coach-effort effort="{{pendingEffort}}" locked="{{effortLocked}}" disabled="{{loading || historyLoading || clearPending}}" compact="{{true}}" />
   <scroll-view class="chat-list" scroll-y="true" scroll-top="{{chatScrollTop}}" enhanced="true" show-scrollbar="false" bindtap="dismissComposerKeyboard" aria-label="雅思老师对话">
     <view class="chat-inner">
       <view class="history-actions"><button wx:if="{{historyBrowsing || error}}" class="quiet-button" bindtap="returnLatestHistory" disabled="{{loading || historyLoading || authRequired || clearPending}}">刷新最新</button><button wx:if="{{hasOlderHistory}}" class="quiet-button" bindtap="loadOlderHistory" disabled="{{loading || historyLoading || clearPending}}">更早记录</button></view>

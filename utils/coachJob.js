@@ -25,7 +25,7 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
   let closed=false,task=null,timer=null,wake=null,partial='',errors=0
   const finish=(fn,value)=>{if(closed)return;closed=true;clearTimeout(limit);clearTimeout(timer);wake?.();wake=null;timing.totalMs=elapsed();if(value&&typeof value==='object'){if(value instanceof Error)value.clientTiming={...timing};else value={...value,clientTiming:{...timing}}}fn(value)}
   const cancel=()=>{finish(reject,error('已暂停接收，重新提交同一道题可取回答案。','request_cancelled'));try{task?.abort()}catch{}}
-  const limit=setTimeout(()=>{let e;try{current();e=error('连接暂时不稳定，任务编号已保存。点击重试可取回原答疑结果。','coach_job_pending');e.partialAnswer=stableAnswer(partial)}catch(changed){e=changed}finish(reject,e);try{task?.abort()}catch{}},WAIT)
+  const limit=setTimeout(()=>{let e;try{current();e=error('连接暂时不稳定，任务编号已保存。点击重试可取回原答疑结果。','coach_job_pending');e.partialAnswer=stableAnswer(partial)}catch(changed){e=changed}finish(reject,e);try{task?.abort()}catch{}},['high','max'].includes(payload.reasoningEffort)?180000:WAIT)
   onCancelReady?.(cancel)
   const stage=s=>{if(!closed){current();onStage?.(s)}}
   const pause=ms=>new Promise(r=>{wake=r;timer=setTimeout(()=>{wake=null;r()},ms)})

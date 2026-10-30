@@ -1,1 +1,7 @@
-{"navigationBarTitleText":"留学申请顾问","usingComponents":{"answer-content":"/components/answer-content/index"}}
+{
+  "navigationBarTitleText": "留学申请顾问",
+  "usingComponents": {
+    "answer-content": "/components/answer-content/index",
+    "coach-effort": "/components/coach-effort/index"
+  }
+}

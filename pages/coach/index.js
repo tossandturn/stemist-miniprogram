@@ -1,6 +1,7 @@
 const { deviceState, syncDevice, readDraft, writeDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
 const {coachHelpPolicy,normalizeCoachFeature,normalizeHelpIntent,runCoach}=require('../../utils/coach')
 const { isAuthError } = require('../../utils/api')
+const {readCoachEffort}=require('../../utils/coachEffort')
 const {requestIeltsLearning}=require('../../utils/ieltsLearning')
 const {takeCoachEntry,focusPassage}=require('../../utils/coachEntry')
 const {loadCaptions}=require('../../utils/nativeCaptions')
@@ -24,6 +25,7 @@ const CONTEXTS = [
 Page({
 onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
 data: deviceState({
+reasoningEffort:'low',
 contexts: CONTEXTS,
 contextId: 'stem-photo',
 contextIndex: 0,
@@ -56,7 +58,7 @@ this.__entry=takeCoachEntry(this.__entryKey);this.__history=[]
 const draft = readDraft('coach')
 const source = String(options && options.source || '').toLowerCase()
 const sourceContext = ['ielts', 'listening', 'reading', 'writing'].includes(source) ? source : ['stem-photo', 'capture', 'alevel', 'competition', 'papers', 'notebook', 'practice'].includes(source) ? 'stem-photo' : ''
-const next = {}
+const next = {reasoningEffort:readCoachEffort()}
 if(this.__entryKey&&!this.__entry){clearCoachPhotoEntry(this.identity(),this.__entryKey);next.error='题目上下文已过期，请返回练习重试。'}
 const routeId = String(options && options.routeId || '').trim()
 const stage = String(options && options.stage || '').trim()
@@ -79,6 +81,7 @@ next.solutionDisabled=policy.solutionDisabled
 if(this.__mode){next.feature=policy.solutionDisabled&&this.__mode==='answers'?'steps':this.__mode;next.helpIntent=next.feature==='steps'?'hint':'worked-solution'}
 if(this.__entry?.initialMessage)next.message=String(this.__entry.initialMessage).slice(0,12000)
 if (draft && (draft.entryKey||'')===this.__entryKey && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
+if(draft&&(draft.entryKey||'')===this.__entryKey&&['low','high','max'].includes(draft.reasoningEffort))next.reasoningEffort=draft.reasoningEffort
 if (Object.keys(next).length) this.setData(next)
 this.__historyKey='stemistCoachTurns:'+this.__owner+':'+(this.__entryKey||this.data.contextId)
 const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]
@@ -86,6 +89,7 @@ const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
 resetIdentity(){
+this.setData({reasoningEffort:readCoachEffort()})
 this.__coachImageCache=null
 clearCoachPhoto(this.identity())
 clearCoachSource(this)
@@ -186,9 +190,10 @@ if (selected && !this.data.loading) this.chooseContext({ currentTarget: { datase
 onMessage(event) {
 if (!this.current() || this.data.loading) return
 const message = String(event.detail.value || '')
-this.setData({ message, error: '', authRequired: false, draftStatus: message ? '正在自动保存…' : '自动保存已开启' })
-scheduleDraft(this, 'coach', { message, contextId: this.data.contextId,entryKey:this.__entryKey })
+this.setData({ message, error: '', canRetry:message.trim()===this.data.message.trim()&&this.data.canRetry, authRequired: false, draftStatus: message ? '正在自动保存…' : '自动保存已开启' })
+scheduleDraft(this, 'coach', { message, contextId: this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort })
 },
+chooseEffort(event){const value=event.detail?.value;if(!this.current()||this.data.loading||this.data.canRetry||!['low','high','max'].includes(value))return;this.setData({reasoningEffort:value});writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:value})},
 chooseHelpIntent(event) {
 if (!this.current() || this.data.loading) return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
@@ -224,6 +229,7 @@ const policy=coachHelpPolicy(coachContext)
 const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solution'?'hint':this.data.helpIntent
 if(policy.solutionDisabled!==this.data.solutionDisabled||helpIntent!==this.data.helpIntent)this.setData({solutionDisabled:policy.solutionDisabled,helpIntent})
 const result = await runCoach({
+reasoningEffort:this.data.reasoningEffort,
 message:typedMessage,
 helpIntent,
 feature:this.__mode?this.data.feature:'',
@@ -243,7 +249,7 @@ const completed=result.completed===true||(result.completed===undefined&&result.m
 if(!completed){
 progress.finish(false)
 cancelDraft(this)
-writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey})
+writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort})
 this.setData({answer:result.partialAnswer||'',warning:coachState.warning||'',error:result.failureMessage||'AI 未完成本次答疑，内容已保留，请重试。',coachStatus:coachState.label||'答疑未完成',canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
 return
 }

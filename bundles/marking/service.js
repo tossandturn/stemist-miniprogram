@@ -49,7 +49,7 @@ function validateFiles(files){
 async function create(draft,s){
  guard(s);validateFiles(draft.files)
  let answerOrder=0
- const response=await requestJson(ROOT,{schemaVersion:'stem-paper-marking-job-v1',clientRequestId:draft.clientRequestId,title:draft.title,instructions:draft.instructions,routeId:draft.routeId,files:draft.files.map(f=>({clientAssetId:f.id,role:f.role,mediaType:f.mediaType,order:f.role==='answer'?++answerOrder:1,fileName:f.name,size:f.size}))})
+ const response=await requestJson(ROOT,{schemaVersion:'stem-paper-marking-job-v1',clientRequestId:draft.clientRequestId,title:draft.title,instructions:draft.instructions,routeId:draft.routeId,...(draft.reasoningEffort!==undefined?{reasoningEffort:draft.reasoningEffort}:{}),files:draft.files.map(f=>({clientAssetId:f.id,role:f.role,mediaType:f.mediaType,order:f.role==='answer'?++answerOrder:1,fileName:f.name,size:f.size}))})
  guard(s);if(!id(response?.jobId)||!Array.isArray(response.assets)||response.assets.length!==draft.files.length)throw Error('上传任务尚未完整建立，请重试。')
  if(draft.files.some(f=>response.assets.filter(a=>a.clientAssetId===f.id&&id(a.assetId)).length!==1))throw Error('文件关联未确认，请重试。')
  return response

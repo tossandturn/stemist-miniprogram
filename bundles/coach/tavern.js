@@ -2,6 +2,7 @@ const {deviceState,syncDevice}=require('../../utils/page')
 const {keyboardData,keyboardMethods}=require('./tavernKeyboard')
 const {tavernMediaState,tavernMediaViewMethods}=require('./tavernMedia')
 const {isAuthError}=require('../../utils/api')
+const {readCoachEffort}=require('../../utils/coachEffort')
 const {coachHelpPolicy}=require('../../utils/coach')
 const {loadProductConfig,readProductConfigSnapshot}=require('../../utils/productConfig')
 const {DEFAULT_TAVERN_CATALOG,TAVERN_CATEGORIES,TAVERN_PRESETS,catalogPreset,configuredTavernCatalog}=require('./tavernPresets')
@@ -20,7 +21,8 @@ const LOCAL_CLEAR_FENCES=new Map()
 const sessionStamp=()=>{const token=String(wx.getStorageSync('stemistSessionToken')||'');if(!token)return'';let first=2166136261,second=2246822519;for(let index=0;index<token.length;index++){const code=token.charCodeAt(index);first=Math.imul(first^code,16777619)>>>0;second=Math.imul(second+code+index,3266489917)>>>0}return`${token.length}:${first.toString(36)}:${second.toString(36)}`}
 const revisionConflict=error=>Number(error?.statusCode)===409&&String(error?.code||'')==='coach_tavern_revision_conflict'
 const safeConversation=value=>value&&typeof value==='object'&&!Array.isArray(value)&&typeof value.id==='string'&&value.id&&typeof value.persona==='string'&&typeof value.revision==='number'&&Number.isSafeInteger(value.revision)&&value.revision>=0&&typeof value.turnCount==='number'&&Number.isSafeInteger(value.turnCount)&&value.turnCount>=0?{id:String(value.id),persona:String(value.persona),revision:value.revision,turnCount:value.turnCount}:null
-const safePending=value=>value&&typeof value==='object'&&!Array.isArray(value)&&typeof value.id==='string'&&value.id&&typeof value.message==='string'&&value.message?{id:String(value.id),message:String(value.message),drawId:String(value.drawId||'')}:null
+const safePending=value=>value&&typeof value==='object'&&!Array.isArray(value)&&typeof value.id==='string'&&value.id&&typeof value.message==='string'&&value.message?{id:String(value.id),message:String(value.message),drawId:String(value.drawId||''),...(['low','high','max'].includes(value.reasoningEffort)?{reasoningEffort:value.reasoningEffort}:{})}:null
+const effortState=state=>({pendingEffort:state.pendingTurn?.reasoningEffort||'',effortLocked:Boolean(state.pendingTurn)})
 function emptyState(ownerId,privacyEpoch,persona){return{schemaVersion:2,owner:ownerId,epoch:privacyEpoch,persona,draft:'',question:'',spread:'single',draw:null,turns:[],nextBefore:'',historySource:'cloud',conversation:null,legacyBackup:[],legacyImportId:'',legacyImported:false,pendingTurn:null,clearPending:false,localClearFence:false,deletedConversationId:''}}
 function storedState(raw,ownerId,privacyEpoch,persona){
  const state=emptyState(ownerId,privacyEpoch,persona)
@@ -112,14 +114,14 @@ Page({
  releaseClearFence(persona=this.data.persona){const key=this.clearFenceKey(persona);try{wx.removeStorageSync(key)}catch{return false}LOCAL_CLEAR_FENCES.delete(key);return true},
  rememberPersona(persona){try{wx.setStorageSync(this.selectionKey(),persona);return true}catch{this.setData({warning:'当前预设未能保存在本机；本页内选择仍然有效。'});return false}},
  nextHistoryAnchor(turns){return turns.length?`tavern-tail-${++this.__historyRevision}`:''},
- renderLatest(state,extra={}){const view=tavernMediaState(state.turns,this.data.windowWidth,this.data),turns=view.turns;this.__browseNextBefore='';this.setData({...view,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra},()=>this.scrollChatToLatest())},
+ renderLatest(state,extra={}){const view=tavernMediaState(state.turns,this.data.windowWidth,this.data),turns=view.turns;this.__browseNextBefore='';this.setData({...view,...effortState(state),historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,clearPending:state.clearPending,...extra},()=>this.scrollChatToLatest())},
  loadPersona(persona,{chosen=this.data.presetChosen,open=this.data.selectorOpen}={}){
   this.__fortuneRevision++;const generation=++this.__conversationGeneration;this.__pendingDrawNonce='';this.__browseNextBefore=''
   const catalog=this.catalog(),selected=viewPreset(catalogPreset(catalog,persona)||catalog.presets[0]),state=this.read(selected.id),fortune=Boolean(selected.divinationKind),spread=fortune&&selected.supportedSpreads.includes(state.spread)?state.spread:selected.supportedSpreads?.[0]||'single'
   let draw=null,drawNeedsRedraw=false,drawError=''
   if(fortune&&state.draw)try{draw=normalizeTavernDraw({draw:state.draw},{persona:selected.id,spread:state.draw.spread,now:0});if(draw.expiresAt<=Date.now())drawNeedsRedraw=true}catch{drawNeedsRedraw=true;drawError='本机抽取记录未能恢复，聊天仍可继续。'}
   const view=tavernMediaState(state.turns,this.data.windowWidth),turns=view.turns
-  this.setData({...view,selected,persona:selected.id,starters:selected.starters,greeting:selected.greeting,placeholder:selected.placeholder,selectorOpen:open,presetChosen:chosen,message:String(state.draft||(fortune&&!state.draw&&!turns.length?state.question:'')||''),question:fortune?clip(state.question,600):'',spread,draw,drawLoading:false,interpretLoading:false,drawNeedsRedraw,turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:this.data.examBlocked?this.data.error:drawError,warning:'',canRetry:false,retryKind:state.pendingTurn?.drawId?'interpret':'chat',authRequired:false,clearPending:state.clearPending,status:''})
+  this.setData({...view,...effortState(state),selected,persona:selected.id,starters:selected.starters,greeting:selected.greeting,placeholder:selected.placeholder,selectorOpen:open,presetChosen:chosen,message:String(state.draft||(fortune&&!state.draw&&!turns.length?state.question:'')||''),question:fortune?clip(state.question,600):'',spread,draw,drawLoading:false,interpretLoading:false,drawNeedsRedraw,turns,historyAnchor:this.nextHistoryAnchor(turns),historySource:state.historySource,hasOlderHistory:Boolean(state.nextBefore),historyBrowsing:false,historyLoading:false,answer:'',loading:false,error:this.data.examBlocked?this.data.error:drawError,warning:'',canRetry:false,retryKind:state.pendingTurn?.drawId?'interpret':'chat',authRequired:false,clearPending:state.clearPending,status:''})
   if(chosen)this.scrollChatToLatest()
   if(chosen&&hasSession()&&!state.clearPending){const requestStamp=sessionStamp();Promise.resolve().then(()=>this.resumeConversation(false,generation)).catch(error=>{if(generation!==this.__conversationGeneration)return;if(this.staleSessionFailure(error,requestStamp,{status:'对话未完成'}))return;if(this.quiesceIdentityFailure(error,{status:'对话未完成'}))return;if(this.current())this.setData({warning:'云端历史暂未同步；本机草稿仍保留。'})})}
  },
@@ -154,19 +156,19 @@ Page({
  onMessage(event){
   if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.presetChosen)return
   const message=String(event.detail?.value||''),state=this.read(this.data.persona);if(state.pendingTurn&&state.pendingTurn.message!==message.trim())state.pendingTurn=null
-  this.setData({message,error:'',authRequired:false});this.save()
+  this.setData({message,error:'',authRequired:false,...effortState(state)});this.save()
  },
  onFortuneQuestion(event){
   if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.selected.divinationKind)return
   const question=clip(event.detail?.value,600),state=this.read(this.data.persona);if(state.pendingTurn&&state.pendingTurn.message!==question.trim())state.pendingTurn=null
-  this.setData({question,message:question,error:'',authRequired:false});this.save()
+  this.setData({question,message:question,error:'',authRequired:false,...effortState(state)});this.save()
  },
  chooseSpread(event){if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.selected.divinationKind)return;const spread=String(event.currentTarget?.dataset?.spread||'');if(!this.data.selected.supportedSpreads.includes(spread)||spread===this.data.spread)return;this.__pendingDrawNonce='';this.setData({spread});this.save()},
  useStarter(event){if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.presetChosen)return;const value=String(event.currentTarget?.dataset?.text||'');if(!this.data.starters.includes(value))return;if(this.data.selected.divinationKind)this.onFortuneQuestion({detail:{value}});else this.onMessage({detail:{value}})},
  preparePending(message,drawId=''){
   const state=this.read(this.data.persona),text=String(message||'').trim(),draw=String(drawId||'')
-  if(!state.pendingTurn||state.pendingTurn.message!==text||state.pendingTurn.drawId!==draw)state.pendingTurn={id:newClientTurnId(),message:text,drawId:draw}
-  this.save(false);return state.pendingTurn
+  if(!state.pendingTurn||state.pendingTurn.message!==text||state.pendingTurn.drawId!==draw)state.pendingTurn={id:newClientTurnId(),message:text,drawId:draw,reasoningEffort:readCoachEffort()}
+  this.setData(effortState(state));this.save(false);return state.pendingTurn
  },
  applyCompletion(result,pending,{answer=result.answer,status='AI 已回应'}={}){
   const state=this.read(this.data.persona),currentRevision=state.conversation?.revision??-1
@@ -182,7 +184,7 @@ Page({
   this.setData({loading:true,error:'',answer:'',canRetry:false,retryKind:'chat',authRequired:false,status:'AI 正在回应…'},()=>this.scrollChatToLatest())
   try{
    const state=await this.ensureConversation(true,generation);if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}
-   const result=await sendTavernTurn({persona:this.data.persona,message,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision,attemptId:this.__attemptId})
+   const result=await sendTavernTurn({persona:this.data.persona,message,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision,attemptId:this.__attemptId,reasoningEffort:pending.reasoningEffort})
    if(generation!==this.__conversationGeneration)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'对话未完成'});return}
    const answer=String(result?.answer||result?.message||'').trim(),completed=result?.mode==='ai'&&result?.providerStatus==='connected'&&Boolean(answer)
    if(!completed)throw Error(result?.failureMessage||'AI 本次没有完成回应，文字已保留，请重试。')
@@ -220,7 +222,7 @@ Page({
   const generation=this.__conversationGeneration,requestText=question.trim()||(persona==='eastern-oracle'?'请根据这次实际抽到的卦签做一段简洁的娱乐解读。':'请根据这次实际抽到的牌面做一段简洁的娱乐解读。'),pending=this.preparePending(requestText,draw.id),requestStamp=sessionStamp()
   try{
    const state=await this.ensureConversation(true,generation);if(generation!==this.__conversationGeneration||revision!==this.__fortuneRevision)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'解读未完成'});return}
-   const result=await interpretTavernDraw({persona,drawId:draw.id,question,attemptId:this.__attemptId,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision})
+   const result=await interpretTavernDraw({persona,drawId:draw.id,question,attemptId:this.__attemptId,conversationId:state.conversation.id,clientTurnId:pending.id,expectedRevision:state.conversation.revision,reasoningEffort:pending.reasoningEffort})
    if(generation!==this.__conversationGeneration||revision!==this.__fortuneRevision||this.data.draw?.id!==draw.id)return;if(!this.current()){this.quiesceIdentityFailure(null,{status:'解读未完成'});return}
    const answer=String(result?.answer||result?.message||'').trim(),completed=result?.mode==='ai'&&result?.providerStatus==='connected'&&Boolean(answer);if(!completed)throw Error(result?.failureMessage||'AI 解读未完成，牌面和问题已保留，请重试解读。')
    if(!this.applyCompletion(result,pending,{answer,status:'娱乐解读已完成'}))this.setData({error:'云端已有更新；旧解读未覆盖当前历史。',canRetry:true,status:'解读未完成'})

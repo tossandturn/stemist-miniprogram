@@ -1,1 +1,10 @@
-{"navigationBarTitleText":"AI 休闲酒馆","usingComponents":{"stemist-header":"/components/stemist-header/index","app-nav":"/components/app-nav/index","answer-content":"/components/answer-content/index","tavern-draw-art":"/bundles/coach/draw-art/index"}}
+{
+  "navigationBarTitleText": "AI 休闲酒馆",
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index",
+    "app-nav": "/components/app-nav/index",
+    "answer-content": "/components/answer-content/index",
+    "tavern-draw-art": "/bundles/coach/draw-art/index",
+    "coach-effort": "/components/coach-effort/index"
+  }
+}

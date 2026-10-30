@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
@@ -13,7 +14,7 @@ const fakeApi = {
   askCoach: async (payload) => { calls.push({ endpoint: 'stem', ...payload }); return failPhoto?{mode:'offline',providerStatus:'error',answer:'先选择一道具体题目',warning:'Qwen request timed out. Check the server network and retry.',retryable:true}:{ mode: 'ai', providerStatus: 'connected', message: 'feedback' } },
   askIeltsCoach: async (payload) => { calls.push({ endpoint: 'ielts', ...payload }); return { mode: 'ai', providerStatus: 'connected', message: 'ielts feedback' } },
 }
-const fakeRequire = (name) => name === './api' ? fakeApi : (() => { throw new Error(`unexpected module ${name}`) })()
+const fakeRequire = (name) => name === './coachEffort' ? miniRuntime().load('utils/coachEffort') : name === './api' ? fakeApi : (() => { throw new Error(`unexpected module ${name}`) })()
 vm.runInNewContext(source, { module, exports: module.exports, require: fakeRequire, Promise, String, Array, Error, Object })
 const { runCoach, normalizeCoachContext, coachAnswer, coachState, safeCoachWarning } = module.exports
 

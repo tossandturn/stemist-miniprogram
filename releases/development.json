@@ -1,7 +1,13 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.76",
+  "highestAssignedVersion": "1.0.77",
   "pendingUploads": [
+    {
+      "version": "1.0.77",
+      "assignedOn": "2026-10-31",
+      "status": "reserved",
+      "purpose": "Student-selected Coach thinking effort, low default, captured retries and owned PDF jobs"
+    },
     {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",

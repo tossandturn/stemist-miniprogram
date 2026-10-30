@@ -1,4 +1,5 @@
 const { clearLocalSession } = require('./session')
+const {coachEffortTimeout}=require('./coachEffort')
 const {captureNativeCookie,refreshNativeSession}=require('./nativeSession')
 const {requestIeltsLearning}=require('./ieltsLearning')
 const { DEFAULT_API_BASE, DEFAULT_IELTS_API_BASE, safeApiBase, safeIeltsApiBase } = require('./apiOrigin')
@@ -93,10 +94,10 @@ return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false }
 function getJson(path, { timeout = 8000, stemAuth = true } = {}) {
 return requestJson(path, undefined, { timeout, method: 'GET', stemAuth })
 }
-function askCoach({ message, helpIntent = '', feature = '', persona = '', attemptId = '', context = {}, imageDataUrls = [], history = [], onStage = null, onPartial = null, onCancelReady = null }) {
+function askCoach({ message, helpIntent = '', feature = '', persona = '', attemptId = '', context = {}, imageDataUrls = [], history = [], onStage = null, onPartial = null, onCancelReady = null, reasoningEffort }) {
 const images = Array.isArray(imageDataUrls) ? imageDataUrls : []
-if(feature!=='tavern')return require('./coachJob').askCoachJob({message,...(helpIntent?{helpIntent}:{}),...(feature?{feature}:{}),...(attemptId?{attemptId}:{}),context,imageDataUrls:images,history:history.slice(-10)},{request:requestJson,onStage,onPartial,onCancelReady})
-const timeout=images.length?COACH_IMAGE_TIMEOUT_MS:COACH_TEXT_TIMEOUT_MS
+if(feature!=='tavern')return require('./coachJob').askCoachJob({message,...(reasoningEffort!==undefined?{reasoningEffort}:{}),...(helpIntent?{helpIntent}:{}),...(feature?{feature}:{}),...(attemptId?{attemptId}:{}),context,imageDataUrls:images,history:history.slice(-10)},{request:requestJson,onStage,onPartial,onCancelReady})
+const timeout=coachEffortTimeout(reasoningEffort,images.length?COACH_IMAGE_TIMEOUT_MS:COACH_TEXT_TIMEOUT_MS)
 return new Promise((resolve,reject)=>{
 let closed=false,task=null
 const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
@@ -104,7 +105,7 @@ const current=()=>{if(startedOwner!==String(wx.getStorageSync('stemistUser')?.id
 const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);settle(value)}
 const timer=setTimeout(()=>{finish(reject,requestError('AI 请求超时，问题和图片已保留，请重试。',0,'network_timeout'));try{task?.abort()}catch{}},timeout)
 if(typeof onCancelReady==='function')onCancelReady(()=>{finish(reject,requestError('请求已取消。',0,'request_cancelled'));try{task?.abort()}catch{}})
-requestJson('/api/ai/coach', { message, ...(helpIntent ? { helpIntent } : {}),feature,persona,...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
+requestJson('/api/ai/coach', { message, ...(reasoningEffort!==undefined?{reasoningEffort}:{}),...(helpIntent ? { helpIntent } : {}),feature,persona,...(attemptId?{attemptId}:{}), context, imageDataUrls: images,history:history.slice(-10) }, {
 timeout,isCancelled:()=>closed,onTask:value=>{task=value},
 onDispatched:()=>{if(!closed&&typeof onStage==='function')onStage('analysis')},
 }).then(value=>{try{current();finish(resolve,value)}catch(error){finish(reject,error)}},error=>finish(reject,error))

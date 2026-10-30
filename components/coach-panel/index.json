@@ -1,5 +1,8 @@
 {
   "component": true,
   "styleIsolation": "apply-shared",
-  "usingComponents":{"answer-content":"../answer-content/index"}
+  "usingComponents": {
+    "answer-content": "../answer-content/index",
+    "coach-effort": "../coach-effort/index"
+  }
 }

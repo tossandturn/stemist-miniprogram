@@ -1,5 +1,6 @@
 const {deviceState,syncDevice}=require('../../utils/page')
 const {isAuthError}=require('../../utils/api')
+const {readCoachEffort}=require('../../utils/coachEffort')
 const {keyboardData,keyboardMethods}=require('./tavernKeyboard')
 const {mergeTavernMessages}=require('./tavernConversation')
 
@@ -32,7 +33,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
  const normalizedDraftLength=value=>Array.from(String(value||'').replaceAll(String.fromCharCode(0),'').replace(/\r\n?/g,'\n').trim()).length
  const clipDraft=value=>Array.from(String(value||'')).slice(0,12000).join('')
  const clipPartial=value=>Array.from(String(value||'')).slice(0,40000).join('')
- const receiptUi=(pending,draft)=>{const receiptState=['commit-deferred','indeterminate'].includes(pending?.receiptState)?pending.receiptState:'',same=Boolean(pending&&canonicalDraft(draft)===pending.message);return{receiptState,sendBlocked:receiptState==='indeterminate',canRetry:Boolean(pending&&receiptState!=='indeterminate'&&(same||receiptState==='commit-deferred'))}}
+ const receiptUi=(pending,draft)=>{const receiptState=['commit-deferred','indeterminate'].includes(pending?.receiptState)?pending.receiptState:'',same=Boolean(pending&&canonicalDraft(draft)===pending.message),effortLocked=Boolean(pending&&(same||receiptState));return{pendingEffort:effortLocked?pending.reasoningEffort||'':'',effortLocked,receiptState,sendBlocked:receiptState==='indeterminate',canRetry:Boolean(pending&&receiptState!=='indeterminate'&&(same||receiptState==='commit-deferred'))}}
  const receiptError=ui=>ui.receiptState==='indeterminate'?'生成结果尚未确认；为避免重复调用 AI，请刷新记录确认，或清空后重新开始。':ui.receiptState==='commit-deferred'?'回答仍待写入对话；请点击“重试保存”，新草稿会继续保留。':''
  const STARTERS=Object.freeze(Array.from(starters||[],item=>Object.freeze({title:String(item.title||''),text:String(item.text||'')})))
  return{
@@ -80,7 +81,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
    const record=!fence&&valid&&raw.conversation
    this.__conversation=record&&record.persona===persona&&typeof record.id==='string'&&Number.isSafeInteger(record.revision)&&record.revision>=0&&Number.isSafeInteger(record.turnCount)&&record.turnCount>=0?record:null
    const pending=valid&&raw.pending,pendingMessage=pending&&canonicalDraft(pending.message),receiptState=['commit-deferred','indeterminate'].includes(pending?.receiptState)?pending.receiptState:''
-   this.__pending=!fence&&this.__conversation&&pending&&/^[A-Za-z0-9._:-]{8,180}$/.test(String(pending.clientTurnId||''))&&pendingMessage&&Number.isSafeInteger(pending.expectedRevision)&&pending.expectedRevision>=0?{clientTurnId:String(pending.clientTurnId),message:pendingMessage,expectedRevision:pending.expectedRevision,...(pending.needsRebase===true?{needsRebase:true}:{}),...(receiptState?{receiptState}:{})}:null
+   this.__pending=!fence&&this.__conversation&&pending&&/^[A-Za-z0-9._:-]{8,180}$/.test(String(pending.clientTurnId||''))&&pendingMessage&&Number.isSafeInteger(pending.expectedRevision)&&pending.expectedRevision>=0?{clientTurnId:String(pending.clientTurnId),message:pendingMessage,expectedRevision:pending.expectedRevision,...(['low','high','max'].includes(pending.reasoningEffort)?{reasoningEffort:pending.reasoningEffort}:{}),...(pending.needsRebase===true?{needsRebase:true}:{}),...(receiptState?{receiptState}:{})}:null
    this.__nextBefore=''
    const draft=!fence&&valid?clipDraft(raw.draft):'',ui=receiptUi(this.__pending,draft)
    this.setData({message:draft,turns:[],partialAnswer:!fence&&valid?clipPartial(raw.partialAnswer):'',loading:false,historyLoading:false,historyBrowsing:false,hasOlderHistory:false,...ui,clearPending:Boolean(fence&&!fence.durable||!fence&&valid&&raw.clearPending===true),error:receiptError(ui),warning:fence&&!fence.durable?'云端对话已清除，但本机隐私隔离尚未持久保存；请勿退出并重试清空。':'',status:'',authRequired:!wx.getStorageSync('stemistSessionToken')})
@@ -154,16 +155,16 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     if(!this.__conversation||this.data.historyBrowsing||this.__localClearFence){if(!await this.resumeLatest()||!this.current(generation))return}
     if(this.__pending?.needsRebase){if(!await this.resumeLatest()||!this.current(generation)||!this.__pending)return}
     if(!this.__pending&&canonicalDraft(this.data.message)!==message)return
-    if(!this.__pending||this.__pending.message!==message)this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision}
+    if(!this.__pending||this.__pending.message!==message)this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision,reasoningEffort:readCoachEffort()}
     const pending=this.__pending
     if(!this.save()){this.setData({loading:false,error:'本机暂时无法保存重试标识，本次未发送；请释放空间后重试。',canRetry:true,status:''});return}
-    this.setData({loading:true,error:'',partialAnswer:'',canRetry:false,receiptState:'',sendBlocked:false,status:text.connecting});this.scrollChatToLatest()
+    this.setData({loading:true,error:'',partialAnswer:'',canRetry:false,receiptState:'',sendBlocked:false,status:text.connecting,pendingEffort:pending.reasoningEffort||'',effortLocked:true});this.scrollChatToLatest()
     const result=await send({...pending,conversationId:this.__conversation.id,onStage:stage=>{if(this.current(generation))this.setData({status:stage==='analysis'?text.analysing:text.connecting})},onPartial:value=>{if(this.current(generation)){this.setData({partialAnswer:value,status:text.composing});this.scrollChatToLatest()}},onCancelReady:cancel=>{if(this.current(generation))this.__cancel=cancel;else cancel()}})
     if(!this.current(generation))return
     if(result?.mode!=='ai'||result.providerStatus!=='connected'||result.partial===true||!result.answer||!Array.isArray(result.turns))throw Error(text.incomplete)
     this.__conversation=result.conversation;this.__pending=null;this.__nextBefore=''
     const remainingDraft=canonicalDraft(this.data.message)===pending.message?'':this.data.message
-    this.setData({turns:mergeTavernMessages(this.data.turns,result.turns),message:remainingDraft,partialAnswer:'',loading:false,canRetry:false,receiptState:'',sendBlocked:false,error:'',status:'',hasOlderHistory:this.data.hasOlderHistory||this.__conversation.turnCount>20});this.save();this.scrollChatToLatest()
+    this.setData({turns:mergeTavernMessages(this.data.turns,result.turns),message:remainingDraft,partialAnswer:'',loading:false,canRetry:false,receiptState:'',sendBlocked:false,pendingEffort:'',effortLocked:false,error:'',status:'',hasOlderHistory:this.data.hasOlderHistory||this.__conversation.turnCount>20});this.save();this.scrollChatToLatest()
    }catch(error){this.fail(error,generation)}finally{if(this.current(generation)){this.__submitting=false;this.__cancel=null}}
   },
   async loadOlderHistory(){
@@ -178,7 +179,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
   requestClear(){if(!this.current()||this.data.loading||this.data.historyLoading)return;wx.showModal({title:text.clearTitle,content:text.clearContent,confirmText:'清空',confirmColor:'#a52f52',success:result=>{if(result.confirm)this.clearConversation()}})},
   async clearConversation(){
    if(!this.current()||this.data.loading||this.data.historyLoading||this.__clearing)return
-   if(this.__localClearFence){const secured=this.secureLocalClearFence(this.__deletedConversationId);this.setData({message:'',turns:[],partialAnswer:'',clearPending:!secured,canRetry:false,receiptState:'',sendBlocked:false,hasOlderHistory:false,historyBrowsing:false,error:secured?'':'本机清除隔离尚未安全保存，请释放空间后重试。',status:'',warning:secured?'':'云端对话已清除，但本机隐私隔离尚未持久保存；请勿退出。'});return secured}
+   if(this.__localClearFence){const secured=this.secureLocalClearFence(this.__deletedConversationId);this.setData({message:'',turns:[],partialAnswer:'',clearPending:!secured,canRetry:false,receiptState:'',sendBlocked:false,pendingEffort:'',effortLocked:false,hasOlderHistory:false,historyBrowsing:false,error:secured?'':'本机清除隔离尚未安全保存，请释放空间后重试。',status:'',warning:secured?'':'云端对话已清除，但本机隐私隔离尚未持久保存；请勿退出。'});return secured}
    const generation=this.__generation;this.__clearing=true;this.setData({clearPending:true,error:'',status:'正在清除云端对话…'});this.save()
    try{
     let conversation=this.__conversation
@@ -187,7 +188,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     if(!this.current(generation))return false
     this.__conversation=null;this.__pending=null;this.__nextBefore='';this.__conversationGeneration++;this.__localClearFence=true;this.__deletedConversationId=conversation.id
     const secured=this.secureLocalClearFence(conversation.id)
-    this.setData({message:'',turns:[],partialAnswer:'',clearPending:!secured,canRetry:false,receiptState:'',sendBlocked:false,hasOlderHistory:false,historyBrowsing:false,error:secured?'':'本机清除隔离尚未安全保存，请释放空间后重试。',status:secured?text.clearStatus:'云端对话已清除',warning:secured?'':'云端对话已清除，但本机隐私隔离尚未持久保存；请勿退出。'});return secured
+    this.setData({message:'',turns:[],partialAnswer:'',clearPending:!secured,canRetry:false,receiptState:'',sendBlocked:false,pendingEffort:'',effortLocked:false,hasOlderHistory:false,historyBrowsing:false,error:secured?'':'本机清除隔离尚未安全保存，请释放空间后重试。',status:secured?text.clearStatus:'云端对话已清除',warning:secured?'':'云端对话已清除，但本机隐私隔离尚未持久保存；请勿退出。'});return secured
    }catch(error){this.fail(error,generation);return false}finally{this.__clearing=false}
   },
   copyReply(event){if(!this.current())return;const turn=this.data.turns.find(item=>item.id===String(event?.currentTarget?.dataset?.id||'')&&item.role==='assistant');if(turn)wx.setClipboardData({data:turn.content})},

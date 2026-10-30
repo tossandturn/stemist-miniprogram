@@ -8,6 +8,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const source = fs.readFileSync(path.join(root, 'pages/coach/index.js'), 'utf8')
 let pageConfig
 const fakeRequire = (name) => {
+  if(name==='../../utils/coachEffort')return miniRuntime().load('utils/coachEffort')
   if (name === '../../utils/coachSource') return {offerCoachSource(){},lookupCoachSource(){},clearCoachSource(){}}
   if (name === '../../utils/coachSession') return miniRuntime().load('utils/coachSession')
   if (name === '../../utils/operationProgress') return miniRuntime().load('utils/operationProgress')

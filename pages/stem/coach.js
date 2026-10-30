@@ -3,6 +3,7 @@ const {coachHelpPolicy,normalizeHelpIntent,runCoach}=require('../../utils/coach'
 const { nextAttemptId, syncStemPhotoAttempt } = require('../../utils/attemptSync')
 const { deviceState, syncDevice } = require('../../utils/page')
 const { isAuthError } = require('../../utils/api')
+const {readCoachEffort}=require('../../utils/coachEffort')
 const {createOperationTracker}=require('../../utils/operationProgress')
 const {warmCoachSession}=require('../../utils/coachSession')
 const {offerCoachSource,lookupCoachSource,clearCoachSource}=require('../../utils/coachSource')
@@ -13,6 +14,7 @@ Page({
 onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
 data: deviceState({ imagePath: '', message: '', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', syncStatus: '', syncFailed: false, syncing: false, context: {}, contextLabel: '等待题目范围',progress:{},helpIntent:'',solutionDisabled:false }),
 onLoad(options) {
+this.setData({reasoningEffort:readCoachEffort()})
 this.__disposed = false
 this.__owner=owner();this.__epoch=epoch()
 options = options || {}
@@ -40,7 +42,8 @@ if(!this.current())clearCoachSource(this)
 this.__stopWarm?.();if(this.current())this.__stopWarm=warmCoachSession();else{this.__cancelCoach?.();this.__cancelCoach=null}
 },
 onResize() { syncDevice(this) },
-onMessage(event) { if(this.current()&&!this.data.loading)this.setData({ message: event.detail.value, error: '', authRequired: false }) },
+onMessage(event) { if(this.current()&&!this.data.loading)this.setData({ message: event.detail.value, error: '', canRetry:String(event.detail.value||'').trim()===this.data.message.trim()&&this.data.canRetry, authRequired: false }) },
+chooseEffort(event){const value=event.detail?.value;if(this.current()&&!this.data.loading&&!this.data.canRetry&&['low','high','max'].includes(value))this.setData({reasoningEffort:value})},
 chooseHelpIntent(event) {
 if(!this.current()||this.data.loading)return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
@@ -66,6 +69,7 @@ const policy=coachHelpPolicy(this.data.context)
 const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solution'?'hint':this.data.helpIntent
 if(policy.solutionDisabled!==this.data.solutionDisabled||helpIntent!==this.data.helpIntent)this.setData({solutionDisabled:policy.solutionDisabled,helpIntent})
 const result = await runCoach({
+reasoningEffort:this.data.reasoningEffort,
 message: this.data.message.trim(),
 helpIntent,
 imageDataUrls: [dataUrl],
