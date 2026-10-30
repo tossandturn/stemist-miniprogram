@@ -5,8 +5,12 @@
     {
       "version": "1.0.77",
       "assignedOn": "2026-10-31",
-      "status": "reserved",
-      "purpose": "Student-selected Coach thinking effort, low default, captured retries and owned PDF jobs"
+      "status": "prepared",
+      "purpose": "Scenario-aware thinking defaults, independent student choices, captured retries and owned PDF jobs",
+      "commit": "b06809ef0782a2db4766b2d8eab3437518be398a",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.77-ready-r2",
+      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.77-ready-r2-manifest.json",
+      "runtimeManifestSha256": "c6ac4d2aa431bf980bd5d4bcb01911d064f58bf9b47bdd793318238c163d0766"
     },
     {
       "version": "1.0.69",
