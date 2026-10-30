@@ -33,7 +33,7 @@ The final raw HTTP harness initially received 401 because its test token had exp
 
 ## Release status and outstanding device checks
 
-Development 1.0.78 is pinned and acceptance-ready; upload confirmation is recorded separately in the release ledger and official receipt. No trial designation, review submission or public publication is implied.
+PASS — development **1.0.78** uploaded successfully at **2026-10-31 04:03 Asia/Shanghai** through the official WeChat CLI. Both development ledgers are reconciled to the exact runtime commit and manifest above. Official evidence: `D:/CodexWork/listening-download-quota-20261031/wechat-upload-receipt.json`. Trial designation is NOT VERIFIED; no review submission or public publication was performed. Set this development version as the trial version before phone acceptance.
 
 NOT VERIFIED — physical Android/iPhone system file-share delivery, iPad touch and real mainland-phone download timings. Simulator measurements are not phone speed guarantees. No real purchase, refund or paid entitlement change occurred.
 
