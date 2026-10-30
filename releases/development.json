@@ -3,12 +3,6 @@
   "highestAssignedVersion": "1.0.75",
   "pendingUploads": [
     {
-      "version": "1.0.75",
-      "assignedOn": "2026-10-30",
-      "status": "reserved",
-      "purpose": "AI Coach segmented timing and targeted image/polling latency improvements"
-    },
-    {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",
       "commit": "be7b40e1cef297129e3e023965fd832b77a3999e",
@@ -32,6 +26,20 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.75",
+      "assignedOn": "2026-10-30",
+      "uploadConfirmedAt": "2026-10-30T08:44:58.751Z",
+      "commit": "ae6dd65cac3d98d18b71bd10e3fab87bb5cbad5c",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.75-ready",
+      "officialInfo": "D:/CodexWork/coach-segment-timing-20261030/wechat-upload-receipt.json",
+      "runtimeManifestSha256": "29f1be0511d1c60cbacfe70c2ba78b4923f64205c9cd4c0d356e26d575b9dc18",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false,
+      "nativeTimingAcceptance": "D:/CodexWork/coach-segment-timing-20261030/verification.json"
+    },
     {
       "version": "1.0.74",
       "assignedOn": "2026-10-30",
