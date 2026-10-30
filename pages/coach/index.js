@@ -206,6 +206,8 @@ this.setData({ loading: true, error: '', canRetry: false, authRequired: false, a
 this.__coachProgress?.dispose()
 this.__receiving=false
 const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active&&value.phase!=='recovering'?{...value,label:'正在生成答案…'}:value})}})
+const timingStarted=Date.now();let imagePreparationMs=0
+this.__coachTiming=null
 let authExpired=false
 try {
 const entry=await this.prepareEntry()
@@ -214,6 +216,7 @@ const managed=this.data.imagePath?readCoachPhotoPaths(this.identity(),this.data.
 const paths=[this.data.imagePath,...managed,...(Array.isArray(imagePaths)?imagePaths:[])].filter((path,index,array)=>path&&array.indexOf(path)===index).slice(0,2)
 const imageKey=selected.product==='STEM Studio'&&paths.length?JSON.stringify([this.identity(),this.__mediaRequest,paths]):''
 const imageDataUrls=imageKey&&this.__coachImageCache?.key===imageKey?this.__coachImageCache.images:await Promise.all(paths.map(path=>readAsJpegDataUrl(path,{coach:selected.product==='STEM Studio'})))
+imagePreparationMs=Math.max(0,Date.now()-timingStarted)
 if(!this.current())return
 if(imageKey)this.__coachImageCache={key:imageKey,images:imageDataUrls}
 const coachContext={ product: selected.product, skill: selected.id, inputMode: imageDataUrls.length?'photo':'text', stage: 'practice', source: 'stemist-miniprogram', ...(selected.id === 'stem-photo' ? this.data.routeContext : {}),...entryContext }
@@ -234,6 +237,7 @@ onPartial:answer=>{if(this.current()&&this.data.loading&&this.__coachProgress===
 }:{}),
 })
 if (!this.current()) return
+if(selected.product==='STEM Studio')this.__coachTiming={server:result.timing,client:{...result.clientTiming,imagePreparationMs,readyMs:Math.max(0,Date.now()-timingStarted)}}
 const coachState = result.coachState || {}
 const completed=result.completed===true||(result.completed===undefined&&result.mode==='ai'&&result.providerStatus==='connected'&&Boolean(String(result.answer||'').trim()))
 if(!completed){

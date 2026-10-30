@@ -55,9 +55,12 @@ this.setData({ loading: true, error: '', canRetry: false, authRequired: false, a
 this.__coachProgress?.dispose()
 this.__receiving=false
 const progress=this.__coachProgress=createOperationTracker({key:'coach-photo',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active?{...value,label:'正在生成答案…'}:value})}})
+const timingStarted=Date.now();let imagePreparationMs=0
+this.__coachTiming=null
 let authExpired=false
 try {
 const dataUrl = await readAsJpegDataUrl(this.data.imagePath,{coach:true})
+imagePreparationMs=Math.max(0,Date.now()-timingStarted)
 if (!this.current()) return
 const policy=coachHelpPolicy(this.data.context)
 const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solution'?'hint':this.data.helpIntent
@@ -73,6 +76,7 @@ onPartial:answer=>{if(this.current()&&this.data.loading&&this.__coachProgress===
 })
 if (!this.current()) return
 const completed=result.completed===true||(result.completed===undefined&&result.mode==='ai'&&result.providerStatus==='connected'&&Boolean(String(result.answer||'').trim()))
+this.__coachTiming={server:result.timing,client:{...result.clientTiming,imagePreparationMs,readyMs:Math.max(0,Date.now()-timingStarted)}}
 if(!completed||!String(result.answer||'').trim())throw Object.assign(new Error(result.failureMessage||'AI 反馈未完成，照片已保留，请重试。'),{partialAnswer:result.partialAnswer||''})
 const answer = result.answer
 const coachState = result.coachState || {}

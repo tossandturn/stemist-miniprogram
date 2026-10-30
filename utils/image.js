@@ -56,14 +56,22 @@ async function coachDimensions(filePath){
  if(typeof wx.getImageInfo!=='function')return{}
  return new Promise(resolve=>{
   let done=false
-  const finish=info=>{if(done)return;done=true;clearTimeout(timer);const width=Number(info?.width)||0,height=Number(info?.height)||0,scale=2048/Math.max(width,height);resolve(Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0&&scale<1?{compressedWidth:Math.max(1,Math.round(width*scale)),compressedHeight:Math.max(1,Math.round(height*scale))}:{})}
+  const finish=info=>{if(done)return;done=true;clearTimeout(timer);const width=Number(info?.width)||0,height=Number(info?.height)||0,valid=Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0,scale=2048/Math.max(width,height);resolve(valid&&scale<1?{compressedWidth:Math.max(1,Math.round(width*scale)),compressedHeight:Math.max(1,Math.round(height*scale))}:valid&&info?.orientation==='up'?{reuse:true}:{})}
   const timer=setTimeout(()=>finish(),3000)
   try{wx.getImageInfo({src:filePath,success:finish,fail:()=>finish()})}catch{finish()}
  })
 }
 
 async function prepareImage(filePath,coach){
-  const dimensions=coach?await coachDimensions(filePath):{}
+  const {reuse,...dimensions}=coach?await coachDimensions(filePath):{}
+  if(reuse){
+    const file=await new Promise(resolve=>{const fs=wx.getFileSystemManager();if(!fs.getFileInfo)return resolve(null);let done=false;const finish=v=>{if(!done){done=true;clearTimeout(timer);resolve(v)}};const timer=setTimeout(()=>finish(null),250);try{fs.getFileInfo({filePath,success:finish,fail:()=>finish(null)})}catch{finish(null)}})
+    if(file?.size>0&&file.size<=768*1024){
+      const data=await readBase64(filePath)
+      // Recheck bytes; file metadata is only a fast-path hint, not evidence.
+      if(data&&base64ByteLength(data)<=768*1024)try{return `data:${imageMime(data)};base64,${data}`}catch{/* Unsupported source formats still use native conversion. */}
+    }
+  }
   let lastData = ''
   for (const quality of COMPRESSION_QUALITIES) {
     const compressedPath = await compressImage(filePath, quality, dimensions)

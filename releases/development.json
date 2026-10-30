@@ -1,7 +1,13 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.74",
+  "highestAssignedVersion": "1.0.75",
   "pendingUploads": [
+    {
+      "version": "1.0.75",
+      "assignedOn": "2026-10-30",
+      "status": "reserved",
+      "purpose": "AI Coach segmented timing and targeted image/polling latency improvements"
+    },
     {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",

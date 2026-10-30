@@ -13,7 +13,10 @@ const request=async(path,data)=>{
  if(reads===1)throw Object.assign(Error('offline'),{code:'network_error'})
  return {id,status:'succeeded',result}
 }
-assert.deepEqual(await askCoachJob(payload,{request,onStage:s=>stages.push(s),pollMs:1}),result)
+const recovered=await askCoachJob(payload,{request,onStage:s=>stages.push(s),pollMs:1})
+const {clientTiming,...answerResult}=recovered
+assert.deepEqual(answerResult,result)
+assert.equal(clientTiming.posts,1);assert.equal(clientTiming.gets,2)
 assert.equal(posts,1);assert.equal(reads,2);assert.ok(stages.includes('recovering'))
 await askCoachJob(payload,{request:async(path,data)=>{assert.equal(data,undefined);return{id:path.split('/').pop(),status:'succeeded',result}},pollMs:1})
 assert.equal(posts,1,'same content recovers result without a second upload or generation')
