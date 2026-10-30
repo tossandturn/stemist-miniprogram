@@ -47,10 +47,12 @@ async function renderReview(review,canvas,{guard=()=>{},onProgress=()=>{},setAbo
    const image=await loadImage(canvas,path);guard()
    if(!Number.isFinite(image.width)||!Number.isFinite(image.height)||image.width<=0||image.height<=0||image.width>10000||image.height>10000||image.width*image.height>24000000)throw Error('图片尺寸异常，请重新选择。')
    const expected=asset.cropped?asset.renderedImageSize:asset.imageSize
-   if(expected&&(image.width!==expected[0]||image.height!==expected[1]))throw Error('题图版本已变化，请返回练习重新加载。')
-   const r=asset.region&&!asset.cropped?asset.region:[0,0,1,1]
+   const mismatch=expected&&(image.width!==expected[0]||image.height!==expected[1])
+   const wholePage=mismatch&&asset.legacyFullPage===true&&!asset.cropped&&asset.kind==='question'
+   if(mismatch&&!wholePage)throw Error('题图版本已变化，请返回练习重新加载。')
+   const r=asset.region&&!asset.cropped&&!wholePage?asset.region:[0,0,1,1]
    const sx=Math.floor(r[0]*image.width),sy=Math.floor(r[1]*image.height),sw=Math.ceil(r[2]*image.width)-sx,sh=Math.ceil(r[3]*image.height)-sy
-   blocks.push({id:'image-'+index,kind:asset.kind,image,sx,sy,width:sw,height:sh,label:asset.kind==='answer'?'我的作答 · 非标准答案':`第 ${review.number} 题${!asset.region?' · 原卷第 '+asset.page+' 页，请只看本题':''}`})
+   blocks.push({id:'image-'+index,kind:asset.kind,image,sx,sy,width:sw,height:sh,label:asset.kind==='answer'?'我的作答 · 非标准答案':`第 ${review.number} 题${wholePage||!asset.region?' · 原卷第 '+asset.page+' 页，请只看本题':''}`})
   }
   const panels=planPanels(blocks)
   for(const [index,panel] of panels.entries()){

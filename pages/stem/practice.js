@@ -1,4 +1,5 @@
 const { deviceState, syncDevice } = require("../../utils/page"), { readSession, saveSession, needsSignIn, questionView, epoch, markQuestion, saveChoice, markChoice, refreshQuestionDisplay } = require("../../utils/nativePractice"), { CHOICES } = require("../../utils/nativeChoice"), { isAuthError } = require("../../utils/api"), { routeById } = require("../../utils/stemRoutes");
+const { sourceImageLoaded } = require('../../utils/sourceRegion');
 Page({ onShareAppMessage() {
   return require("../../utils/share").onShareAppMessage.call(this);
 }, data: deviceState({ sessionId: "", routeId: "", stage: "", subjectCode: "", title: "", unavailableParts: 0, question: null, index: 0, total: 0, navItems: [], answeredCount: 0, photo: "", photoMissing: false, results: [], reviewComplete: false, reviewedCount: 0, busy: false, cameraBusy: false, status: "", error: "", authRequired: false, choices: CHOICES, choice: "", objectiveResult: null }), onLoad(t = {}) {
@@ -22,8 +23,10 @@ Page({ onShareAppMessage() {
   e.canAskCoach = Boolean((e.objectiveResult?.available !== false && lost(e.objectiveResult)) || e.results.some(lost));
   this.data.question?.id === e.question.id && (e.question.images = e.question.images.map((s) => {
     const i = this.data.question.images.find((r) => r.id === s.id && r.url === s.url);
-    return i ? { ...s, loaded: i.loaded, failed: i.failed } : s;
-  })), this.setData({ ...e, routeId: t.routeId, stage: t.stage, subjectCode: t.subjectCode, title: a.startsWith(t.stage) ? a : `${t.stage} ${a}`, photoMissing: e.photo === this.data.photo ? this.data.photoMissing : false, authRequired: this.data.authRequired && !wx.getStorageSync("stemistSessionToken") }), e.question.choiceMode && e.question.fullPage && this.__displayChecks && !this.__displayChecks.has(e.question.id) && (this.__displayChecks.add(e.question.id), refreshQuestionDisplay(t.id, e.question.id, () => !this.__disposed).then((s) => {
+    return i ? { ...s, ...(i.naturalSize ? sourceImageLoaded(s, ...i.naturalSize) : { loaded: i.loaded, failed: i.failed }) } : s;
+  }));
+  e.question.fullPage = e.question.fullPage || e.question.images.some(s => s.fullPageFallback);
+  this.setData({ ...e, routeId: t.routeId, stage: t.stage, subjectCode: t.subjectCode, title: a.startsWith(t.stage) ? a : `${t.stage} ${a}`, photoMissing: e.photo === this.data.photo ? this.data.photoMissing : false, authRequired: this.data.authRequired && !wx.getStorageSync("stemistSessionToken") }), e.question.choiceMode && e.question.fullPage && this.__displayChecks && !this.__displayChecks.has(e.question.id) && (this.__displayChecks.add(e.question.id), refreshQuestionDisplay(t.id, e.question.id, () => !this.__disposed).then((s) => {
     s && !this.__disposed && this.refresh();
   }).catch(() => {
   }));
@@ -40,12 +43,13 @@ Page({ onShareAppMessage() {
     this.setData({ error: s.message });
   }
 }, imageLoaded(t) {
-  this.setImageState(t, { loaded: true, failed: false });
+  const image = this.data.question?.images.find(s => s.id === t.currentTarget.dataset.id);
+  if (image) this.setImageState(t, sourceImageLoaded(image, t.detail?.width, t.detail?.height));
 }, imageFailed(t) {
   this.setImageState(t, { loaded: false, failed: true });
 }, setImageState(t, e) {
   const a = t.currentTarget.dataset.id;
-  this.data.question?.images.some((s) => s.id === a) && this.setData({ question: { ...this.data.question, images: this.data.question.images.map((s) => s.id === a ? { ...s, ...e } : s) } });
+  this.data.question?.images.some((s) => s.id === a) && this.setData({ question: { ...this.data.question, fullPage: this.data.question.fullPage || Boolean(e.fullPageFallback), images: this.data.question.images.map((s) => s.id === a ? { ...s, ...e } : s) } });
 }, retryImage(t) {
   const e = t.currentTarget.dataset.id, a = this.data.question?.images.find((i) => i.id === e);
   if (!a) return;

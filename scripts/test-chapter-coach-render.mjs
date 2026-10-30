@@ -16,6 +16,12 @@ assert.ok(progress.some(p=>p.loaded===100&&p.total===100))
 assert.ok(removed.includes('/temp/source.jpg'))
 assert.ok(!removed.includes(paths[0]),'keep generated outputs until handoff copy completes')
 drawn.length=0
+await render.renderReview({...review,assets:[{...review.assets[0],legacyFullPage:true,imageSize:[1020,1320]}]},canvas)
+assert.deepEqual(drawn.find(a=>a[0]==='image').slice(1,5),[0,0,1000,1400],'a changed legacy page must be sent whole, never cropped using stale coordinates')
+assert.ok(drawn.some(a=>a[0]==='text'&&String(a[1]).includes('原卷第 1 页，请只看本题')))
+await assert.rejects(render.renderReview({...review,assets:[{...review.assets[0],imageSize:[1020,1320]}]},canvas),/版本已变化/,'versioned or untrusted geometry remains strict')
+await assert.rejects(render.renderReview({...review,assets:[{...review.assets[0],cropped:true,renderedImageSize:[1000,700]}]},canvas),/版本已变化/,'server-cropped image mismatches cannot fallback')
+drawn.length=0
 await render.renderReview({...review,assets:[],prompt:'原创基础练习\nWhat is acceleration?\nA. 1\nB. 2'},canvas,{guard(){}})
 assert.ok(drawn.some(a=>a[0]==='text'&&String(a[1]).includes('What is')))
 let checks=0

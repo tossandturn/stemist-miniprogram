@@ -16,7 +16,7 @@ function questionAsset(value,q,session){
  }
  const match=url.match(/^\/question-assets\/([a-zA-Z0-9_-]+)\/qp-([0-9]{1,4})\.(jpg|jpeg|png|webp)$/)
  if(!match||match[1]!==q.paperId||Number(match[2])<1||Number(match[2])>1000)fail()
- const asset={url:DEFAULT_API_BASE+url,kind:'question',page:Number(match[2])}
+ const asset={url:DEFAULT_API_BASE+url,kind:'question',page:Number(match[2]),legacyFullPage:true}
  if(typeof value==='object'){
   const r=value.region,s=value.imageSize
   if(!Array.isArray(r)||r.length!==4||!r.every(Number.isFinite)||r[0]<0||r[1]<0||r[2]>1||r[3]>1||r[0]>=r[2]||r[1]>=r[3]||!Array.isArray(s)||s.length!==2||!s.every(n=>Number.isInteger(n)&&n>0&&n<=10000)||s[0]*s[1]>24000000||value.page!==asset.page)fail()

@@ -21,15 +21,28 @@ function normalizeSourceRegion(value, routeId, questionId) {
 }
 
 function sourceRegionStyle(value) {
+  const geometry = { sourceSize: value.renderedImageSize || value.imageSize, legacyPage: /^\/question-assets\/[^/]+\/qp-[0-9]+\.(jpg|jpeg|png|webp)$/.test(value.url || '') }
   if (value.renderedImageSize) {
     const [width, height] = value.renderedImageSize
-    return { cropped: true, clipStyle: 'padding-top:' + (height / width * 100).toFixed(6) + '%;',
+    return { ...geometry, cropped: true, clipStyle: 'padding-top:' + (height / width * 100).toFixed(6) + '%;',
       imageStyle: 'width:100%;height:100%;left:0;top:0;' }
   }
   const [x0, y0, x1, y1] = value.region, [width, height] = value.imageSize
   const dx = x1 - x0, dy = y1 - y0, percent = n => (n * 100).toFixed(6) + '%'
-  return { cropped: true, clipStyle: 'padding-top:' + percent(height * dy / (width * dx)) + ';',
+  return { ...geometry, cropped: true, clipStyle: 'padding-top:' + percent(height * dy / (width * dx)) + ';',
     imageStyle: 'width:' + percent(1 / dx) + ';height:' + percent(1 / dy) + ';left:' + percent(-x0 / dx) + ';top:' + percent(-y0 / dy) + ';' }
 }
 
-module.exports = { normalizeSourceRegion, sourceRegionStyle }
+function sourceImageLoaded(image, width, height) {
+  const state = { loaded: true, failed: false, fullPageFallback: false }
+  if (!(width > 0 && height > 0)) return state
+  state.naturalSize = [width, height]
+  if (image.sourceSize && (width !== image.sourceSize[0] || height !== image.sourceSize[1])) {
+    if (!image.legacyPage) return { ...state, loaded: false, failed: true }
+    // A legacy page can be replaced without a content hash. Never reuse its old crop.
+    return { ...state, cropped: false, clipStyle: '', imageStyle: '', fullPageFallback: true }
+  }
+  return state
+}
+
+module.exports = { normalizeSourceRegion, sourceRegionStyle, sourceImageLoaded }
