@@ -8,7 +8,8 @@ assert.equal(typeof access.pdfAccessHeaders,'function','Downloads must carry cre
 assert.equal(access.pdfAccessHeaders(url,token).Authorization,'Bearer '+token)
 assert.equal(access.pdfAccessHeaders('https://stem.ieltsist.com/api/stem/curriculum-papers/files/ap-calc-ab-2025-frq-qp',token).Authorization,'Bearer '+token,'Legacy published AP file IDs also require auth on fallback')
 for(const bad of ['https://elsewhere.invalid/paper.pdf','https://stem.ieltsist.com.evil.test/local-pdf/9702/a.pdf','https://stem.ieltsist.com@elsewhere.invalid/local-pdf/9702/a.pdf',url+'?token=x','https://stem.ieltsist.com/local-pdf/9702/%2Fsecret.pdf','https://stem.ieltsist.com/api/stem/private','http://stem.ieltsist.com/local-pdf/9702/a.pdf'])assert.equal(Object.keys(access.pdfAccessHeaders(bad,token)).length,0)
-assert.equal(Object.keys(access.pdfAccessHeaders(url,'bad\r\nHeader: injected')).length,0)
+assert.equal(access.pdfAccessHeaders(url,'bad\r\nHeader: injected').Authorization,undefined)
+assert.equal(access.pdfAccessHeaders(url,'bad\r\nHeader: injected')['X-Stemist-Download-Policy'],'shared-files-v1','invalid credentials cannot opt out of strict quota')
 const source=Buffer.concat([Buffer.from('%PDF-1.7\n'),Buffer.alloc(600000,42),Buffer.from('\n%%EOF')]),sha=crypto.createHash('sha256').update(source).digest('hex')
 const wait=()=>new Promise(resolve=>setTimeout(resolve,5))
 async function until(check){for(let i=0;i<200&&!check();i++)await wait();assert.ok(check())}

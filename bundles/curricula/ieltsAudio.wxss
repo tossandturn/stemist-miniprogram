@@ -1,0 +1,2 @@
+@import "./ieltsPapers.wxss";
+.audio-focused{border-color:#7357e8}.audio-export{width:100%;margin:12px 0 8px;min-height:44px}.audio-export-error{display:block;color:#a22e48;font-size:14px;line-height:1.6}.audio-downloads .file-meta{line-height:1.6}.audio-downloads .quota-note{font-size:14px}.audio-downloads .file-row{margin-top:12px}.audio-downloads .file-row button{min-height:44px}.audio-downloads .text-button{min-height:44px}

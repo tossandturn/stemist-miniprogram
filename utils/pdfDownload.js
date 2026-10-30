@@ -15,7 +15,7 @@ return subject+'_20'+season.slice(1)+'_'+({m:'春季',s:'夏季',w:'秋冬季'}[
 }
 function safePdfFileName(value){const name=String(value||'').trim();return name&&name.length<=160&&/\.pdf$/i.test(name)&&!/[\\/:*?"<>|\u0000-\u001f]|\.\.|%2e|%2f|%5c/i.test(name)?name:''}
 
-function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,authRequired:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false}}
+function initialPdfDownloadState(){return{visible:false,phase:'idle',active:false,authRequired:false,quotaExhausted:false,ownerKey:'',itemId:'',label:'',message:'',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false}}
 
 function formatBytes(value){
 const bytes=Math.max(0,Number(value)||0)
@@ -158,7 +158,7 @@ progressTimer=setTimer(()=>{progressTimer=null;const pending=pendingProgress;pen
 const startDownload=context=>{
 const key=context.request.url,base=String(wxApi.env?.USER_DATA_PATH||''),file=safePdfFileName(context.request.fileName)||pdfFileName(key)
 if(!transferCurrent(context))return false
-context.metrics.reset();publish({visible:true,phase:'preparing',active:true,authRequired:false,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
+context.metrics.reset();publish({visible:true,phase:'preparing',active:true,authRequired:false,quotaExhausted:false,ownerKey:context.request.ownerKey,itemId:context.request.itemId,label:context.request.label,message:'正在准备'+context.request.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:true,canRetry:false,collapsed:false})
 if(file){
 const handle=acquirePdf({wxApi,url:key,accessToken:context.identity.token,owner:context.identity.owner+'|'+context.identity.epoch,version:context.request.cacheVersion,fileName:file,expectedBytes:context.request.expectedBytes,expectedSha256:context.request.sha256,onProgress:(saved,total)=>queueProgress(context,{totalBytesWritten:saved,totalBytesExpectedToWrite:total}),onPhase:(phase,saved,total)=>setTransferPhase(context,phase,saved,total),onTemporary:error=>{if(current(context)){context.temporaryPreview=true;context.temporaryLabel=error?.code==='pdf_storage_full'?'本机空间不足':'缓存暂不可用';publish({message:context.temporaryLabel+'，正在准备临时预览…',...NO_METRICS})}}})
 if(handle){context.rangeBacked=true;rangeDownload=handle;handle.promise.then(filePath=>success({statusCode:200,tempFilePath:filePath})).catch(failure);return true}
@@ -193,7 +193,7 @@ const changed=String(wxApi.getStorageSync?.('stemistSessionToken')||'')!==contex
 fail(context,changed?'登录状态已更新，请重试。':error.message);publish({authRequired:!changed,canRetry:changed})
 if(!changed&&context.identity.token)require('./session').clearLocalSession({preserveDrafts:true});return
 }
-if(['pdf_daily_limit_reached','pdf_access_denied'].includes(error?.code)){fail(context,error.message);publish({canRetry:false});return}
+if(['pdf_daily_limit_reached','pdf_access_denied'].includes(error?.code)){fail(context,error.message);publish({canRetry:false,quotaExhausted:error.code==='pdf_daily_limit_reached'});return}
 if(['pdf_quota_unavailable','pdf_rate_limited'].includes(error?.code)){fail(context,error.message);return}
 const detail=error?.httpStatus||['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
 resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)
@@ -222,7 +222,7 @@ if(entry&&!cached)target.store.delete(target.key)
 // rather than an in-memory temporary-path shortcut. This also survives pages/restarts.
 const cacheFolder=String(wxApi.env?.USER_DATA_PATH||'')+'/pdf-cache/'
 if(cached&&!cached.startsWith(cacheFolder)){
-publish({visible:true,phase:'preparing',active:true,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false})
+publish({visible:true,phase:'preparing',active:true,authRequired:false,quotaExhausted:false,ownerKey:normalized.ownerKey,itemId:normalized.itemId,label:normalized.label,message:'正在准备'+normalized.label+'…',error:'',downloadedBytes:0,totalBytes:0,downloadedLabel:'',totalLabel:'',knownTotal:false,percent:null,...NO_METRICS,canCancel:false,canRetry:false,collapsed:false})
 if(await cachedFileExists(cached)){
 if(!transferCurrent(context))return false
 context.cacheTarget=target

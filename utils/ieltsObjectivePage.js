@@ -119,6 +119,7 @@ function makeObjectivePage(module){
  pauseAudio(){this.__audioWanted=false;this.__audio?.pause();if(!this.__disposed)this.setData({audioPlaying:false,audioWaitingToPlay:false,audioBuffering:false})},
  selectAudio(event){const index=Number(event.detail.value);if(!this.__task.audioUrls[index]||index===this.data.audioIndex)return;this.__audioWanted=false;const previous=this.__audio;this.__audio=null;this.__audioTrackIndex=-1;previous?.stop();previous?.destroy();this.cancelAudioPreparation();this.setData({audioIndex:index,audioPosition:0,audioDuration:0,audioPlaying:false,audioBuffering:false,audioWaitingToPlay:false,audioError:''});this.prepareAudio();if(this.data.captionsEnabled)this.loadCurrentCaptions()},
  seekAudio(event){const time=Math.max(0,Number(event.detail.value)||0),existing=this.__audio;existing?.seek(time);if(!existing&&this.__preparedAudio)this.initAudio(time);this.setData({audioPosition:Math.floor(time)});this.updateCaptionFrame(time)},
+ openAudioDownloads(){if(module!=='listening'||this.data.examMode||!this.__task||!this.currentOwner())return;const track=this.__task.audioSections?.[this.data.audioIndex]?.section||this.data.audioIndex+1;wx.navigateTo({url:'/bundles/curricula/ieltsAudio?taskId='+encodeURIComponent(this.data.taskId)+'&track='+track})},
  async submit(){
   if(this.data.busy||this.data.submitted||!this.__draft||!this.currentOwner())return
   this.flush();this.pauseAudio();this.setData({busy:true,error:''})

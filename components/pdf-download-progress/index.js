@@ -5,5 +5,6 @@ Component({
   retry(){this.triggerEvent('retry')},
   toggle(){this.triggerEvent('toggle')},
   login(){if(this.data.state?.authRequired)wx.navigateTo({url:'/bundles/account/auth'})},
+  membership(){if(this.data.state?.quotaExhausted&&!this.data.state?.active)wx.navigateTo({url:'/bundles/account/membership'})},
  }
 })

@@ -14,11 +14,12 @@ function storageFailure(operation,error){
 }
 const etag=s=>/^"[^"\s]{1,180}"$/.test(s)?s:''
 const contentRange=s=>{const m=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(s);if(!m)return null;const n=m.slice(1).map(Number);return n.every(Number.isSafeInteger)?{start:n[0],end:n[1],total:n[2]}:null}
-function pdfAccessHeaders(url,token){return /^https:\/\/stem\.ieltsist\.com\/(?:local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf|api\/stem\/ielts-papers\/files\/ielts-cam[0-9]+-[a-z0-9-]+-(?:qp|ak)|api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,199})$/i.test(url)&&!/\.\.|%2e|%2f|%5c/i.test(url)&&typeof token==='string'&&/^[A-Za-z0-9._-]{1,4096}$/.test(token)?{Authorization:'Bearer '+token}:{}}
+function pdfAccessHeaders(url,token){return /^https:\/\/stem\.ieltsist\.com\/(?:local-pdf\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.%~-]+\.pdf|api\/stem\/ielts-papers\/files\/ielts-cam[0-9]+-[a-z0-9-]+-(?:qp|ak)|api\/stem\/ielts-audio\/files\/audio-[a-f0-9]{32}|api\/stem\/curriculum-papers\/files\/[A-Za-z0-9][A-Za-z0-9._-]{0,199})$/i.test(url)&&!/\.\.|%2e|%2f|%5c/i.test(url)?{'X-Stemist-Download-Policy':'shared-files-v1',...(typeof token==='string'&&/^[A-Za-z0-9._-]{1,4096}$/.test(token)?{Authorization:'Bearer '+token}:{})}:{}}
 function pdfAccessError(status,headers){
  const code=header(headers,'x-pdf-access-code')
+ if(Number(status)===412&&code==='audio_source_changed')return problem(code,'音频版本已变化，请刷新下载目录。')
  if(Number(status)===401)return problem('pdf_auth_required','请登录后继续下载，已保存进度不会丢失。')
- if([403,429].includes(Number(status))&&code==='pdf_daily_limit_reached')return problem(code,'今日免费额度已用完，真题与答案合计 2 份；北京时间每天 00:00 重置，已缓存文件仍可打开。')
+ if([403,429].includes(Number(status))&&code==='pdf_daily_limit_reached')return problem(code,'今日免费额度已用完：PDF 与听力音频合计 2 份。北京时间每天 00:00 重置；已缓存文件仍可打开，也可查看会员权益。')
  if(Number(status)===403)return problem('pdf_access_denied','此文件暂不可下载，请返回刷新目录。')
  if(Number(status)===429)return problem('pdf_rate_limited','请求较多，请稍后重试。')
  if(Number(status)>=500)return Object.assign(problem(code==='pdf_quota_unavailable'?code:'pdf_network','下载服务暂不可用（HTTP '+Number(status)+'），请稍后重试。'),{httpStatus:Number(status)})

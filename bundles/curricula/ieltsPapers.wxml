@@ -1,6 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-downloads">
  <stemist-header compact="{{true}}" title="剑雅真题下载" action-text="返回" bind:action="back"/>
- <view class="quota-note">免费账号每天 2 份，题目与答案合计；会员不限份数。打开本地缓存不扣次数。</view>
+ <view class="quota-note">PDF 题目、答案与听力音频合计每天免费 2 份；会员不限份数。打开本地缓存不扣次数。</view>
  <picker range="{{books}}" range-key="label" value="{{bookIndex}}" bindchange="chooseBook"><view class="book-picker">{{books[bookIndex].label || '选择书册'}}<text>更换书册</text></view></picker>
  <view class="modules"><button wx:for="{{modules}}" wx:key="id" class="{{module === item.id ? 'selected' : ''}}" data-module="{{item.id}}" bindtap="chooseModule">{{item.label}}</button></view>
  <view wx:if="{{loading}}" class="loading-state">正在加载下载目录…</view>

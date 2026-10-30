@@ -1,7 +1,13 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.77",
+  "highestAssignedVersion": "1.0.78",
   "pendingUploads": [
+    {
+      "version": "1.0.78",
+      "assignedOn": "2026-10-31",
+      "status": "reserved",
+      "purpose": "Listening audio exports and shared PDF/audio daily quota with explicit third-file reminder"
+    },
     {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",

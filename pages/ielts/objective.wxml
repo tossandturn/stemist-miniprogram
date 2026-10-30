@@ -29,6 +29,7 @@
  <text wx:if="{{audioBuffering}}">正在缓冲…</text>
 </view>
 <view wx:if="{{audioAvailable && !examMode}}" class="caption-controls"><button bindtap="toggleCaptions">{{captionsEnabled ? '隐藏字幕' : '字幕'}}</button></view>
+<button wx:if="{{audioAvailable && !examMode}}" class="secondary" bindtap="openAudioDownloads">下载当前听力音频</button>
 <view wx:if="{{captionsEnabled}}" class="native-captions">
 <text wx:if="{{captionStatus}}">{{captionStatus}}</text>
 <view wx:for="{{captionBubbles}}" wx:key="key" class="caption-bubble caption-tone-{{item.tone}}"><text class="caption-speaker">{{item.speaker}}</text><text>{{item.text}}</text></view>

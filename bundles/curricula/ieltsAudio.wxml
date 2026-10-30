@@ -1,0 +1,23 @@
+<view class="page {{deviceClass}} {{orientation}} ielts-downloads audio-downloads">
+ <stemist-header compact="{{true}}" title="听力音频下载" action-text="返回" bind:action="back"/>
+ <view class="quota-note">PDF 与听力音频合计每天免费 2 份，会员不限份数。每个不同 MP3 计 1 份；在线播放不计次，已下载缓存不重复扣次。</view>
+ <picker range="{{books}}" range-key="label" value="{{bookIndex}}" disabled="{{download.active || download.sharing}}" bindchange="chooseBook"><view class="book-picker">{{books[bookIndex].label || '选择书册'}}<text>更换书册</text></view></picker>
+ <button wx:if="{{taskFilter}}" class="text-button" disabled="{{download.active || download.sharing}}" bindtap="showAll">查看本册全部音频</button>
+ <view wx:if="{{loading}}" class="loading-state">正在加载音频目录…</view>
+ <view wx:if="{{error}}" class="error" role="alert">{{error}}</view>
+ <view wx:if="{{offline}}" class="quota-note">目录暂未联网更新；已下载缓存仍可使用，新文件需要联网。</view>
+ <button wx:if="{{error || offline}}" class="secondary" disabled="{{download.active || download.sharing}}" bindtap="load">刷新目录</button>
+ <text wx:if="{{!loading}}" class="count">{{total}} 个音频文件 · 分段文件分别计次</text>
+ <view class="papers"><view wx:for="{{items}}" wx:key="id" class="paper {{item.focused ? 'audio-focused' : ''}}">
+  <text class="paper-title">{{item.meta}}</text><text wx:if="{{item.practiceNote}}" class="paper-source">{{item.practiceNote}}</text>
+  <view class="file-row"><view><text>{{item.trackLabel}}{{item.focused ? ' · 当前音轨' : ''}}</text><text class="file-meta">MP3 · {{item.sizeLabel}}</text></view><button data-id="{{item.id}}" bindtap="download" disabled="{{download.active || download.sharing}}">{{download.ready && download.itemId === item.id ? '读取缓存' : '下载音频'}}</button></view>
+  <block wx:if="{{download.itemId === item.id}}">
+   <pdf-download-progress wx:if="{{download.progress}}" state="{{download.progress}}" compact="{{true}}" bind:cancel="cancel" bind:retry="retry"/>
+   <text wx:if="{{download.error && (!download.progress || !download.progress.error)}}" class="audio-export-error" role="alert">{{download.error}}</text>
+   <button wx:if="{{download.ready}}" class="primary audio-export" loading="{{download.sharing}}" disabled="{{download.sharing}}" bindtap="share">保存到微信</button>
+   <text wx:if="{{download.ready}}" class="file-meta">可选择文件传输助手保存；取消发送不会删除下载缓存。</text>
+  </block>
+ </view></view>
+ <view wx:if="{{!loading && !items.length && !error}}" class="empty-state">暂没有这一范围的可下载音频，可更换书册。</view>
+ <view wx:if="{{pages > 1}}" class="pager"><button disabled="{{page <= 0 || download.active || download.sharing}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pages}}</text><button disabled="{{page + 1 >= pages || download.active || download.sharing}}" bindtap="next">下一页</button></view>
+</view>

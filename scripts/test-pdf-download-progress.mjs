@@ -31,7 +31,7 @@ page.setData({mode:'exam-simulation'});page.openPdf({currentTarget:{dataset:{id:
 page.onUnload()
 
 const {createPdfDownloadController,initialPdfDownloadState}=miniRuntime().load('utils/pdfDownload')
-assert.deepEqual(Object.keys(initialPdfDownloadState()).sort(),['active','authRequired','canCancel','canRetry','collapsed','downloadedBytes','downloadedLabel','error','etaSeconds','itemId','knownTotal','label','message','ownerKey','percent','phase','remainingLabel','speedLabel','totalBytes','totalLabel','visible'].sort())
+assert.deepEqual(Object.keys(initialPdfDownloadState()).sort(),['active','authRequired','quotaExhausted','canCancel','canRetry','collapsed','downloadedBytes','downloadedLabel','error','etaSeconds','itemId','knownTotal','label','message','ownerKey','percent','phase','remainingLabel','speedLabel','totalBytes','totalLabel','visible'].sort())
 
 function manualClock(){
  let time=1000,id=0

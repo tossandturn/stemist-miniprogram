@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
+const rt=miniRuntime(),access=rt.load('utils/pdfRangeCache'),pdf='https://stem.ieltsist.com/local-pdf/9702/synthetic.pdf',audio='https://stem.ieltsist.com/api/stem/ielts-audio/files/audio-'+'a'.repeat(32)
+for(const url of [pdf,audio]){assert.equal(access.pdfAccessHeaders(url,'')['X-Stemist-Download-Policy'],'shared-files-v1','guest/new client cannot silently bypass the stricter policy');assert.equal(access.pdfAccessHeaders(url,'fixture.token').Authorization,'Bearer fixture.token');assert.equal(access.pdfAccessHeaders(url,'bad\r\nInjected: x').Authorization,undefined)}
+assert.equal(Object.keys(access.pdfAccessHeaders('https://ieltsist.com/generated/audio/a.mp3','fixture.token')).length,0,'playback receives no quota marker or STEM credential')
+assert.match(access.pdfAccessError(429,{'X-Pdf-Access-Code':'pdf_daily_limit_reached'}).message,/音频/)
+let request,navigations=[]
+const wxApi={getStorageSync:k=>k==='stemistUser'?{id:'ielts:42'}:k==='stemistSessionToken'?'fixture.token':0,downloadFile:o=>{request=o;return{abort(){},onProgressUpdate(){},onHeadersReceived(){}}},navigateTo:o=>navigations.push(o.url)}
+const controller=rt.load('utils/pdfDownload').createPdfDownloadController({wxApi,onState(){}});controller.setScope('fixture');await controller.open({url:pdf,ownerKey:'fixture',itemId:'sample',label:'原卷'});request.success({statusCode:429,header:{'X-Pdf-Access-Code':'pdf_daily_limit_reached'}})
+assert.equal(controller.getState().quotaExhausted,true);assert.equal(controller.getState().canRetry,false);assert.match(controller.getState().error,/00:00/);assert.equal(navigations.length,0,'no automatic payment navigation')
+rt.wx.navigateTo=o=>navigations.push(o.url);const component=rt.load('components/pdf-download-progress/index');component.methods.membership.call({data:{state:controller.getState()}});assert.equal(navigations.at(-1),'/bundles/account/membership')
+controller.setScope('next');assert.equal(controller.getState().quotaExhausted,false);controller.dispose()
+let cachedRequest;const cachedApi={...wxApi,getFileSystemManager:()=>({accessSync(){}}),downloadFile:o=>{cachedRequest=o;return{abort(){},onProgressUpdate(){},onHeadersReceived(){}}},openDocument:o=>o.success()};const cachedController=rt.load('utils/pdfDownload').createPdfDownloadController({wxApi:cachedApi});cachedController.setScope('cache');await cachedController.open({url:pdf,ownerKey:'one',itemId:'one'});cachedRequest.success({statusCode:200,tempFilePath:'/temp/one.pdf'});await cachedController.open({url:pdf.replace('synthetic','second'),ownerKey:'two',itemId:'two'});cachedRequest.success({statusCode:429,header:{'X-Pdf-Access-Code':'pdf_daily_limit_reached'}});assert.equal(cachedController.getState().quotaExhausted,true);await cachedController.open({url:pdf,ownerKey:'one',itemId:'one'});assert.equal(cachedController.getState().phase,'opened');assert.equal(cachedController.getState().quotaExhausted,false,'opening a different completed cache clears the previous denial');cachedController.dispose()
+const root=process.env.STEMIST_TEST_RUNTIME_ROOT||path.resolve(import.meta.dirname,'..'),wxml=fs.readFileSync(path.join(root,'components/pdf-download-progress/index.wxml'),'utf8');assert.match(wxml,/state.quotaExhausted/);assert.match(wxml,/查看会员/)
+console.log('Download quota UI: strict opt-in, no credential leak, clear third-file/reset guidance, explicit member action and reset PASS')
