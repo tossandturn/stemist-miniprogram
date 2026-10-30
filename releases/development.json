@@ -3,16 +3,6 @@
   "highestAssignedVersion": "1.0.76",
   "pendingUploads": [
     {
-      "version": "1.0.76",
-      "assignedOn": "2026-10-30",
-      "status": "candidate_verified_pending_upload",
-      "purpose": "Full functional QA: profile recovery and source-bound chapter image geometry",
-      "commit": "4786969d7149a4f3223bacab2d1228c088fa64f4",
-      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.76-ready-r2",
-      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.76-ready-r2-manifest.json",
-      "runtimeManifestSha256": "76af04af090815f45270e01b7fb5ef9a52d5c694a7ed58926a5b3799044c7a25"
-    },
-    {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",
       "commit": "be7b40e1cef297129e3e023965fd832b77a3999e",
@@ -36,6 +26,20 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.76",
+      "assignedOn": "2026-10-30",
+      "uploadConfirmedAt": "2026-10-30T12:29:37.992Z",
+      "commit": "4786969d7149a4f3223bacab2d1228c088fa64f4",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.76-ready-r2",
+      "officialInfo": "D:/CodexWork/full-miniprogram-qa-20261030/wechat-upload-receipt.json",
+      "runtimeManifestSha256": "76af04af090815f45270e01b7fb5ef9a52d5c694a7ed58926a5b3799044c7a25",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false,
+      "fullFunctionalAcceptance": "D:/CodexWork/full-miniprogram-qa-20261030/verification.json"
+    },
     {
       "version": "1.0.75",
       "assignedOn": "2026-10-30",
