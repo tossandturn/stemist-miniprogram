@@ -5,6 +5,11 @@
     {
       "version": "1.0.78",
       "assignedOn": "2026-10-31",
+      "commit": "afb17aabb899e383b541881bce93942ffe26e873",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.78-ready-r2",
+      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.78-ready-r2-manifest.json",
+      "runtimeManifestSha256": "e004dfbcd117d7913f41e08b07d0e02811e668bbcb0904d8417a6e7469d7fcb0",
+      "listeningDownloadAcceptance": "D:/CodexWork/listening-download-quota-20261031/verification.json",
       "status": "reserved",
       "purpose": "Listening audio exports and shared PDF/audio daily quota with explicit third-file reminder"
     },

@@ -1,5 +1,7 @@
 # Free hosted paper downloads
 
+Historical implementation and receipts below are retained. The 2026-10-31 extension adds listening MP3 files to the same allowance and activates strict enforcement for compatible new client requests, while preserving old-client compatibility. See `listening-downloads-2026-10-31.md` and `qa-listening-downloads-2026-10-31.md` for the current rule and evidence.
+
 User-confirmed rule: a signed-in free account may download two different hosted paper/answer PDFs per Beijing calendar day. A-Level, AP and IB share the allowance. The server identifies files by verified SHA-256. Same-day retry/resume does not consume again; a locally verified complete cache does not contact the server. Active members have no daily file-count limit.
 
 ## Client behavior
