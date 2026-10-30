@@ -18,4 +18,5 @@ page.download({currentTarget:{dataset:{id:file(2).id}}});assert.equal(selected.i
 const root=process.env.STEMIST_TEST_RUNTIME_ROOT||path.resolve(import.meta.dirname,'..'),app=JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8'));assert.ok(app.subPackages.find(p=>p.root==='bundles/curricula').pages.includes('ieltsAudio'))
 for(const f of ['pages/practice/index.wxml','pages/ielts/library.wxml'])assert.match(fs.readFileSync(path.join(root,f),'utf8'),/bundles\/curricula\/ieltsAudio/)
 assert.match(fs.readFileSync(path.join(root,'pages/ielts/objective.wxml'),'utf8'),/openAudioDownloads/)
+const audioMarkup=fs.readFileSync(path.join(root,'bundles/curricula/ieltsAudio.wxml'),'utf8');assert.match(audioMarkup,/class="audio-download-button"/);assert.match(audioMarkup,/id="audio-download-progress"/)
 console.log('Audio library: canonical metadata, public cache fallback, original labels/deep links, no auto download and registered native entries PASS')

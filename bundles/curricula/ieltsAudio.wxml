@@ -10,9 +10,9 @@
  <text wx:if="{{!loading}}" class="count">{{total}} 个音频文件 · 分段文件分别计次</text>
  <view class="papers"><view wx:for="{{items}}" wx:key="id" class="paper {{item.focused ? 'audio-focused' : ''}}">
   <text class="paper-title">{{item.meta}}</text><text wx:if="{{item.practiceNote}}" class="paper-source">{{item.practiceNote}}</text>
-  <view class="file-row"><view><text>{{item.trackLabel}}{{item.focused ? ' · 当前音轨' : ''}}</text><text class="file-meta">MP3 · {{item.sizeLabel}}</text></view><button data-id="{{item.id}}" bindtap="download" disabled="{{download.active || download.sharing}}">{{download.ready && download.itemId === item.id ? '读取缓存' : '下载音频'}}</button></view>
+  <view class="file-row"><view><text>{{item.trackLabel}}{{item.focused ? ' · 当前音轨' : ''}}</text><text class="file-meta">MP3 · {{item.sizeLabel}}</text></view><button class="audio-download-button" data-id="{{item.id}}" bindtap="download" disabled="{{download.active || download.sharing}}">{{download.ready && download.itemId === item.id ? '读取缓存' : '下载音频'}}</button></view>
   <block wx:if="{{download.itemId === item.id}}">
-   <pdf-download-progress wx:if="{{download.progress}}" state="{{download.progress}}" compact="{{true}}" bind:cancel="cancel" bind:retry="retry"/>
+   <pdf-download-progress id="audio-download-progress" wx:if="{{download.progress}}" state="{{download.progress}}" compact="{{true}}" bind:cancel="cancel" bind:retry="retry"/>
    <text wx:if="{{download.error && (!download.progress || !download.progress.error)}}" class="audio-export-error" role="alert">{{download.error}}</text>
    <button wx:if="{{download.ready}}" class="primary audio-export" loading="{{download.sharing}}" disabled="{{download.sharing}}" bindtap="share">保存到微信</button>
    <text wx:if="{{download.ready}}" class="file-meta">可选择文件传输助手保存；取消发送不会删除下载缓存。</text>
