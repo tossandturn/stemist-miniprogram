@@ -4,7 +4,7 @@ const {leaveAccount}=require('./accountNavigation')
 
 Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
- data:deviceState({displayName:'',avatarDataUrl:'',loading:false,loaded:false,processing:false,saving:false,error:'',saved:false}),
+ data:deviceState({displayName:'',avatarDataUrl:'',loading:false,loaded:false,processing:false,saving:false,error:'',saved:false,authRequired:false}),
  onLoad(){this._owner=context();this._disposed=false;this._leaving=false;this._generation=0;this._avatarVersion=0;return this.loadProfile()},
  onShow(){this._leaving=false;syncDevice(this);this.checkOwner()},
  onResize(){syncDevice(this)},
@@ -14,14 +14,14 @@ Page({
  invalidatePending(update=true){this._leaving=true;this._generation++;this._avatarVersion++;if(update&&!this._disposed)this.setData({loading:false,processing:false,saving:false})},
  checkOwner(generation=this._generation){
   if(this.current(generation))return true
-  if(!this._disposed&&!this._leaving&&generation===this._generation)this.setData({displayName:'',avatarDataUrl:'',loaded:false,processing:false,saving:false,saved:false,error:'账号已变化，请返回后重新登录。'})
+  if(!this._disposed&&!this._leaving&&generation===this._generation)this.setData({displayName:'',avatarDataUrl:'',loading:false,loaded:false,processing:false,saving:false,saved:false,authRequired:true,error:this._owner.ownerId?'账号已变化，请返回我的账号后重新打开资料。':'请先登录后再设置头像与昵称。'})
   return false
  },
  async loadProfile(){
   if(this.data.loading||this.data.saving)return
   const generation=this._generation
   this.setData({loading:true,error:'',loaded:false})
-  try{const profile=await profileRequest(this._owner);if(!this.checkOwner(generation))return;cacheProfile(this._owner,profile);this.setData({displayName:profile.displayName,avatarDataUrl:profile.avatarDataUrl,loaded:true})}
+  try{const profile=await profileRequest(this._owner);if(!this.checkOwner(generation))return;cacheProfile(this._owner,profile);this.setData({displayName:profile.displayName,avatarDataUrl:profile.avatarDataUrl,loaded:true,authRequired:false})}
   catch(error){if(this.checkOwner(generation))this.setData({error:error.message||'资料读取失败，请重试。'})}
   finally{if(this.current(generation))this.setData({loading:false})}
  },
@@ -44,4 +44,5 @@ Page({
   finally{if(this.current(generation))this.setData({saving:false})}
  },
  goBack(){this.invalidatePending();leaveAccount()},
+ openAccount(){this.invalidatePending();wx.redirectTo({url:'/bundles/account/auth',fail:()=>{if(!this._disposed){this._leaving=false;this.setData({error:'账号页面未能打开，请返回后重试。'})}}})},
 })

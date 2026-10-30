@@ -16,7 +16,8 @@
       <button class="primary" form-type="submit" loading="{{saving}}" disabled="{{saving || processing}}">{{saving ? '正在保存…' : '保存头像与昵称'}}</button>
     </form>
     <view wx:if="{{error}}" class="error" aria-role="alert">{{error}}</view>
-    <button wx:if="{{!loaded && !loading}}" class="secondary" bindtap="loadProfile">重新读取资料</button>
+    <button wx:if="{{authRequired}}" class="secondary" bindtap="openAccount">前往我的账号</button>
+    <button wx:elif="{{!loaded && !loading}}" class="secondary" bindtap="loadProfile">重新读取资料</button>
     <view wx:if="{{saved}}" class="profile-success" aria-role="status">已保存，下次登录将继续使用。</view>
     <button class="text-button profile-skip" bindtap="goBack">{{saved ? '完成并返回' : '暂不设置，稍后可在我的账号编辑'}}</button>
   </view>

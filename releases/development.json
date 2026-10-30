@@ -1,7 +1,13 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.75",
+  "highestAssignedVersion": "1.0.76",
   "pendingUploads": [
+    {
+      "version": "1.0.76",
+      "assignedOn": "2026-10-30",
+      "status": "reserved",
+      "purpose": "Full functional QA: profile expiry recovery and zero-padded chapter image handoff"
+    },
     {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",

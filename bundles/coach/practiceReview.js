@@ -14,8 +14,8 @@ function questionAsset(value,q,session){
   try{region=normalizeSourceRegion({...value,schemaVersion:value.renderedImageSize?'native-source-region-v2':'native-source-region-v1'},session.routeId,q.id)}catch{fail()}
   return {...region,url:DEFAULT_API_BASE+url,kind:'question',cropped:Boolean(region.renderedImageSize)}
  }
- const match=url.match(/^\/question-assets\/([a-zA-Z0-9_-]+)\/qp-([1-9][0-9]{0,3})\.(jpg|jpeg|png|webp)$/)
- if(!match||match[1]!==q.paperId)fail()
+ const match=url.match(/^\/question-assets\/([a-zA-Z0-9_-]+)\/qp-([0-9]{1,4})\.(jpg|jpeg|png|webp)$/)
+ if(!match||match[1]!==q.paperId||Number(match[2])<1||Number(match[2])>1000)fail()
  const asset={url:DEFAULT_API_BASE+url,kind:'question',page:Number(match[2])}
  if(typeof value==='object'){
   const r=value.region,s=value.imageSize

@@ -20,7 +20,7 @@ Page({
       this.setData({ canManage: true, items: result.items })
       return true
     } catch (error) {
-      if (!this.__disposed) this.setData({ canManage: false, items: [], error: error?.message || '当前账号没有公告管理权限。' })
+      if (!this.__disposed) this.setData({ canManage: false, items: [], error: Number(error?.statusCode)===401?'请先登录管理员账号。':Number(error?.statusCode)===403?'当前账号没有公告管理权限。':error?.message || '公告管理暂不可用，请稍后重试。' })
       return false
     } finally {
       if (!this.__disposed) this.setData({ loading: false })

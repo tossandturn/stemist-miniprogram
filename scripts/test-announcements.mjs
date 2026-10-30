@@ -124,3 +124,10 @@ assert.match(boardCss, /announcement-filters button\{[^}]*min-height:44px/)
 assert.match(boardCss, /safe-area-inset-bottom/)
 assert.match(managerCss, /announcement-manager-card-actions button\{[^}]*min-height:44px/)
 console.log('Announcement board: public reading, unread receipts, management route and safe actions passed.')
+for(const statusCode of [401,403]){
+ const denied=miniRuntime({modules:{'utils/announcements':{CATEGORIES:{service:'服务'},fetchAnnouncementManagement:async()=>{throw Object.assign(Error('A server-verified administrator claim is required.'),{statusCode})}}}})
+ const manager=denied.page('bundles/announcements/manage');await manager.onLoad()
+ assert.equal(manager.data.canManage,false);assert.equal(manager.data.loading,false)
+ assert.match(manager.data.error,statusCode===401?/登录管理员账号/:/没有公告管理权限/)
+ assert.doesNotMatch(manager.data.error,/server-verified|AI/)
+}

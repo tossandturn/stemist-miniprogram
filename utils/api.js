@@ -56,7 +56,7 @@ return
 }
 if (response.statusCode === 401) {
 if (stemAuth && token && token === wx.getStorageSync('stemistSessionToken')) clearLocalSession({ preserveDrafts: true })
-reject(requestError('登录已过期，原始输入仍保留。请重新登录后再使用 AI。', 401, 'auth_required'))
+reject(requestError(token?'登录已过期，请重新登录后继续。':'请登录后继续。', 401, 'auth_required'))
 return
 }
 reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && (payload.code || payload.error && payload.error.code)))

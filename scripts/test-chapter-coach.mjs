@@ -32,6 +32,20 @@ for(const url of ['https://evil.test/x.jpg','/question-assets/paper/ms-1.jpg','/
  session.questions[0].images=[url];assert.throws(()=>service.captureReview(session.id,qid),/题图/)
 }
 session.questions[0].images=['/question-assets/paper/qp-1.jpg']
+// Real governed assets use zero-padded page names (for example qp-03.jpg).
+// Preserve the exact asset URL while validating its numerical page binding.
+session.questions[0].sourceRegions=[{url:'/question-assets/paper/qp-03.jpg',page:3,region:[.078431,.060606,.931373,.196970],imageSize:[1020,1320]}]
+const padded=service.captureReview(session.id,qid)
+assert.equal(padded.assets[0].page,3)
+assert.equal(padded.assets[0].url,'https://stem.ieltsist.com/question-assets/paper/qp-03.jpg')
+assert.deepEqual(Array.from(padded.assets[0].imageSize),[1020,1320])
+for(const value of [
+ {...session.questions[0].sourceRegions[0],page:4},
+ {...session.questions[0].sourceRegions[0],url:'/question-assets/paper/qp-00.jpg',page:0},
+ {...session.questions[0].sourceRegions[0],url:'/question-assets/paper/qp-1001.jpg',page:1001},
+ {...session.questions[0].sourceRegions[0],url:'/question-assets/other/qp-03.jpg'},
+]){session.questions[0].sourceRegions=[value];assert.throws(()=>service.captureReview(session.id,qid),/题图/)}
+delete session.questions[0].sourceRegions
 const region='/api/stem/practice-source-image?routeId='+routeId+'&sourceQuestionId='+encodeURIComponent(qid)+'&region=0&v='+'a'.repeat(64)
 session.questions[0].sourceRegions=[{url:region+'&view=region',page:1,region:[0,.25,1,.75],imageSize:[1000,1400],renderedImageSize:[1000,700]}]
 assert.equal(service.captureReview(session.id,qid).assets[0].cropped,true)
