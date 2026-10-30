@@ -40,7 +40,7 @@ Modify `server/wholePaperMarking.js` and `server/wholePaperAi.js`; add focused j
 
 ## Task 3 — Native preference and controls
 
-Create `utils/coachEffort.js`, `components/coach-effort/index.{js,json,wxml,wxss}` and client tests. Default low, owner/epoch isolation, storage failure, cancelled selection, loading lock and redraw are covered before wiring.
+Create `utils/coachEffort.js`, `components/coach-effort/index.{js,json,wxml,wxss}` and client tests. Scenario-specific low/high defaults, independent overrides, owner/epoch isolation, storage failure, cancelled selection, loading lock and redraw are covered before wiring.
 
 Integrate `components/coach-panel/index.*`, `utils/coach.js`, `utils/api.js`, `utils/coachJob.js`, `pages/coach/index.wxml`, `pages/stem/coach.wxml`, `bundles/coach/advisorPage.js`, `advisorConversation.js`, Tavern page/conversation/divination helpers and `bundles/marking/index.js` / `service.js`. Capture the setting in new pending turns/jobs and preserve it on retries; do not read a newly changed preference when replaying an existing request.
 
