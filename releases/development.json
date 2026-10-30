@@ -5,8 +5,12 @@
     {
       "version": "1.0.76",
       "assignedOn": "2026-10-30",
-      "status": "reserved",
-      "purpose": "Full functional QA: profile expiry recovery and zero-padded chapter image handoff"
+      "status": "candidate_verified_pending_upload",
+      "purpose": "Full functional QA: profile recovery and source-bound chapter image geometry",
+      "commit": "4786969d7149a4f3223bacab2d1228c088fa64f4",
+      "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.76-ready-r2",
+      "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.76-ready-r2-manifest.json",
+      "runtimeManifestSha256": "76af04af090815f45270e01b7fb5ef9a52d5c694a7ed58926a5b3799044c7a25"
     },
     {
       "version": "1.0.69",
