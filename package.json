@@ -72,6 +72,6 @@
     "test:calculator-page": "node scripts/test-calculator-page.mjs && node scripts/test-calculator-models.mjs && npm run test:cw",
     "test:cw": "node scripts/test-cw-calculator.mjs && node scripts/test-cw-adversarial.mjs && node scripts/test-cw-natural-input.mjs && node scripts/test-cw-touch-cursor.mjs && node scripts/test-cw-solver.mjs && node scripts/test-cw-solver-page.mjs && node scripts/test-cw-shift.mjs && node scripts/test-cw-complex.mjs && node scripts/test-cw-complex-page.mjs",
     "test:coach-formats": "node scripts/test-academic-answer.mjs && node scripts/test-coach-answer-modules.mjs && node scripts/test-academic-package.mjs && node scripts/test-coach-source-action.mjs",
-    "test:coach-effort": "node scripts/test-coach-effort.mjs && node scripts/test-coach-effort-selector.mjs && node scripts/test-coach-effort-requests.mjs && node scripts/test-coach-effort-page-state.mjs && node scripts/test-coach-effort-pending.mjs && node scripts/test-coach-effort-layout.mjs && node scripts/test-coach-effort-job-window.mjs"
+    "test:coach-effort": "node scripts/test-coach-effort.mjs && node scripts/test-coach-effort-scenarios.mjs && node scripts/test-coach-effort-recovery.mjs && node scripts/test-coach-effort-selector.mjs && node scripts/test-coach-effort-requests.mjs && node scripts/test-coach-effort-page-state.mjs && node scripts/test-coach-effort-pending.mjs && node scripts/test-coach-effort-layout.mjs && node scripts/test-coach-effort-job-window.mjs"
   }
 }

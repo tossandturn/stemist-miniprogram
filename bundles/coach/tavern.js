@@ -167,7 +167,7 @@ Page({
  useStarter(event){if(!this.current()||this.data.loading||this.data.examBlocked||!this.data.presetChosen)return;const value=String(event.currentTarget?.dataset?.text||'');if(!this.data.starters.includes(value))return;if(this.data.selected.divinationKind)this.onFortuneQuestion({detail:{value}});else this.onMessage({detail:{value}})},
  preparePending(message,drawId=''){
   const state=this.read(this.data.persona),text=String(message||'').trim(),draw=String(drawId||'')
-  if(!state.pendingTurn||state.pendingTurn.message!==text||state.pendingTurn.drawId!==draw)state.pendingTurn={id:newClientTurnId(),message:text,drawId:draw,reasoningEffort:readCoachEffort()}
+  if(!state.pendingTurn||state.pendingTurn.message!==text||state.pendingTurn.drawId!==draw)state.pendingTurn={id:newClientTurnId(),message:text,drawId:draw,reasoningEffort:readCoachEffort('tavern')}
   this.setData(effortState(state));this.save(false);return state.pendingTurn
  },
  applyCompletion(result,pending,{answer=result.answer,status='AI 已回应'}={}){

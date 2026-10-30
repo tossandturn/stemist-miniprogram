@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
 let academic,ielts
 const runtime=miniRuntime({modules:{'utils/api':{askCoach:async p=>(academic=p,{mode:'ai',providerStatus:'connected',answer:'4'}),askIeltsCoach:async p=>(ielts=p,{mode:'ai',providerStatus:'connected',answer:'Feedback'})}}})
-runtime.storage.set('stemistUser',{id:'student-a'});runtime.load('utils/coachEffort').saveCoachEffort('max')
+runtime.storage.set('stemistUser',{id:'student-a'});runtime.load('utils/coachEffort').saveCoachEffort('max','answers')
 await runtime.load('utils/coach').runCoach({message:'2+2',feature:'answers'});assert.equal(academic.reasoningEffort,'max','academic service must snapshot selected effort')
 await runtime.load('utils/coach').runCoach({message:'Explain',context:{product:'IELTSist',skill:'writing'}});assert.equal(ielts.reasoningEffort,undefined,'specialist IELTS route is independent')
 let body

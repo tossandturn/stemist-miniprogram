@@ -24,7 +24,7 @@ const DEFAULT_COPY=Object.freeze({
 })
 
 function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,copy={}}={}){
- const text={...DEFAULT_COPY,...copy}
+ const text={...DEFAULT_COPY,...copy},effortScope=persona==='ielts-teacher'?'ielts-teacher':'admissions'
  const {cleanMessage,newClientTurnId,resume,fetchMessages,deleteConversation,send}=client
  const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest'),epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
  const revisionConflict=error=>Number(error?.statusCode)===409&&/revision_conflict|generated_result_pending/.test(String(error?.code||''))
@@ -155,7 +155,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     if(!this.__conversation||this.data.historyBrowsing||this.__localClearFence){if(!await this.resumeLatest()||!this.current(generation))return}
     if(this.__pending?.needsRebase){if(!await this.resumeLatest()||!this.current(generation)||!this.__pending)return}
     if(!this.__pending&&canonicalDraft(this.data.message)!==message)return
-    if(!this.__pending||this.__pending.message!==message)this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision,reasoningEffort:readCoachEffort()}
+    if(!this.__pending||this.__pending.message!==message)this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision,reasoningEffort:readCoachEffort(effortScope,message)}
     const pending=this.__pending
     if(!this.save()){this.setData({loading:false,error:'本机暂时无法保存重试标识，本次未发送；请释放空间后重试。',canRetry:true,status:''});return}
     this.setData({loading:true,error:'',partialAnswer:'',canRetry:false,receiptState:'',sendBlocked:false,status:text.connecting,pendingEffort:pending.reasoningEffort||'',effortLocked:true});this.scrollChatToLatest()

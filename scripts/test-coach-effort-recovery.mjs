@@ -1,0 +1,8 @@
+import assert from 'node:assert/strict'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
+const sent=[],rt=miniRuntime({modules:{'utils/coach':{runCoach:async p=>{sent.push(p);throw Error('synthetic interruption')}},'utils/image':{readAsJpegDataUrl:async()=> 'data:image/jpeg;base64,fixture'},'utils/coachSession':{warmCoachSession:()=>()=>{}},'utils/nativeCoachPhoto':{readCoachPhoto:()=> 'qa.jpg',readCoachPhotoPaths:()=> ['qa.jpg'],consumeCoachPhotoAutoSubmit:()=>false,clearCoachPhoto:()=>{},clearCoachPhotoEntry:()=>{}}}})
+rt.storage.set('stemistUser',{id:'student-a'});rt.storage.set('stemistSessionToken','fixture-only');const pref=rt.load('utils/coachEffort');pref.saveCoachEffort('max','answers')
+const p=rt.page('pages/coach/index');p.onLoad({feature:'answers',source:'alevel'});p.onShow();p.onMessage({detail:{value:'Solve this fixture'}});await p.submit();assert.equal(sent[0].reasoningEffort,'max');p.onUnload()
+pref.saveCoachEffort('low','answers');const restored=rt.page('pages/coach/index');restored.onLoad({feature:'answers',source:'alevel'});restored.onShow();assert.equal(restored.data.canRetry,true,'restored identical photo must not unlock a pending request');assert.equal(restored.data.reasoningEffort,'max');await restored.retry();assert.equal(sent[1].reasoningEffort,'max');restored.onUnload()
+rt.storage.set('stemistUser',{id:'student-b'});const other=rt.page('pages/coach/index');other.onLoad({feature:'answers',source:'alevel'});assert.equal(other.data.canRetry,false);assert.equal(other.data.reasoningEffort,'high','another account cannot inherit a pending setting');other.onUnload()
+console.log('Academic effort recovery: photo restore, account fence and original request snapshot PASS.')

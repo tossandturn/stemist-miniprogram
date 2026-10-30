@@ -11,6 +11,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
+    id: 'esbuild-coach-effort-scenario-compact-v1',
+    paths: Object.freeze(['utils/coachEffort.js','pages/stem/capture.js','pages/papers/index.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-coach-effort-foundation-compact-v1',
     paths: Object.freeze(['utils/nativePaperGrading.js','utils/paperCatalog.js','utils/sourceRegion.js','utils/transferProgress.js','utils/announcements.js','components/coach-effort/index.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),

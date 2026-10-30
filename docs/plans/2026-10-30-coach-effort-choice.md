@@ -2,7 +2,7 @@
 
 > **For implementer:** Use TDD throughout. Write failing test first. Watch it fail. Then implement.
 
-**Goal:** Let students explicitly choose low / high / max for AI Coach, with low remaining the default as confirmed by the user.
+**Goal:** Let students explicitly choose low / high / max for AI Coach. On 2026-10-31 the user refined the earlier low-default decision: academic answers and casual chat should have different defaults according to use. Keep low for fast interactions, high for full solutions/review, max opt-in only.
 
 **Architecture:** A small shared native selector stores an account/epoch-bound preference. Each new request snapshots that preference; retries retain the original request setting, while new requests at another effort cannot replay an old-effort result. The backend accepts only the three official DeepSeek levels, clones the configured provider per request and applies bounded time/output budgets. No model/key/environment replacement and no IELTS specialist writing or realtime-speaking change.
 
@@ -10,7 +10,7 @@
 
 ## Approved product decisions
 
-- User explicitly selected **low by default**. Labels: 快速 · low, 深入 · high, 极致 · max. Thinking remains enabled; these are not accuracy guarantees.
+- Scenario defaults: steps/Tavern/short adviser questions low; full answers/check-work/PDF high; adviser planning, essay analysis and long input high. This is deterministic local intent selection, not private-user profiling. Separate owner/epoch-bound preferences per purpose. Labels include 按场景推荐, 快速 · low, 深入 · high, 极致 · max. Manual overrides win, recommendation shows the actual level before sending, and max is never automatic. Thinking remains enabled; these are not accuracy guarantees.
 - Selector is visible before sending in academic help/answers/check-work, Tavern including draw interpretation, admissions advisor, IELTS teacher and whole-paper grading. IELTS's independent specialist learning/marking/voice interfaces stay unchanged.
 - No automatic resubmission on changing the preference; loading and unresolved retry/receipt states lock the selector. A whole-paper job keeps its initial selection through upload/retry/history.
 - Invalid values fail with a clear 400; unsupported configured providers fail explicitly rather than silently ignoring the selection. Old requests without the field keep existing behavior and hashes.

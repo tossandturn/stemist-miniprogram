@@ -1,7 +1,7 @@
 const { deviceState, syncDevice, readDraft, writeDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
 const {coachHelpPolicy,normalizeCoachFeature,normalizeHelpIntent,runCoach}=require('../../utils/coach')
 const { isAuthError } = require('../../utils/api')
-const {readCoachEffort}=require('../../utils/coachEffort')
+const {readCoachEffort,academicEffortScope}=require('../../utils/coachEffort')
 const {requestIeltsLearning}=require('../../utils/ieltsLearning')
 const {takeCoachEntry,focusPassage}=require('../../utils/coachEntry')
 const {loadCaptions}=require('../../utils/nativeCaptions')
@@ -81,13 +81,17 @@ next.solutionDisabled=policy.solutionDisabled
 if(this.__mode){next.feature=policy.solutionDisabled&&this.__mode==='answers'?'steps':this.__mode;next.helpIntent=next.feature==='steps'?'hint':'worked-solution'}
 if(this.__entry?.initialMessage)next.message=String(this.__entry.initialMessage).slice(0,12000)
 if (draft && (draft.entryKey||'')===this.__entryKey && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
-if(draft&&(draft.entryKey||'')===this.__entryKey&&['low','high','max'].includes(draft.reasoningEffort))next.reasoningEffort=draft.reasoningEffort
+next.effortScope=academicEffortScope(next.helpIntent,next.feature)
+next.reasoningEffort=readCoachEffort(next.effortScope)
+if(draft&&(draft.entryKey||'')===this.__entryKey&&draft.effortScope===next.effortScope&&draft.effortOwner===this.__owner&&draft.effortEpoch===this.__epoch&&draft.effortPending&&['low','high','max'].includes(draft.reasoningEffort)){next.reasoningEffort=draft.reasoningEffort;next.canRetry=true;this.__pendingEffortPhoto=draft.effortImagePath||''}
 if (Object.keys(next).length) this.setData(next)
 this.__historyKey='stemistCoachTurns:'+this.__owner+':'+(this.__entryKey||this.data.contextId)
 const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]
 },
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
+effortDraft(){return{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort,effortScope:this.data.effortScope,effortOwner:this.__owner,effortEpoch:this.__epoch,effortPending:this.data.canRetry||this.data.loading,effortImagePath:this.data.imagePath||''}},
+refreshEffort(){if(!this.data.loading&&!this.data.canRetry){const effortScope=academicEffortScope(this.data.helpIntent,this.data.feature);this.setData({effortScope,reasoningEffort:readCoachEffort(effortScope)})}},
 resetIdentity(){
 this.setData({reasoningEffort:readCoachEffort()})
 this.__coachImageCache=null
@@ -106,6 +110,7 @@ return entry
 onShow() {
 syncDevice(this)
 if(!this.current()){this.resetIdentity();return}
+this.refreshEffort()
 this.__stopWarm?.();if(this.data.contextId==='stem-photo')this.__stopWarm=warmCoachSession()
 this.restorePhoto()
 if(this.data.mediaBusy)this.setData({mediaBusy:false})
@@ -122,7 +127,8 @@ if(changed){clearCoachSource(this);this.__coachImageCache=null}
 const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers',binding)
 const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,binding),count=paths.length
 if(imagePath&&this.__entry?.imagePaths)this.__entry.imagePaths=paths
-this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?`已保存 ${count} 张 · 轻点查看`:'已裁剪'):'',...(changed&&imagePath?{error:'',canRetry:false}:{})},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
+this.setData({imagePath,imageSource:imagePath?(this.__entry?.view==='chapter-practice'?`已保存 ${count} 张 · 轻点查看`:'已裁剪'):'',...(changed?{error:'',canRetry:Boolean(this.data.canRetry&&imagePath&&imagePath===this.__pendingEffortPhoto)}:{})},()=>{if(auto&&this.current()&&!this.data.loading)this.submit()})
+if(changed){this.__pendingEffortPhoto=null;this.refreshEffort()}
 },
 previewPhotos(){if(!this.current()||!this.data.imagePath)return;const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey);if(paths.length)wx.previewImage({current:paths[0],urls:paths})},
 discardAttachedPhoto(){
@@ -170,7 +176,7 @@ if(typeof wx.chooseMedia==='function')wx.chooseMedia({count:1,mediaType:['image'
 else if(typeof wx.chooseImage==='function')wx.chooseImage({count:1,sourceType:['album'],sizeType:['compressed'],success,fail})
 else fail({errMsg:'image picker unavailable'})
 },
-removeImage(){if(!this.current()||this.data.loading||this.data.mediaBusy)return;this.discardAttachedPhoto();this.setData({error:''})},
+removeImage(){if(!this.current()||this.data.loading||this.data.mediaBusy)return;this.discardAttachedPhoto();this.setData({error:'',canRetry:false});this.refreshEffort()},
 chooseContext(event) {
 if (!this.current() || this.data.loading) return
 const contextId = String(event.currentTarget.dataset.context || '')
@@ -180,7 +186,7 @@ if(contextId!==this.data.contextId)this.discardAttachedPhoto()
 if(this.__entry?.skill!==contextId){this.__entry=null;this.__entryKey='';this.__historyKey='stemistCoachTurns:'+this.__owner+':'+contextId;const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]}
 const selected=CONTEXTS.find(item=>item.id===contextId)||CONTEXTS[0],policy=coachHelpPolicy({product:selected.product,skill:selected.id,...(contextId==='stem-photo'?this.data.routeContext:{})})
 const feature=this.__mode?(policy.solutionDisabled&&this.data.feature==='answers'?'steps':this.data.feature):'',helpIntent=feature==='steps'?'hint':feature==='answers'?'worked-solution':''
-this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false,entryHasImage:false,helpIntent,feature,solutionDisabled:policy.solutionDisabled })
+this.setData({ contextId, contextIndex: CONTEXTS.findIndex(item => item.id === contextId), routeContextLabel: contextId === 'stem-photo' ? this.data.routeContextLabel : '', answer: '', warning: '', error: '', authRequired: false,entryHasImage:false,helpIntent,feature,solutionDisabled:policy.solutionDisabled,canRetry:false });this.refreshEffort()
 this.__stopWarm?.();if(contextId==='stem-photo')this.__stopWarm=warmCoachSession()
 },
 chooseContextPicker(event) {
@@ -191,14 +197,15 @@ onMessage(event) {
 if (!this.current() || this.data.loading) return
 const message = String(event.detail.value || '')
 this.setData({ message, error: '', canRetry:message.trim()===this.data.message.trim()&&this.data.canRetry, authRequired: false, draftStatus: message ? '正在自动保存…' : '自动保存已开启' })
-scheduleDraft(this, 'coach', { message, contextId: this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort })
+this.refreshEffort();scheduleDraft(this,'coach',this.effortDraft())
 },
-chooseEffort(event){const value=event.detail?.value;if(!this.current()||this.data.loading||this.data.canRetry||!['low','high','max'].includes(value))return;this.setData({reasoningEffort:value});writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:value})},
+chooseEffort(event){const value=event.detail?.value;if(!this.current()||this.data.loading||this.data.canRetry||!['low','high','max'].includes(value))return;this.setData({reasoningEffort:value});writeDraft('coach',this.effortDraft())},
 chooseHelpIntent(event) {
 if (!this.current() || this.data.loading) return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
 if(!intent||(intent==='worked-solution'&&this.data.solutionDisabled))return
-this.setData({helpIntent:intent,feature:this.__mode?(intent==='hint'?'steps':'answers'):'',error:'',authRequired:false})
+if(intent===this.data.helpIntent)return
+this.setData({helpIntent:intent,feature:this.__mode?(intent==='hint'?'steps':'answers'):'',error:'',authRequired:false,canRetry:false});this.refreshEffort();writeDraft('coach',this.effortDraft())
 },
 async submit() {
 const typedMessage = this.data.message.trim()
@@ -215,6 +222,7 @@ const timingStarted=Date.now();let imagePreparationMs=0
 this.__coachTiming=null
 let authExpired=false
 try {
+cancelDraft(this);writeDraft('coach',this.effortDraft())
 const entry=await this.prepareEntry()
 const {imagePaths,initialMessage,...entryContext}=entry
 const managed=this.data.imagePath?readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey):[]
@@ -249,7 +257,7 @@ const completed=result.completed===true||(result.completed===undefined&&result.m
 if(!completed){
 progress.finish(false)
 cancelDraft(this)
-writeDraft('coach',{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort})
+writeDraft('coach',this.effortDraft())
 this.setData({answer:result.partialAnswer||'',warning:coachState.warning||'',error:result.failureMessage||'AI 未完成本次答疑，内容已保留，请重试。',coachStatus:coachState.label||'答疑未完成',canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
 return
 }
@@ -289,5 +297,6 @@ this.discardAttachedPhoto()
 this.__history=[]
 wx.removeStorageSync(this.__historyKey)
 this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空',imagePath:'',imageSource:'',helpIntent:this.data.feature==='steps'?'hint':this.data.feature==='answers'?'worked-solution':'' })
+this.refreshEffort()
 },
 })

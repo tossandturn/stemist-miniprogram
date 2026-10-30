@@ -19,7 +19,7 @@
       <view class="selected-copy"><text class="selected-name">{{selected.name}}</text><text class="selected-detail">AI 虚构角色 · {{selected.tag}}</text></view>
       <button class="preset-change" bindtap="openSelector" disabled="{{loading || examBlocked}}">换角色</button>
     </view>
-    <coach-effort effort="{{pendingEffort}}" locked="{{effortLocked}}" disabled="{{loading || historyLoading || examBlocked}}" compact="{{true}}" />
+    <coach-effort id="effort-picker" scope="tavern" effort="{{pendingEffort}}" locked="{{effortLocked}}" disabled="{{loading || historyLoading || examBlocked}}" compact="{{true}}" />
     <scroll-view id="tavern-chat" class="chat-list" scroll-y="true" scroll-top="{{chatScrollTop}}" enhanced="true" show-scrollbar="false" bindtap="dismissComposerKeyboard" aria-label="当前角色聊天记录">
       <view class="chat-inner">
         <view class="chat-history-head"><text class="chat-history-label">{{historySource === 'legacy' ? '本机旧对话 · 待同步' : historyBrowsing ? '较早的对话' : '仅供休闲交流'}}</text><view class="chat-history-actions"><button wx:if="{{historyBrowsing}}" class="history-action" bindtap="returnLatestHistory" disabled="{{historyLoading || loading}}">最新</button><button wx:if="{{hasOlderHistory}}" class="history-action" bindtap="loadOlderHistory" loading="{{historyLoading}}" disabled="{{historyLoading || loading}}">更早</button><button class="history-action tavern-clear" bindtap="requestClear" disabled="{{loading || historyLoading}}">{{clearPending ? '重试清空' : '清空'}}</button></view></view>
