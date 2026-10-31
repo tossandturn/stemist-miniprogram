@@ -15,6 +15,7 @@ const COACH_TEXT_TIMEOUT_MS = 55_000
 const COACH_IMAGE_TIMEOUT_MS = 60_000
 function safeErrorMessage(payload, statusCode) {
 const detail = payload && typeof payload.error === 'object' ? payload.error : null
+if((payload?.code||detail?.code)==='coach_task_persistence_effort')return'仅“深入”或“极致”模式可保存任务。'
 const message = String((detail && detail.message) || (payload && (typeof payload.error === 'string' ? payload.error : payload.message)) || '').trim()
 if (statusCode >= 500 || /stack|provider|api[ _-]?key|balance|https?:\/\//i.test(message)) return '服务暂时不可用，请稍后重试。'
 return message.slice(0, 240) || `请求失败（${statusCode}）`

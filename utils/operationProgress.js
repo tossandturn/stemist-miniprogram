@@ -1,5 +1,5 @@
 const KEY='stemistOperationTimings',SCHEMA='operation-timing-v1',PHASES=['preparing','uploading','calling','analysis','arranging','complete'],LABELS=['准备内容','上传图片','连接 AI 中','分析中','整理答案中','完成']
-const {taskProgressView,initialTaskEstimate,taskSteps}=require('./coachTaskView')
+const {taskProgressView,initialTaskEstimate,taskSteps,effortName}=require('./coachTaskView')
 const byteLabel=value=>value>=1048576?(value/1048576).toFixed(1)+' MB':value>=1024?(value/1024).toFixed(1).replace(/\.0$/,'')+' KB':Math.round(value)+' B'
 function createOperationTracker({key='coach-text',taskMode=false,effort='low',onChange=()=>{},now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,history=typeof wx==='object'?wx:null}={}){
  const started=now();let phase='preparing',timer=null,closed=false,recovering=false,transfer=null,taskSnapshot=null,taskObservedAt=0
@@ -11,7 +11,7 @@ function createOperationTracker({key='coach-text',taskMode=false,effort='low',on
   let base={phase,label:phase==='failed'?'未完成':LABELS[PHASES.indexOf(phase)],active:!closed,elapsedLabel:'已等待 '+Math.floor(ms/1000)+' 秒',etaSeconds:remaining?.[1]??null,etaLabel:remaining?'预计剩余约 '+remaining[0]+'–'+remaining[1]+' 秒':estimate?'仍在处理中，请稍候':'预计时间估算中',percentage:null}
   if(taskMode){
    const task=taskSnapshot?taskProgressView(taskSnapshot,now()-taskObservedAt):null
-   base=task?{...base,...task,active:!closed&&task.active}: {...base,...initialTaskEstimate(key,effort),label:phase==='preparing'?(key==='coach-photo'?'正在准备图片':'正在准备题目'):phase==='calling'?'正在提交题目':base.label,canLeave:false,savedTask:false,leaveHint:'提交完成前请保持当前页面',steps:taskSteps(phase),effortLabel:effort+' · 思考已开启'}
+   base=task?{...base,...task,active:!closed&&task.active}: {...base,...initialTaskEstimate(key,effort),label:phase==='preparing'?(key==='coach-photo'?'正在准备图片':'正在准备题目'):phase==='calling'?'正在提交题目':base.label,canLeave:false,savedTask:false,leaveHint:'提交完成前请保持当前页面',steps:taskSteps(phase),effortLabel:effortName(effort)+' · 思考已开启'}
    if(closed){const terminal=task&&['failed','interrupted'].includes(task.taskStatus);base={...base,phase,label:phase==='complete'?'答疑已完成':terminal?task.label:task?.savedTask?'任务状态待确认':'本次答疑未完成',active:false,etaSeconds:null,etaLabel:phase==='complete'?'结果已返回':terminal?task.etaLabel:task?.savedTask?'可在已保存答疑中刷新结果':'原题已保留，可重试',steps:taskSteps(phase,Boolean(task))}}
   }
   if(phase!=='uploading'||!transfer)return base

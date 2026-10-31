@@ -10,6 +10,7 @@
 
 ## Approved scope and constraints
 
+- Latest wording correction: all student-facing controls, progress cards and history use exactly “快速 / 深入 / 极致”. Internal low/high/max keys remain unchanged. All three keep thinking enabled. The visible picker has three choices; legacy auto preferences still resolve to the appropriate scenario default internally.
 - Covers academic photo/text questions, hints, worked solutions and checking work, including both current academic page entry points.
 - `auto` defaults to low for academic/steps/answers/check. Explicit saved high/max remains respected. PDF/adviser/Tavern scene defaults remain unchanged; max remains backward compatible.
 - `saveTask` is an explicit boolean for new clients, default false. Only high/max may set true. Low has no save-task option; switching back to low clears the option. Once submitted, the captured choice does not change during recovery.
