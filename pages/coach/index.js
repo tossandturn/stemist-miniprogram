@@ -26,6 +26,7 @@ Page({
 onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
 data: deviceState({
 reasoningEffort:'low',
+saveTask:false,
 contexts: CONTEXTS,
 contextId: 'stem-photo',
 contextIndex: 0,
@@ -83,17 +84,17 @@ if(this.__entry?.initialMessage)next.message=String(this.__entry.initialMessage)
 if (draft && (draft.entryKey||'')===this.__entryKey && typeof draft.message === 'string' && draft.message) { next.message = draft.message; next.draftStatus = '已恢复上次草稿' }
 next.effortScope=academicEffortScope(next.helpIntent,next.feature)
 next.reasoningEffort=readCoachEffort(next.effortScope)
-if(draft&&(draft.entryKey||'')===this.__entryKey&&draft.effortScope===next.effortScope&&draft.effortOwner===this.__owner&&draft.effortEpoch===this.__epoch&&draft.effortPending&&['low','high','max'].includes(draft.reasoningEffort)){next.reasoningEffort=draft.reasoningEffort;next.canRetry=true;this.__pendingEffortPhoto=draft.effortImagePath||''}
+if(draft&&(draft.entryKey||'')===this.__entryKey&&draft.effortScope===next.effortScope&&draft.effortOwner===this.__owner&&draft.effortEpoch===this.__epoch&&draft.effortPending&&['low','high','max'].includes(draft.reasoningEffort)){next.reasoningEffort=draft.reasoningEffort;next.saveTask=draft.saveTask===true&&['high','max'].includes(next.reasoningEffort);next.canRetry=true;this.__pendingEffortPhoto=draft.effortImagePath||''}
 if (Object.keys(next).length) this.setData(next)
 this.__historyKey='stemistCoachTurns:'+this.__owner+':'+(this.__entryKey||this.data.contextId)
 const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]
 },
 current(){return !this.__disposed&&this.__owner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&this.__epoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)},
 identity(){return {owner:this.__owner,epoch:this.__epoch}},
-effortDraft(){return{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort,effortScope:this.data.effortScope,effortOwner:this.__owner,effortEpoch:this.__epoch,effortPending:this.data.canRetry||this.data.loading,effortImagePath:this.data.imagePath||''}},
-refreshEffort(){if(!this.data.loading&&!this.data.canRetry){const effortScope=academicEffortScope(this.data.helpIntent,this.data.feature);this.setData({effortScope,reasoningEffort:readCoachEffort(effortScope)})}},
+effortDraft(){return{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort,saveTask:this.data.saveTask,effortScope:this.data.effortScope,effortOwner:this.__owner,effortEpoch:this.__epoch,effortPending:this.data.canRetry||this.data.loading,effortImagePath:this.data.imagePath||''}},
+refreshEffort(){if(!this.data.loading&&!this.data.canRetry){const effortScope=academicEffortScope(this.data.helpIntent,this.data.feature),reasoningEffort=readCoachEffort(effortScope);this.setData({effortScope,reasoningEffort,...(reasoningEffort==='low'?{saveTask:false}:{})})}},
 resetIdentity(){
-this.setData({reasoningEffort:readCoachEffort()})
+this.setData({reasoningEffort:readCoachEffort(),saveTask:false})
 this.__coachImageCache=null
 clearCoachPhoto(this.identity())
 clearCoachSource(this)
@@ -200,7 +201,8 @@ const message = String(event.detail.value || '')
 this.setData({ message, error: '', canRetry:message.trim()===this.data.message.trim()&&this.data.canRetry, authRequired: false, draftStatus: message ? '正在自动保存…' : '自动保存已开启' })
 this.refreshEffort();scheduleDraft(this,'coach',this.effortDraft())
 },
-chooseEffort(event){const value=event.detail?.value;if(!this.current()||this.data.loading||this.data.canRetry||!['low','high','max'].includes(value))return;this.setData({reasoningEffort:value});writeDraft('coach',this.effortDraft())},
+chooseEffort(event){const value=event.detail?.value;if(!this.current()||this.data.loading||this.data.canRetry||!['low','high','max'].includes(value))return;this.setData({reasoningEffort:value,...(value==='low'?{saveTask:false}:{})});writeDraft('coach',this.effortDraft())},
+chooseSaveTask(event){if(!this.current()||this.data.loading||this.data.canRetry||this.data.contextId!=='stem-photo'||!['high','max'].includes(this.data.reasoningEffort))return;this.setData({saveTask:event.detail?.value===true});writeDraft('coach',this.effortDraft())},
 chooseHelpIntent(event) {
 if (!this.current() || this.data.loading) return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
@@ -218,7 +220,7 @@ clearCoachSource(this)
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 this.__receiving=false
-const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active&&value.phase!=='recovering'?{...value,label:'正在生成答案…'}:value})}})
+const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',taskMode:selected.product==='STEM Studio',effort:this.data.reasoningEffort,onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active&&value.phase!=='recovering'?{...value,label:'正在生成答案…'}:value})}})
 const timingStarted=Date.now();let imagePreparationMs=0
 this.__coachTiming=null
 let authExpired=false
@@ -239,6 +241,7 @@ const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solutio
 if(policy.solutionDisabled!==this.data.solutionDisabled||helpIntent!==this.data.helpIntent)this.setData({solutionDisabled:policy.solutionDisabled,helpIntent})
 const result = await runCoach({
 reasoningEffort:this.data.reasoningEffort,
+saveTask:this.data.saveTask===true&&['high','max'].includes(this.data.reasoningEffort),
 message:typedMessage,
 helpIntent,
 feature:this.__mode?this.data.feature:'',
@@ -270,6 +273,7 @@ try{wx.setStorageSync(this.__historyKey,this.__history)}catch{this.setData({draf
 }
 wx.setStorageSync(`stemistSubmission:coach-${selected.id}`, { category: selected.product === 'IELTSist' ? 'ielts' : 'stem', skill: selected.id, message:result.requestMessage||typedMessage,helpIntent:result.helpIntent||'', inputMode:imageDataUrls.length?'photo':'text', answer: result.answer || '', coachMode: result.mode || '', providerStatus: result.providerStatus || '', submittedAt: Date.now() })
 clearDraft('coach')
+this.setData({saveTask:false,progress:{}})
 progress.finish(true)
 } catch (error) {
 authExpired=isAuthError(error)
@@ -294,6 +298,7 @@ openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
 clear() {
 if (this.data.loading || !this.current()) return
 clearDraft('coach')
+this.setData({saveTask:false,progress:{}})
 this.discardAttachedPhoto()
 this.__history=[]
 wx.removeStorageSync(this.__historyKey)

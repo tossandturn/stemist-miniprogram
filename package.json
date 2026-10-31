@@ -6,6 +6,7 @@
     "esbuild": "0.28.2"
   },
   "scripts": {
+    "test:coach-tasks": "node scripts/test-coach-task-defaults.mjs && node scripts/test-coach-task-progress.mjs && node scripts/test-coach-task-selection.mjs && node scripts/test-coach-task-job.mjs && node scripts/test-coach-task-controls.mjs && node scripts/test-coach-task-history.mjs && node scripts/test-coach-task-page.mjs",
     "test:coach-upload": "node scripts/test-coach-image-upload.mjs && node scripts/test-coach-upload-job.mjs && node scripts/test-coach-upload-progress.mjs && node scripts/test-coach-compression-fidelity.mjs",
     "test:coach-upload-integration": "node scripts/test-coach-upload-cross-stack.mjs",
     "pretest:api": "npm run test:coach-upload",
@@ -48,7 +49,7 @@
     "test:university-directory": "node scripts/test-university-directory.mjs && node scripts/test-university-layout.mjs && node scripts/test-university-profiles.mjs && node scripts/test-university-admission-analysis.mjs && node scripts/test-directory-coach-entry.mjs && node scripts/test-directory-coach-actions.mjs",
     "test:product-config": "node scripts/test-product-config-client.mjs",
     "test:package-minification": "node scripts/test-native-package-minification.mjs",
-    "pretest:all": "npm run test:membership && npm run test:product-config && npm run test:package-minification",
+    "pretest:all": "npm run test:coach-tasks && npm run test:membership && npm run test:product-config && npm run test:package-minification",
     "test:curriculum-practice": "node scripts/test-curriculum-practice-client.mjs",
     "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs && node scripts/test-pdf-transfer-pipeline.mjs && node scripts/test-pdf-download-access.mjs",
     "test:learning-summary": "node scripts/test-learning-summary.mjs",

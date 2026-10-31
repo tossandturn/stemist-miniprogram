@@ -14,7 +14,10 @@
 <view class="coach-media-title">图片提问</view>
 <view class="coach-media-detail">拍题、作文或学习资料</view>
 </view>
-<view wx:if="{{imagePath}}" class="coach-photo-tools"><button class="text-button" bindtap="recropImage" disabled="{{loading || mediaBusy}}">裁剪图片</button><button class="text-button coach-media-remove" bindtap="removeImage" disabled="{{loading || mediaBusy}}">移除</button></view>
+<view wx:if="{{imagePath}}" class="coach-photo-tools">
+<button class="text-button" bindtap="recropImage" disabled="{{loading || mediaBusy}}">裁剪图片</button>
+<button class="text-button coach-media-remove" bindtap="removeImage" disabled="{{loading || mediaBusy}}">移除</button>
+</view>
 </view>
 <view wx:if="{{imagePath}}" class="coach-photo-shell">
 <image class="coach-photo-preview" src="{{imagePath}}" mode="aspectFit" show-menu-by-longpress="{{false}}" bindtap="previewPhotos" aria-label="待提交图片，轻点查看全部" />
@@ -39,7 +42,7 @@
 </button>
 </view>
 </view>
-<coach-panel id="coach-panel" effort-scope="{{effortScope}}" reasoning-effort="{{reasoningEffort}}" bind:effort="chooseEffort" academic="{{contextId === 'stem-photo'}}" progress="{{progress}}" bind:pauseupload="pauseCoachUpload" message="{{message}}" answer="{{answer}}" source-action="{{sourceAction}}" bind:source="identifySource" bind:source-dismiss="dismissSource" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{mediaBusy || (!message && !imagePath && !entryHasImage)}}" show-help-actions="{{true}}" help-intent="{{helpIntent}}" solution-disabled="{{solutionDisabled}}" submit-label="{{helpIntent === 'hint' ? '获取步骤提示' : helpIntent === 'worked-solution' ? '获取完整解答' : helpIntent === 'check-work' ? '检查我的作答' : '发送给 AI Coach'}}" placeholder="补充你想检查的地方（可选）" helper="" bind:input="onMessage" bind:intent="chooseHelpIntent" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
+<coach-panel id="coach-panel" save-task="{{saveTask}}" bind:savetask="chooseSaveTask" effort-scope="{{effortScope}}" reasoning-effort="{{reasoningEffort}}" bind:effort="chooseEffort" academic="{{contextId === 'stem-photo'}}" progress="{{progress}}" bind:pauseupload="pauseCoachUpload" message="{{message}}" answer="{{answer}}" source-action="{{sourceAction}}" bind:source="identifySource" bind:source-dismiss="dismissSource" warning="{{warning}}" error="{{error}}" can-retry="{{canRetry}}" auth-required="{{authRequired}}" status="{{coachStatus}}" loading="{{loading}}" disabled="{{mediaBusy || (!message && !imagePath && !entryHasImage)}}" show-help-actions="{{true}}" help-intent="{{helpIntent}}" solution-disabled="{{solutionDisabled}}" submit-label="{{helpIntent === 'hint' ? '获取步骤提示' : helpIntent === 'worked-solution' ? '获取完整解答' : helpIntent === 'check-work' ? '检查我的作答' : '发送给 AI Coach'}}" placeholder="补充你想检查的地方（可选）" helper="" bind:input="onMessage" bind:intent="chooseHelpIntent" bind:submit="submit" bind:retry="retry" bind:account="openAccount" />
 </view>
 <view class="coach-actions">
 <button wx:if="{{error && imagePath}}" class="secondary coach-recrop-recovery" bindtap="recropImage" disabled="{{loading || mediaBusy}}">裁剪图片后重试</button>

@@ -14,7 +14,7 @@ Page({
 onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
 data: deviceState({ imagePath: '', message: '', loading: false, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '反馈状态待确认', syncStatus: '', syncFailed: false, syncing: false, context: {}, contextLabel: '等待题目范围',progress:{},helpIntent:'',solutionDisabled:false }),
 onLoad(options) {
-this.setData({effortScope:'answers',reasoningEffort:readCoachEffort('answers')})
+this.setData({effortScope:'answers',reasoningEffort:readCoachEffort('answers'),saveTask:false})
 this.__disposed = false
 this.__owner=owner();this.__epoch=epoch()
 options = options || {}
@@ -34,7 +34,7 @@ this.setData({ imagePath: path || '', context, contextLabel: label, syncFailed: 
 onHide(){this.__stopWarm?.()},
 onUnload() { clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose() },
 current(){return !this.__disposed&&this.__owner===owner()&&this.__epoch===epoch()},
-refreshEffort(){if(!this.data.loading&&!this.data.canRetry){const effortScope=academicEffortScope(this.data.helpIntent||'worked-solution');this.setData({effortScope,reasoningEffort:readCoachEffort(effortScope)})}},
+refreshEffort(){if(!this.data.loading&&!this.data.canRetry){const effortScope=academicEffortScope(this.data.helpIntent||'worked-solution'),reasoningEffort=readCoachEffort(effortScope);this.setData({effortScope,reasoningEffort,...(reasoningEffort==='low'?{saveTask:false}:{})})}},
 onShow() {
 syncDevice(this)
 this.refreshEffort()
@@ -45,7 +45,8 @@ this.__stopWarm?.();if(this.current())this.__stopWarm=warmCoachSession();else{th
 },
 onResize() { syncDevice(this) },
 onMessage(event) { if(this.current()&&!this.data.loading){this.setData({ message: event.detail.value, error: '', canRetry:String(event.detail.value||'').trim()===this.data.message.trim()&&this.data.canRetry, authRequired: false });this.refreshEffort()} },
-chooseEffort(event){const value=event.detail?.value;if(this.current()&&!this.data.loading&&!this.data.canRetry&&['low','high','max'].includes(value))this.setData({reasoningEffort:value})},
+chooseEffort(event){const value=event.detail?.value;if(this.current()&&!this.data.loading&&!this.data.canRetry&&['low','high','max'].includes(value))this.setData({reasoningEffort:value,...(value==='low'?{saveTask:false}:{})})},
+chooseSaveTask(event){if(this.current()&&!this.data.loading&&!this.data.canRetry&&['high','max'].includes(this.data.reasoningEffort))this.setData({saveTask:event.detail?.value===true})},
 chooseHelpIntent(event) {
 if(!this.current()||this.data.loading)return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
@@ -60,7 +61,7 @@ clearCoachSource(this)
 this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', syncStatus: '', syncFailed: false, syncing: false, coachStatus: '正在分析…' })
 this.__coachProgress?.dispose()
 this.__receiving=false
-const progress=this.__coachProgress=createOperationTracker({key:'coach-photo',onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active?{...value,label:'正在生成答案…'}:value})}})
+const progress=this.__coachProgress=createOperationTracker({key:'coach-photo',taskMode:true,effort:this.data.reasoningEffort,onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active&&value.phase!=='recovering'?{...value,label:'正在生成答案…'}:value})}})
 const timingStarted=Date.now();let imagePreparationMs=0
 this.__coachTiming=null
 let authExpired=false
@@ -73,6 +74,7 @@ const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solutio
 if(policy.solutionDisabled!==this.data.solutionDisabled||helpIntent!==this.data.helpIntent)this.setData({solutionDisabled:policy.solutionDisabled,helpIntent})
 const result = await runCoach({
 reasoningEffort:this.data.reasoningEffort,
+saveTask:this.data.saveTask===true&&['high','max'].includes(this.data.reasoningEffort),
 message: this.data.message.trim(),
 helpIntent,
 imageDataUrls: [dataUrl],

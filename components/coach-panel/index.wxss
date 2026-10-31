@@ -33,6 +33,10 @@
 .coach-progress-fill{height:100%;background:#7357e8;min-width:0;max-width:100%}
 .coach-upload-pause{min-height:44px;margin-top:10px;font-size:14px}
 .coach-progress-meta{flex-wrap:wrap}
+.coach-task-choice{display:flex;align-items:flex-start;gap:8px;min-height:44px;padding:10px 0;color:#18213d;font-size:14px;line-height:1.55}
+.coach-task-choice checkbox{flex-shrink:0;margin-top:1px}.coach-task-choice text,.coach-task-note{display:block;margin-top:5px;color:#66708a;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.coach-task-link{min-height:44px;margin:12px 0;font-size:14px;white-space:normal}
+.coach-progress-steps text{flex:1;min-width:0;line-height:1.5}.coach-progress-steps .error{color:#a22e48}
 @keyframes coach-pulse{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
 @media(prefers-reduced-motion:reduce){.coach-progress-pulse{animation:none;width:100%;opacity:.5}}
 @media(min-width:900px){.coach-panel{padding:20px}.coach-panel textarea{height:150px;min-height:150px}}

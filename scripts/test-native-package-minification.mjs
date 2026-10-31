@@ -254,6 +254,8 @@ try {
   for(const suite of examSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
   const cropSuites=['test-coach-recrop.mjs','test-crop-gesture-stability.mjs','test-crop-export.mjs','test-native-photo-cancel.mjs','test-camera-lifecycle.mjs','test-native-paper.mjs']
   for(const suite of cropSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
+  const taskSuites=['test-coach-task-defaults.mjs','test-coach-task-progress.mjs','test-coach-task-selection.mjs','test-coach-task-job.mjs','test-coach-task-controls.mjs','test-coach-task-history.mjs','test-coach-task-page.mjs','test-calculator.mjs','test-cw-calculator.mjs','test-cw-natural-input.mjs','test-cw-touch-cursor.mjs','test-cw-solver.mjs','test-cw-solver-page.mjs','test-cw-complex.mjs','test-cw-complex-page.mjs']
+  for(const suite of taskSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
 
   assert.equal(check.mainPackageBytes, firstReceipt.mainPackage.bytes)
   assert.equal(check.mainPackageHeadroom, firstReceipt.mainPackage.headroom)
@@ -273,6 +275,7 @@ try {
     packagedChapterSuites: chapterSuites.length,
     packagedExamSuites: examSuites.length,
     packagedCropSuites: cropSuites.length,
+    packagedTaskAndHeadroomSuites: taskSuites.length,
   }))
 } finally {
   for (const [relative, before] of Object.entries(protectedBefore)) {

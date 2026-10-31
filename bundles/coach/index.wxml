@@ -1,6 +1,7 @@
 <view class="page {{deviceClass}} {{orientation}} coach-hub-page">
   <stemist-header compact="{{true}}" eyebrow="AI COACH" title="今天需要哪种帮助？" />
   <app-nav id="coach-hub-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
+  <button class="saved-task-entry" bindtap="openTasks"><view><text>已保存答疑</text><view>查看主动保存的 high / 深度思考结果 · 保留 3 天</view></view><text aria-hidden="true">›</text></button>
   <view class="mode-grid" role="list" aria-label="AI Coach 功能">
     <button wx:for="{{modes}}" wx:key="id" class="mode-card mode-{{item.id}}" data-mode="{{item.id}}" bindtap="openMode" role="listitem" aria-label="{{item.title}}：{{item.detail}}">
       <view class="mode-glyph" aria-hidden="true"><image class="mode-illustration" src="/bundles/coach/mode-icons/{{item.id}}.svg" mode="aspectFit" /></view>

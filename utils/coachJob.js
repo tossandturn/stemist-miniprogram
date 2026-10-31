@@ -18,7 +18,7 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
  let records=wx.getStorageSync(key);records=Array.isArray(records)?records.filter(r=>r&&/^[a-f0-9]{64}$/.test(r.hash)&&/^cj-[a-zA-Z0-9_-]{16,80}$/.test(r.id)&&r.expires>now).slice(-5):[]
  let record=records.find(r=>r.hash===hash),known=Boolean(record)
  timing.replayed=known;timing.requestPreparationMs=elapsed()
- if(!record){record={hash,id:'cj-'+now.toString(36)+'-'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2),expires:now+TTL};records.push(record)}
+ if(!record){record={hash,id:'cj-'+now.toString(36)+'-'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2),expires:now+(payload.saveTask===true?259200000:payload.saveTask===false?600000:TTL)};records.push(record)}
  try{wx.setStorageSync(key,records)}catch{return Promise.reject(error('本机暂时无法保存答疑进度，请释放小程序存储后重试。','coach_job_storage'))}
  const forget=()=>{try{current();const all=wx.getStorageSync(key);if(Array.isArray(all))wx.setStorageSync(key,all.filter(r=>r.id!==record.id))}catch{}}
  return new Promise((resolve,reject)=>{
@@ -50,6 +50,11 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
      current();errors=0
      if(sent&&timing.ackMs===undefined){timing.ackMs=elapsed();timing.jobPostMs=Math.max(0,Math.round(clock()-dispatched))}
      if(snapshot.id!==record.id||!['running','succeeded','failed','interrupted'].includes(snapshot.status))throw error('答疑进度返回异常，请稍后重试。','coach_job_protocol')
+     if(snapshot.task){
+      const {id,status,stage:serverStage,createdAt,updatedAt,expiresAt,serverNow,task:taskInfo}=snapshot
+      if(Number.isSafeInteger(expiresAt)&&Number.isSafeInteger(serverNow)&&expiresAt>serverNow){record.expires=Date.now()+Math.min(259200000,expiresAt-serverNow);try{current();const all=wx.getStorageSync(key);if(Array.isArray(all))wx.setStorageSync(key,all.map(r=>r.id===record.id?record:r))}catch{}}
+      stage({phase:'task',snapshot:{id,status,stage:serverStage,createdAt,updatedAt,expiresAt,serverNow,task:taskInfo}})
+     }
      if(snapshot.answer!==undefined&&snapshot.answer!==partial){partial=String(snapshot.answer);const visible=liveAnswer(partial);if(visible&&timing.firstAnswerMs===undefined)timing.firstAnswerMs=elapsed();onPartial?.(visible)}
      if(snapshot.status==='succeeded'||snapshot.status==='failed'){
       if(!snapshot.result||typeof snapshot.result!=='object')throw error('答疑结果返回异常。','coach_job_protocol')
@@ -57,7 +62,7 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
       finish(resolve,snapshot.result);return
      }
      if(snapshot.status==='interrupted'){forget();const e=error('服务处理已中断，题目仍保留，请重试。','coach_job_interrupted');e.partialAnswer=stableAnswer(partial);throw e}
-     stage(partial?'arranging':'analysis')
+     if(!snapshot.task)stage(partial?'arranging':'analysis')
     }catch(e){
      if(closed)return
      current()

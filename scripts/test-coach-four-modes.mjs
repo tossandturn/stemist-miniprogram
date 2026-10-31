@@ -4,7 +4,7 @@ import {deferred,miniRuntime,settle} from './helpers/mini-runtime.mjs'
 
 const app=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8'))
 const coachPackage=app.subPackages?.find(item=>item.root==='bundles/coach')
-assert.deepEqual(coachPackage?.pages,['index','tavern','admissions','ieltsTeacher','practice'],'Coach hub, advisors and chapter handoff must be lazy ordinary subpackage pages')
+assert.deepEqual(coachPackage?.pages,['index','tasks','tavern','admissions','ieltsTeacher','practice'],'Coach hub, saved tasks, advisors and chapter handoff must be lazy ordinary subpackage pages')
 
 const hubRuntime=miniRuntime()
 hubRuntime.storage.set('stemistCoachEntry',{owner:'student-a',epoch:0,key:'entry:key',context:{skill:'reading'}})

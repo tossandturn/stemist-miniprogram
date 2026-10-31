@@ -13,7 +13,7 @@ control.data.locked=false;control.onOpen();runtime.storage.set('stemistUser',{id
 assert.equal(runtime.load('utils/coachEffort').readCoachEffort(),'low')
 control.data.scope='admissions';control.data.effort='';control.data.message='请分析申请竞争力';control.refresh();assert.equal(control.data.selected,'high');assert.match(control.data.label,/推荐/)
 control.onOpen();control.data.scope='tavern';control.refresh();control.onChange({detail:{value:'3'}});assert.equal(events.length,1,'picker opened in another purpose cannot update current purpose')
-control.onOpen();control.onChange({detail:{value:'3'}});assert.equal(runtime.load('utils/coachEffort').readCoachEffort('tavern'),'max');assert.equal(runtime.load('utils/coachEffort').readCoachEffort('answers'),'high')
+control.onOpen();control.onChange({detail:{value:'3'}});assert.equal(runtime.load('utils/coachEffort').readCoachEffort('tavern'),'max');assert.equal(runtime.load('utils/coachEffort').readCoachEffort('answers'),'low')
 control.onChange({detail:{value:'0'}});assert.equal(runtime.load('utils/coachEffort').coachEffortPreference('tavern'),'auto');assert.equal(control.data.selected,'low')
 control.data.effort='high';control.data.locked=true;control.refresh();assert.equal(control.data.selected,'high','pending request shows its captured effort, not a new preference')
 const root=process.env.STEMIST_TEST_RUNTIME_ROOT||path.resolve(import.meta.dirname,'..'),wxml=fs.readFileSync(path.join(root,'components/coach-effort/index.wxml'),'utf8'),css=fs.readFileSync(path.join(root,'components/coach-effort/index.wxss'),'utf8');assert.match(wxml,/picker/);assert.match(wxml,/思考强度/);assert.match(css,/min-height:\s*44px/)

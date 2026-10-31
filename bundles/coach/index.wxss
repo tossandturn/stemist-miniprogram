@@ -1,5 +1,6 @@
 .coach-hub-page{background:linear-gradient(180deg,#f1edff 0,#f5f6fa 260px)}
 .coach-hub-page .workspace-header-compact{padding-right:0;margin-bottom:10px}
+.saved-task-entry{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:60px;max-width:1040px;box-sizing:border-box;margin:16px auto;padding:12px 16px;text-align:left;border:1px solid #ded6f0;border-radius:14px;background:#fff;color:#5638b8;font-size:15px;line-height:1.5;white-space:normal}.saved-task-entry view view{margin-top:4px;color:#66708a;font-size:12px;font-weight:400}
 .mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:760px;margin:14px auto}
 .coach-hub-page button.mode-card{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
 .mode-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-height:188px;margin:0;padding:18px;border:1px solid #e2ddeb;border-radius:20px;color:#18213d;background:#fff;text-align:left;box-shadow:0 6px 18px rgba(42,31,89,.04)}
