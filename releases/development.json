@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.79",
+  "highestAssignedVersion": "1.0.80",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -26,6 +26,22 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.80",
+      "assignedOn": "2026-11-01",
+      "commit": "9436132529c1d6e0fc80944fd37ca946ff745b93",
+      "project": "D:\\CodexWork\\coach-upload-recovery-20261031/development-1.0.80-release",
+      "status": "uploaded",
+      "manifest": "D:\\CodexWork\\coach-upload-recovery-20261031/development-1.0.80-release-manifest.json",
+      "runtimeManifestSha256": "b617ccf75c3d15885474dccae9eaead98f9c32a6ff900bbdd2010af3b1f9214c",
+      "scope": "Coach photo upload recovery, small-photo fast path, progress and moderate compression; no membership/model changes",
+      "uploadConfirmedAt": "2026-10-31T16:55:28.926Z",
+      "officialInfo": "D:\\CodexWork\\coach-upload-recovery-20261031/wechat-upload-receipt.json",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false
+    },
     {
       "version": "1.0.79",
       "assignedOn": "2026-10-31",
