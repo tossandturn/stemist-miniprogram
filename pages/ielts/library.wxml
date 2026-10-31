@@ -1,7 +1,6 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-library">
  <stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/><ai-fab source="ielts" category="ielts"/>
- <navigator class="secondary" url="/bundles/curricula/ieltsPapers?module={{module}}">下载剑雅题目与答案</navigator>
- <navigator wx:if="{{module === 'listening'}}" class="secondary" url="/bundles/curricula/ieltsAudio">下载听力音频</navigator>
+ <navigator class="secondary" url="/bundles/curricula/ieltsPapers?module={{module}}">{{module === 'listening' ? '下载题目、答案与听力音频' : '下载剑雅题目与答案'}}</navigator>
  <view class="native-scopes"><button wx:for="{{scopes}}" wx:key="id" class="{{scope === item.id ? 'active' : ''}}" data-scope="{{item.id}}" bindtap="chooseScope">{{item.label}}</button></view>
  <view class="native-filters"><picker range="{{books}}" range-key="label" value="{{bookIndex}}" bindchange="chooseBook"><view class="native-filter">{{books[bookIndex].label || '全部书册'}} · 更换</view></picker><input class="native-search" placeholder="搜索试题" value="{{query}}" bindinput="search"/></view>
  <view wx:if="{{error && catalogLoaded}}" class="error">{{error}}<button class="secondary" bindtap="reload">刷新题库</button></view>

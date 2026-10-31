@@ -16,7 +16,7 @@ const pageRt=miniRuntime({modules:{'bundles/curricula/ieltsAudioService':{fetchC
 const page=pageRt.page('bundles/curricula/ieltsAudio');await page.onLoad({taskId:'cam12-l-test1',track:'2'});assert.equal(page.data.items.length,4);assert.equal(page.data.items[1].focused,true);assert.match(page.data.items[0].meta,/Test 5/);assert.match(page.data.items[0].practiceNote,/1/)
 page.download({currentTarget:{dataset:{id:file(2).id}}});assert.equal(selected.id,file(2).id);assert.equal(page.data.download.ready,true);page.setData({download:{active:true}});page.chooseBook({detail:{value:0}});assert.equal(scope.includes('cam12-l-test1'),true);page.onUnload()
 const root=process.env.STEMIST_TEST_RUNTIME_ROOT||path.resolve(import.meta.dirname,'..'),app=JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8'));assert.ok(app.subPackages.find(p=>p.root==='bundles/curricula').pages.includes('ieltsAudio'))
-for(const f of ['pages/practice/index.wxml','pages/ielts/library.wxml'])assert.match(fs.readFileSync(path.join(root,f),'utf8'),/bundles\/curricula\/ieltsAudio/)
+for(const f of ['pages/practice/index.wxml','pages/ielts/library.wxml'])assert.match(fs.readFileSync(path.join(root,f),'utf8'),/bundles\/curricula\/ieltsPapers/)
 assert.match(fs.readFileSync(path.join(root,'pages/ielts/objective.wxml'),'utf8'),/openAudioDownloads/)
 const audioMarkup=fs.readFileSync(path.join(root,'bundles/curricula/ieltsAudio.wxml'),'utf8');assert.match(audioMarkup,/class="audio-download-button"/);assert.match(audioMarkup,/id="audio-download-progress"/)
 console.log('Audio library: canonical metadata, public cache fallback, original labels/deep links, no auto download and registered native entries PASS')

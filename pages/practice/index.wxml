@@ -26,8 +26,7 @@
     </view>
   </block>
   <block wx:elif="{{activeCategory === 'ielts'}}">
-    <navigator class="secondary" url="/bundles/curricula/ieltsPapers">剑雅真题与答案下载</navigator>
-    <navigator class="secondary" url="/bundles/curricula/ieltsAudio">听力音频下载</navigator>
+    <navigator class="secondary" url="/bundles/curricula/ieltsPapers">剑雅真题、答案与音频下载</navigator>
     <block wx:for="{{ieltsGroups}}" wx:for-item="group" wx:key="id">
       <view class="section-title ielts-group-title">{{group.label}}</view>
       <view class="ielts-feature-grid">

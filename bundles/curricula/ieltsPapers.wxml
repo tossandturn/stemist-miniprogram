@@ -1,18 +1,38 @@
 <view class="page {{deviceClass}} {{orientation}} ielts-downloads">
- <stemist-header compact="{{true}}" title="剑雅真题下载" action-text="返回" bind:action="back"/>
+ <stemist-header compact="{{true}}" title="剑雅资料下载" action-text="返回" bind:action="back"/>
  <view class="quota-note">PDF 题目、答案与听力音频合计每天免费 2 份；会员不限份数。打开本地缓存不扣次数。</view>
- <picker range="{{books}}" range-key="label" value="{{bookIndex}}" bindchange="chooseBook"><view class="book-picker">{{books[bookIndex].label || '选择书册'}}<text>更换书册</text></view></picker>
- <view class="modules"><button wx:for="{{modules}}" wx:key="id" class="{{module === item.id ? 'selected' : ''}}" data-module="{{item.id}}" bindtap="chooseModule">{{item.label}}</button></view>
+ <picker range="{{books}}" range-key="label" value="{{bookIndex}}" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}" bindchange="chooseBook"><view class="book-picker">{{books[bookIndex].label || '选择书册'}}<text>更换书册</text></view></picker>
+ <view class="modules"><button wx:for="{{modules}}" wx:key="id" class="{{module === item.id ? 'selected' : ''}}" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}" data-module="{{item.id}}" bindtap="chooseModule">{{item.label}}</button></view>
  <view wx:if="{{loading}}" class="loading-state">正在加载下载目录…</view>
  <view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="load">刷新目录</button></view>
  <text wx:if="{{!loading}}" class="count">{{total}} 份题目</text>
+ <view wx:if="{{hasListening && (audioLoading || audioError || audioOffline)}}" class="audio-catalog-state">
+  <text wx:if="{{audioLoading}}" class="audio-note">正在加载配套听力音频…</text>
+  <text wx:elif="{{audioError}}" class="audio-note" role="alert">{{audioError}}题目与答案下载不受影响。</text>
+  <text wx:elif="{{audioOffline}}" class="audio-note">音频目录暂未联网更新，已下载缓存仍可使用。</text>
+  <button wx:if="{{!audioLoading && (audioError || audioOffline)}}" class="secondary audio-reload" bindtap="retryAudioCatalogue" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}">刷新音频目录</button>
+ </view>
  <view class="papers"><view wx:for="{{items}}" wx:key="id" class="paper">
   <text class="paper-title">{{item.meta}}</text><text class="paper-source">{{item.title}}</text>
-  <view class="file-row"><view><text>题目 PDF</text><text class="file-meta">{{item.qpMeta}}</text></view><button data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" disabled="{{pdfDownload.active}}">下载题目</button></view>
-  <view wx:if="{{item.ak}}" class="file-row"><view><text>参考答案</text><text class="file-meta">{{item.akMeta}}</text></view><button data-id="{{item.id}}" data-kind="ak" bindtap="openPdf" disabled="{{pdfDownload.active}}">下载答案</button></view>
+  <view class="file-row"><view><text>题目 PDF</text><text class="file-meta">{{item.qpMeta}}</text></view><button data-id="{{item.id}}" data-kind="qp" bindtap="openPdf" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}">下载题目</button></view>
+  <view wx:if="{{item.ak}}" class="file-row"><view><text>参考答案</text><text class="file-meta">{{item.akMeta}}</text></view><button data-id="{{item.id}}" data-kind="ak" bindtap="openPdf" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}">下载答案</button></view>
   <text wx:if="{{item.answerNote}}" class="answer-note">{{item.answerNote}}</text>
   <pdf-download-progress wx:if="{{pdfDownload.visible && pdfDownload.itemId === item.id}}" state="{{pdfDownload}}" bind:cancel="cancel" bind:retry="retry" bind:toggle="toggle" bind:login="account"/>
+  <view wx:if="{{item.module === 'listening'}}" class="paper-audio">
+   <view class="audio-heading"><text>配套听力音频</text><text class="file-meta">每个 MP3 计 1 份</text></view>
+   <text wx:if="{{!audioLoading && !audioError && !item.audioTracks.length}}" class="audio-note">这套听力暂没有可下载音频。</text>
+   <text wx:if="{{item.audioPartial}}" class="audio-note">部分音轨暂不可用，以下为当前可下载文件。</text>
+   <view wx:for="{{item.audioTracks}}" wx:for-item="audio" wx:key="id" class="audio-track">
+    <view class="file-row"><view><text>{{audio.trackLabel}}</text><text class="file-meta">MP3 · {{audio.sizeLabel}}</text></view><button class="inline-audio-download" data-id="{{item.id}}" data-audio-id="{{audio.id}}" aria-label="{{item.meta}} {{audio.trackLabel}} 下载音频" bindtap="downloadAudio" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}">{{audioDownload.ready && audioDownload.itemId === audio.id ? '读取缓存' : '下载音频'}}</button></view>
+    <block wx:if="{{audioDownload.itemId === audio.id}}">
+     <pdf-download-progress wx:if="{{audioDownload.progress}}" state="{{audioDownload.progress}}" compact="{{true}}" bind:cancel="cancelAudio" bind:retry="retryAudio"/>
+     <text wx:if="{{audioDownload.error && (!audioDownload.progress || !audioDownload.progress.error)}}" class="audio-export-error" role="alert">{{audioDownload.error}}</text>
+     <button wx:if="{{audioDownload.ready}}" class="primary audio-export" loading="{{audioDownload.sharing}}" disabled="{{pdfPreparing || pdfDownload.active || audioDownload.sharing}}" bindtap="shareAudio">保存到微信</button>
+     <text wx:if="{{audioDownload.ready}}" class="audio-note">可选择文件传输助手保存；取消发送不会删除缓存。</text>
+    </block>
+   </view>
+  </view>
  </view></view>
  <view wx:if="{{!loading && !items.length && !error}}" class="empty-state">暂无这一分类的资料。</view>
- <view wx:if="{{pages > 1}}" class="pager"><button disabled="{{page <= 0}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pages}}</text><button disabled="{{page + 1 >= pages}}" bindtap="next">下一页</button></view>
+ <view wx:if="{{pages > 1}}" class="pager"><button disabled="{{page <= 0 || pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pages}}</text><button disabled="{{page + 1 >= pages || pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}" bindtap="next">下一页</button></view>
 </view>
