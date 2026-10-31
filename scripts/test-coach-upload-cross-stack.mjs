@@ -28,7 +28,7 @@ const request=async(url,data,options={})=>{
  const method=options.method||'GET';calls.push({url,method,offset:data?.offset,bytes:data?Buffer.byteLength(JSON.stringify(data)):0})
  const response=await fetch(origin+url,{method,headers:{authorization:'Bearer synthetic-owner-a','content-type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})});const value=await response.json()
  if(!response.ok)throw Object.assign(Error('synthetic HTTP failure'),{statusCode:response.status,code:value.code})
- if(method==='PATCH'&&!lostChunk){lostChunk=true;throw Object.assign(Error('synthetic lost chunk ACK'),{code:'network_timeout'})}
+ if(method==='POST'&&url.endsWith('/chunks')&&!lostChunk){lostChunk=true;throw Object.assign(Error('synthetic lost chunk ACK'),{code:'network_timeout'})}
  if(method==='POST'&&url.includes('/jobs/')&&!lostJob){lostJob=true;throw Object.assign(Error('synthetic lost job ACK'),{code:'network_timeout'})}
  return value
 }
@@ -38,7 +38,8 @@ try{
  const ask=runtime.load('utils/coachJob').askCoachJob
  const result=await ask(payload,{request,preparePayload:(p,o)=>prepare(p,{...o,retryDelayMs:0}),pollMs:1})
  assert.equal(result.answer,'synthetic correct');assert.equal(generations,1)
- assert.equal(calls.filter(c=>c.method==='PATCH'&&c.offset===0).length,1,'lost accepted chunk ACK must not cause retransmission')
+ assert.ok(calls.every(c=>['GET','POST','PUT','DELETE'].includes(c.method)),'native upload methods must be documented by WeChat')
+ assert.equal(calls.filter(c=>c.url.endsWith('/chunks')&&c.offset===0).length,1,'lost accepted chunk ACK must not cause retransmission')
  assert.equal(calls.filter(c=>c.method==='POST'&&c.url.includes('/jobs/')).length,1)
  assert.ok(calls.filter(c=>c.method==='POST'&&c.url.includes('/jobs/')).every(c=>c.bytes<2048),'4MiB picture becomes a small model-start request')
  const id=calls.find(c=>c.method==='PUT').url
@@ -46,7 +47,7 @@ try{
  const count=calls.length;uploads.close()
  const recovered=await ask(payload,{request,preparePayload:(p,o)=>prepare(p,o),pollMs:1})
  assert.equal(recovered.answer,'synthetic correct');assert.equal(generations,1);assert.equal(calls.length,count+1)
- console.log(JSON.stringify({status:'PASS',decodedImageBytes:bytes.length,chunkRequests:calls.filter(c=>c.method==='PATCH').length,jobPostBytes:calls.find(c=>c.method==='POST'&&c.url.includes('/jobs/')).bytes,generations,lostChunkAck:true,lostJobAck:true,foreignOwnerDenied:true,resultRecoveredWithoutUploadStore:true}))
+ console.log(JSON.stringify({status:'PASS',decodedImageBytes:bytes.length,chunkRequests:calls.filter(c=>c.url.endsWith('/chunks')).length,jobPostBytes:calls.find(c=>c.method==='POST'&&c.url.includes('/jobs/')).bytes,generations,lostChunkAck:true,lostJobAck:true,foreignOwnerDenied:true,resultRecoveredWithoutUploadStore:true}))
 }finally{
  uploads.close();await jobs.close();server.closeAllConnections();server.close();await once(server,'close')
  assert.equal(path.dirname(work),parent);assert.ok(path.basename(work).startsWith('cross-stack-'));fs.rmSync(work,{recursive:true,force:true})

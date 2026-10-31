@@ -10,15 +10,15 @@ function setup({lostAck=false,failAll=false}={}){
  const uploads=new Map(),calls=[];let now=10000,lost=false
  const snapshot=u=>({protocol:PROTOCOL,id:u.id,status:u.ready?'ready':'uploading',mimeType:u.mimeType,base64Length:u.base64Length,base64Sha256:u.base64Sha256,receivedChars:u.data.length,chunkChars:65536,expiresAt:now+900000})
  const request=async(path,data,options={})=>{
-  calls.push({path,data,method:options.method});now+=1000
-  if(path.endsWith('/capabilities'))return{protocol:PROTOCOL,enabled:true,chunkChars:65536,maxImageBytes:4194304,ttlMs:900000}
-  const parts=path.split('/'),id=parts.at(-1)==='complete'?parts.at(-2):parts.at(-1)
+  calls.push({path,data,method:options.method,timeout:options.timeout});now+=1000
+  if(path.endsWith('/capabilities'))return{protocol:PROTOCOL,enabled:true,chunkMethod:'POST',chunkPathSuffix:'/chunks',chunkChars:65536,maxImageBytes:4194304,ttlMs:900000}
+  const parts=path.split('/'),id=['complete','chunks'].includes(parts.at(-1))?parts.at(-2):parts.at(-1)
   if(options.method==='PUT'){
    if(!uploads.has(id))uploads.set(id,{id,...data,data:'',ready:false})
    return snapshot(uploads.get(id))
   }
   const u=uploads.get(id);if(!u)throw Object.assign(Error('missing'),{statusCode:404,code:'coach_upload_not_found'})
-  if(options.method==='PATCH'){
+  if(options.method==='POST'&&path.endsWith('/chunks')){
    assert.ok(data.chunk.length<=65536);assert.equal(data.offset,u.data.length)
    if(failAll)throw Object.assign(Error('offline'),{code:'network_timeout'})
    u.data+=data.chunk
@@ -35,21 +35,23 @@ function setup({lostAck=false,failAll=false}={}){
 {
  const s=setup({lostAck:true}),progress=[]
  const result=await s.uploader({message:'synthetic',imageDataUrls:[image]},{request:s.request,now:s.now,onStage:v=>progress.push(v),retryDelayMs:0})
+ assert.ok(s.calls.every(c=>['GET','POST','PUT','DELETE'].includes(c.method)),'native upload must only use documented wx.request methods, not PATCH')
  assert.equal(result.imageDataUrls.length,0);assert.equal(result.imageUploadIds.length,1)
- assert.equal(s.calls.filter(x=>x.method==='PATCH'&&x.data.offset===0).length,1,'accepted chunk with lost ACK is not resent')
+ assert.equal(s.calls.filter(x=>x.path.endsWith('/chunks')&&x.data.offset===0).length,1,'accepted chunk with lost ACK is not resent')
+ assert.ok(s.calls.filter(x=>x.path.endsWith('/chunks')).every(x=>x.method==='POST'&&x.timeout===15000),'POST chunk timeout is retained')
  assert.ok(s.calls.some(x=>x.method==='GET'&&!x.path.endsWith('/capabilities')),'query confirmed offset after uncertainty')
  assert.equal([...s.uploads.values()][0].data,body)
  assert.equal(progress.at(-1).uploadedBytes,150000);assert.equal(progress.at(-1).totalBytes,150000)
  assert.ok(progress.some(p=>p.speedBytesPerSecond>0&&Number.isFinite(p.etaSeconds)))
  const serialized=JSON.stringify([...s.r.storage.values()]);assert.ok(!serialized.includes(body.slice(0,120))&&!serialized.includes('synthetic'),'only upload metadata is persisted')
- const patches=s.calls.filter(c=>c.method==='PATCH').length
+ const patches=s.calls.filter(c=>c.path.endsWith('/chunks')).length
  await s.uploader({message:'different question',imageDataUrls:[image]},{request:s.request,now:s.now,retryDelayMs:0})
- assert.equal(s.calls.filter(c=>c.method==='PATCH').length,patches,'ready image reused within owner and TTL')
+ assert.equal(s.calls.filter(c=>c.path.endsWith('/chunks')).length,patches,'ready image reused within owner and TTL')
 }
 {
  const s=setup({failAll:true})
  await assert.rejects(s.uploader({imageDataUrls:[image]},{request:s.request,now:s.now,retryDelayMs:0}),e=>e.code==='coach_upload_pending')
- assert.ok(s.calls.filter(c=>c.method==='PATCH').length<=3,'bounded chunk retries')
+ assert.ok(s.calls.filter(c=>c.path.endsWith('/chunks')).length<=3,'bounded chunk retries')
 }
 {
  const s=setup(),payload={message:'text',imageDataUrls:[]}
@@ -60,17 +62,17 @@ function setup({lostAck=false,failAll=false}={}){
 }
 {
  const s=setup(),wait=deferred();let cancelled=false
- const request=async(path,data,options)=>{const value=await s.request(path,data,options);if(options.method==='PATCH'){await wait.promise}return value}
+ const request=async(path,data,options)=>{const value=await s.request(path,data,options);if(path.endsWith('/chunks')){await wait.promise}return value}
  const running=s.uploader({imageDataUrls:[image]},{request,now:s.now,isCancelled:()=>cancelled,retryDelayMs:0})
  await settle();await settle();cancelled=true;wait.resolve()
  await assert.rejects(running,e=>e.code==='request_cancelled')
- assert.equal(s.calls.filter(c=>c.method==='POST').length,0,'cancelled upload cannot complete or start AI')
+ assert.equal(s.calls.filter(c=>c.method==='POST'&&!c.path.endsWith('/chunks')).length,0,'cancelled upload cannot complete or start AI')
 }
 {
  const s=setup();let changed=false
- const request=async(path,data,options)=>{const value=await s.request(path,data,options);if(options.method==='PATCH'&&!changed){changed=true;s.r.storage.set('stemistUser',{id:'ielts:202'})}return value}
+ const request=async(path,data,options)=>{const value=await s.request(path,data,options);if(path.endsWith('/chunks')&&!changed){changed=true;s.r.storage.set('stemistUser',{id:'ielts:202'})}return value}
  await assert.rejects(s.uploader({imageDataUrls:[image]},{request,now:s.now,retryDelayMs:0}),e=>e.code==='account_changed')
- assert.equal(s.calls.filter(c=>c.method==='POST').length,0)
+ assert.equal(s.calls.filter(c=>c.method==='POST'&&!c.path.endsWith('/chunks')).length,0)
  assert.ok(![...s.r.storage.keys()].some(k=>k.includes('ielts%3A202')))
 }
 {
