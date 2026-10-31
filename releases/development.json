@@ -2,7 +2,7 @@
   "schemaVersion": "stemist-development-releases-v1",
   "highestAssignedVersion": "1.0.79",
   "pendingUploads": [
-    {"version":"1.0.79","assignedOn":"2026-10-31","status":"reserved","purpose":"Tarot and eastern oracle draw images follow their own chat messages instead of the top panel"},
+    {"version":"1.0.79","assignedOn":"2026-10-31","status":"reserved","purpose":"Tarot and eastern oracle draw images follow their own chat messages instead of the top panel","commit":"c1a4f071e8ecc4b4ab6e68df27c5a7d257977f73","project":"D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.79-ready","runtimeManifestSha256":"d2c8c36a73a1f1d77153ab1339f1d2d588cad84b492cbf9707631a2fd92ccb8e","inlineDrawAcceptance":"D:/CodexWork/tavern-inline-draws-20261031/verification.json"},
     {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",
