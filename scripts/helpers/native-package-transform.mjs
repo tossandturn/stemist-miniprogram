@@ -1,4 +1,5 @@
 import * as esbuild from 'esbuild'
+import {packNativeTaskData} from './native-task-token-pack.mjs'
 
 const EXPECTED_ESBUILD_VERSION = '0.28.2'
 if (esbuild.version !== EXPECTED_ESBUILD_VERSION) {
@@ -11,8 +12,13 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
+    id: 'lossless-native-task-text-v1',
+    paths: Object.freeze(['utils/ieltsTaskBootstrap.js']),
+    losslessTaskText: true,
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-native-compiled-headroom-v1',
-    paths: Object.freeze(['utils/ieltsTaskBootstrap.js','pages/practice/index.js','pages/notebook/index.js','utils/nativePaperService.js']),
+    paths: Object.freeze(['pages/practice/index.js','pages/notebook/index.js','utils/nativePaperService.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
   }),Object.freeze({
     id: 'esbuild-coach-compact-ui-headroom-v1',
@@ -98,7 +104,7 @@ export function transformNativePackageFile(relative, sourceBytes) {
   if (!Buffer.from(source, 'utf8').equals(sourceBytes)) throw new Error(`Runtime JavaScript is not valid UTF-8: ${relative}`)
   try {
     const override = NATIVE_PACKAGE_TRANSFORM.overrides.find(item => item.paths.includes(relative.replaceAll('\\', '/')))
-    const result = esbuild.transformSync(source, {
+    const result = esbuild.transformSync(override?.losslessTaskText ? packNativeTaskData(source) : source, {
       ...NATIVE_PACKAGE_TRANSFORM.options,
       ...override?.options,
       logLevel: 'silent',

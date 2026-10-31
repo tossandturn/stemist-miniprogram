@@ -49,7 +49,7 @@
     "test:curricula": "node scripts/test-curriculum-papers-client.mjs && node scripts/test-ielts-paper-downloads.mjs",
     "test:university-directory": "node scripts/test-university-directory.mjs && node scripts/test-university-layout.mjs && node scripts/test-university-profiles.mjs && node scripts/test-university-admission-analysis.mjs && node scripts/test-directory-coach-entry.mjs && node scripts/test-directory-coach-actions.mjs",
     "test:product-config": "node scripts/test-product-config-client.mjs",
-    "test:package-minification": "node scripts/test-native-package-minification.mjs",
+    "test:package-minification": "node scripts/test-native-task-token-pack.mjs && node scripts/test-native-package-minification.mjs",
     "pretest:all": "npm run test:coach-compact-ui && npm run test:coach-tasks && npm run test:membership && npm run test:product-config && npm run test:package-minification",
     "test:curriculum-practice": "node scripts/test-curriculum-practice-client.mjs",
     "test:pdf-download": "node scripts/test-pdf-download-progress.mjs && node scripts/test-pdf-range-cache.mjs && node scripts/test-pdf-transfer-pipeline.mjs && node scripts/test-pdf-download-access.mjs",
