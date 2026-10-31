@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.84",
+  "highestAssignedVersion": "1.0.85",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -52,6 +52,22 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.85",
+      "assignedOn": "2026-11-01",
+      "commit": "638f71be6d4d90fb81cd0d229b0cba4b1da97d8c",
+      "project": "D:\\CodexWork\\coach-compact-ui-20261101/development-1.0.85-ready",
+      "status": "uploaded",
+      "manifest": "D:\\CodexWork\\coach-compact-ui-20261101/development-1.0.85-ready-manifest.json",
+      "runtimeManifestSha256": "7beb0d7a13d6c0dd9cd617e27d0b65fdd5ea218920fd622905cf7f858e87fa9e",
+      "scope": "AI Coach 文案与排版精简：首屏功能/发送可见，保留三档思考、3天可选任务、进度恢复和公式分模块。不改模型、支付或下载。",
+      "uploadConfirmedAt": "2026-10-31T20:10:20.336Z",
+      "officialInfo": "D:\\CodexWork\\coach-compact-ui-20261101/wechat-upload-receipt.json",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false
+    },
     {
       "version": "1.0.82",
       "assignedOn": "2026-11-01",
