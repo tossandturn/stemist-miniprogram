@@ -20,4 +20,4 @@ UI/UX checks kept the existing chat visual language, fixed image geometry,44px c
 
 ## Release boundary
 
-1.0.79 is reserved and acceptance-ready. Official upload confirmation will be reconciled separately; trial designation, review and public publication are not implied. Physical phone/iPad gestures remain NOT VERIFIED; native phone screenshots and automated responsive/device contracts are the evidence here.
+PASS: **1.0.79** uploaded through the official WeChat CLI at **2026-10-31 13:22 Asia/Shanghai**; both development ledgers reconciled to the pinned runtime and manifest. Receipt: `D:/CodexWork/tavern-inline-draws-20261031/wechat-upload-receipt.json`. Trial designation remains NOT VERIFIED; review/public publication were not performed. Physical phone/iPad gestures remain NOT VERIFIED; native phone screenshots and automated responsive/device contracts are the evidence here.
