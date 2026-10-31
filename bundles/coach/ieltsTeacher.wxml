@@ -1,7 +1,7 @@
 <view class="admissions-page ielts-teacher-page {{deviceClass}} {{orientation}} {{keyboardOpen ? 'keyboard-open' : ''}} {{keyboardOpen && chatViewportHeight < 260 ? 'compact-chat' : ''}}" style="height:{{chatViewportHeight}}px">
   <view class="advisor-header">
     <image class="advisor-avatar" src="/bundles/coach/mode-icons/ielts-teacher.svg" mode="aspectFit" aria-hidden="true" />
-    <view class="advisor-heading"><text class="advisor-title">雅思老师</text><text class="advisor-subtitle">AI 老师 · 规划、讲解与文字练习</text></view>
+    <view class="advisor-heading"><text class="advisor-title">雅思老师</text><text class="advisor-subtitle">AI</text></view>
     <button class="quiet-button" bindtap="requestClear" disabled="{{loading || historyLoading || authRequired}}">{{clearPending ? '重试清空' : '清空'}}</button>
   </view>
   <coach-effort id="effort-picker" scope="ielts-teacher" message="{{message}}" effort="{{pendingEffort}}" locked="{{effortLocked}}" disabled="{{loading || historyLoading || clearPending}}" compact="{{true}}" />
@@ -9,10 +9,9 @@
     <view class="chat-inner">
       <view class="history-actions"><button wx:if="{{historyBrowsing || error}}" class="quiet-button" bindtap="returnLatestHistory" disabled="{{loading || historyLoading || authRequired || clearPending}}">刷新最新</button><button wx:if="{{hasOlderHistory}}" class="quiet-button" bindtap="loadOlderHistory" disabled="{{loading || historyLoading || clearPending}}">更早记录</button></view>
       <view wx:if="{{!turns.length && !loading && !historyLoading && !clearPending}}" class="advisor-welcome">
-        <text class="welcome-title">把 IELTS 学习，拆成清楚的下一步。</text>
-        <text class="welcome-copy">制定计划、辅导写作、分析听读，或按 Part 1 / 2 / 3 做口语文字练习。选择方向后确认发送。</text>
+        <text class="welcome-title">选择练习</text>
         <view class="starter-grid"><button wx:for="{{starters}}" wx:key="title" class="starter-button" data-index="{{index}}" bindtap="useStarter" disabled="{{authRequired}}">{{item.title}}</button></view>
-        <view class="teacher-links" aria-label="IELTS 原生学习入口"><button class="teacher-link" bindtap="openIeltsWorkspace">打开 IELTS 学习</button><button class="teacher-link" bindtap="openRealtimeSpeaking">打开实时口语</button></view>
+        <view class="teacher-links" aria-label="IELTS 原生学习入口"><button class="teacher-link" bindtap="openIeltsWorkspace">IELTS 学习</button><button class="teacher-link" bindtap="openRealtimeSpeaking">实时口语</button></view>
         <text class="advisor-note">文字练习不评发音；练习估分不代表官方成绩。</text>
       </view>
       <view wx:if="{{historyLoading}}" class="status-line" role="status">正在恢复对话…</view>

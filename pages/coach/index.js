@@ -295,6 +295,7 @@ const selected = CONTEXTS.find((item) => item.id === String(event.currentTarget.
 if (selected) wx.navigateTo({ url: selected.page })
 },
 openAccount() { wx.navigateTo({ url: '/pages/account/auth' }) },
+openTasks(){if(this.current()&&(!this.data.loading||this.data.progress?.savedTask))wx.navigateTo({url:'/bundles/coach/tasks'})},
 clear() {
 if (this.data.loading || !this.current()) return
 clearDraft('coach')

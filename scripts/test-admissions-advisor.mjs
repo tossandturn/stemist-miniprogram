@@ -378,6 +378,6 @@ assert.equal(indeterminateRestored.data.message,'一个真正不同的新问题'
 assert.equal(indeterminateRestored.data.partialAnswer,'')
 
 const hubStyle=fs.readFileSync(new URL('../bundles/coach/index.wxss',import.meta.url),'utf8')
-assert.ok(hubStyle.indexOf('.mode-detail{')<hubStyle.indexOf('.mode-admissions .mode-detail{'),'Base Coach typography rule remains independently testable')
+assert.match(hubStyle,/\.mode-title\{[^}]*font-size:16px/,'all Coach modes retain the same readable title style after descriptions are removed')
 assert.doesNotMatch(hubStyle,/\.coach-hub-page\.device-tablet \.mode-admissions\s*\{/,'Admissions uses the same stacked tablet card layout as every other Coach mode')
 console.log('PASS admissions advisor: entry, isolation, restore, streaming, canonical completion, replay, clear, history, and keyboard contracts')

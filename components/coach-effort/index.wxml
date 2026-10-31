@@ -1,7 +1,7 @@
-<view class="effort {{compact ? 'compact' : ''}}">
+<view class="effort {{compact ? 'compact' : ''}} {{inline ? 'inline-effort' : ''}}">
   <picker mode="selector" range="{{labels}}" value="{{index}}" disabled="{{disabled || locked}}" bindtap="onOpen" bindcancel="onCancel" bindchange="onChange" aria-label="{{'选择思考强度，当前' + label}}">
-    <view class="effort-row {{disabled || locked ? 'disabled' : ''}}"><text>思考强度</text><text class="effort-value">{{label}}<text wx:if="{{!locked}}" aria-hidden="true"> ▾</text></text></view>
+    <view class="effort-row {{disabled || locked ? 'disabled' : ''}}"><text>思考强度</text><view class="effort-current"><text wx:if="{{inline}}" class="effort-thinking">思考已开启</text><text class="effort-value">{{label}}<text wx:if="{{!locked}}" aria-hidden="true"> ▾</text></text></view></view>
   </picker>
-  <text wx:if="{{!compact || locked}}" class="effort-note">{{note}}</text>
+  <text wx:if="{{locked || (!compact && !inline)}}" class="effort-note">{{note}}</text>
   <text wx:if="{{error}}" class="effort-error" role="alert">{{error}}</text>
 </view>

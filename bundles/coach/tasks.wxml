@@ -1,7 +1,7 @@
 <view class="page {{deviceClass}} {{orientation}} task-page">
  <stemist-header compact="{{true}}" eyebrow="AI COACH" title="已保存答疑" />
  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
- <view class="task-intro">这里只显示你在“深入”或“极致”模式下勾选保存的答疑。结果保留 3 天，不额外保存原图；普通即时答复不会出现在这里。</view>
+ <view class="task-intro">仅显示已保存答疑 · 保留 3 天</view>
  <view wx:if="{{!authenticated}}" class="task-card"><view class="task-title">登录后查看自己的答疑</view><button class="primary" bindtap="login">登录 / 注册</button></view>
  <block wx:else>
   <view class="task-toolbar"><button wx:if="{{id}}" class="secondary" bindtap="allTasks">全部已保存答疑</button><text wx:else>第 {{pageNumber}} 页</text><button class="secondary" bindtap="manualRefresh" loading="{{loading}}" disabled="{{loading}}">刷新状态</button></view>
@@ -13,7 +13,7 @@
    <view class="task-steps"><text wx:for="{{detail.steps}}" wx:key="label" class="{{item.state}}">{{item.label}}</text></view>
    <view class="task-metrics"><text>{{detail.elapsedLabel}}</text><text>{{detail.etaLabel}}</text></view>
    <view wx:if="{{detail.estimateNote}}" class="task-muted">{{detail.estimateNote}}</view>
-   <view wx:if="{{detail.active}}" class="task-muted">可以离开此页，稍后从 AI Coach → 已保存答疑取回结果。</view>
+   <view wx:if="{{detail.active}}" class="task-muted">可离开此页，稍后查看结果。</view>
    <view wx:if="{{autoPaused}}" class="task-error">本次自动刷新已暂停；后台任务不受影响，点击“刷新状态”继续查看。</view>
    <view class="task-retention">保存至 {{detail.expiryLabel}}（3 天）</view>
    <view wx:if="{{partial}}" class="task-muted">回答仍在生成，以下内容尚未完整。</view>
@@ -22,7 +22,7 @@
    <view wx:if="{{detail.taskStatus === 'failed' || detail.taskStatus === 'interrupted'}}" class="task-error">本次处理未完成。请回到原题重试；此页不会自动重新生成或扣费。</view>
   </view>
   <block wx:if="{{!id}}">
-   <view wx:if="{{!loading && !error && !items.length}}" class="task-empty"><view class="task-title">还没有已保存的答疑</view><text>选择“深入”或“极致”后，可在发送前勾选“保存为任务”。</text><button class="primary" bindtap="askNew">去提问</button></view>
+   <view wx:if="{{!loading && !error && !items.length}}" class="task-empty"><view class="task-title">暂无已保存答疑</view><text>深入／极致模式下，可选择保存任务。</text><button class="primary" bindtap="askNew">去提问</button></view>
    <view class="task-grid"><button wx:for="{{items}}" wx:key="id" class="task-card task-row" data-id="{{item.id}}" bindtap="open" aria-label="查看{{item.title}}，{{item.status}}"><view class="task-row-head"><text class="task-title">{{item.title}}</text><text class="task-badge">{{item.status}}</text></view><view class="task-muted">{{item.effort}} · {{item.createdLabel}}</view><view class="task-row-foot"><text>保存至 {{item.expiryLabel}}</text><text>查看答疑 ›</text></view></button></view>
    <view class="task-toolbar" wx:if="{{canPrevious || nextCursor}}"><button class="secondary" bindtap="previousPage" disabled="{{loading || !canPrevious}}">上一页</button><button class="secondary" bindtap="nextPage" disabled="{{loading || !nextCursor || pageNumber >= 50}}">下一页</button></view>
   </block>

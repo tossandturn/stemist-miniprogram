@@ -33,6 +33,17 @@
 .coach-progress-fill{height:100%;background:#7357e8;min-width:0;max-width:100%}
 .coach-upload-pause{min-height:44px;margin-top:10px;font-size:14px}
 .coach-progress-meta{flex-wrap:wrap}
+.coach-panel.compact-panel{margin-top:0;padding:16px;border-radius:16px;box-shadow:none}
+.compact-panel .coach-help-actions{margin:0 0 8px;gap:8px}
+.compact-panel .coach-help-actions button{border:0;background:#f5f6fa;border-radius:9px;padding:10px 4px;font-weight:500}
+.compact-panel .coach-help-actions button.active{color:#5638c3;background:#eee8ff;font-weight:650}
+.compact-panel .coach-input-label{margin:8px 0;color:#18213d;font-size:13px;font-weight:500}
+.compact-panel textarea{height:96px;min-height:96px;padding:10px 12px;border-color:#e4e7f0;background:#fafbfe}
+.compact-panel .coach-task-choice{padding:6px 0;align-items:center;font-size:13px}
+.compact-panel button.primary{margin-top:12px;min-height:48px;font-size:15px}
+.compact-panel .coach-progress{margin:10px 0;padding:12px;background:#f8f6fd;border:1px solid #eee9f7}
+.coach-progress-heading{margin-bottom:10px;font-size:14px;font-weight:600;color:#5638c3}
+.compact-panel .result{margin-top:20px;padding-top:20px;border-top:1px solid #e4e7f0}
 .coach-task-choice{display:flex;align-items:flex-start;gap:8px;min-height:44px;padding:10px 0;color:#18213d;font-size:14px;line-height:1.55}
 .coach-task-choice checkbox{flex-shrink:0;margin-top:1px}.coach-task-choice text,.coach-task-note{display:block;margin-top:5px;color:#66708a;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
 .coach-task-link{min-height:44px;margin:12px 0;font-size:14px;white-space:normal}

@@ -1,23 +1,17 @@
-.coach-hub-page{background:linear-gradient(180deg,#f1edff 0,#f5f6fa 260px)}
-.coach-hub-page .workspace-header-compact{padding-right:0;margin-bottom:10px}
-.saved-task-entry{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:60px;max-width:1040px;box-sizing:border-box;margin:16px auto;padding:12px 16px;text-align:left;border:1px solid #ded6f0;border-radius:14px;background:#fff;color:#5638b8;font-size:15px;line-height:1.5;white-space:normal}.saved-task-entry view view{margin-top:4px;color:#66708a;font-size:12px;font-weight:400}
-.mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:760px;margin:14px auto}
+.coach-hub-page{padding-top:16px;background:#f5f6fb}
+.hub-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1040px;margin:0 auto 12px}
+.hub-toolbar stemist-header{min-width:0;flex:1}
+.coach-hub-page .workspace-header-compact{padding-right:0;margin-bottom:0}
+.coach-hub-page button.saved-task-entry{box-sizing:border-box;flex-shrink:0;width:auto;min-height:44px;margin:0;padding:10px 12px;border:0;background:transparent;color:#5638c3;font-size:14px;line-height:1.5}
+.mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:760px;margin:0 auto}
 .coach-hub-page button.mode-card{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
-.mode-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-height:188px;margin:0;padding:18px;border:1px solid #e2ddeb;border-radius:20px;color:#18213d;background:#fff;text-align:left;box-shadow:0 6px 18px rgba(42,31,89,.04)}
+.mode-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:16px;min-height:132px;margin:0;padding:18px;border:1px solid #e4e7f0;border-radius:16px;color:#18213d;background:#fff;text-align:left;box-shadow:none}
 .mode-card:active{border-color:#aa99dd;background:#faf8ff}
-.mode-glyph{display:flex;align-items:center;justify-content:center;width:52px;height:52px;margin-bottom:16px;border-radius:16px;background:#f0eaff}
-.mode-illustration{display:block;width:44px;height:44px}
-.mode-answers .mode-glyph{background:#edf4ff}
-.mode-pdf .mode-glyph{background:#eaf5f0}
-.mode-tavern .mode-glyph{background:#fff3e2}
-.mode-admissions .mode-glyph{background:#eaf5f0}
-.mode-ielts-teacher .mode-glyph{background:#eef0ff}
-.mode-arrow{position:absolute;right:18px;top:24px;width:7px;height:7px;border-top:2px solid #a8a1b7;border-right:2px solid #a8a1b7;transform:rotate(45deg)}
-.mode-title{font-size:18px;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
-.mode-detail{display:block;flex:1;margin-top:8px;color:#66708a;font-size:14px;font-weight:400;line-height:1.55;overflow-wrap:anywhere}
-.mode-admissions .mode-detail{flex:1}
-.mode-ielts-teacher .mode-detail{flex:1}
-.coach-hub-page.device-tablet .mode-grid{max-width:1040px;gap:20px}
-.coach-hub-page.device-tablet .mode-card{min-height:204px;padding:22px}
-.coach-hub-page.device-tablet .mode-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:375px){.mode-grid{gap:12px}.mode-card{min-height:180px;padding:16px}.mode-glyph{margin-bottom:12px}.mode-detail{font-size:13px}}
+.mode-glyph{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:#f0eaff}
+.mode-illustration{display:block;width:34px;height:34px}
+.mode-answers .mode-glyph{background:#edf4ff}.mode-pdf .mode-glyph,.mode-admissions .mode-glyph{background:#eaf5f0}.mode-tavern .mode-glyph{background:#fff3e2}.mode-ielts-teacher .mode-glyph{background:#eef0ff}
+.mode-arrow{position:absolute;right:18px;top:30px;width:6px;height:6px;border-top:1.5px solid #8b849b;border-right:1.5px solid #8b849b;transform:rotate(45deg)}
+.mode-title{font-size:16px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
+.coach-hub-page.device-tablet .mode-grid{max-width:1040px;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.coach-hub-page.device-tablet .mode-card{min-height:150px;padding:20px}
+@media(max-width:375px){.mode-card{padding:16px;min-height:126px}.mode-title{font-size:15px}}

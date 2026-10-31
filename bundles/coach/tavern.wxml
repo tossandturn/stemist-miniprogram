@@ -30,7 +30,7 @@
         </view>
         <view wx:if="{{!turns.length && !keyboardOpen && !draw}}" class="starter-list" aria-label="推荐开场话题"><button wx:for="{{starters}}" wx:key="*this" class="starter-chip" data-text="{{item}}" bindtap="useStarter" disabled="{{loading || examBlocked}}">{{item}}</button></view>
         <view wx:if="{{selected.divinationKind}}" class="fortune-panel">
-          <view class="fortune-note">可以直接聊天，也可以带着问题抽取。仅供娱乐，不是科学预测，也不替你做决定。</view>
+          <view class="fortune-note">可聊天或抽取。仅供娱乐，不是科学预测。</view>
         </view>
         <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
           <image wx:if="{{item.role !== 'user'}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />

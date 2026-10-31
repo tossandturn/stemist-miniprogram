@@ -1,13 +1,11 @@
 <view class="page {{deviceClass}} {{orientation}} coach-hub-page">
-  <stemist-header compact="{{true}}" eyebrow="AI COACH" title="今天需要哪种帮助？" />
+  <view class="hub-toolbar"><stemist-header compact="{{true}}" title="选择功能" /><button class="saved-task-entry" bindtap="openTasks">答疑任务<text aria-hidden="true"> ›</text></button></view>
   <app-nav id="coach-hub-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
-  <button class="saved-task-entry" bindtap="openTasks"><view><text>已保存答疑</text><view>查看“深入”或“极致”的已保存结果 · 保留 3 天</view></view><text aria-hidden="true">›</text></button>
   <view class="mode-grid" role="list" aria-label="AI Coach 功能">
-    <button wx:for="{{modes}}" wx:key="id" class="mode-card mode-{{item.id}}" data-mode="{{item.id}}" bindtap="openMode" role="listitem" aria-label="{{item.title}}：{{item.detail}}">
+    <button wx:for="{{modes}}" wx:key="id" class="mode-card mode-{{item.id}}" data-mode="{{item.id}}" bindtap="openMode" role="listitem" aria-label="{{item.title}}">
       <view class="mode-glyph" aria-hidden="true"><image class="mode-illustration" src="/bundles/coach/mode-icons/{{item.id}}.svg" mode="aspectFit" /></view>
       <view class="mode-arrow" aria-hidden="true"></view>
       <text class="mode-title">{{item.title}}</text>
-      <text class="mode-detail">{{item.detail}}</text>
     </button>
   </view>
 </view>

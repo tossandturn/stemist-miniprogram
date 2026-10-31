@@ -2,6 +2,7 @@ Component({
  observers:{'academic,reasoningEffort':function(){this.setData({canSaveTask:this.data.academic&&['high','max'].includes(this.data.reasoningEffort)})}},
  data:{canSaveTask:false},
  properties:{
+ streamlined:{type:Boolean,value:false},
  saveTask:{type:Boolean,value:false},
 effortScope:{type:String,value:'academic'},reasoningEffort:{type:String,value:''},sourceAction:{type:Object,value:null},message:{type:String,value:''},maxLength:{type:Number,value:6000},answer:{type:String,value:''},academic:{type:Boolean,value:false},warning:{type:String,value:''},status:{type:String,value:''},loading:{type:Boolean,value:false},disabled:{type:Boolean,value:false},readOnly:{type:Boolean,value:false},hideInput:{type:Boolean,value:false},placeholder:{type:String,value:'告诉 AI Coach 你想检查什么（可选）'},submitLabel:{type:String,value:'提交给 AI Coach'},helper:{type:String,value:''},error:{type:String,value:''},canRetry:{type:Boolean,value:false},authRequired:{type:Boolean,value:false},progress:{type:Object,value:null},showHelpActions:{type:Boolean,value:false},helpIntent:{type:String,value:''},solutionDisabled:{type:Boolean,value:false}},
  methods:{

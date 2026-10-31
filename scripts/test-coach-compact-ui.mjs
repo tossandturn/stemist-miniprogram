@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import {miniRuntime} from './helpers/mini-runtime.mjs'
+const root=process.env.STEMIST_TEST_RUNTIME_ROOT||path.resolve(import.meta.dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8')
+const hub=read('bundles/coach/index.wxml'),question=read('pages/coach/index.wxml'),panel=read('components/coach-panel/index.wxml')
+assert.doesNotMatch(hub,/mode-detail|item\.detail|今天需要哪种帮助|查看“深入”/,'the hub should not repeat a description below each named function')
+assert.match(hub,/答疑任务/)
+assert.doesNotMatch(question,/图片提问|拍题、作文或学习资料|完整解答、结果与检查|title="AI Coach"/,'remove repeated page introduction, keep the native title')
+assert.match(question,/streamlined="{{true}}"/)
+assert.match(panel,/wx:if="{{!streamlined}}" class="coach-panel-head"/)
+assert.match(panel,/保存为任务/);assert.match(panel,/3 天/)
+assert.doesNotMatch(panel,/即时答复，不保存为任务|普通题目标约 30 秒内完成/,'do not put a paragraph above the input in idle state')
+for(const state of ['error','warning','solutionDisabled','sourceAction','progress.steps','progress.estimateNote','progress.leaveHint'])assert.ok(panel.includes(state),state+' safety or progress remains visible when relevant')
+assert.match(panel,/compact="{{streamlined}}"/,'answer keeps modular rendering with a lighter presentation')
+for(const file of ['bundles/coach/admissions.wxml','bundles/coach/ieltsTeacher.wxml'])assert.doesNotMatch(read(file),/class="welcome-copy"/,'starter choices replace marketing paragraphs')
+assert.match(read('bundles/coach/admissions.wxml'),/不保证录取/);assert.match(read('bundles/coach/ieltsTeacher.wxml'),/不评发音|不代表官方/)
+const r=miniRuntime(),component=r.load('components/coach-panel/index')
+assert.equal(component.properties.streamlined.value,false,'other existing consumers keep their default presentation')
+const events=[],control={...component.methods,data:{streamlined:true,loading:false,disabled:false,readOnly:false,canRetry:false,helpIntent:'hint'},triggerEvent:(name,value)=>events.push({name,value})}
+control.onIntent({currentTarget:{dataset:{intent:'worked-solution'}}});assert.equal(events.at(-1).value.value,'worked-solution')
+control.onSubmit();assert.equal(events.at(-1).name,'submit');control.data.loading=true;const count=events.length;control.onSubmit();assert.equal(events.length,count)
+const effort=r.load('components/coach-effort/index');assert.equal(effort.properties.inline.value,false)
+assert.match(read('pages/coach/index.wxss'),/coach-topbar/);assert.match(read('components/coach-panel/index.wxss'),/compact-panel/)
+assert.match(read('pages/stem/coach.wxml'),/streamlined="{{true}}"/,'legacy photo entry uses the same compact controls')
+assert.match(read('components/answer-content/index.wxml'),/compact-answer/,'compact academic answers have a separate styling hook')
+assert.match(read('components/answer-content/index.wxss'),/\.compact-answer \.section-steps\{[^}]*border:0/,'steps remain a module without another nested card')
+const page=r.page('pages/coach/index');page.onLoad({feature:'answers',source:'alevel'});page.setData({loading:true,progress:{}});page.openTasks();assert.equal(r.calls.length,0,'do not encourage leaving an unsaved request through the new task shortcut');page.setData({progress:{savedTask:true}});page.openTasks();assert.equal(r.calls.at(-1).url,'/bundles/coach/tasks');page.onUnload()
+console.log('PASS compact Coach structure: less repeated copy, preserved input/actions, progress, retention and safety boundaries.')

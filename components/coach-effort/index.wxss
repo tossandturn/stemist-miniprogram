@@ -6,3 +6,5 @@
 .effort-note,.effort-error{display:block;margin-top:4px;font-size:12px;color:#66708a}
 .effort-error{color:#a22e48}
 .compact{margin:0 16px 6px}
+.effort-current{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0}.effort-thinking{color:#66708a;font-size:12px;white-space:nowrap;font-weight:400}
+.inline-effort{margin:0}.inline-effort .effort-row{padding:8px 0;border:0;border-radius:0;background:transparent}.inline-effort .effort-note{margin-top:0;font-size:12px}

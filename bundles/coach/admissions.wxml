@@ -1,7 +1,7 @@
 <view class="admissions-page {{deviceClass}} {{orientation}} {{keyboardOpen ? 'keyboard-open' : ''}} {{keyboardOpen && chatViewportHeight < 260 ? 'compact-chat' : ''}}" style="height:{{chatViewportHeight}}px">
   <view class="advisor-header">
     <image class="advisor-avatar" src="/bundles/coach/mode-icons/admissions.svg" mode="aspectFit" aria-hidden="true" />
-    <view class="advisor-heading"><text class="advisor-title">留学申请顾问</text><text class="advisor-subtitle">AI 老师 · 规划、分析与文书</text></view>
+    <view class="advisor-heading"><text class="advisor-title">留学申请顾问</text><text class="advisor-subtitle">AI</text></view>
     <button class="quiet-button" bindtap="requestClear" disabled="{{loading || historyLoading || authRequired}}">{{clearPending ? '重试清空' : '清空'}}</button>
   </view>
   <coach-effort id="effort-picker" scope="admissions" message="{{message}}" effort="{{pendingEffort}}" locked="{{effortLocked}}" disabled="{{loading || historyLoading || clearPending}}" compact="{{true}}" />
@@ -16,10 +16,9 @@
       </view>
       <view wx:elif="{{directoryEntryNote}}" class="notice" role="status">{{directoryEntryNote}}</view>
       <view wx:if="{{!directoryEntry && !turns.length && !loading && !historyLoading && !clearPending}}" class="advisor-welcome">
-        <text class="welcome-title">把申请，一步步理清楚。</text>
-        <text class="welcome-copy">可以聊选校、分析背景，也可以贴一段文书来修改。先告诉我你想解决的事，不用一次填完所有资料。</text>
+        <text class="welcome-title">从哪里开始？</text>
         <view class="starter-grid"><button wx:for="{{starters}}" wx:key="title" class="starter-button" data-index="{{index}}" bindtap="useStarter" disabled="{{authRequired}}">{{item.title}}</button></view>
-        <text class="advisor-note">不保证录取。官方要求以对应年份、专业官网为准；文书基于真实经历，请勿发送证件号码或账号密码。</text>
+        <text class="advisor-note">AI 建议不保证录取，以专业官网为准。文书只用真实经历，勿发送证件或密码。</text>
       </view>
       <view wx:if="{{historyLoading}}" class="status-line" role="status">正在恢复对话…</view>
       <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
