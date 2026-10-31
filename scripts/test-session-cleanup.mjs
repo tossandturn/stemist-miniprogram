@@ -12,6 +12,7 @@ const values = {
   'stemistNotebook:cie-9702-as-physics': { body: 'private notebook' }, stemistPendingAttemptSync: { routeId: 'private' },
   'stemistTavern:ielts:1:0:keeper': {draft:'private tavern',turns:[]},
   'stemistTavern:ielts:1:0:selected': 'keeper',
+  'stemistCoachUploads:ielts%3A1:0': [{id:'cu-synthetic-0123456789012345'}],
 }
 const wx = { getStorageSync: key => values[key], setStorageSync: (key, value) => { values[key] = value }, removeStorageSync: (key) => { delete values[key] }, getStorageInfoSync: () => ({ keys: Object.keys(values) }) }
 const module = { exports: {} }
@@ -58,6 +59,7 @@ assert.equal(values['stemistNotebook:cie-9702-as-physics'], undefined)
 assert.equal(values.stemistPendingAttemptSync, undefined)
 assert.equal(values['stemistTavern:ielts:1:0:keeper'],undefined)
 assert.equal(values['stemistTavern:ielts:1:0:selected'],undefined)
+assert.equal(values['stemistCoachUploads:ielts%3A1:0'],undefined,'explicit logout clears private upload references')
 console.log('Session-local privacy cleanup passed.')
 
 const removed=[]

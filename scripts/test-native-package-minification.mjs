@@ -164,6 +164,12 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
 }
 
 assertMixedCommonJsTransform()
+const uploadTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('utils/coachImageUpload.js'))
+assert.ok(uploadTransform,'upload transport must preserve the128KiB package headroom with a reviewed transform')
+assert.equal(uploadTransform.id,'esbuild-upload-headroom-compact-v1')
+assert.equal(uploadTransform.options.keepNames,true)
+assert.equal(uploadTransform.options.minifySyntax,true)
+assert.deepEqual([...uploadTransform.paths].sort(),['pages/calculator/index.js','utils/coachImageUpload.js','utils/cwController.js','utils/cwEditor.js'])
 const directoryTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('pages/index/index.js'))
 assert.equal(directoryTransform.id,'esbuild-directory-home-compact-v1')
 assert.deepEqual([...directoryTransform.paths].sort(),['pages/index/index.js','utils/productConfig.js'])

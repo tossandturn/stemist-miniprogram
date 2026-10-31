@@ -119,6 +119,7 @@ if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.set
 onResize() { syncDevice(this) },
 onHide(){this.__stopWarm?.()},
 onUnload() { this.__coachImageCache=null;clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
+pauseCoachUpload(){if(this.current()&&this.data.loading&&this.data.progress?.phase==='uploading')this.__cancelCoach?.()},
 restorePhoto(){
 const binding=this.__entryKey&&!this.__entry?'missing-entry':this.__entryKey
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId,binding)

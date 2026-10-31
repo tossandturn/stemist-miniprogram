@@ -30,6 +30,8 @@
 .coach-progress-steps .active,.coach-progress-steps .done{color:#5638c3;font-weight:700}
 .coach-progress-track{height:6px;margin:10px 0;border-radius:6px;background:#e4ddf7;overflow:hidden}
 .coach-progress-pulse{width:35%;height:100%;background:#7357e8;animation:coach-pulse 1.4s ease-in-out infinite}
+.coach-progress-fill{height:100%;background:#7357e8;min-width:0;max-width:100%}
+.coach-upload-pause{min-height:44px;margin-top:10px;font-size:14px}
 .coach-progress-meta{flex-wrap:wrap}
 @keyframes coach-pulse{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
 @media(prefers-reduced-motion:reduce){.coach-progress-pulse{animation:none;width:100%;opacity:.5}}

@@ -1,5 +1,8 @@
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 const COMPRESSION_QUALITIES = [82, 65, 50, 35]
+// STEM equations and fine diagram lines take priority over an arbitrary byte target.
+// The resumable transport can safely carry a larger supported image.
+const COACH_COMPRESSION_QUALITIES = [82, 65]
 
 function compressImage(filePath, quality = COMPRESSION_QUALITIES[0], dimensions = {}) {
   if (typeof wx.compressImage !== 'function') return Promise.resolve(filePath)
@@ -73,7 +76,7 @@ async function prepareImage(filePath,coach){
     }
   }
   let lastData = ''
-  for (const quality of COMPRESSION_QUALITIES) {
+  for (const quality of coach ? COACH_COMPRESSION_QUALITIES : COMPRESSION_QUALITIES) {
     const compressedPath = await compressImage(filePath, quality, dimensions)
     const data = await readBase64(compressedPath)
     if (!data) throw new Error('照片内容为空，请重新拍摄')

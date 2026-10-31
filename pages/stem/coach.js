@@ -119,6 +119,7 @@ this.setData({ answer, warning: [coachState.warning || '', syncWarning].filter(B
 finally { progress.finish(false);if(this.__coachProgress===progress){this.__cancelCoach=null;if(this.current())this.setData({loading:false});else if(!this.__disposed){this.onShow();this.setData({loading:false,coachStatus:'',syncStatus:'',syncing:false,...(authExpired?{authRequired:true,error:'登录已过期，请重新登录后继续。'}:{})})}} }
 },
 retry() { if (!this.data.loading) this.ask() },
+pauseCoachUpload(){if(this.current()&&this.data.loading&&this.data.progress?.phase==='uploading')this.__cancelCoach?.()},
 identifySource(){return lookupCoachSource(this)},
 dismissSource(){clearCoachSource(this)},
 openAccount() { this.__authResumeRequested=true;wx.navigateTo({ url: '/pages/account/auth' }) },

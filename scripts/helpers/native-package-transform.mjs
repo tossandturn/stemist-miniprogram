@@ -11,6 +11,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
+    id: 'esbuild-upload-headroom-compact-v1',
+    paths: Object.freeze(['utils/coachImageUpload.js','pages/calculator/index.js','utils/cwController.js','utils/cwEditor.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-listening-export-compact-v1',
     paths: Object.freeze(['utils/listeningAudioRangeCache.js','utils/ieltsObjectivePage.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),

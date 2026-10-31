@@ -9,7 +9,7 @@ function fingerprint(payload){
  for(let at=0;at<text.length;at+=2048){const count=Math.min(2048,text.length-at);for(let i=0;i<count;i++){const c=text.charCodeAt(at+i);bytes[i*2]=c&255;bytes[i*2+1]=c>>>8}hash.update(bytes.subarray(0,count*2))}
  return hash.digest()
 }
-function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=null,pollMs=1000}={}){
+function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=null,pollMs=1000,preparePayload=null}={}){
  const performance=typeof wx.getPerformance==='function'?wx.getPerformance():null,clock=()=>performance?.now?performance.now():Date.now(),started=clock(),elapsed=()=>Math.max(0,Math.round(clock()-started))
  const timing={version:1,posts:0,gets:0,pollWaitMs:0}
  const owner=String(wx.getStorageSync('stemistUser')?.id||'guest'),epoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
@@ -22,25 +22,33 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
  try{wx.setStorageSync(key,records)}catch{return Promise.reject(error('本机暂时无法保存答疑进度，请释放小程序存储后重试。','coach_job_storage'))}
  const forget=()=>{try{current();const all=wx.getStorageSync(key);if(Array.isArray(all))wx.setStorageSync(key,all.filter(r=>r.id!==record.id))}catch{}}
  return new Promise((resolve,reject)=>{
-  let closed=false,task=null,timer=null,wake=null,partial='',errors=0
+  let closed=false,task=null,timer=null,wake=null,partial='',errors=0,lastStage='calling'
   const finish=(fn,value)=>{if(closed)return;closed=true;clearTimeout(limit);clearTimeout(timer);wake?.();wake=null;timing.totalMs=elapsed();if(value&&typeof value==='object'){if(value instanceof Error)value.clientTiming={...timing};else value={...value,clientTiming:{...timing}}}fn(value)}
-  const cancel=()=>{finish(reject,error('已暂停接收，重新提交同一道题可取回答案。','request_cancelled'));try{task?.abort()}catch{}}
-  const limit=setTimeout(()=>{let e;try{current();e=error('连接暂时不稳定，任务编号已保存。点击重试可取回原答疑结果。','coach_job_pending');e.partialAnswer=stableAnswer(partial)}catch(changed){e=changed}finish(reject,e);try{task?.abort()}catch{}},['high','max'].includes(payload.reasoningEffort)?180000:WAIT)
+  const cancel=()=>{finish(reject,error(lastStage==='uploading'?'已暂停图片上传，已传部分已保留，可重试继续。':'已暂停接收，重新提交同一道题可取回答案。','request_cancelled'));try{task?.abort()}catch{}}
+  const limit=setTimeout(()=>{let e;try{current();e=lastStage==='uploading'?error('图片上传暂未完成，已传部分已保留，可重试继续。','coach_upload_pending'):error('连接暂时不稳定，任务编号已保存。点击重试可取回原答疑结果。','coach_job_pending');e.partialAnswer=stableAnswer(partial)}catch(changed){e=changed}finish(reject,e);try{task?.abort()}catch{}},['high','max'].includes(payload.reasoningEffort)?180000:WAIT)
   onCancelReady?.(cancel)
-  const stage=s=>{if(!closed){current();onStage?.(s)}}
+  const stage=s=>{if(!closed){current();lastStage=typeof s==='object'?s.phase:s;onStage?.(s)}}
   const pause=ms=>new Promise(r=>{wake=r;timer=setTimeout(()=>{wake=null;r()},ms)})
   ;(async()=>{
-   let submit=!known
+   let submit=!known,wirePayload=null,expiredUploads=0
    while(!closed){
     current()
     const requestStarted=clock()
     try{
      const sent=submit;submit=false
+     if(sent&&!wirePayload){
+      const uploadStarted=clock()
+      wirePayload=typeof preparePayload==='function'?await preparePayload(payload,{request,onStage:stage,isCancelled:()=>closed,current,onTask:t=>{task=t}}):payload
+      timing.uploadPreparationMs=(timing.uploadPreparationMs||0)+Math.max(0,Math.round(clock()-uploadStarted))
+      if(closed)return
+      current();if(wirePayload?.imageUploadIds?.length)stage('calling')
+     }
      sent?timing.posts++:timing.gets++
-     const snapshot=await request('/api/ai/coach/jobs/'+record.id,sent?payload:undefined,{method:sent?'POST':'GET',timeout:sent?30000:8000,isCancelled:()=>closed,onTask:t=>{task=t}})
+     const dispatched=clock()
+     const snapshot=await request('/api/ai/coach/jobs/'+record.id,sent?wirePayload:undefined,{method:sent?'POST':'GET',timeout:sent?30000:8000,isCancelled:()=>closed,onTask:t=>{task=t}})
      if(closed)return
      current();errors=0
-     if(sent&&timing.ackMs===undefined)timing.ackMs=elapsed()
+     if(sent&&timing.ackMs===undefined){timing.ackMs=elapsed();timing.jobPostMs=Math.max(0,Math.round(clock()-dispatched))}
      if(snapshot.id!==record.id||!['running','succeeded','failed','interrupted'].includes(snapshot.status))throw error('答疑进度返回异常，请稍后重试。','coach_job_protocol')
      if(snapshot.answer!==undefined&&snapshot.answer!==partial){partial=String(snapshot.answer);const visible=liveAnswer(partial);if(visible&&timing.firstAnswerMs===undefined)timing.firstAnswerMs=elapsed();onPartial?.(visible)}
      if(snapshot.status==='succeeded'||snapshot.status==='failed'){
@@ -53,7 +61,9 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
     }catch(e){
      if(closed)return
      current()
+     if(e.code==='coach_upload_protocol')throw e
      if(e.statusCode===404&&e.code==='coach_job_not_found'){submit=true;stage('calling')}
+     else if(preparePayload&&['coach_upload_not_found','coach_upload_expired'].includes(e.code)&&expiredUploads++<1){wirePayload=null;submit=true;stage('uploading')}
      else if(['network_timeout','network_error'].includes(e.code)||e.statusCode>=500){errors++;stage('recovering')}
      else {if(e.statusCode>=400&&e.statusCode<500&&!['auth_required','account_changed'].includes(e.code))forget();e.partialAnswer=stableAnswer(partial);throw e}
     }

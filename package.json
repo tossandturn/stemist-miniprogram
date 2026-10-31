@@ -6,6 +6,9 @@
     "esbuild": "0.28.2"
   },
   "scripts": {
+    "test:coach-upload": "node scripts/test-coach-image-upload.mjs && node scripts/test-coach-upload-job.mjs && node scripts/test-coach-upload-progress.mjs && node scripts/test-coach-compression-fidelity.mjs",
+    "test:coach-upload-integration": "node scripts/test-coach-upload-cross-stack.mjs",
+    "pretest:api": "npm run test:coach-upload",
     "test:ielts-exam": "node scripts/test-native-exam-catalog.mjs && node scripts/test-native-exam-page.mjs",
     "pretest:native-ielts": "npm run test:ielts-exam",
     "test": "node scripts/test-contract.mjs",

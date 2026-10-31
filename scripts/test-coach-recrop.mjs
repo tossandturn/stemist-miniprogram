@@ -7,7 +7,7 @@ const qualities=[]
 const image=miniRuntime({wx:{getImageInfo:o=>o.success({width:1600,height:1200}),compressImage:o=>{qualities.push(o.quality);o.success({tempFilePath:o.src})},getFileSystemManager:()=>({readFile:o=>o.success({data:png.toString('base64')})})}})
 const prepared=await image.load('utils/image').readImageDataUrl('/retained.png',{coach:true})
 assert.equal(prepared,'data:image/png;base64,'+png.toString('base64'),'768 KiB is a transfer target, not a new rejection limit for otherwise supported images')
-assert.deepEqual(qualities,[82,65,50,35])
+assert.deepEqual(qualities,[82,65],'keep math evidence above the Coach quality floor; resumable upload carries larger supported images')
 const huge=Buffer.alloc(4*1024*1024+1,127);Buffer.from([137,80,78,71,13,10,26,10]).copy(huge)
 const oversized=miniRuntime({wx:{getImageInfo:o=>o.success({width:1600,height:1200}),compressImage:o=>o.success({tempFilePath:o.src}),getFileSystemManager:()=>({readFile:o=>o.success({data:huge.toString('base64')})})}})
 await assert.rejects(()=>oversized.load('utils/image').readImageDataUrl('/retained-large.png',{coach:true}),e=>e.code==='coach_image_too_large'&&/裁剪图片/.test(e.message))
