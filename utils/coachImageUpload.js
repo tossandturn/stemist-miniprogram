@@ -23,6 +23,10 @@ async function prepareCoachImagePayload(payload,{request,onStage=()=>{},onTask=(
  const values=Array.isArray(payload.imageDataUrls)?[...new Set(payload.imageDataUrls.filter(Boolean))]:[]
  if(!values.length)return payload
  if(values.length>4)throw fail('一次最多上传四张图片。','coach_upload_too_many',400)
+ const images=values.map(parseImage),totalBytes=images.reduce((n,x)=>n+x.bytes,0)
+ // Small prepared photos need one existing job request, not several upload RTTs.
+ // Bound the total (not each attachment) so large payloads still resume in chunks.
+ if(totalBytes<=96*1024)return{...payload,imageDataUrls:values}
  const started=context(),key='stemistCoachUploads:'+encodeURIComponent(started.owner)+':'+started.epoch
  const check=()=>{const c=context();if(c.owner!==started.owner||c.epoch!==started.epoch)throw fail('账号已变化，请重新打开答疑。','account_changed',409);current();if(isCancelled())throw fail('已暂停上传，题目保留，可重试继续。','request_cancelled')}
  const call=async(path,data,method='GET')=>{check();const result=await request(path,data,{method,timeout:method==='POST'&&path.endsWith('/chunks')?15000:8000,isCancelled,onTask});check();return result}
@@ -31,8 +35,8 @@ async function prepareCoachImagePayload(payload,{request,onStage=()=>{},onTask=(
  let capability
  try{capability=await call(ROOT+'/capabilities')}catch(e){if(e?.statusCode===404)return payload;if(transient(e))throw pending();throw e}
  if(capability?.protocol!==PROTOCOL||capability.enabled!==true||capability.chunkMethod!=='POST'||capability.chunkPathSuffix!=='/chunks'||!Number.isInteger(capability.chunkChars)||capability.chunkChars<4||capability.chunkChars>65536||capability.chunkChars%4||!Number.isSafeInteger(capability.maxImageBytes)||capability.maxImageBytes<=0||capability.maxImageBytes>MAX_BYTES||!Number.isSafeInteger(capability.ttlMs)||capability.ttlMs<=0||capability.ttlMs>TTL)throw fail('图片上传服务状态异常，请稍后重试。','coach_upload_protocol',502)
- const images=values.map(parseImage);if(images.some(x=>x.bytes>capability.maxImageBytes))throw fail('图片超过上传上限，请裁剪后重试。','coach_upload_too_large',413)
- const initialTime=now(),totalBytes=images.reduce((n,x)=>n+x.bytes,0);let finishedBytes=0,sessionBytes=0
+ if(images.some(x=>x.bytes>capability.maxImageBytes))throw fail('图片超过上传上限，请裁剪后重试。','coach_upload_too_large',413)
+ const initialTime=now();let finishedBytes=0,sessionBytes=0
  let records=wx.getStorageSync(key);records=(Array.isArray(records)?records:[]).filter(r=>ID.test(r?.id||'')&&HASH.test(r?.base64Sha256||'')&&MIMES.has(r?.mimeType)&&Number.isSafeInteger(r?.base64Length)&&r.base64Length>0&&r.base64Length<=Math.ceil(MAX_BYTES/3)*4&&r.base64Length%4===0&&Number.isFinite(r?.expiresAt)&&r.expiresAt>now()&&r.expiresAt<=now()+TTL+60000).slice(-MAX_RECORDS).map(r=>({id:r.id,mimeType:r.mimeType,base64Length:r.base64Length,base64Sha256:r.base64Sha256,expiresAt:r.expiresAt}))
  const save=()=>{check();try{wx.setStorageSync(key,records)}catch{throw fail('本机暂时无法保存上传进度，请释放小程序存储后重试。','coach_upload_storage')}}
  const ids=[]

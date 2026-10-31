@@ -33,6 +33,17 @@ function setup({lostAck=false,failAll=false}={}){
 }
 
 {
+ const s=setup(),small='data:image/png;base64,'+Buffer.alloc(96*1024,65).toString('base64')
+ const result=await s.uploader({message:'small question',imageDataUrls:[small]},{request:s.request,now:s.now})
+ assert.ok(result.imageDataUrls.length===1&&result.imageDataUrls[0]===small,'small photo is preserved exactly');assert.equal(result.imageUploadIds,undefined)
+ assert.equal(s.calls.length,0,'small images must not wait for capabilities, init, chunks or completion round trips')
+ const over='data:image/png;base64,'+Buffer.alloc(96*1024+1,65).toString('base64')
+ assert.equal((await s.uploader({imageDataUrls:[over]},{request:s.request,now:s.now,retryDelayMs:0})).imageUploadIds.length,1,'large image uses resume')
+ const two=[66,67].map(n=>'data:image/png;base64,'+Buffer.alloc(64*1024,n).toString('base64'))
+ assert.equal((await s.uploader({imageDataUrls:two},{request:s.request,now:s.now,retryDelayMs:0})).imageUploadIds.length,2,'combined attachment size determines the fast path')
+}
+
+{
  const s=setup({lostAck:true}),progress=[]
  const result=await s.uploader({message:'synthetic',imageDataUrls:[image]},{request:s.request,now:s.now,onStage:v=>progress.push(v),retryDelayMs:0})
  assert.ok(s.calls.every(c=>['GET','POST','PUT','DELETE'].includes(c.method)),'native upload must only use documented wx.request methods, not PATCH')
@@ -81,7 +92,7 @@ function setup({lostAck=false,failAll=false}={}){
  assert.equal(answer.imageUploadIds.length,1,'identical attachments must not create duplicate reference IDs rejected by the backend')
 }
 {
- const s=setup(),pictures=[65,66,67,68,69].map(n=>'data:image/png;base64,'+Buffer.alloc(32,n).toString('base64'))
+ const s=setup(),pictures=[65,66,67,68,69].map(n=>'data:image/png;base64,'+Buffer.alloc(96*1024+1,n).toString('base64'))
  for(const picture of pictures.slice(0,4))await s.uploader({imageDataUrls:[picture]},{request:s.request,now:s.now,retryDelayMs:0})
  const first=[...s.uploads.keys()][0],beforePuts=s.calls.filter(c=>c.method==='PUT').length
  const blockedDelete=async(path,data,options)=>{if(options.method==='DELETE')throw Object.assign(Error('offline'),{code:'network_timeout'});return s.request(path,data,options)}
@@ -91,7 +102,7 @@ function setup({lostAck=false,failAll=false}={}){
  await s.uploader({imageDataUrls:[pictures[4]]},{request:s.request,now:s.now,retryDelayMs:0});assert.equal(s.uploads.size,4)
 }
 {
- const s=setup(),pictures=[70,71,72,73,74].map(n=>'data:image/png;base64,'+Buffer.alloc(32,n).toString('base64'))
+ const s=setup(),pictures=[70,71,72,73,74].map(n=>'data:image/png;base64,'+Buffer.alloc(96*1024+1,n).toString('base64'))
  for(const picture of pictures.slice(0,4))await s.uploader({imageDataUrls:[picture]},{request:s.request,now:s.now,retryDelayMs:0})
  const result=await s.uploader({imageDataUrls:[pictures[0],pictures[4]]},{request:s.request,now:s.now,retryDelayMs:0})
  assert.ok(result.imageUploadIds.every(id=>s.uploads.has(id)),'eviction cannot delete an image already referenced by this same multi-image request')

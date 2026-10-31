@@ -33,7 +33,7 @@ assert.equal(a.timers.size,1,'deadline includes auth renewal')
 login.resolve();await settle();assert.equal(a.dispatches,0,'expired request must never start later after login')
 const good=harness({sync:true});assert.equal((await good.api.askCoach({message:'synthetic'})).answer,'x=4');assert.equal(good.timers.size,0);assert.equal(good.aborts,0)
 // Keep the old-server deadline contract explicit; new upload pause/deadline cases have their own suite.
-const image=harness({legacyUpload:true}),imageWait=image.api.askCoach({message:'synthetic',imageDataUrls:['data:image/png;base64,fixture']}).catch(e=>e)
+const image=harness({legacyUpload:true}),imageWait=image.api.askCoach({message:'synthetic',imageDataUrls:['data:image/png;base64,'+Buffer.alloc(120000,65).toString('base64')]}).catch(e=>e)
 await settle();assert.equal([...image.timers.values()][0].ms,120000);image.request.success({statusCode:202,data:{id:image.request.url.split('/').pop(),status:'succeeded',result:{answer:'50m'}}});await imageWait;assert.equal(image.timers.size,0)
 const ielts=harness();await ielts.api.askIeltsCoach({message:'fixture'});assert.equal(ielts.timers.size,0,'IELTS request behavior stays unchanged')
 console.log('STEM Coach request deadline: missing callbacks, abort, late callback, auth wait and IELTS isolation PASS')

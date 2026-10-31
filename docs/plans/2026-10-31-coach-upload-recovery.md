@@ -6,6 +6,8 @@
 
 **Architecture:** Upload authenticated, owner-bound base64 chunks with acknowledged offsets and a short-lived image reference; submit that reference through the existing resumable job protocol. Legacy servers are supported only when capability discovery explicitly returns404; network failures never trigger an unbounded full-image fallback. The student model, default low, IELTS, Tavern and membership are unchanged.
 
+**Latency adjustment after production timing (2026-11-01):** Prepared attachments totaling at most 96 KiB keep the existing one-request job path. Larger totals use resumable uploads. The bound applies to all attachments combined, and no extra compression is performed for routing. This avoids capability/init/chunk/complete round trips for small photos while retaining bounded recovery for large photos; it does not promise faster model reasoning or physical-phone latency before device testing.
+
 **Tech Stack:** Native WeChat JavaScript/WXML/WXSS, existing SHA-256 helper, Node test harness; backend integration by the authorized persistent STEM implementation task. No new dependencies.
 
 User approved the design and a client repair-package upload in this conversation. Original dirty checkout remains untouched; this isolated client starts from3490f95/current1.0.79 source. Previously deferred membership-copy edits are not silently included.
