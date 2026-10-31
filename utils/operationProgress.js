@@ -12,7 +12,7 @@ function createOperationTracker({key='coach-text',taskMode=false,effort='low',on
   if(taskMode){
    const task=taskSnapshot?taskProgressView(taskSnapshot,now()-taskObservedAt):null
    base=task?{...base,...task,active:!closed&&task.active}: {...base,...initialTaskEstimate(key,effort),label:phase==='preparing'?(key==='coach-photo'?'正在准备图片':'正在准备题目'):phase==='calling'?'正在提交题目':base.label,canLeave:false,savedTask:false,leaveHint:'提交完成前请保持当前页面',steps:taskSteps(phase),effortLabel:effort+' · 思考已开启'}
-   if(closed)base={...base,phase,label:phase==='complete'?'答疑已完成':task?.savedTask?'任务状态待确认':'本次答疑未完成',active:false,etaSeconds:null,etaLabel:phase==='complete'?'结果已返回':task?.savedTask?'可在已保存答疑中刷新结果':'原题已保留，可重试',steps:taskSteps(phase,Boolean(task))}
+   if(closed){const terminal=task&&['failed','interrupted'].includes(task.taskStatus);base={...base,phase,label:phase==='complete'?'答疑已完成':terminal?task.label:task?.savedTask?'任务状态待确认':'本次答疑未完成',active:false,etaSeconds:null,etaLabel:phase==='complete'?'结果已返回':terminal?task.etaLabel:task?.savedTask?'可在已保存答疑中刷新结果':'原题已保留，可重试',steps:taskSteps(phase,Boolean(task))}}
   }
   if(phase!=='uploading'||!transfer)return base
   const stale=now()-transfer.at>2500,speed=!stale&&Number.isFinite(transfer.speedBytesPerSecond)?Math.max(0,transfer.speedBytesPerSecond):0,eta=!stale&&Number.isFinite(transfer.etaSeconds)?Math.max(0,Math.ceil(transfer.etaSeconds)):null

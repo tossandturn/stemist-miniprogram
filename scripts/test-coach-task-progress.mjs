@@ -29,4 +29,7 @@ tracker.stage({phase:'task',snapshot:snapshot({saved:true,effort:'high',stage:'p
 tracker.stage('recovering');assert.equal(states.at(-1).phase,'recovering');assert.match(states.at(-1).etaLabel,/恢复|状态/);assert.equal(states.at(-1).canLeave,true)
 tracker.stage({phase:'task',snapshot:snapshot({saved:true,effort:'high',stage:'answering',elapsed:15000})});assert.equal(states.at(-1).phase,'arranging')
 tracker.finish(true);assert.equal(states.at(-1).phase,'complete');assert.equal(timers.size,0);assert.equal(r.storage.has('stemistOperationTimings'),false,'task mode uses server cohorts and does not mix local low/high samples')
+const failed=[];const terminal=r.load('utils/operationProgress').createOperationTracker({taskMode:true,onChange:s=>failed.push(s),setTimer:()=>1,clearTimer:()=>{}})
+terminal.stage({phase:'task',snapshot:snapshot({saved:true,effort:'high',stage:'failed',status:'failed'})});terminal.finish(false)
+assert.equal(failed.at(-1).label,'答疑未完成','a known server failure must not be relabelled as unknown or still processing')
 console.log('PASS task stages and ETA: strict metadata, saved high only, initial/calibrated/exceeded estimates, clock correction, stale response and no fabricated percentage')
