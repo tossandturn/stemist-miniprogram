@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.82",
+  "highestAssignedVersion": "1.0.83",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -23,6 +23,19 @@
       "manifest": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.70-ready-manifest.json",
       "runtimeManifestSha256": "e12e7423787d96978cc0ecb6836fc71b0e13bf81447c9b6a10a80090a499e231",
       "supersededBy": "1.0.71"
+    },
+    {
+      "version": "1.0.83",
+      "assignedOn": "2026-11-01",
+      "commit": "591157091a9e167bce282acb6bba9bacc2c68aaa",
+      "project": "D:\\CodexWork\\coach-compact-ui-20261101/development-1.0.83-ready",
+      "status": "superseded_not_uploaded",
+      "manifest": "D:\\CodexWork\\coach-compact-ui-20261101/development-1.0.83-ready-manifest.json",
+      "runtimeManifestSha256": "534a18a6a71add2d7f13e235926dff76a198457634a2b0fed1eedf76f894f3bc",
+      "scope": "AI Coach 文案与排版精简：首屏功能/发送可见，保留三档思考、3天可选任务、进度恢复和公式分模块。不改模型、支付或下载。",
+      "failureCode": "COMPILED_MAIN_PACKAGE_TOO_LARGE",
+      "officialUploadSuccess": false,
+      "supersededBy": "1.0.84"
     }
   ],
   "reconciledUploads": [

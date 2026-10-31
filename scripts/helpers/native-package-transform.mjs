@@ -11,6 +11,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
+    id: 'esbuild-native-compiled-headroom-v1',
+    paths: Object.freeze(['utils/ieltsTaskBootstrap.js','pages/practice/index.js','pages/notebook/index.js','utils/nativePaperService.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-coach-compact-ui-headroom-v1',
     paths: Object.freeze(['utils/coach.js','utils/nativeAnswer.js','pages/stem/coach.js','utils/device.js','utils/page.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),

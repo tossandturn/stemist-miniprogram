@@ -47,3 +47,9 @@ UI/UX 技能用于削减重复层级、44 px 触点、8 px 间距、安全区和
 参考 [微信官方 WeUI FormPage](https://github.com/wechat-miniprogram/weui-miniprogram/blob/master/docs/form-page.md) 的分层方式；其 [MIT 许可](https://github.com/wechat-miniprogram/weui-miniprogram/blob/master/LICENSE) 已核对。未复制代码或安装依赖。
 
 完整本地证据位于 `D:/CodexWork/coach-compact-ui-20261101`，包括 before/after 原生截图、测试记录、安装包清单和恢复确认。
+
+## 编译后体积校验
+
+1.0.83 的官方上传被明确拒绝：编译后的主包 2051 KB，超过 2048 KB；该版本未上传成功，已留存失败记录并标为被后续版本取代。
+
+后续仅扩展构建压缩到 4 个现有模块（题库引导数据、学习入口、笔记入口、试卷服务），不删除或改写其源数据与业务逻辑。源码与打包后的题库结构做深度等值校验，新增 4 项发布包用例；完整回归再次通过。修复后本地运行主包 1,957,454 字节，余量 139,698 字节。官方上传成功仍是单独的最终门槛。
