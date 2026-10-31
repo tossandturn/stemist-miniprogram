@@ -32,6 +32,9 @@
 .message-content{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;max-width:calc(100% - 44px)}
 .chat-row.user .message-content{align-items:flex-end}
 .message-content .chat-turn{max-width:100%}
+.message-content.has-draw{width:calc(100% - 44px);max-width:620px}
+.tavern-message-art{display:block;width:100%;min-width:0}
+.pending-draw-row .message-name{margin:0;color:#66708a}
 .reply-media{max-width:100%;border-radius:12px;background:#fff;overflow:hidden}
 .reply-media-frame{position:relative;max-width:100%;overflow:hidden;background:#fff}
 .sticker-sheet{position:absolute;display:block;max-width:none}

@@ -1,6 +1,7 @@
 const {requestJson:requestApiJson}=require('../../utils/api')
 const {coachEffortTimeout}=require('../../utils/coachEffort')
 const {TAVERN_MEDIA_VERSION,normalizeTavernMedia}=require('./tavernMedia')
+const {historyDraw}=require('./tavernDrawHistory')
 
 async function requestJson(...args){
  try{return await requestApiJson(...args)}catch(error){
@@ -25,7 +26,7 @@ const integer=(value,label)=>{if(typeof value!=='number'||!Number.isSafeInteger(
 const cleanContent=value=>{if(typeof value!=='string')return'';return value.replaceAll(String.fromCharCode(0),'').trim()}
 function utf8Bytes(value,limit=Number.MAX_SAFE_INTEGER){let bytes=0;for(const symbol of String(value||'')){const point=symbol.codePointAt(0);bytes+=point<=0x7f?1:point<=0x7ff?2:point<=0xffff?3:4;if(bytes>limit)return bytes}return bytes}
 function boundedContent(value,label,maxBytes=TAVERN_MESSAGE_MAX_BYTES){const content=cleanContent(value);if(!content)fail(`${label}无效`);if(utf8Bytes(content,maxBytes)>maxBytes)fail(`${label} UTF-8 bytes 过大`,'tavern_message_bytes_exceeded');return content}
-const serializedMessageBytes=item=>utf8Bytes(item.id||'')+utf8Bytes(item.role||'')+utf8Bytes(item.status||'')+utf8Bytes(item.content||'')+(item.media?utf8Bytes(JSON.stringify(item.media)):0)+96
+const serializedMessageBytes=item=>utf8Bytes(item.id||'')+utf8Bytes(item.role||'')+utf8Bytes(item.status||'')+utf8Bytes(item.content||'')+(item.media?utf8Bytes(JSON.stringify(item.media)):0)+(item.draw?utf8Bytes(JSON.stringify(item.draw)):0)+96
 function randomId(prefix,{now=Date.now(),random=Math.random}={}){const time=Number(now),value=Number(random());if(!Number.isFinite(time)||time<0||!Number.isFinite(value)||value<0||value>=1)fail('本机请求标识无效');return`${prefix}:${Math.trunc(time).toString(36)}:${Math.floor(value*Number.MAX_SAFE_INTEGER).toString(36)}`}
 const newClientTurnId=options=>randomId('turn',options)
 
@@ -61,8 +62,8 @@ function canonicalMessage(value){
  if(!value||typeof value!=='object'||Array.isArray(value))fail('历史消息无效')
  const id=scalar(value.id,'message.id',180),role=String(value.role||''),content=boundedContent(value.content,'message.content'),sequence=integer(value.sequence,'message.sequence'),status=scalar(value.status,'message.status',40)
  if(!['user','assistant'].includes(role)||status!=='complete')fail('历史消息状态无效','tavern_conversation_message_status_invalid')
- const media=role==='assistant'?normalizeTavernMedia(value.media):[]
- return{id,role,content,sequence,status,...(media.length?{media}:{})}
+ const media=role==='assistant'?normalizeTavernMedia(value.media):[],draw=role==='assistant'?historyDraw(value.draw):null
+ return{id,role,content,sequence,status,...(media.length?{media}:{}),...(draw?{draw}:{})}
 }
 
 function displayTavernMessages(value){
@@ -85,8 +86,8 @@ function mergeTavernMessages(...lists){
   const source=Array.isArray(value)?value:[]
   for(let index=0;index<source.length;index++){
    const item=canonicalMessage(source[index]),previous=merged.get(item.id)
-   if(previous&&(previous.role!==item.role||previous.content!==item.content||previous.sequence!==item.sequence||previous.status!==item.status||previous.media&&item.media&&JSON.stringify(previous.media)!==JSON.stringify(item.media)))fail('历史消息版本冲突','tavern_conversation_message_conflict')
-   if(!previous||!previous.media&&item.media)merged.set(item.id,item)
+   if(previous&&(previous.role!==item.role||previous.content!==item.content||previous.sequence!==item.sequence||previous.status!==item.status||previous.media&&item.media&&JSON.stringify(previous.media)!==JSON.stringify(item.media)||previous.draw&&item.draw&&JSON.stringify(previous.draw)!==JSON.stringify(item.draw)))fail('历史消息版本冲突','tavern_conversation_message_conflict')
+   merged.set(item.id,{...previous,...item,...(previous?.media&&!item.media?{media:previous.media}:{}),...(previous?.draw&&!item.draw?{draw:previous.draw}:{})})
   }
  }
  const local=[...merged.values()].sort((left,right)=>left.sequence-right.sequence||left.id.localeCompare(right.id)).slice(-TAVERN_PAGE_LIMIT)
@@ -109,6 +110,7 @@ function legacyImportRecord(value){
 function normalizeTavernEnvelope(payload,expectedPersona=''){
  if(!payload||typeof payload!=='object'||Array.isArray(payload))fail('对话响应无效')
  const result={conversation:conversationRecord(payload.conversation,expectedPersona),messages:displayTavernMessages(payload.messages),nextBefore:cursor(payload.nextBefore)},legacyImport=legacyImportRecord(payload.legacyImport)
+ for(const message of result.messages)if(message.draw&&!historyDraw(message.draw,result.conversation.persona))delete message.draw
  if(legacyImport)result.legacyImport=legacyImport
  return result
 }

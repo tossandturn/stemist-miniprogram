@@ -1,7 +1,8 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.78",
+  "highestAssignedVersion": "1.0.79",
   "pendingUploads": [
+    {"version":"1.0.79","assignedOn":"2026-10-31","status":"reserved","purpose":"Tarot and eastern oracle draw images follow their own chat messages instead of the top panel"},
     {
       "version": "1.0.69",
       "assignedOn": "2026-10-29",

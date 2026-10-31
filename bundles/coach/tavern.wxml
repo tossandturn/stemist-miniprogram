@@ -32,15 +32,12 @@
         <view wx:if="{{selected.divinationKind}}" class="fortune-panel">
           <view class="fortune-note">可以直接聊天，也可以带着问题抽取。仅供娱乐，不是科学预测，也不替你做决定。</view>
         </view>
-        <tavern-draw-art wx:if="{{selected.divinationKind}}" id="tavern-draw-art" draw="{{draw}}" />
-        <view wx:if="{{selected.divinationKind && draw && canRetry && retryKind === 'interpret' && !drawNeedsRedraw}}" class="fortune-result-priority">
-          <button class="secondary fortune-primary" bindtap="retryInterpretation" disabled="{{loading || examBlocked || authRequired}}">重试本次解读</button>
-        </view>
         <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
           <image wx:if="{{item.role !== 'user'}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
           <view wx:else class="message-avatar user-avatar" aria-hidden="true">你</view>
-          <view class="message-content">
+          <view class="message-content {{item.draw ? 'has-draw' : ''}}">
             <view class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><answer-content wx:else compact="{{true}}" text="{{item.content}}" /></view>
+            <tavern-draw-art wx:if="{{item.draw && selected.divinationKind}}" id="draw-message-{{index}}" class="tavern-message-art" draw="{{item.draw}}" />
             <view wx:for="{{item.media}}" wx:for-item="mediaItem" wx:key="id" class="reply-media {{mediaItem.kind}}" aria-label="{{mediaItem.alt}}">
               <view class="reply-media-frame" style="width:{{mediaItem.viewWidth}}px;height:{{mediaItem.viewHeight}}px;">
                 <view wx:if="{{mediaFailures[mediaItem.key]}}" class="reply-media-error"><text>图片暂未加载</text><button class="media-retry" data-media-key="{{mediaItem.key}}" bindtap="retryReplyMedia">重试图片</button></view>
@@ -53,6 +50,13 @@
               <text wx:if="{{mediaItem.caption}}" class="reply-media-caption">{{mediaItem.caption}}</text>
             </view>
           </view>
+        </view>
+        <view wx:if="{{pendingDraw && selected.divinationKind && !historyBrowsing}}" class="chat-row assistant pending-draw-row">
+          <image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
+          <view class="message-content has-draw"><text class="message-name">本次抽取</text><tavern-draw-art id="tavern-draw-art" class="tavern-message-art" draw="{{pendingDraw}}" /></view>
+        </view>
+        <view wx:if="{{selected.divinationKind && draw && canRetry && retryKind === 'interpret' && !drawNeedsRedraw && !historyBrowsing}}" class="fortune-result-priority">
+          <button class="secondary fortune-primary" bindtap="retryInterpretation" disabled="{{loading || examBlocked || authRequired}}">重试本次解读</button>
         </view>
         <view wx:if="{{loading && message && !drawLoading && !interpretLoading}}" class="chat-row user"><view class="message-avatar user-avatar" aria-hidden="true">你</view><view class="chat-turn user"><text>{{message}}</text><text class="message-name">发送中</text></view></view>
         <view wx:if="{{loading}}" class="chat-row assistant"><image class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" /><view class="chat-turn assistant typing-status" role="status">{{drawLoading ? '正在抽取…' : interpretLoading ? '正在解读…' : '正在回复…'}}</view></view>
