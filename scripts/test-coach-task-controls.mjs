@@ -15,4 +15,7 @@ for(const file of ['pages/coach/index.wxml','pages/stem/coach.wxml']){
 }
 const wxml=fs.readFileSync(path.join(root,'components/coach-panel/index.wxml'),'utf8')
 assert.match(wxml,/保存为任务/);assert.match(wxml,/3 天/);assert.match(wxml,/progress\.steps/);assert.match(wxml,/estimateNote/);assert.match(wxml,/leaveHint/)
+const taskCss=fs.readFileSync(path.join(root,'bundles/coach/tasks.wxss'),'utf8')
+assert.match(taskCss,/\.task-page button\.task-card\{[^}]*width:100%/,'native task buttons override intrinsic width')
+assert.match(taskCss,/\.task-page \.task-toolbar button\.secondary\{width:auto/,'toolbar overrides global full-width buttons')
 console.log('PASS high/max-only opt-in, locked retry, saved-only navigation and page wiring.')
