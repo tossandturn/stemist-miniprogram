@@ -52,7 +52,7 @@
 <button wx:if="{{canRetry}}" class="secondary retry-button" bindtap="onRetry" disabled="{{loading}}">重试 AI</button>
 <view wx:if="{{warning && academic}}" class="warning">{{warning}}</view>
 <view wx:if="{{answer}}" class="result">
-<answer-content text="{{answer}}" academic="{{academic}}" modular="{{academic}}" compact="{{streamlined}}"/>
+<answer-content id="coach-answer" text="{{answer}}" academic="{{academic}}" modular="{{academic}}" compact="{{streamlined}}"/>
 </view>
 <view wx:if="{{academic && sourceAction && answer && !loading}}" class="coach-source-offer">
 <view wx:if="{{sourceAction.status === 'offer'}}">是否识别这是哪一年的真题？</view>
