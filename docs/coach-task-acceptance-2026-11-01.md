@@ -51,3 +51,9 @@ Superpowers 的 TDD/复核流程用于状态和失败路径验证；UI-UX 技能
 - [BullMQ Job](https://github.com/taskforcesh/bullmq/blob/master/src/classes/job.ts)：结构化进度/结果的参考。没有复制外部实现、安装队列依赖或新增 Redis。
 
 本地证据目录：`D:/CodexWork/coach-task-experience-20261101`，包括部署/备份门禁、聚合留存检查、原生 QA、截图及安装包清单。密钥和真实学生内容不进入证据。
+
+## 开发版本交付
+
+1.0.82 已于 2026-11-01 02:49:32（Asia/Shanghai）通过官方开发者工具上传成功，五份版本台账已同步。运行清单 SHA-256：`646661fd2e220aaa082f26acf27b1607ff2962ff0fa467e6838c799d5ef76fa0`。主包 1,964,372 字节，余量 132,780 字节。
+
+后端规则已部署。客户端只完成开发版本上传，未自动设置体验版、提交审核或正式发布；原有在线客户端继续使用兼容协议，新界面须更新客户端后使用。

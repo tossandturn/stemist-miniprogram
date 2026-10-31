@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.81",
+  "highestAssignedVersion": "1.0.82",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -26,6 +26,22 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.82",
+      "assignedOn": "2026-11-01",
+      "commit": "f48e1ef913d20aa4280d8f2928a7d737aae0694c",
+      "project": "D:\\CodexWork\\coach-task-experience-20261101/development-1.0.82-release",
+      "status": "uploaded",
+      "manifest": "D:\\CodexWork\\coach-task-experience-20261101/development-1.0.82-release-manifest.json",
+      "runtimeManifestSha256": "646661fd2e220aaa082f26acf27b1607ff2962ff0fa467e6838c799d5ef76fa0",
+      "scope": "AI Coach 快速/深入/极致三档思考、真实进度与预估耗时；深入/极致可选保存答疑3天。保留1.0.81统一下载和1.0.80图片续传。",
+      "uploadConfirmedAt": "2026-10-31T18:49:32.882Z",
+      "officialInfo": "D:\\CodexWork\\coach-task-experience-20261101/wechat-upload-receipt.json",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false
+    },
     {
       "version": "1.0.81",
       "assignedOn": "2026-11-01",
