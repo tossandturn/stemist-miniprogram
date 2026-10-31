@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.80",
+  "highestAssignedVersion": "1.0.81",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -26,6 +26,22 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.81",
+      "assignedOn": "2026-11-01",
+      "commit": "54f2501346a1efe57395acc13a312713bfae8971",
+      "project": "D:\\CodexWork\\ielts-unified-downloads-20261101/development-1.0.81-ready",
+      "status": "uploaded",
+      "manifest": "D:\\CodexWork\\ielts-unified-downloads-20261101/development-1.0.81-ready-manifest.json",
+      "runtimeManifestSha256": "ab5dba35f36eabaf5b7d17b1a43fb04c6a20bab2e4bc14025d0a08f39f0fbc82",
+      "scope": "Unified Cambridge listening question/answer PDF and audio downloads; existing shared quota and legacy deep links unchanged; includes 1.0.80 Coach upload fixes",
+      "uploadConfirmedAt": "2026-10-31T17:24:02.480Z",
+      "officialInfo": "D:\\CodexWork\\ielts-unified-downloads-20261101/wechat-upload-receipt.json",
+      "success": true,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false
+    },
     {
       "version": "1.0.80",
       "assignedOn": "2026-11-01",
