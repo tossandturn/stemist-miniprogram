@@ -3,6 +3,7 @@ const {isAuthError}=require('../../utils/api')
 const {readCoachEffort}=require('../../utils/coachEffort')
 const {keyboardData,keyboardMethods}=require('./tavernKeyboard')
 const {mergeTavernMessages}=require('./tavernConversation')
+const {mergeAdvisorMessages}=require('./admissionsSources')
 
 const LOCAL_CLEAR_FENCES=new Map()
 const DEFAULT_COPY=Object.freeze({
@@ -164,7 +165,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     if(result?.mode!=='ai'||result.providerStatus!=='connected'||result.partial===true||!result.answer||!Array.isArray(result.turns))throw Error(text.incomplete)
     this.__conversation=result.conversation;this.__pending=null;this.__nextBefore=''
     const remainingDraft=canonicalDraft(this.data.message)===pending.message?'':this.data.message
-    this.setData({turns:mergeTavernMessages(this.data.turns,result.turns),message:remainingDraft,partialAnswer:'',loading:false,canRetry:false,receiptState:'',sendBlocked:false,pendingEffort:'',effortLocked:false,error:'',status:'',hasOlderHistory:this.data.hasOlderHistory||this.__conversation.turnCount>20});this.save();this.scrollChatToLatest()
+    this.setData({turns:(persona==='admissions-advisor'?mergeAdvisorMessages:mergeTavernMessages)(this.data.turns,result.turns),latestSourceTurnId:persona==='admissions-advisor'?result.turns.find(turn=>turn.role==='assistant')?.id||'':'',message:remainingDraft,partialAnswer:'',loading:false,canRetry:false,receiptState:'',sendBlocked:false,pendingEffort:'',effortLocked:false,error:'',status:'',hasOlderHistory:this.data.hasOlderHistory||this.__conversation.turnCount>20});this.save();this.scrollChatToLatest()
    }catch(error){this.fail(error,generation)}finally{if(this.current(generation)){this.__submitting=false;this.__cancel=null}}
   },
   async loadOlderHistory(){

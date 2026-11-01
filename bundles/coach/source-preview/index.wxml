@@ -1,0 +1,13 @@
+<view wx:if="{{cards.length}}" class="sources" aria-label="本条回答的官网资料">
+ <text class="heading">已读取的官网资料</text>
+ <view wx:for="{{cards}}" wx:key="id" class="source-card">
+  <text class="source-title">{{item.title}}</text>
+  <text class="meta">{{item.domain}} · {{item.dateLabel}}</text>
+  <text class="meta">{{item.yearLabel}}</text>
+  <text wx:if="{{item.excerpt}}" class="excerpt {{item.expanded ? 'expanded' : ''}}" selectable="{{true}}">{{item.excerpt}}</text>
+  <view class="actions"><button wx:if="{{item.excerpt}}" data-id="{{item.id}}" bindtap="toggle">{{item.expanded ? '收起原文' : '展开原文'}}</button><button wx:if="{{!item.imagePath}}" data-id="{{item.id}}" bindtap="fetchPreview" loading="{{item.busy}}" disabled="{{item.busy}}">{{item.busy ? '正在准备截图' : item.previewKind ? '重试截图' : '查看官网截图'}}</button></view>
+  <text wx:if="{{item.previewLabel}}" class="meta preview-label">{{item.previewLabel}}</text>
+  <image wx:if="{{item.imagePath}}" class="preview" src="{{item.imagePath}}" mode="widthFix" data-id="{{item.id}}" bindtap="zoom" binderror="imageFailed" aria-label="官网静态截图，点击放大" />
+  <text wx:if="{{item.note}}" class="meta">{{item.note}}</text>
+ </view>
+</view>

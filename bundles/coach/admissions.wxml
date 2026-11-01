@@ -25,6 +25,7 @@
       <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
         <text class="message-label">{{item.role === 'user' ? '你' : '申请顾问 · AI'}}</text>
         <view class="chat-bubble {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><answer-content wx:else text="{{item.content}}" compact="{{true}}" academic="{{true}}" /></view>
+        <admissions-sources wx:if="{{item.role === 'assistant' && item.sources.length}}" sources="{{item.sources}}" conversation-id="{{item.sourceConversationId}}" turn-id="{{item.id}}" auto-preview="{{item.id === latestSourceTurnId}}" />
         <button wx:if="{{item.role === 'assistant'}}" class="copy-button" data-id="{{item.id}}" bindtap="copyReply" aria-label="复制这条申请建议">复制</button>
       </view>
       <view wx:if="{{loading && message}}" class="chat-row user"><text class="message-label">你</text><view class="chat-bubble user"><text>{{message}}</text></view></view>

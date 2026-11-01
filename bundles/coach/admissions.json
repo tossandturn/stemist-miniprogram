@@ -2,6 +2,7 @@
   "navigationBarTitleText": "留学申请顾问",
   "usingComponents": {
     "answer-content": "/components/answer-content/index",
-    "coach-effort": "/components/coach-effort/index"
+    "coach-effort": "/components/coach-effort/index",
+    "admissions-sources": "/bundles/coach/source-preview/index"
   }
 }

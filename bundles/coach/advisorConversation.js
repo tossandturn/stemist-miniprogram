@@ -1,7 +1,8 @@
 const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
 const {coachEffortTimeout}=require('../../utils/coachEffort')
 const {createCoachStream}=require('./responseStream')
-const {normalizeTavernEnvelope,newClientTurnId}=require('./tavernConversation')
+const {newClientTurnId}=require('./tavernConversation')
+const {normalizeAdvisorEnvelope}=require('./admissionsSources')
 
 const MESSAGE_MAX=12000
 function advisorStage(meta){return meta?.providerStatus==='researching'?(meta.researchPhase==='fetch'?'reading-sources':'searching'):'analysis'}
@@ -55,10 +56,10 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
   return Object.assign(Error(message),{code:errorCode,statusCode,...receiptFields(error),...(error?.partialAnswer?{partialAnswer:String(error.partialAnswer)}:{})})
  }
  async function read(path,body,options){const current=identity();try{const result=await requestJson(path,body,options);current();return result}catch(error){throw safeError(error)}}
- async function resume({conversationId=''}={}){return normalizeTavernEnvelope(await read(root+'/resume',conversationId?{conversationId:id(conversationId)}:{},{method:'POST'}),persona)}
+ async function resume({conversationId=''}={}){return normalizeAdvisorEnvelope(await read(root+'/resume',conversationId?{conversationId:id(conversationId)}:{},{method:'POST'}),persona)}
  async function fetchMessages({conversationId,before=''}={}){
   if(typeof before!=='string'||before.length>240||/[\u0000-\u001f\u007f]/.test(before))throw fail(text.invalidCursor)
-  return normalizeTavernEnvelope(await read(root+'/'+encodeURIComponent(id(conversationId))+'/messages?limit=40&before='+encodeURIComponent(before),undefined,{method:'GET'}),persona)
+  return normalizeAdvisorEnvelope(await read(root+'/'+encodeURIComponent(id(conversationId))+'/messages?limit=40&before='+encodeURIComponent(before),undefined,{method:'GET'}),persona)
  }
  async function deleteConversation({conversationId}={}){
   const value=id(conversationId),result=await read(root+'/'+encodeURIComponent(value),undefined,{method:'DELETE'})
@@ -80,7 +81,8 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
     try{
      current()
      if(result?.mode!=='ai'||result.providerStatus!=='connected'||result.partial===true||result.answerStatus==='partial'){const partialAnswer=String(result?.answer||'').trim();throw Object.assign(fail(text.incomplete,result?.code||code('incomplete')),{statusCode:Number(result?.statusCode)||0,...receiptFields(result),...(partialAnswer?{partialAnswer}:{})})}
-     const envelope=normalizeTavernEnvelope({conversation:result.conversation,messages:result.turns,nextBefore:''},persona),turns=envelope.messages,answer=String(result.answer||'').trim()
+     const returnedTurns=Array.isArray(result.turns)?result.turns.map(turn=>persona==='admissions-advisor'&&turn.role==='assistant'?{...turn,research:turn.research||result.research}:turn):result.turns
+     const envelope=normalizeAdvisorEnvelope({conversation:result.conversation,messages:returnedTurns,nextBefore:''},persona),turns=envelope.messages,answer=String(result.answer||'').trim()
      if(result.clientTurnId!==body.clientTurnId||envelope.conversation.id!==body.conversationId||envelope.conversation.revision<=body.expectedRevision||turns.length!==2||turns[0].id!==body.clientTurnId+':user'||turns[1].id!==body.clientTurnId+':assistant'||turns[0].role!=='user'||turns[1].role!=='assistant'||turns[0].content!==body.message||!answer||turns[1].content!==answer)throw fail(text.mismatch)
      finish(resolve,{...result,answer,conversation:envelope.conversation,turns})
     }catch(error){finish(reject,safeError(error))}
