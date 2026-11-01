@@ -8,7 +8,7 @@ Page({
  entryPublic:true,
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({username:'',password:'',loading:false,wechatLoading:false,showCredentials:false,error:'',user:null,userLabel:'',entry:false,privacy:true,privacyKnown:false,nativePrivacyRequired:true,contractName:'用户隐私保护指引'}),
- onLoad(options={}){this.setData({entry:options.required==='1'})},
+ onLoad(options={}){this._enteringApp=false;this.setData({entry:options.required==='1'})},
  onShow(){
   this._active=true;this._disposed=false;syncDevice(this)
   const user=access.hasValidSession()?currentUser():null
@@ -26,12 +26,13 @@ Page({
  goBack(){this.cancelLoginAttempts();this._version=(this._version||0)+1;if(this.data.entry||!access.canEnter())return access.exitEntry(error=>this.setData({error}));this._active=false;leaveAccount()},
  checkPrivacy(){
   const version=this._version||0;this.setData({privacyKnown:false});clearTimeout(this._privacyTimer)
-  let settled=false;const finish=result=>{if(settled||!this._active||version!==(this._version||0))return;settled=true;clearTimeout(this._privacyTimer);const known=typeof result?.needAuthorization==='boolean';access.notePrivacy(known&&result.needAuthorization===false);this.setData({privacyKnown:known,privacy:!access.consentAccepted()||!known,nativePrivacyRequired:result?.needAuthorization!==false,contractName:result?.privacyContractName||'用户隐私保护指引',...(known?{}:{error:'隐私许可暂未读取，请重试。'})});if(this.data.entry&&access.canEnter())access.completeEntry()}
+  let settled=false;const finish=result=>{if(settled||!this._active||version!==(this._version||0))return;settled=true;clearTimeout(this._privacyTimer);const known=typeof result?.needAuthorization==='boolean';access.notePrivacy(known&&result.needAuthorization===false);this.setData({privacyKnown:known,privacy:!access.consentAccepted()||!known,nativePrivacyRequired:result?.needAuthorization!==false,contractName:result?.privacyContractName||'用户隐私保护指引',...(known?{}:{error:'隐私许可暂未读取，请重试。'})});if(this.data.entry&&access.canEnter())this.finishEntry()}
   this._privacyTimer=setTimeout(()=>finish(null),6000)
   try{if(typeof wx.getPrivacySetting!=='function')return finish(null);wx.getPrivacySetting({success:finish,fail:()=>finish(null)})}catch{finish(null)}
  },
- agreePrivacy(){if(!this._active||!this.data.privacyKnown)return;access.acceptConsent();this.setData({privacy:false,error:''});if(this.data.entry&&access.canEnter())access.completeEntry()},
- continueApp(){if(access.canEnter())return access.completeEntry();this.setData({error:'请先完成隐私许可和登录。'})},
+ agreePrivacy(){if(!this._active||!this.data.privacyKnown)return;access.acceptConsent();this.setData({privacy:false,error:''});if(this.data.entry&&access.canEnter())this.finishEntry()},
+ finishEntry(){if(this._enteringApp||!access.canEnter())return;this._enteringApp=true;access.completeEntry(error=>{this._enteringApp=false;if(this._active)this.setData({error})})},
+ continueApp(){if(access.canEnter())return this.finishEntry();this.setData({error:'请先完成隐私许可和登录。'})},
  toggleCredentials(){this.setData({showCredentials:!this.data.showCredentials,error:''})},
  async loginWechat(){
   if(this.data.loading||this.data.wechatLoading||this._wechatAttempt)return
@@ -44,7 +45,7 @@ Page({
    if(!this._active||version!==(this._version||0)||this._wechatAttempt!==attempt)return
    const user=result.user||currentUser();this.setData({user,userLabel:this.accountLabel(user)})
    wx.showToast({title:'微信登录成功',icon:'success'})
-   if(this.data.entry&&access.canEnter())access.completeEntry()
+   if(this.data.entry&&access.canEnter())this.finishEntry()
   }catch(error){if(String(error?.code||'')!=='wechat_login_cancelled'&&this._active&&version===(this._version||0)&&this._wechatAttempt===attempt)this.setData({error:error.message||'微信登录暂时不可用，请稍后重试。'})}
   finally{if(this._wechatAttempt===attempt){this._wechatAttempt=null;if(this._active&&!this._disposed)this.setData({wechatLoading:false})}}
  },
@@ -65,7 +66,7 @@ Page({
   if(password.length<6||password.length>72)return this.setData({error:'密码需为 6–72 个字符'})
   this.setData({loading:true,error:''})
   const version=this._version||0,attempt=createAccountAttempt();this._passwordAttempt=attempt
-  try{await signIn(username,password,'login',attempt);attempt.finish();if(!this._active||version!==(this._version||0)||this._passwordAttempt!==attempt)return;const user=currentUser();wx.showToast({title:'登录成功',icon:'success'});this.setData({user,userLabel:this.accountLabel(user),password:''});if(this.data.entry&&access.canEnter())access.completeEntry()}
+  try{await signIn(username,password,'login',attempt);attempt.finish();if(!this._active||version!==(this._version||0)||this._passwordAttempt!==attempt)return;const user=currentUser();wx.showToast({title:'登录成功',icon:'success'});this.setData({user,userLabel:this.accountLabel(user),password:''});if(this.data.entry&&access.canEnter())this.finishEntry()}
   catch(error){if(String(error?.code||'')!=='account_login_cancelled'&&this._active&&version===(this._version||0)&&this._passwordAttempt===attempt)this.setData({error:error.message||'账号登录失败，请稍后重试'})}
   finally{attempt.finish();if(this._passwordAttempt===attempt){this._passwordAttempt=null;if(this._active&&!this._disposed)this.setData({loading:false})}}
  },

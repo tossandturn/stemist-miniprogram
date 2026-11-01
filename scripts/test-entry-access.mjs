@@ -25,6 +25,7 @@ gate.exitEntry(()=>{});assert.equal(calls.at(-1).exit,true)
 let privacyCallback;r.wx.getPrivacySetting=o=>{privacyCallback=o};const checking=gate.prepareEntry();gate.acceptConsent();privacyCallback.success({needAuthorization:true});await checking;assert.equal(gate.canEnter(),true,'an old platform query must not erase a later verified consent')
 const account=fs.readFileSync(new URL('../bundles/account/auth.wxml',import.meta.url),'utf8')
 assert.doesNotMatch(account,/返回浏览/);assert.match(account,/每天.*2/);assert.match(account,/privacy-consent/)
+const accountPage=r.page('bundles/account/auth');accountPage.onLoad({required:'1'});const before=calls.length;accountPage.finishEntry();accountPage.finishEntry();assert.equal(calls.length,before+1,'concurrent privacy/login completion must not redirect twice and lose the deep link')
 const manifest=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8'))
 for(const route of [...manifest.pages,...manifest.subPackages.flatMap(s=>s.pages.map(p=>s.root+'/'+p))]){
  const publicRoute=['bundles/account/auth','pages/account/auth','pages/legal/privacy'].includes(route),source=fs.readFileSync(new URL('../'+route+'.js',import.meta.url),'utf8')

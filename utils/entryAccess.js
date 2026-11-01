@@ -30,12 +30,11 @@ function requireEntry(page,options){
  if(state&&!state.entryReturn)state.entryReturn={url:publicReturn(page.route,options),owner:String(wx.getStorageSync('stemistUser')?.id||'')}
  wx.reLaunch({url:'/bundles/account/auth?required=1',fail:()=>{page.__entryRedirected=false}})
 }
-function completeEntry(){
+function completeEntry(onFailure){
  if(!canEnter())return ''
  const state=getApp()?.globalData,back=state?.entryReturn,owner=String(wx.getStorageSync('stemistUser')?.id||'')
- if(state)delete state.entryReturn
  const url=back?.url&&(!back.owner||back.owner===owner)?back.url:'/pages/index/index'
- wx.reLaunch({url});return url
+ wx.reLaunch({url,success:()=>{if(state?.entryReturn===back)delete state.entryReturn},fail:()=>onFailure?.('进入学习失败，请重试。')});return url
 }
 function exitEntry(onFailure){
  if(typeof wx.exitMiniProgram!=='function')return onFailure?.('请点击右上角关闭小程序。')
