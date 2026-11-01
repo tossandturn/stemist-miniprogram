@@ -4,6 +4,7 @@ const {createCoachStream}=require('./responseStream')
 const {normalizeTavernEnvelope,newClientTurnId}=require('./tavernConversation')
 
 const MESSAGE_MAX=12000
+function advisorStage(meta){return meta?.providerStatus==='researching'?(meta.researchPhase==='fetch'?'reading-sources':'searching'):'analysis'}
 const DEFAULT_COPY=Object.freeze({
  invalidConversation:'对话标识无效，请重新进入。',
  invalidMessage:'请输入 1–12000 字符的内容；长文请分段发送。',
@@ -72,7 +73,7 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
    const abort=()=>{try{task?.abort()}catch{}}
    const finish=(settle,value)=>{if(closed)return;closed=true;clearTimeout(timer);if(settle===reject&&!['account_changed','auth_required','request_cancelled'].includes(value?.code)&&Number(value?.statusCode)!==401)value.partialAnswer=value.partialAnswer||stream?.partial?.()||'';stream?.close?.();settle(value)}
    const guarded=(callback,value)=>{if(closed)return;try{current();callback(value)}catch(error){finish(reject,safeError(error));abort()}}
-   stream=createCoachStream({onPreview:value=>guarded(onPartial,value),onMeta:()=>guarded(onStage,'analysis')})
+   stream=createCoachStream({onPreview:value=>guarded(onPartial,value),onMeta:value=>guarded(onStage,advisorStage(value))})
    timer=setTimeout(()=>{finish(reject,fail(text.timeout,'network_timeout'));abort()},timeout)
    try{onCancelReady(()=>{finish(reject,fail(text.cancelled,'request_cancelled'));abort()})}catch(error){finish(reject,safeError(error));return}
    Promise.resolve().then(()=>requestJson(streamPath,body,{timeout,stream,streamCurrent:current,isCancelled:()=>closed,onTask:value=>{task=value},onDispatched:()=>guarded(onStage,'calling')})).then(result=>{
@@ -89,4 +90,4 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
  return{cleanMessage,newClientTurnId,resume,fetchMessages,deleteConversation,send}
 }
 
-module.exports={createAdvisorConversation}
+module.exports={createAdvisorConversation,advisorStage}

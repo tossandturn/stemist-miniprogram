@@ -159,7 +159,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     const pending=this.__pending
     if(!this.save()){this.setData({loading:false,error:'本机暂时无法保存重试标识，本次未发送；请释放空间后重试。',canRetry:true,status:''});return}
     this.setData({loading:true,error:'',partialAnswer:'',canRetry:false,receiptState:'',sendBlocked:false,status:text.connecting,pendingEffort:pending.reasoningEffort||'',effortLocked:true});this.scrollChatToLatest()
-    const result=await send({...pending,conversationId:this.__conversation.id,onStage:stage=>{if(this.current(generation))this.setData({status:stage==='analysis'?text.analysing:text.connecting})},onPartial:value=>{if(this.current(generation)){this.setData({partialAnswer:value,status:text.composing});this.scrollChatToLatest()}},onCancelReady:cancel=>{if(this.current(generation))this.__cancel=cancel;else cancel()}})
+    const result=await send({...pending,conversationId:this.__conversation.id,onStage:stage=>{if(this.current(generation))this.setData({status:advisorStageLabel(stage,text)})},onPartial:value=>{if(this.current(generation)){this.setData({partialAnswer:value,status:text.composing});this.scrollChatToLatest()}},onCancelReady:cancel=>{if(this.current(generation))this.__cancel=cancel;else cancel()}})
     if(!this.current(generation))return
     if(result?.mode!=='ai'||result.providerStatus!=='connected'||result.partial===true||!result.answer||!Array.isArray(result.turns))throw Error(text.incomplete)
     this.__conversation=result.conversation;this.__pending=null;this.__nextBefore=''
@@ -196,4 +196,5 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
  }
 }
 
-module.exports={createAdvisorPage}
+module.exports={createAdvisorPage,advisorStageLabel}
+function advisorStageLabel(stage,text){return stage==='searching'?'正在检索官网资料…':stage==='reading-sources'?'正在读取并核对来源…':stage==='analysis'?text.analysing:text.connecting}

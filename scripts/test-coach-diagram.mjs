@@ -8,6 +8,7 @@ assert.equal(blocks.filter(x=>x.kind==='diagram').length,1,'a real diagram must 
 assert.doesNotMatch(JSON.stringify(blocks.filter(x=>x.kind!=='diagram')),/stem-diagram-v1|"x1"/)
 const {normalizeDiagram,extractDiagrams,drawDiagram}=r.load('utils/coachDiagram')
 assert.ok(normalizeDiagram(diagram))
+assert.ok(normalizeDiagram({...diagram,elements:[{type:'polyline',points:[[0,200],[80,160],[160,100],[240,20]],label:'y = x²'},{type:'text',x:10,y:30,text:'x'.repeat(160)}]}),'server-approved polyline labels and bounded text must remain renderable')
 for(const invalid of [{...diagram,elements:[{type:'html',text:'<script/>'}]},{...diagram,width:Infinity},{...diagram,elements:[{type:'line',x1:-1,y1:1,x2:40,y2:50}]},{...diagram,elements:Array(61).fill(diagram.elements[0])},{...diagram,elements:[{type:'polyline',points:Array(101).fill([1,2])}]},{...diagram,url:'https://arbitrary.invalid/img'}])assert.equal(normalizeDiagram(invalid),null)
 const incomplete=extractDiagrams('before\n```stem-diagram\n{"version":');assert.doesNotMatch(incomplete.text,/version/);assert.match(incomplete.text,/整理/)
 const bad=extractDiagrams('before\n```stem-diagram\n{"bad":true}\n```\nafter');assert.match(bad.text,/after/);assert.equal(bad.diagrams.length,0)

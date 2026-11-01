@@ -1,18 +1,18 @@
-const TYPES={line:['x1','y1','x2','y2','arrow','label'],rect:['x','y','width','height','label'],circle:['cx','cy','r','label'],polyline:['points'],text:['x','y','text']}
+const TYPES={line:['x1','y1','x2','y2','arrow','label'],rect:['x','y','width','height','label'],circle:['cx','cy','r','label'],polyline:['points','label'],text:['x','y','text']}
 const finite=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max
-const label=(value,max=100)=>typeof value==='string'&&value.length<=max&&!/[\x00-\x08\x0b\x0c\x0e-\x1f]|https?:\/\//i.test(value)
+const label=(value,max=120)=>typeof value==='string'&&value.trim().length>0&&Array.from(value).length<=max&&!/[\x00-\x08\x0b\x0c\x0e-\x1f]|https?:\/\/|javascript:|data:|<|>|\beval\s*\(|\bfunction\s*\(/i.test(value)
 function normalizeDiagram(value){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['version','title','description','width','height','elements'].includes(k)))return null
  const {width:w,height:h,elements}=value
- if(value.version!=='stem-diagram-v1'||!finite(w,200,800)||!finite(h,120,600)||!label(value.title,100)||!label(value.description,500)||!Array.isArray(elements)||!elements.length||elements.length>60)return null
+ if(value.version!=='stem-diagram-v1'||!finite(w,200,800)||!finite(h,120,600)||!Number.isInteger(w)||!Number.isInteger(h)||!label(value.title,100)||!label(value.description,400)||!Array.isArray(elements)||!elements.length||elements.length>60)return null
  let points=0
  for(const e of elements){
   if(!e||typeof e!=='object'||Array.isArray(e)||!Object.prototype.hasOwnProperty.call(TYPES,e.type)||Object.keys(e).some(k=>k!=='type'&&!TYPES[e.type].includes(k))||e.label!==undefined&&!label(e.label))return null
   const x=n=>finite(n,0,w),y=n=>finite(n,0,h)
   if(e.type==='line'&&(!x(e.x1)||!x(e.x2)||!y(e.y1)||!y(e.y2)||e.arrow!==undefined&&typeof e.arrow!=='boolean'))return null
-  if(e.type==='rect'&&(!x(e.x)||!y(e.y)||!finite(e.width,1,w-e.x)||!finite(e.height,1,h-e.y)))return null
-  if(e.type==='circle'&&(!x(e.cx)||!y(e.cy)||!finite(e.r,1,Math.min(e.cx,w-e.cx,e.cy,h-e.cy))))return null
-  if(e.type==='text'&&(!x(e.x)||!y(e.y)||!label(e.text)))return null
+  if(e.type==='rect'&&(!x(e.x)||!y(e.y)||!finite(e.width,Number.MIN_VALUE,w-e.x)||!finite(e.height,Number.MIN_VALUE,h-e.y)))return null
+  if(e.type==='circle'&&(!x(e.cx)||!y(e.cy)||!finite(e.r,Number.MIN_VALUE,Math.min(e.cx,w-e.cx,e.cy,h-e.cy))))return null
+  if(e.type==='text'&&(!x(e.x)||!y(e.y)||!label(e.text,160)))return null
   if(e.type==='polyline'){
    if(!Array.isArray(e.points)||e.points.length<2||e.points.length>100||e.points.some(p=>!Array.isArray(p)||p.length!==2||!x(p[0])||!y(p[1])))return null
    points+=e.points.length;if(points>1200)return null
@@ -43,7 +43,7 @@ function drawDiagram(ctx,diagram,width,height){
    text(e.label,(e.x1+e.x2)/2+6/s,(e.y1+e.y2)/2-6/s)
   }else if(e.type==='rect'){ctx.rect(e.x,e.y,e.width,e.height);ctx.stroke();text(e.label,e.x+6/s,e.y+e.height/2+5/s)}
   else if(e.type==='circle'){ctx.arc(e.cx,e.cy,e.r,0,Math.PI*2);ctx.stroke();text(e.label,e.cx-e.r/2,e.cy+5/s)}
-  else if(e.type==='polyline'){e.points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke()}
+  else if(e.type==='polyline'){e.points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();const last=e.points[e.points.length-1];text(e.label,last[0]+6/s,last[1]-6/s)}
   else text(e.text,e.x,e.y)
  }
  ctx.restore()

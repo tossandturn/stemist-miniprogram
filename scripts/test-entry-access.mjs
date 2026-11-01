@@ -32,4 +32,9 @@ for(const route of [...manifest.pages,...manifest.subPackages.flatMap(s=>s.pages
  assert.equal(/entryPublic\s*:\s*true/.test(source),publicRoute,'only login and privacy are public: '+route)
  if(!publicRoute)assert.match(fs.readFileSync(new URL('../'+route+'.wxml',import.meta.url),'utf8'),/^<block wx:if="\{\{!__entryGateBlocked\}\}">/,'protect render and child lifetimes: '+route)
 }
+let foregroundApp,rechecks=0,revoked=false
+const foreground=miniRuntime({globals:{App:value=>{foregroundApp=value},getCurrentPages:()=>[{onShow(){rechecks++}}]},wx:{getPrivacySetting:o=>o.success({needAuthorization:revoked})}})
+foreground.load('app');foreground.load('utils/entryAccess').acceptConsent();revoked=true;await foregroundApp.onShow()
+assert.equal(rechecks,1,'foreground privacy revocation must re-run the current page gate')
+assert.equal(foreground.load('utils/entryAccess').consentAccepted(),false)
 console.log('PASS mandatory login: privacy first, no guest side effects, explicit exit, safe return, expiry and owner isolation')

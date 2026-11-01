@@ -30,5 +30,8 @@ App({
     // explicitly; Page registration prevents protected onLoad side effects.
     prepareEntry().then(allowed => allowed && consentAccepted() ? ensureWeChatSession({ silent: true }) : {status:'consent-required'}).then((result) => { this.globalData.wechatAuth = result }).catch((error) => { this.globalData.wechatAuth = { status: 'unavailable', errorCode: error && error.code } })
   },
-  onShow() { this.globalData.deviceProfile = readDeviceProfile() },
+  onShow() {
+    this.globalData.deviceProfile = readDeviceProfile()
+    return prepareEntry().then(allowed=>{if(!allowed)getCurrentPages().slice(-1)[0]?.onShow?.()})
+  },
 })
