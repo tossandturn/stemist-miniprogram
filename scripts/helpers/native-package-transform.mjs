@@ -12,7 +12,7 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
-    id: 'lossless-native-task-text-v1',
+    id: 'lossless-native-task-text-v2-ascii',
     paths: Object.freeze(['utils/ieltsTaskBootstrap.js']),
     losslessTaskText: true,
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
