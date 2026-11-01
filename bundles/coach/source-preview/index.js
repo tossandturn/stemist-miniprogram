@@ -1,5 +1,5 @@
 const {requestJson}=require('../../../utils/api')
-const {normalizeSources}=require('../admissionsSources')
+const {normalizeSources,sourceTime}=require('../admissionsSources')
 const identity=()=>String(wx.getStorageSync('stemistUser')?.id||'guest')+':'+String(wx.getStorageSync('stemistPrivacyEpoch')||0)
 Component({
  properties:{sources:{type:Array,value:[]},conversationId:{type:String,value:''},turnId:{type:String,value:''},autoPreview:{type:Boolean,value:false}},
@@ -29,7 +29,7 @@ Component({
     if(!this.current(generation))return
     const preview=response?.preview
     if(preview?.kind!=='static-webpage-screenshot'){
-     this.patch(id,{busy:false,previewKind:'excerpt-card',previewLabel:'官网原文摘录 · 非网页截图',note:'未能生成网页截图，已保留本次读取的原文。'})
+     this.patch(id,{busy:false,previewKind:'excerpt-card',previewStatus:preview?.status==='expired'?'expired':'fallback',previewLabel:'官网原文摘录 · 非网页截图',note:preview?.status==='expired'?'截图已超过 3 天有效期，历史原文仍可查看；需要最新资料时请重新提问。':preview?.reason==='renderer_busy'?'截图任务较多，请稍后重试；原文仍可查看。':'未能生成网页截图，已保留本次读取的原文。'})
      return
     }
     if(preview.sourceUrl!==card.url||preview.mimeType!=='image/png'||typeof preview.base64!=='string'||preview.base64.length>2800000||!/^iVBORw0KGgo[A-Za-z0-9+/=]+$/.test(preview.base64)||!Number.isInteger(preview.width)||preview.width<100||preview.width>1600||!Number.isInteger(preview.height)||preview.height<100||preview.height>2400||!Number.isFinite(Date.parse(preview.capturedAt)))throw Error('invalid-preview')
@@ -39,7 +39,7 @@ Component({
     this.__files.add(filePath)
     await new Promise((resolve,reject)=>wx.getFileSystemManager().writeFile({filePath,data:preview.base64,encoding:'base64',success:resolve,fail:reject}))
     if(!this.current(generation)){try{wx.getFileSystemManager().unlink({filePath,fail(){}})}catch{};this.__files.delete(filePath);return}
-    this.patch(id,{busy:false,imagePath:filePath,previewKind:'static-webpage-screenshot',previewLabel:'静态网页截图 · '+preview.capturedAt.slice(0,10),note:'截图供核对；动态内容可能未显示，以已读取原文为准。'})
+    this.patch(id,{busy:false,imagePath:filePath,previewKind:'static-webpage-screenshot',previewLabel:'静态网页截图 · '+sourceTime(preview.capturedAt),note:(String(preview.reason||'').startsWith('page_first_screen')?'官网首屏；未定位到要求区。':'')+'未运行网页脚本，部分图片或动态内容可能未显示；请结合原文核对。'})
    }catch{
     if(this.current(generation))this.patch(id,{busy:false,previewKind:'excerpt-card',previewLabel:'官网原文摘录 · 非网页截图',note:'截图暂不可用，可重试；文字答复和原文仍可查看。'})
    }
