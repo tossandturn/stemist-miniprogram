@@ -42,6 +42,13 @@ const ambiguous='**最终答案**\n$x=4$\n\n**最终答案**\n$y=5$'
 assert.equal(JSON.stringify(api.modularAnswer(ambiguous)),JSON.stringify(api.academicAnswer(ambiguous)),'do not guess question correspondence')
 const legacy='图片不清楚，请重新拍摄。'
 assert.equal(JSON.stringify(api.modularAnswer(legacy)),JSON.stringify(api.academicAnswer(legacy)))
+const plainHeadings=api.modularAnswer('答案\n- 最终答案：\\(N=19.6\\,\\mathrm{N}\\)，方向向上。\n\n解题步骤\n1. 物体静止，合力为零。\n2. 由 N-mg=0 代入数据。\n\n检验\n单位为牛顿。')
+assert.deepEqual(Array.from(plainHeadings.sections,s=>s.kind),['answer','steps'],'real model headings without Markdown must retain answer/steps modules')
+assert.match(body(plainHeadings.sections[0]),/19.6/)
+assert.doesNotMatch(body(plainHeadings.sections[0]),/物体静止/)
+assert.match(body(plainHeadings.sections[1]),/物体静止/)
+assert.match(body(plainHeadings.sections[1]),/检验/)
+assert.equal(api.academicAnswer('答案不唯一，要核对边界条件。').sections[0].title,'','ordinary sentences are not headings')
 const component=runtime.load('components/answer-content/index')
 assert.equal(component.properties.modular.value,false)
 const view={data:{text:solution,academic:true,modular:true,compact:false},setData(patch){Object.assign(this.data,patch)}}

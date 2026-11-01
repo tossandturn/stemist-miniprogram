@@ -69,7 +69,7 @@ function academicAnswer(value){
     const nodes=[element('table','border-collapse:collapse;min-width:100%;',rows.map((row,index)=>element('tr','',cells(row).map(cell=>element(index?'td':'th','border:1px solid #e4e7f0;padding:8px 10px;text-align:left;white-space:nowrap;',inline(cell.trim()))))))]
     add('table',nodes);continue
    }
-   const heading=line.match(/^#{1,6}\s+(.{1,80})$/)||line.match(/^\*\*([^*\n]{1,50})\*\*\s*$/)
+   const heading=line.match(/^#{1,6}\s+(.{1,80})$/)||line.match(/^\*\*([^*\n]{1,50})\*\*\s*$/)||line.match(/^(答案|最终答案|结论|解题步骤|步骤|检验|检查|验算|验证|final answer|answer|conclusion|solution|steps|check|verification)[：:]?$/i)
    const label=line.match(/^\*\*([^*\n]{1,30})[：:]?\*\*[：:]?\s*(.+)$/)||line.match(/^([^：:]{1,30})[：:]\s*(.+)$/)
    if(heading&&!/[=^\\]/.test(heading[1])){section(heading[1].replace(/[：:]$/,''));continue}
    if(label&&/^(?:结论|答案|最终答案|解题步骤|关键概念|方法方向|下一步动作|检验习惯|检验|检查|易错点|final answer|answer|solution|steps|check|verification)[：:]?$/i.test(label[1])){
