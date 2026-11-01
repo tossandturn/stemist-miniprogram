@@ -10,7 +10,7 @@ function normalizeSources(value){
  const result=[],seen=new Set()
  for(const source of Array.isArray(value)?value:[]){
   const id=clean(source?.id,40),url=publicUrl(source?.url),title=clean(source?.title,180),retrievedAt=clean(source?.retrievedAt,40)
-  if(!/^S[1-8]-[a-f0-9]{12}$/.test(id)||!url||!title||!/^\d{4}-\d{2}-\d{2}T/.test(retrievedAt)||!Number.isFinite(Date.parse(retrievedAt))||seen.has(id))continue
+  if(!/^S[1-8]-(?:[a-f0-9]{12}|[a-f0-9]{24})$/.test(id)||!url||!title||!/^\d{4}-\d{2}-\d{2}T/.test(retrievedAt)||!Number.isFinite(Date.parse(retrievedAt))||seen.has(id))continue
   const years=(Array.isArray(source.applicableYears)?source.applicableYears:[]).filter(x=>/^20\d{2}$/.test(String(x))).slice(0,6)
   const verification=source.verification||{},target=/^20\d{2}$/.test(String(verification.requestedYear||''))?String(verification.requestedYear):''
   const institution=verification.kind==='institution-requirements'

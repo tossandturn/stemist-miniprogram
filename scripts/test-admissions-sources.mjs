@@ -4,6 +4,7 @@ import {miniRuntime,deferred,settle} from './helpers/mini-runtime.mjs'
 const source={id:'S1-0123456789ab',title:'Mechanical Engineering',url:'https://www.imperial.ac.uk/study/courses/undergraduate/mechanical-engineering/',retrievedAt:'2026-11-02T01:00:00Z',excerpt:'A* A A including Mathematics and Physics.',applicableYears:['2027'],verification:{kind:'course-requirements',requestedYear:'2027',yearMatched:true}}
 const r=miniRuntime(),mod=r.load('bundles/coach/admissionsSources')
 assert.equal(mod.normalizeSources([source])[0].excerpt,source.excerpt)
+assert.equal(mod.normalizeSources([{...source,id:'S1-f992be625c4c473209a3d3a2'}]).length,1,'current server source nonces contain 24 hex characters; legacy 12-character references remain readable')
 assert.match(mod.normalizeSources([source])[0].yearLabel,/2027/)
 assert.equal(mod.normalizeSources([{...source,url:'http://127.0.0.1/'}]).length,0)
 assert.equal(mod.normalizeSources([{...source,url:'https://site.test/?token=abc'}]).length,0)
