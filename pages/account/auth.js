@@ -1,4 +1,5 @@
 Page({
+ entryPublic:true,
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:{error:''},
  onLoad(){this.openAccount()},

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page review-page {{deviceClass}} {{orientation}}">
   <stemist-header title="错题讲解" compact="{{true}}" />
   <view class="review-card">
@@ -15,3 +16,5 @@
   </view>
   <canvas type="2d" id="review-canvas" class="review-canvas" aria-hidden="true"></canvas>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

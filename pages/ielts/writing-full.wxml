@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} writing-full-page">
 <stemist-header compact="{{true}}" title="完整写作" action-text="返回" bind:action="back"/><ai-fab source="writing" category="ielts"/>
 <view wx:if="{{sourceReviewRequired}}" class="source-guard source-guard-review"><text class="source-guard-title">完整写作题源已更新</text><text>两篇作文、照片和旧批改记录都已保留。请先查看当前两题，再由你确认是否改用。</text><view class="source-guard-actions"><button class="secondary" bindtap="viewSourceUpdate">{{sourcePreview ? '收起新题' : '查看新题'}}</button><button wx:if="{{sourcePreview}}" class="primary" bindtap="confirmSourceUpdate">确认改用当前两题</button></view></view>
@@ -22,3 +23,5 @@
 <view class="pair-footer"><text>{{status}}</text><text wx:if="{{timeExpired}}">时间已到，作文已保留。</text><button wx:if="{{phase !== 'done'}}" class="primary" loading="{{busy}}" disabled="{{busy || loading || !sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired}}" bindtap="submit">{{canRetry ? '继续查看批改' : '提交两篇作文'}}</button><button wx:elif="{{!sourceReviewRequired && sourceAvailability === 'ready'}}" class="secondary" bindtap="startNew">再练一次</button></view>
 <view wx:if="{{feedback}}" class="pair-result"><text wx:if="{{!sourceResolved || sourceAvailability !== 'ready' || sourceReviewRequired}}" class="source-archive-note">以下是已保存的旧题批改记录，不会用于当前题目。</text><text wx:if="{{band !== null}}" class="pair-title">AI 练习估分 · {{band}}</text><text wx:if="{{band !== null}}">Task 1 : Task 2 = 1 : 2</text><text class="warning">{{warning}}</text><answer-content text="{{feedback}}"/><button wx:if="{{reportUrl}}" class="secondary" bindtap="downloadReport" loading="{{downloading}}" disabled="{{downloading}}">下载批改报告</button><pdf-download-progress state="{{reportDownload}}" compact="{{true}}" bind:cancel="cancelReportDownload" bind:retry="retryReportDownload" /></view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

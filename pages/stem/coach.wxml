@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} coach-page">
  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{context.category}}" family="{{context.family}}" route-id="{{context.routeId}}" stage="{{context.stage}}" subject-code="{{context.subjectCode}}" />
  <view class="legacy-coach-topbar"><text class="route-pill">{{contextLabel}}</text><button bindtap="retake" disabled="{{loading || syncing}}">重拍</button></view>
@@ -7,3 +8,5 @@
  </view>
  <view wx:if="{{syncStatus}}" class="status-line"><text>{{syncStatus}}</text></view><button wx:if="{{syncFailed}}" class="text-button" bindtap="retrySync" disabled="{{syncing}}">{{syncing ? '同步中…' : '重新同步学习记录'}}</button>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} university-page">
  <stemist-header compact="{{true}}" title="大学排名与官网" />
  <app-nav active="practice" source="university-directory" is-tablet="{{isTablet}}" show-ai="{{false}}" />
@@ -72,3 +73,5 @@
   <view wx:if="{{error && loaded}}" class="error" role="alert">{{error}}</view>
  </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

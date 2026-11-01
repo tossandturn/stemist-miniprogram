@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} coach-hub-page">
   <view class="hub-toolbar"><stemist-header compact="{{true}}" title="选择功能" /><button class="saved-task-entry" bindtap="openTasks">答疑任务<text aria-hidden="true"> ›</text></button></view>
   <app-nav id="coach-hub-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
@@ -9,3 +10,5 @@
     </button>
   </view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} tavern-page {{presetChosen && !selectorOpen ? 'chat-active' : ''}} {{keyboardOpen ? 'keyboard-open' : ''}} {{keyboardOpen && chatViewportHeight < 260 ? 'compact-chat' : ''}}" style="{{presetChosen && !selectorOpen ? 'height:' + chatViewportHeight + 'px' : ''}}">
   <stemist-header wx:if="{{selectorOpen || !presetChosen}}" compact="{{true}}" eyebrow="AI 休闲酒馆" title="星光酒馆" />
   <app-nav wx:if="{{selectorOpen || !presetChosen}}" id="tavern-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
@@ -78,3 +79,5 @@
   </view>
   <view wx:if="{{!presetChosen && error}}" class="error">{{error}}</view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

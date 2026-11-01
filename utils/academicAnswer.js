@@ -1,13 +1,14 @@
 // STEM-only presentation. Keep formula boundaries; never interpret provider HTML.
 const {answerSource,dollarMath}=require('./nativeAnswer')
 const {mathNodes,formulaBlock,formatMathSource}=require('./nativeMath')
+const {extractDiagrams}=require('./coachDiagram')
 const text=value=>({type:'text',text:value})
 const element=(name,style,children)=>({name,attrs:{style},children})
 const MAX_BLOCKS=120,MAX_SECTIONS=40
 function academicAnswer(value){
- const {plain,links,sourceTruncated}=answerSource(value),sections=[]
+ const extracted=extractDiagrams(value),{plain,links,sourceTruncated}=answerSource(extracted.text),sections=[]
  const budget={remaining:1200,truncated:false,academic:true}
- let count=0,current=null,truncated=sourceTruncated
+ let count=0,current=null,truncated=sourceTruncated||extracted.truncated
  function section(title=''){
   if(sections.length>=MAX_SECTIONS){truncated=true;return}
   const kind=/^(?:最终答案|答案|结论|final answer|answer|conclusion)[：:]?$/i.test(title)?'result':/^(?:检验|检查|验算|验证|check|verification)[：:]?$/i.test(title)?'check':'explanation'
@@ -58,6 +59,8 @@ function academicAnswer(value){
   for(let i=0;i<lines.length;i++){
    if(count>=MAX_BLOCKS||budget.remaining<=0){truncated=true;break}
    const line=lines[i].trim();if(!line||/^[-*_]{3,}$/.test(line)||/^```(?:latex|math)?\s*$/.test(line))continue
+   const graphic=line.match(/^@@STEM-DIAGRAM:(\d+)@@$/)
+   if(graphic&&extracted.diagrams[Number(graphic[1])]){add('diagram',[],{diagram:extracted.diagrams[Number(graphic[1])]});continue}
    if(line.startsWith('|')&&/^\s*\|?\s*:?-{3,}/.test(lines[i+1]||'')){
     const rows=[line];i+=2
     while(i<lines.length&&lines[i].trim().startsWith('|')&&rows.length<30)rows.push(lines[i++].trim())

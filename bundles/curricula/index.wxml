@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} curriculum-page">
  <stemist-header title="{{boardLabel ? boardLabel + ' 真题资料' : 'AP / IB 真题资料'}}" />
  <app-nav active="practice" source="curriculum-papers" is-tablet="{{isTablet}}" />
@@ -37,3 +38,5 @@
   </block>
  </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

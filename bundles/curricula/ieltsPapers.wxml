@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} ielts-downloads">
  <stemist-header compact="{{true}}" title="剑雅资料下载" action-text="返回" bind:action="back"/>
  <view class="quota-note">PDF 题目、答案与听力音频合计每天免费 2 份；会员不限份数。打开本地缓存不扣次数。</view>
@@ -36,3 +37,5 @@
  <view wx:if="{{!loading && !items.length && !error}}" class="empty-state">暂无这一分类的资料。</view>
  <view wx:if="{{pages > 1}}" class="pager"><button disabled="{{page <= 0 || pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pages}}</text><button disabled="{{page + 1 >= pages || pdfPreparing || pdfDownload.active || audioDownload.active || audioDownload.sharing}}" bindtap="next">下一页</button></view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view id="marking-page" class="page {{deviceClass}} {{orientation}} marking-page {{optionalOpen ? 'optional-open' : ''}} {{actionVisible ? 'has-primary-action' : ''}} {{jobId ? 'has-job' : ''}} {{jobId && jobStatus !== 'draft' ? 'job-readonly' : ''}}">
  <app-nav id="marking-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
  <stemist-header compact="{{true}}" title="整卷批改" />
@@ -88,3 +89,5 @@
   </view>
  </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

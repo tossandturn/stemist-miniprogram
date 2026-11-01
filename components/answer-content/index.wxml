@@ -3,7 +3,8 @@
 <view wx:for="{{sections}}" wx:for-item="section" wx:key="id" class="answer-section section-{{section.kind}}">
 <view wx:if="{{section.title}}" class="answer-section-title" role="heading">{{section.title}}</view>
 <view wx:for="{{section.blocks}}" wx:for-item="block" wx:key="id" class="answer-block block-{{block.kind}}">
-<scroll-view wx:if="{{block.kind === 'formula' || block.kind === 'table'}}" class="answer-formula-scroll" scroll-x="{{true}}" enhanced="{{true}}" show-scrollbar="{{true}}" aria-label="公式或表格，内容较宽时可左右滑动">
+<coach-diagram wx:if="{{block.kind === 'diagram'}}" diagram="{{block.diagram}}" />
+<scroll-view wx:elif="{{block.kind === 'formula' || block.kind === 'table'}}" class="answer-formula-scroll" scroll-x="{{true}}" enhanced="{{true}}" show-scrollbar="{{true}}" aria-label="公式或表格，内容较宽时可左右滑动">
 <view class="answer-formula-content">
 <rich-text nodes="{{block.nodes}}" user-select="{{true}}" />
 </view>

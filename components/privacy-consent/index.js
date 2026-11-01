@@ -1,5 +1,5 @@
 Component({
- properties:{contractName:{type:String,value:'用户隐私保护指引'},purpose:{type:String,value:''},buttonText:{type:String,value:'同意并继续'}},
+ properties:{contractName:{type:String,value:'用户隐私保护指引'},purpose:{type:String,value:''},buttonText:{type:String,value:'同意并继续'},nativeRequired:{type:Boolean,value:true}},
  data:{checked:false,busy:false,error:''},
  lifetimes:{attached(){this.__disposed=false;this.__verification=0},detached(){this.__disposed=true;this.__verification++;clearTimeout(this.__verificationTimer)}},
  methods:{

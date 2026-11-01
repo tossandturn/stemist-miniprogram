@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} home-page">
   <view class="home-brand"><view class="brand-mark">S</view><text class="brand-title">STEMist</text></view>
   <ai-fab source="home" />
@@ -30,3 +31,5 @@
   <block wx:for="{{secondaryLinks}}" wx:key="id"><button wx:if="{{item.id !== 'university-directory'}}" class="home-account text-button" data-secondary="{{item.id}}" bindtap="openSecondary">{{item.label}}</button></block>
   <button class="home-share secondary" open-type="share">分享给好友</button>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

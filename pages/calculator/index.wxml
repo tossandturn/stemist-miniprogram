@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <template name="cw-key">
   <button class="calc-key cw-key cw-id-{{key.id}} {{control ? 'cw-control' : ''}} {{numeric ? 'cw-number' : ''}} {{key.tone === 'shift' ? 'cw-shift' : ''}} {{key.tone === 'alpha' ? 'cnx-alpha' : ''}} {{key.action === 'equals' ? 'calc-equals' : ''}} {{key.action === 'format' ? 'cw-format-key' : ''}} {{shiftActive && key.action === 'shift' ? 'shift-on' : ''}} {{alphaActive && key.action === 'alpha' ? 'alpha-on' : ''}} {{shiftActive && key.shiftLabel ? 'cw-alt-ready' : ''}} {{alphaActive && key.alphaLabel ? 'cnx-alpha-ready' : ''}} {{key.unavailable ? 'cw-key-limited' : ''}}" style="{{control ? 'grid-column:' + key.col + ';grid-row:' + key.row : ''}}" data-key="{{key.id}}" data-action="{{key.action || ''}}" data-value="{{key.value || ''}}" data-shift-action="{{key.shiftAction || ''}}" data-shift-value="{{key.shiftValue || ''}}" data-alpha-action="{{key.alphaAction || ''}}" data-alpha-value="{{key.alphaValue || ''}}" bindtap="press" hover-class="cw-key-pressed" hover-stay-time="80" aria-pressed="{{key.action === 'shift' ? shiftActive : key.action === 'alpha' ? alphaActive : false}}" aria-label="{{alphaActive && key.alphaLabel ? 'ALPHA ' + key.alphaLabel : shiftActive && key.shiftLabel ? 'SHIFT ' + key.shiftLabel : key.label || key.action}}">
     <text class="cw-legend cw-shift-legend {{control && !key.shiftLabel && !key.alphaLabel && key.action !== 'shift' && key.action !== 'alpha' ? 'cw-control-legend' : ''}} {{!control && key.shiftLabel ? 'cw-second-legend' : ''}}">{{control && !key.shiftLabel && !key.alphaLabel ? key.label : key.shiftLabel || ' '}}</text>
@@ -68,3 +69,5 @@
     </view>
   </view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

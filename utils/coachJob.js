@@ -16,7 +16,10 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
  const current=()=>{if(owner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||epoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))throw error('账号已变化，请重新打开答疑。','account_changed',409)}
  const key='stemistCoachJobs:'+owner+':'+epoch,hash=fingerprint(payload),now=Date.now()
  let records=wx.getStorageSync(key);records=Array.isArray(records)?records.filter(r=>r&&/^[a-f0-9]{64}$/.test(r.hash)&&/^cj-[a-zA-Z0-9_-]{16,80}$/.test(r.id)&&r.expires>now).slice(-5):[]
- let record=records.find(r=>r.hash===hash),known=Boolean(record)
+ let record=records.find(r=>r.hash===hash)
+ // Upgrade capability must not orphan an already submitted text-only request.
+ if(!record&&payload.diagramFormat==='stem-diagram-v1'){const {diagramFormat,...legacyPayload}=payload;record=records.find(r=>r.hash===fingerprint(legacyPayload));if(record)payload=legacyPayload}
+ const known=Boolean(record)
  timing.replayed=known;timing.requestPreparationMs=elapsed()
  if(!record){record={hash,id:'cj-'+now.toString(36)+'-'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2),expires:now+(payload.saveTask===true?259200000:payload.saveTask===false?600000:TTL)};records.push(record)}
  try{wx.setStorageSync(key,records)}catch{return Promise.reject(error('本机暂时无法保存答疑进度，请释放小程序存储后重试。','coach_job_storage'))}

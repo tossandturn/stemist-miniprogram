@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} membership-page">
   <stemist-header compact="{{true}}" title="会员中心" action-text="返回" bind:action="goBack" />
   <app-nav active="account" source="account" is-tablet="{{isTablet}}" show-ai="{{false}}" />
@@ -60,3 +61,5 @@
     </view>
   </view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

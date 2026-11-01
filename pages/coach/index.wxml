@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} coach-home-page">
  <app-nav id="coach-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" category="{{routeContext.category}}" family="{{routeContext.family}}" />
  <view class="coach-topbar">
@@ -18,3 +19,5 @@
  </view>
  <view class="coach-actions"><button wx:if="{{error && imagePath}}" class="secondary coach-recrop-recovery" bindtap="recropImage" disabled="{{loading || mediaBusy}}">裁剪后重试</button><button class="text-button" bindtap="clear" disabled="{{loading || mediaBusy}}">清空对话</button></view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

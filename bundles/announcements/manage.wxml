@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} announcement-manager-page">
   <stemist-header title="管理公告" />
   <app-nav active="today" source="announcement-manager" is-tablet="{{isTablet}}" />
@@ -19,3 +20,5 @@
     <view class="announcement-manager-list"><view class="announcement-manager-list-head"><text>已有公告</text><text>{{items.length}} 条</text></view><view wx:for="{{items}}" wx:key="id" class="announcement-manager-card"><view><text class="announcement-manager-card-title">{{item.title}}</text><text class="announcement-manager-card-meta">{{item.status === 'published' ? '已发布' : item.status === 'draft' ? '草稿' : '已下线'}} · {{item.categoryLabel}}</text></view><view class="announcement-manager-card-actions"><button class="text-button" data-id="{{item.id}}" bindtap="editAnnouncement" disabled="{{saving}}">编辑</button><button wx:if="{{item.status !== 'archived'}}" class="text-button announcement-archive" data-id="{{item.id}}" bindtap="archiveAnnouncement" disabled="{{saving}}">下线</button></view></view></view>
   </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

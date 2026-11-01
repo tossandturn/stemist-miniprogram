@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} topics-page">
   <stemist-header title="章节练习" subtitle="{{title}}" />
   <app-nav active="practice" source="practice" category="alevel" family="exam" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" is-tablet="{{isTablet}}" />
@@ -34,3 +35,5 @@
     </view>
   </view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

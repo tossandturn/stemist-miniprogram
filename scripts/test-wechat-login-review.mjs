@@ -84,21 +84,22 @@ assert.equal(switchedRequests,0,'A pre-code account switch blocks the stale WeCh
 assert.equal(switched.storage.get('stemistUser').id,'ielts:999')
 assert.equal(switched.storage.get('stemistSessionToken'),'new-owner-token')
 
-// Account page: login never forces profile onboarding; cancel/back is visible,
-// cancels the active exchange, and root/failing back navigation reaches Home.
+// Account page: login never forces profile onboarding. The 2026-11-01
+// mandatory-entry policy replaces guest Home with a real exit/cancel action.
 const accountMarkup=fs.readFileSync(new URL('../bundles/account/auth.wxml',import.meta.url),'utf8')
 const accountSource=fs.readFileSync(new URL('../bundles/account/auth.js',import.meta.url),'utf8')
-assert.match(accountMarkup,/暂不登录，返回浏览/)
+assert.match(accountMarkup,/取消登录并退出/)
 assert.match(accountMarkup,/同步学习记录|会员/)
 assert.match(accountMarkup,/使用 IELTSist 账号/)
 assert.doesNotMatch(accountMarkup,/创建账号|注册/,'Native account page no longer promotes new username registration')
 assert.doesNotMatch(accountSource,/openWeChatProfileOnboarding|shouldShowOnboarding|markOnboardingShown/)
 
-const loginGate=deferred();let cancelCalls=0,toasts=0
-const rootAccount=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:loginGate.promise,cancel(){cancelCalls++;return true}})}},wx:{showToast(){toasts++}}})
+function consentReady(runtime){runtime.wx.getPrivacySetting=o=>o.success({needAuthorization:false});runtime.load('utils/entryAccess').acceptConsent()}
+const loginGate=deferred();let cancelCalls=0,toasts=0,exits=0
+const rootAccount=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:loginGate.promise,cancel(){cancelCalls++;return true}})}},wx:{showToast(){toasts++},exitMiniProgram(){exits++}}});consentReady(rootAccount)
 const rootPage=rootAccount.page('bundles/account/auth');rootPage.onShow();const pageLogin=rootPage.loginWechat();await settle();rootPage.goBack()
 assert.equal(cancelCalls,1)
-assert.equal(rootAccount.calls.at(-1).url,'/pages/index/index','Root account cancel returns to safe Home')
+assert.equal(exits,1,'Root account cancel actually exits instead of opening guest Home')
 loginGate.resolve({status:'authenticated',user:{id:'ielts:42',username:'wechat_user'}});await pageLogin
 assert.equal(toasts,0,'Cancelled login never shows a late success toast')
 assert.equal(rootAccount.calls.some(call=>String(call.url||'').includes('/bundles/account/profile')),false)
@@ -106,11 +107,11 @@ assert.equal(rootAccount.calls.some(call=>String(call.url||'').includes('/bundle
 let nestedBack
 const nested=miniRuntime({globals:{getCurrentPages:()=>[{},{}]},modules:{'utils/wechatAuth':{beginWeChatLogin(){throw Error('unused')}}},wx:{navigateBack(options){nestedBack=options;options.fail?.({errMsg:'navigateBack:fail'})}}})
 const nestedPage=nested.page('bundles/account/auth');nestedPage.onShow();nestedPage.goBack()
-assert.ok(nestedBack)
-assert.equal(nested.calls.at(-1).url,'/pages/index/index','Failed nested back also falls back to Home')
+assert.equal(nestedBack,undefined,'A guest must not navigate back into application features')
+assert.match(nestedPage.data.error,/关闭小程序/,'Unsupported exit has a visible recovery instruction')
 
 let success
-success=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:Promise.resolve().then(()=>{const user={id:'ielts:99',username:'wechat_user',displayName:'',avatarDataUrl:''};success.storage.set('stemistSessionToken','stored-token');success.storage.set('stemistUser',user);return{status:'authenticated',user}}),cancel(){return false}})}},wx:{showToast(){}}})
+success=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:Promise.resolve().then(()=>{const user={id:'ielts:99',username:'wechat_user',displayName:'',avatarDataUrl:''};success.storage.set('stemistSessionToken','stored-token');success.storage.set('stemistUser',user);success.storage.set('stemistSessionMeta',{owner:user.id,expiresAt:new Date(Date.now()+300000).toISOString()});return{status:'authenticated',user}}),cancel(){return false}})}},wx:{showToast(){}}});consentReady(success)
 const successPage=success.page('bundles/account/auth');successPage.onShow();await successPage.loginWechat();successPage.onShow()
 assert.equal(success.calls.some(call=>String(call.url||'').includes('/bundles/account/profile')),false,'Login and later onShow never auto-open optional profile')
 assert.equal(successPage.data.user.id,'ielts:99')
@@ -146,6 +147,7 @@ const passwordRuntime=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin
  request(options){const entry={options};passwordRequests.push(entry);return{abort(){passwordAborts++}}},
  showToast(){passwordToasts++},
 }})
+consentReady(passwordRuntime)
 passwordRuntime.storage.set('stemistPrivacyEpoch',5)
 passwordRuntime.storage.set('stemistDraft:writing',{text:'keep password draft'})
 const passwordPage=passwordRuntime.page('bundles/account/auth');passwordPage.onShow();passwordPage.setData({username:'existing_user',password:'fixture-pass'})
@@ -171,6 +173,7 @@ assert.equal(passwordToasts,1)
 
 let switchedPasswordRequest
 const passwordSwitch=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin(){throw Error('unused')}}},wx:{request(options){switchedPasswordRequest=options;return{abort(){}}},showToast(){}}})
+consentReady(passwordSwitch)
 const switchedPasswordPage=passwordSwitch.page('bundles/account/auth');switchedPasswordPage.onShow();switchedPasswordPage.setData({username:'existing_user',password:'fixture-pass'})
 const stalePassword=switchedPasswordPage.submit();await settle()
 passwordSwitch.storage.set('stemistPrivacyEpoch',6);passwordSwitch.storage.set('stemistUser',{id:'ielts:999'});passwordSwitch.storage.set('stemistSessionToken','newer-token');passwordSwitch.storage.set('stemistNativeSessionCookie','C'.repeat(32))
@@ -213,4 +216,4 @@ const avatarProfile=miniRuntime({modules:{'bundles/account/profileData':{
 const avatarPage=avatarProfile.page('bundles/account/profile');await avatarPage.onLoad();const choosing=avatarPage.chooseAvatar({detail:{avatarUrl:'wxfile://late-avatar'}});await settle();avatarPage.goBack();avatarGate.resolve('data:image/png;base64,LATE');await choosing
 assert.equal(avatarPage.data.avatarDataUrl,'','Late avatar processing cannot update a page after exit')
 
-console.log('WeChat review login: explicit cancellation, guest browsing, safe back, optional profile and lifecycle fences PASS')
+console.log('WeChat review login: privacy first, explicit cancellation/exit, optional profile and lifecycle fences PASS')

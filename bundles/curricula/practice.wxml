@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} curriculum-practice-page">
  <stemist-header title="AP 选择题练习" />
  <app-nav id="practice-app-nav" active="practice" source="curriculum-practice" is-tablet="{{isTablet}}" />
@@ -35,3 +36,5 @@
  </block>
  <view wx:if="{{error && phase === 'setup'}}" class="error" role="alert"><text>{{error}}</text><button wx:if="{{!routeOptions.length}}" class="secondary" bindtap="loadCatalog" disabled="{{loading}}">重新加载练习</button></view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} native-paper-page">
 <view class="paper-sticky-head"><stemist-header compact="{{true}}" title="{{category === 'competition' ? '竞赛真题' : stage + ' 真题'}}" action-text="返回" bind:action="back"/>
 <ai-fab wx:if="{{mode !== 'exam-simulation' || submitted}}" source="{{category}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subject}}" category="{{category}}" family="{{family}}"/></view>
@@ -94,3 +95,5 @@
 </view>
 </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

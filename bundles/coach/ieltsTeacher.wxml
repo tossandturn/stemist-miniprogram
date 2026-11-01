@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="admissions-page ielts-teacher-page {{deviceClass}} {{orientation}} {{keyboardOpen ? 'keyboard-open' : ''}} {{keyboardOpen && chatViewportHeight < 260 ? 'compact-chat' : ''}}" style="height:{{chatViewportHeight}}px">
   <view class="advisor-header">
     <image class="advisor-avatar" src="/bundles/coach/mode-icons/ielts-teacher.svg" mode="aspectFit" aria-hidden="true" />
@@ -35,3 +36,5 @@
     <button class="send-button" bindtap="submit" loading="{{loading}}" disabled="{{loading || historyLoading || (!message && receiptState !== 'commit-deferred') || authRequired || clearPending || sendBlocked}}">{{loading ? '回复中' : receiptState === 'indeterminate' ? '等待确认' : receiptState === 'commit-deferred' ? '重试保存' : canRetry ? '重试' : '发送'}}</button>
   </view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

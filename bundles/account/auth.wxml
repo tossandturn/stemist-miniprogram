@@ -1,13 +1,23 @@
 <view class="page {{deviceClass}} {{orientation}} account-page">
-  <stemist-header title="我的账号" action-text="返回" bind:action="goBack" />
-  <app-nav active="account" source="account" is-tablet="{{isTablet}}" />
-  <view class="panel account-form">
+  <stemist-header title="{{entry ? '欢迎来到 STEMist' : '我的账号'}}" action-text="{{entry || !user ? '退出' : '返回'}}" bind:action="goBack" />
+  <app-nav wx:if="{{user && !entry}}" active="account" source="account" is-tablet="{{isTablet}}" />
+  <view wx:if="{{privacy}}" class="entry-privacy">
+    <view class="entry-privacy-card">
+    <privacy-consent wx:if="{{privacyKnown}}" native-required="{{nativePrivacyRequired}}" contract-name="{{contractName}}" purpose="登录用于核算免费下载额度、会员权益与同步记录。提交给 AI 的文字和图片由第三方 AI 服务处理；相机、麦克风另行询问，不会现在开启。" button-text="同意，继续登录" bind:agreed="agreePrivacy" />
+    <button wx:else class="secondary" bindtap="checkPrivacy">重试读取隐私许可</button>
+    <button class="text-button" bindtap="goBack">不同意并退出</button>
+    <button class="text-button" bindtap="openPrivacy">查看隐私与权限说明</button>
+    <text wx:if="{{error}}" class="error" role="alert">{{error}}</text>
+    </view>
+  </view>
+  <view wx:if="{{!privacy}}" class="panel account-form">
     <block wx:if="{{user}}"><image wx:if="{{user.avatarDataUrl}}" class="account-avatar" src="{{user.avatarDataUrl}}" mode="aspectFill" aria-label="我的头像" /><view class="card-title">{{userLabel}}</view><view class="account-purpose">账号身份用于同步学习记录并由服务端识别可用会员权益；头像与昵称为可选资料。</view><button class="text-button" bindtap="editProfile">{{user.displayName ? '修改头像与昵称（可选）' : '设置头像与昵称（可选）'}}</button><button class="text-button" bindtap="logout">退出登录</button></block>
     <block wx:else>
       <view class="card-title">微信登录</view>
-      <view class="account-purpose">登录用于同步学习记录并识别已有会员权益。不会自动读取微信头像、昵称或手机号。</view>
+      <view class="account-purpose">登录后，每天免费合计下载 2 份真题、答案 PDF 或听力音频。按账号计算，北京时间零点重置；同一文件当天重试不重复扣次。</view>
+      <view class="account-purpose">头像、昵称、手机号均非必填；登录不会自动开通付费会员。</view>
       <button class="primary wechat-login" bindtap="loginWechat" loading="{{wechatLoading}}" disabled="{{loading || wechatLoading}}">微信一键登录</button>
-      <button class="text-button guest-exit" bindtap="goBack">暂不登录，返回浏览</button>
+      <button class="text-button guest-exit" bindtap="goBack">取消登录并退出</button>
       <button class="text-button" bindtap="toggleCredentials">{{showCredentials ? '收起账号登录' : '使用 IELTSist 账号'}}</button>
       <block wx:if="{{showCredentials}}">
         <view class="field-label">用户名</view><input class="input" data-field="username" value="{{username}}" maxlength="24" cursor-spacing="24" placeholder="IELTSist 用户名" bindinput="onInput" />
@@ -17,7 +27,8 @@
     </block>
     <view wx:if="{{error}}" class="error">{{error}}</view>
   </view>
-  <button class="primary" bindtap="openMembership">会员中心</button>
-  <button class="text-button" bindtap="openIeltsAccount">已有激活码（其他方式）</button>
+  <button wx:if="{{user && entry}}" class="primary" bindtap="continueApp">进入学习</button>
+  <button wx:if="{{user && !privacy}}" class="primary" bindtap="openMembership">会员中心</button>
+  <button wx:if="{{user && !privacy}}" class="text-button" bindtap="openIeltsAccount">已有激活码（其他方式）</button>
   <button class="text-button" bindtap="openPrivacy">隐私与权限</button>
 </view>

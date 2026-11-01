@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} crop-page">
   <stemist-header title="裁剪图片" action-text="取消" bind:action="cancel" />
   <view class="crop-intro">拖动四角框选题目，框内可移动选区。</view>
@@ -23,3 +24,5 @@
   <canvas canvas-id="cropCanvas" class="hidden-canvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;" />
   <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

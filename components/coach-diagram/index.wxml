@@ -1,0 +1,7 @@
+<view class="figure">
+ <view class="title">{{title || '图示'}}</view>
+ <canvas type="2d" id="diagram-canvas" class="canvas" style="height:{{height}}px" bindtap="preview" aria-label="{{title}}，{{description}}" />
+ <text wx:if="{{description}}" class="caption">{{description}}</text>
+ <button wx:if="{{ready}}" class="zoom" bindtap="preview">放大图示</button>
+ <text wx:if="{{error}}" class="error" role="alert">{{error}}</text>
+</view>

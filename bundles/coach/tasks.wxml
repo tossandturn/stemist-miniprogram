@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} task-page">
  <stemist-header compact="{{true}}" eyebrow="AI COACH" title="已保存答疑" />
  <app-nav active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
@@ -28,3 +29,5 @@
   </block>
  </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

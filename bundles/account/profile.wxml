@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} profile-page">
   <stemist-header title="头像与昵称" action-text="返回" bind:action="goBack" />
   <view class="panel profile-card">
@@ -22,3 +23,5 @@
     <button class="text-button profile-skip" bindtap="goBack">{{saved ? '完成并返回' : '暂不设置，稍后可在我的账号编辑'}}</button>
   </view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

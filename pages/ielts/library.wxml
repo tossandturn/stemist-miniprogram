@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} ielts-library">
  <stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/><ai-fab source="ielts" category="ielts"/>
  <navigator class="secondary" url="/bundles/curricula/ieltsPapers?module={{module}}">{{module === 'listening' ? '下载题目、答案与听力音频' : '下载剑雅题目与答案'}}</navigator>
@@ -12,3 +13,5 @@
  <view wx:if="{{!items.length}}" class="empty-state">没有匹配的试题</view><view wx:if="{{pageCount > 1}}" class="native-pager"><button disabled="{{page <= 0}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pageCount}}</text><button disabled="{{page + 1 >= pageCount}}" bindtap="next">下一页</button></view></block>
  <view wx:if="{{scope === 'topic' && !topic && pageCount > 1}}" class="native-pager"><button disabled="{{page <= 0}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pageCount}}</text><button disabled="{{page + 1 >= pageCount}}" bindtap="next">下一页</button></view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

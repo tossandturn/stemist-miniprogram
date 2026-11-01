@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} speaking-page">
  <stemist-header compact="{{true}}" title="Speaking" action-text="返回" bind:action="openBack"/><ai-fab wx:if="{{!examMode}}" source="speaking" category="ielts"/>
  <view class="speaking-workspace"><view class="speaking-controls"><text class="speaking-title">{{taskTitle}}</text><text class="speaking-time">{{elapsed}}</text><text class="speaking-status">{{status || '找一个安静的地方。首次开始时，请允许使用麦克风。'}}</text>
@@ -15,3 +16,5 @@
  <view wx:if="{{showHistory}}" class="speaking-history"><view class="speaking-history-title"><text>历史练习</text><button class="text-button" bindtap="closeHistory">收起</button></view><button wx:for="{{historyRows}}" wx:key="sessionId" class="speaking-history-row" data-id="{{item.sessionId}}" bindtap="openSaved"><text>{{item.title}}</text><text>{{item.turnCount}} 条对话{{item.band !== null ? ' · Band ' + item.band : ''}}</text></button><view wx:if="{{!historyRows.length}}" class="empty-state">暂无其他已保存的练习</view><button wx:if="{{historyHasPrevious}}" class="text-button" bindtap="previousHistory">上一页</button><button wx:if="{{historyHasMore}}" class="text-button" bindtap="moreHistory">下一页</button></view>
  <view wx:if="{{scoring}}" class="loading-state">正在生成口语反馈…</view><view wx:if="{{feedback}}" class="speaking-feedback"><text wx:if="{{band !== null}}" class="speaking-title">AI 估分 · Band {{band}}</text><text class="speaking-warning">{{warning}}</text><text selectable class="feedback-text">{{feedback}}</text></view><button wx:if="{{canRetry && !permissionAction && !viewingArchive}}" class="secondary" bindtap="retry">{{retryAction === 'score' ? '重试评分' : '重试连接'}}</button><button wx:if="{{turnCount && !active}}" class="text-button" bindtap="exportTranscript">导出对话记录</button>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} ielts-downloads audio-downloads">
  <stemist-header compact="{{true}}" title="听力音频下载" action-text="返回" bind:action="back"/>
  <view class="quota-note">PDF 与听力音频合计每天免费 2 份，会员不限份数。每个不同 MP3 计 1 份；在线播放不计次，已下载缓存不重复扣次。</view>
@@ -21,3 +22,5 @@
  <view wx:if="{{!loading && !items.length && !error}}" class="empty-state">暂没有这一范围的可下载音频，可更换书册。</view>
  <view wx:if="{{pages > 1}}" class="pager"><button disabled="{{page <= 0 || download.active || download.sharing}}" bindtap="previous">上一页</button><text>{{page + 1}} / {{pages}}</text><button disabled="{{page + 1 >= pages || download.active || download.sharing}}" bindtap="next">下一页</button></view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} progress-page">
   <stemist-header eyebrow="STEMIST · PROGRESS" title="学习记录" />
   <app-nav active="progress" is-tablet="{{isTablet}}" />
@@ -23,3 +24,5 @@
 
   <view wx:if="{{remoteState === 'error'}}" class="warning">{{remoteError}} 稍后可重试。</view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

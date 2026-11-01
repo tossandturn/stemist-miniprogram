@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} native-ielts-home">
 <stemist-header compact="{{true}}" title="{{title}}" action-text="返回" bind:action="back"/>
 <ai-fab source="ielts" category="ielts"/>
@@ -50,3 +51,5 @@
  <view wx:if="{{status}}" class="native-home-status">{{status}}</view>
 <view wx:if="{{error}}" class="error">{{error}}</view>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

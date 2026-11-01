@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} vocabulary-page">
  <stemist-header compact="{{true}}" title="词汇学习" action-text="返回" bind:action="back"/>
  <ai-fab source="vocabulary" category="ielts"/>
@@ -51,3 +52,5 @@
   <block wx:elif="{{view === 'list'}}"><text class="vocab-muted">{{total}} 个词条 · 点击开始逐词学习</text><view class="vocab-grid"><button wx:for="{{items}}" wx:key="id" class="vocab-row" data-id="{{item.id}}" bindtap="openWord"><text>{{item.word}}</text><text>{{item.meaning}}</text></button></view><view class="vocab-nav"><button bindtap="previous" disabled="{{page <= 0}}">上一页</button><text>{{pageCount ? page + 1 : 0}} / {{pageCount}}</text><button bindtap="next" disabled="{{page + 1 >= pageCount}}">下一页</button></view></block>
  </block>
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

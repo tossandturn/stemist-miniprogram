@@ -1,6 +1,9 @@
 const { readDeviceProfile } = require('./utils/device')
 const { DEFAULT_API_BASE, DEFAULT_IELTS_API_BASE, safeApiBase, safeIeltsApiBase } = require('./utils/apiOrigin')
 const { ensureWeChatSession } = require('./utils/wechatAuth')
+const { wrapEntryPage, prepareEntry, consentAccepted } = require('./utils/entryAccess')
+const registerPage = Page
+Page = definition => registerPage(wrapEntryPage(definition))
 
 App({
   globalData: {
@@ -23,10 +26,9 @@ App({
       const envVersion = String(accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion || '').toLowerCase()
       this.globalData.debugMode = envVersion === 'develop' || envVersion === 'trial'
     } catch { this.globalData.debugMode = false }
-    // Background startup may refresh an existing session, but a guest remains
-    // a guest until they explicitly choose WeChat login on the account page.
-    // Authentication availability must never block the Mini Program shell.
-    ensureWeChatSession({ silent: true }).then((result) => { this.globalData.wechatAuth = result }).catch((error) => { this.globalData.wechatAuth = { status: 'unavailable', errorCode: error && error.code } })
+    // Permission precedes any existing-session refresh. Guests still log in
+    // explicitly; Page registration prevents protected onLoad side effects.
+    prepareEntry().then(allowed => allowed && consentAccepted() ? ensureWeChatSession({ silent: true }) : {status:'consent-required'}).then((result) => { this.globalData.wechatAuth = result }).catch((error) => { this.globalData.wechatAuth = { status: 'unavailable', errorCode: error && error.code } })
   },
   onShow() { this.globalData.deviceProfile = readDeviceProfile() },
 })

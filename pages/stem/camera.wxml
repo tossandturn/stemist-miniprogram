@@ -1,3 +1,4 @@
+<block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} camera-page">
   <stemist-header compact="{{true}}" title="拍照" action-text="取消" bind:action="cancel" />
   <button class="text-button camera-permission-entry" bindtap="openPermissions" disabled="{{busy}}">相机权限设置</button>
@@ -20,3 +21,5 @@
   <button wx:if="{{canUseSystemCamera && !permissionAction}}" class="text-button camera-system" bindtap="useSystemCamera" disabled="{{busy}}">使用系统相机</button>
   <ai-fab source="{{coachSource}}" category="{{category}}" family="{{family}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" />
 </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>
