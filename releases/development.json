@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.85",
+  "highestAssignedVersion": "1.0.86",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -52,6 +52,22 @@
     }
   ],
   "reconciledUploads": [
+    {
+      "version": "1.0.86",
+      "assignedOn": "2026-11-02",
+      "commit": "4a4a5ddbfec48b7ec04f43b2efcfdee716e2ad90",
+      "project": "D:\\CodexWork\\coach-agent-access-20261101/development-1.0.86-sources-v4",
+      "status": "uploaded",
+      "manifest": "D:\\CodexWork\\coach-agent-access-20261101/development-1.0.86-sources-v4-manifest.json",
+      "runtimeManifestSha256": "15f73088c9117b0b42767c6ba7a51079a8fd0bfa1c6cd0398c806c99d38c775d",
+      "scope": "首次隐私许可及必需登录；登录后每日免费两份PDF/音频；学科答疑详细步骤与原生配图；申请顾问真实官网检索、来源摘录及聊天内网页截图。",
+      "success": true,
+      "uploadConfirmedAt": "2026-11-01T18:24:41.009Z",
+      "officialInfo": "D:\\CodexWork\\coach-agent-access-20261101/wechat-upload-receipt.json",
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false,
+      "trialDesignationVerified": false
+    },
     {
       "version": "1.0.85",
       "assignedOn": "2026-11-01",
