@@ -3,7 +3,7 @@
   <app-nav wx:if="{{user && !entry}}" active="account" source="account" is-tablet="{{isTablet}}" />
   <view wx:if="{{privacy}}" class="entry-privacy">
     <view class="entry-privacy-card">
-    <privacy-consent wx:if="{{privacyKnown}}" native-required="{{nativePrivacyRequired}}" contract-name="{{contractName}}" purpose="登录用于核算免费下载额度、会员权益与同步记录。提交给 AI 的文字和图片由第三方 AI 服务处理；相机、麦克风另行询问，不会现在开启。" button-text="同意，继续登录" bind:agreed="agreePrivacy" />
+    <privacy-consent id="entry-consent" wx:if="{{privacyKnown}}" native-required="{{nativePrivacyRequired}}" contract-name="{{contractName}}" purpose="登录用于核算免费下载额度、会员权益与同步记录。提交给 AI 的文字和图片由第三方 AI 服务处理；相机、麦克风另行询问，不会现在开启。" button-text="同意，继续登录" bind:agreed="agreePrivacy" />
     <button wx:else class="secondary" bindtap="checkPrivacy">重试读取隐私许可</button>
     <button class="text-button" bindtap="goBack">不同意并退出</button>
     <button class="text-button" bindtap="openPrivacy">查看隐私与权限说明</button>
