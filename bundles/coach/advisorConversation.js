@@ -2,7 +2,7 @@ const {requestJson,COACH_TEXT_TIMEOUT_MS}=require('../../utils/api')
 const {coachEffortTimeout}=require('../../utils/coachEffort')
 const {createCoachStream}=require('./responseStream')
 const {newClientTurnId}=require('./tavernConversation')
-const {normalizeAdvisorEnvelope}=require('./admissionsSources')
+const {normalizeAdvisorEnvelope,normalizeDirectoryTarget}=require('./admissionsSources')
 
 const MESSAGE_MAX=12000
 function advisorStage(meta){return meta?.providerStatus==='researching'?(meta.researchPhase==='fetch'?'reading-sources':'searching'):'analysis'}
@@ -66,9 +66,11 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
   if(result?.deleted!==true||result.conversationId!==value)throw fail(text.invalidDelete)
   return result
  }
- async function send({message,conversationId,clientTurnId,expectedRevision,reasoningEffort,onPartial=()=>{},onStage=()=>{},onCancelReady=()=>{}}={}){
+ async function send({message,conversationId,clientTurnId,expectedRevision,reasoningEffort,directoryTarget,onPartial=()=>{},onStage=()=>{},onCancelReady=()=>{}}={}){
   if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw fail(text.invalidRevision)
-  const body={message:cleanMessage(message),conversationId:id(conversationId),clientTurnId:id(clientTurnId),expectedRevision,...(reasoningEffort!==undefined?{reasoningEffort}:{})},current=identity(),timeout=coachEffortTimeout(reasoningEffort,COACH_TEXT_TIMEOUT_MS||55000)
+  const target=directoryTarget===undefined?null:normalizeDirectoryTarget(directoryTarget)
+  if(directoryTarget!==undefined&&(!target||persona!=='admissions-advisor'))throw fail('咨询入口信息无效，请返回目录重新选择。',code('directory_target_invalid'))
+  const body={message:cleanMessage(message),conversationId:id(conversationId),clientTurnId:id(clientTurnId),expectedRevision,...(reasoningEffort!==undefined?{reasoningEffort}:{}),...(target?{directoryTarget:target}:{})},current=identity(),timeout=coachEffortTimeout(reasoningEffort,COACH_TEXT_TIMEOUT_MS||55000)
   return new Promise((resolve,reject)=>{
    let closed=false,task=null,timer=null,stream=null
    const abort=()=>{try{task?.abort()}catch{}}

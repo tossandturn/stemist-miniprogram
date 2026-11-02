@@ -62,6 +62,7 @@ function withDirectoryCoachEntry(base){
    this.setData({directoryEntry:null,directoryEntryPending:false,directoryEntryNote:'',canRestoreDirectoryDraft:false});this.__directoryPreviousDraft=''
   },
   copyDirectoryOfficial(){if(this.current()&&this.data.directoryEntry)wx.setClipboardData({data:this.data.directoryEntry.officialUrl})},
+  directoryTargetForMessage(message){const entry=this.data.directoryEntry;return this.current()&&!this.data.directoryEntryPending&&entry&&String(message||'').includes(entry.officialUrl)?{kind:entry.kind,id:entry.id}:null},
   submit(){
    if(!this.current())return Promise.resolve()
    if(this.data.directoryEntryPending){this.setData({directoryEntryNote:'请先选择“使用这份提问”或“保留当前草稿”，避免把上一所学校的问题发出去。'});return Promise.resolve()}

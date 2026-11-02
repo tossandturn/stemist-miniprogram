@@ -3,7 +3,7 @@ const {isAuthError}=require('../../utils/api')
 const {readCoachEffort}=require('../../utils/coachEffort')
 const {keyboardData,keyboardMethods}=require('./tavernKeyboard')
 const {mergeTavernMessages}=require('./tavernConversation')
-const {mergeAdvisorMessages}=require('./admissionsSources')
+const {mergeAdvisorMessages,normalizeDirectoryTarget}=require('./admissionsSources')
 
 const LOCAL_CLEAR_FENCES=new Map()
 const DEFAULT_COPY=Object.freeze({
@@ -81,8 +81,8 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
    this.__localClearFence=Boolean(fence);this.__deletedConversationId=String(fence?.conversationId||'');this.__clearFenceDurable=Boolean(fence?.durable)
    const record=!fence&&valid&&raw.conversation
    this.__conversation=record&&record.persona===persona&&typeof record.id==='string'&&Number.isSafeInteger(record.revision)&&record.revision>=0&&Number.isSafeInteger(record.turnCount)&&record.turnCount>=0?record:null
-   const pending=valid&&raw.pending,pendingMessage=pending&&canonicalDraft(pending.message),receiptState=['commit-deferred','indeterminate'].includes(pending?.receiptState)?pending.receiptState:''
-   this.__pending=!fence&&this.__conversation&&pending&&/^[A-Za-z0-9._:-]{8,180}$/.test(String(pending.clientTurnId||''))&&pendingMessage&&Number.isSafeInteger(pending.expectedRevision)&&pending.expectedRevision>=0?{clientTurnId:String(pending.clientTurnId),message:pendingMessage,expectedRevision:pending.expectedRevision,...(['low','high','max'].includes(pending.reasoningEffort)?{reasoningEffort:pending.reasoningEffort}:{}),...(pending.needsRebase===true?{needsRebase:true}:{}),...(receiptState?{receiptState}:{})}:null
+   const pending=valid&&raw.pending,pendingMessage=pending&&canonicalDraft(pending.message),target=normalizeDirectoryTarget(pending?.directoryTarget),badTarget=pending&&Object.prototype.hasOwnProperty.call(pending,'directoryTarget')&&(!target||persona!=='admissions-advisor'),receiptState=badTarget?'indeterminate':['commit-deferred','indeterminate'].includes(pending?.receiptState)?pending.receiptState:''
+   this.__pending=!fence&&this.__conversation&&pending&&/^[A-Za-z0-9._:-]{8,180}$/.test(String(pending.clientTurnId||''))&&pendingMessage&&Number.isSafeInteger(pending.expectedRevision)&&pending.expectedRevision>=0?{clientTurnId:String(pending.clientTurnId),message:pendingMessage,expectedRevision:pending.expectedRevision,...(['low','high','max'].includes(pending.reasoningEffort)?{reasoningEffort:pending.reasoningEffort}:{}),...(target&&!badTarget?{directoryTarget:target}:{}),...(pending.needsRebase===true?{needsRebase:true}:{}),...(receiptState?{receiptState}:{})}:null
    this.__nextBefore=''
    const draft=!fence&&valid?clipDraft(raw.draft):'',ui=receiptUi(this.__pending,draft)
    this.setData({message:draft,turns:[],partialAnswer:!fence&&valid?clipPartial(raw.partialAnswer):'',loading:false,historyLoading:false,historyBrowsing:false,hasOlderHistory:false,...ui,clearPending:Boolean(fence&&!fence.durable||!fence&&valid&&raw.clearPending===true),error:receiptError(ui),warning:fence&&!fence.durable?'云端对话已清除，但本机隐私隔离尚未持久保存；请勿退出并重试清空。':'',status:'',authRequired:!wx.getStorageSync('stemistSessionToken')})
@@ -156,7 +156,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     if(!this.__conversation||this.data.historyBrowsing||this.__localClearFence){if(!await this.resumeLatest()||!this.current(generation))return}
     if(this.__pending?.needsRebase){if(!await this.resumeLatest()||!this.current(generation)||!this.__pending)return}
     if(!this.__pending&&canonicalDraft(this.data.message)!==message)return
-    if(!this.__pending||this.__pending.message!==message)this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision,reasoningEffort:readCoachEffort(effortScope,message)}
+    if(!this.__pending||this.__pending.message!==message){const target=persona==='admissions-advisor'?normalizeDirectoryTarget(this.directoryTargetForMessage?.(message)):null;this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision,reasoningEffort:readCoachEffort(effortScope,message),...(target?{directoryTarget:target}:{})}}
     const pending=this.__pending
     if(!this.save()){this.setData({loading:false,error:'本机暂时无法保存重试标识，本次未发送；请释放空间后重试。',canRetry:true,status:''});return}
     this.setData({loading:true,error:'',partialAnswer:'',canRetry:false,receiptState:'',sendBlocked:false,status:text.connecting,pendingEffort:pending.reasoningEffort||'',effortLocked:true});this.scrollChatToLatest()
