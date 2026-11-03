@@ -14,6 +14,7 @@ const ENTRY_POINTS = [
 ]
 const ENTRY_URLS=Object.freeze(ENTRY_POINTS.reduce((routes,item)=>{routes[item.id]=item.url;return routes},{}))
 Page({
+entryPublic:true,
 ...require('../../utils/share').public,
 data: deviceState({
 user: null,

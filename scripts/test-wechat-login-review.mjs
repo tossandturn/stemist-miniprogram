@@ -84,31 +84,35 @@ assert.equal(switchedRequests,0,'A pre-code account switch blocks the stale WeCh
 assert.equal(switched.storage.get('stemistUser').id,'ielts:999')
 assert.equal(switched.storage.get('stemistSessionToken'),'new-owner-token')
 
-// Account page: login never forces profile onboarding. The 2026-11-01
-// mandatory-entry policy replaces guest Home with a real exit/cancel action.
+// Account page: login never forces profile onboarding. Guests may browse Home
+// and cancelling a protected-page login returns there instead of exiting.
 const accountMarkup=fs.readFileSync(new URL('../bundles/account/auth.wxml',import.meta.url),'utf8')
 const accountSource=fs.readFileSync(new URL('../bundles/account/auth.js',import.meta.url),'utf8')
-assert.match(accountMarkup,/取消登录并退出/)
+assert.match(accountMarkup,/暂不登录，返回首页/)
+assert.match(accountMarkup,/同意，继续登录/)
 assert.match(accountMarkup,/同步学习记录|会员/)
 assert.match(accountMarkup,/使用 IELTSist 账号/)
 assert.doesNotMatch(accountMarkup,/创建账号|注册/,'Native account page no longer promotes new username registration')
 assert.doesNotMatch(accountSource,/openWeChatProfileOnboarding|shouldShowOnboarding|markOnboardingShown/)
 
 function consentReady(runtime){runtime.wx.getPrivacySetting=o=>o.success({needAuthorization:false});runtime.load('utils/entryAccess').acceptConsent()}
-const loginGate=deferred();let cancelCalls=0,toasts=0,exits=0
-const rootAccount=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:loginGate.promise,cancel(){cancelCalls++;return true}})}},wx:{showToast(){toasts++},exitMiniProgram(){exits++}}});consentReady(rootAccount)
+const loginGate=deferred();let cancelCalls=0,toasts=0,exits=0;const rootApp={globalData:{entryReturn:{url:'/pages/coach/index',owner:'guest'}}},rootNavigations=[]
+const rootAccount=miniRuntime({globals:{getApp:()=>rootApp},modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:loginGate.promise,cancel(){cancelCalls++;return true}})}},wx:{showToast(){toasts++},exitMiniProgram(){exits++},reLaunch(options){rootNavigations.push(options);options.success?.()}}});consentReady(rootAccount)
 const rootPage=rootAccount.page('bundles/account/auth');rootPage.onShow();const pageLogin=rootPage.loginWechat();await settle();rootPage.goBack()
 assert.equal(cancelCalls,1)
-assert.equal(exits,1,'Root account cancel actually exits instead of opening guest Home')
+assert.equal(exits,0,'Cancelling login never calls wx.exitMiniProgram')
+assert.equal(rootNavigations.at(-1).url,'/pages/index/index','Cancelling login returns to browsable Home')
+assert.equal(rootApp.globalData.entryReturn,undefined,'the abandoned protected destination cannot reopen later')
 loginGate.resolve({status:'authenticated',user:{id:'ielts:42',username:'wechat_user'}});await pageLogin
 assert.equal(toasts,0,'Cancelled login never shows a late success toast')
 assert.equal(rootAccount.calls.some(call=>String(call.url||'').includes('/bundles/account/profile')),false)
 
-let nestedBack
-const nested=miniRuntime({globals:{getCurrentPages:()=>[{},{}]},modules:{'utils/wechatAuth':{beginWeChatLogin(){throw Error('unused')}}},wx:{navigateBack(options){nestedBack=options;options.fail?.({errMsg:'navigateBack:fail'})}}})
+let nestedBack;const nestedNavigations=[]
+const nested=miniRuntime({globals:{getCurrentPages:()=>[{},{}]},modules:{'utils/wechatAuth':{beginWeChatLogin(){throw Error('unused')}}},wx:{navigateBack(options){nestedBack=options;options.fail?.({errMsg:'navigateBack:fail'})},reLaunch(options){nestedNavigations.push(options);options.success?.()}}})
 const nestedPage=nested.page('bundles/account/auth');nestedPage.onShow();nestedPage.goBack()
-assert.equal(nestedBack,undefined,'A guest must not navigate back into application features')
-assert.match(nestedPage.data.error,/关闭小程序/,'Unsupported exit has a visible recovery instruction')
+assert.equal(nestedBack,undefined,'A guest does not navigate back into a protected stack')
+assert.equal(nestedNavigations.at(-1).url,'/pages/index/index','A nested guest login still returns to public Home')
+assert.doesNotMatch(nestedPage.data.error,/关闭小程序|退出小程序/,'Returning to Home never tells a guest to exit the mini program')
 
 let success
 success=miniRuntime({modules:{'utils/wechatAuth':{beginWeChatLogin:()=>({promise:Promise.resolve().then(()=>{const user={id:'ielts:99',username:'wechat_user',displayName:'',avatarDataUrl:''};success.storage.set('stemistSessionToken','stored-token');success.storage.set('stemistUser',user);success.storage.set('stemistSessionMeta',{owner:user.id,expiresAt:new Date(Date.now()+300000).toISOString()});return{status:'authenticated',user}}),cancel(){return false}})}},wx:{showToast(){}}});consentReady(success)
@@ -216,4 +220,4 @@ const avatarProfile=miniRuntime({modules:{'bundles/account/profileData':{
 const avatarPage=avatarProfile.page('bundles/account/profile');await avatarPage.onLoad();const choosing=avatarPage.chooseAvatar({detail:{avatarUrl:'wxfile://late-avatar'}});await settle();avatarPage.goBack();avatarGate.resolve('data:image/png;base64,LATE');await choosing
 assert.equal(avatarPage.data.avatarDataUrl,'','Late avatar processing cannot update a page after exit')
 
-console.log('WeChat review login: privacy first, explicit cancellation/exit, optional profile and lifecycle fences PASS')
+console.log('WeChat review login: unchecked privacy, browsable guest return, optional profile and lifecycle fences PASS')

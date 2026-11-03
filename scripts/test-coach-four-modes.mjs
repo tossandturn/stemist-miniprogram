@@ -144,7 +144,7 @@ tavernRuntime.storage.set('stemistCoachPhoto','/private/academic.jpg')
 tavernRuntime.storage.set('stemistCoachTurns:student-tavern:stem-photo',[{role:'user',content:'private source'}])
 const tavern=tavernRuntime.page('bundles/coach/tavern')
 tavern.onLoad()
-assert.deepEqual(tavern.data.personas.map(item=>item.id),['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide','eastern-oracle','tarot-reader'])
+assert.deepEqual(tavern.data.personas.map(item=>item.id),['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide','horror-guide','eastern-oracle','tarot-reader'])
 tavern.choosePersona({currentTarget:{dataset:{persona:'keeper'}}})
 const keeperStarter=tavern.data.starters[0]
 tavern.useStarter({currentTarget:{dataset:{text:keeperStarter}}})
@@ -180,7 +180,7 @@ assert.equal(tavern.data.answer,'')
 assert.match(tavern.data.error,/账号/)
 const share=tavern.onShareAppMessage.call({...tavern,route:'bundles/coach/tavern'})
 assert.equal(share.path,'/pages/index/index')
-assert.doesNotMatch(JSON.stringify(share),/keeper|study-buddy|cat-companion|story-traveler|xianxia-guide|mystery-guide|student-|草稿|message|persona/i,'share data cannot expose persona, draft or account state')
+assert.doesNotMatch(JSON.stringify(share),/keeper|study-buddy|cat-companion|story-traveler|xianxia-guide|mystery-guide|horror-guide|student-|草稿|message|persona/i,'share data cannot expose persona, draft or account state')
 
 const quotaRequests=[]
 const quotaRuntime=miniRuntime({wx:{setStorageSync:key=>{if(String(key).startsWith('stemistTavern:'))throw new Error('quota')}},modules:{'utils/api':tavernApi(async request=>{quotaRequests.push(request);return{mode:'ai',providerStatus:'connected',answer:'已收到你的话。'}})}})

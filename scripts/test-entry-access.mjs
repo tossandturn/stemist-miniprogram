@@ -21,20 +21,24 @@ session();r.storage.set('stemistSessionMeta',{owner:'ielts:42',expiresAt:new Dat
 session();const destination=gate.completeEntry();assert.match(destination,/pages\/coach\/index/);assert.doesNotMatch(destination,/message=/)
 assert.equal(app.globalData.entryReturn,undefined,'return route is consumed once')
 const publicPage=gate.wrapEntryPage({entryPublic:true,data:{},onLoad(){loads++}});publicPage.onLoad.call({data:publicPage.data},{});assert.equal(loads,2)
-gate.exitEntry(()=>{});assert.equal(calls.at(-1).exit,true)
+app.globalData.entryReturn={url:'/pages/coach/index',owner:'ielts:42'}
+gate.returnToBrowse(()=>{});assert.equal(calls.at(-1).url,'/pages/index/index');assert.equal(app.globalData.entryReturn,undefined,'cancelling login clears the pending protected deep link')
 let privacyCallback;r.wx.getPrivacySetting=o=>{privacyCallback=o};const checking=gate.prepareEntry();gate.acceptConsent();privacyCallback.success({needAuthorization:true});await checking;assert.equal(gate.canEnter(),true,'an old platform query must not erase a later verified consent')
 const account=fs.readFileSync(new URL('../bundles/account/auth.wxml',import.meta.url),'utf8')
 assert.doesNotMatch(account,/返回浏览/);assert.match(account,/每天.*2/);assert.match(account,/privacy-consent/)
 const accountPage=r.page('bundles/account/auth');accountPage.onLoad({required:'1'});const before=calls.length;accountPage.finishEntry();accountPage.finishEntry();assert.equal(calls.length,before+1,'concurrent privacy/login completion must not redirect twice and lose the deep link')
 const manifest=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8'))
 for(const route of [...manifest.pages,...manifest.subPackages.flatMap(s=>s.pages.map(p=>s.root+'/'+p))]){
- const publicRoute=['bundles/account/auth','pages/account/auth','pages/legal/privacy'].includes(route),source=fs.readFileSync(new URL('../'+route+'.js',import.meta.url),'utf8')
- assert.equal(/entryPublic\s*:\s*true/.test(source),publicRoute,'only login and privacy are public: '+route)
+ const publicRoute=['pages/index/index','bundles/account/auth','pages/account/auth','pages/legal/privacy'].includes(route),source=fs.readFileSync(new URL('../'+route+'.js',import.meta.url),'utf8')
+ assert.equal(/entryPublic\s*:\s*true/.test(source),publicRoute,'home browsing, login and privacy are public: '+route)
  if(!publicRoute)assert.match(fs.readFileSync(new URL('../'+route+'.wxml',import.meta.url),'utf8'),/^<block wx:if="\{\{!__entryGateBlocked\}\}">/,'protect render and child lifetimes: '+route)
 }
 let foregroundApp,rechecks=0,revoked=false
-const foreground=miniRuntime({globals:{App:value=>{foregroundApp=value},getCurrentPages:()=>[{onShow(){rechecks++}}]},wx:{getPrivacySetting:o=>o.success({needAuthorization:revoked})}})
+const foreground=miniRuntime({globals:{App:value=>{foregroundApp=value},getCurrentPages:()=>[{__entryInitialized:true,onShow(){rechecks++}}]},wx:{getPrivacySetting:o=>o.success({needAuthorization:revoked})}})
 foreground.load('app');foreground.load('utils/entryAccess').acceptConsent();revoked=true;await foregroundApp.onShow()
 assert.equal(rechecks,1,'foreground privacy revocation must re-run the current page gate')
 assert.equal(foreground.load('utils/entryAccess').consentAccepted(),false)
-console.log('PASS mandatory login: privacy first, no guest side effects, explicit exit, safe return, expiry and owner isolation')
+let homeShows=0
+const browse=miniRuntime({globals:{App:value=>{foregroundApp=value},getCurrentPages:()=>[{route:'pages/index/index',onShow(){homeShows++}}]},wx:{getPrivacySetting:o=>o.success({needAuthorization:true})}})
+browse.load('app');await foregroundApp.onShow();assert.equal(homeShows,0,'privacy revalidation does not re-open public Home a second time')
+console.log('PASS guest Home browsing, explicit protected-page login, unchecked consent, safe return, expiry and owner isolation')

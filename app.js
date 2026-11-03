@@ -26,12 +26,13 @@ App({
       const envVersion = String(accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion || '').toLowerCase()
       this.globalData.debugMode = envVersion === 'develop' || envVersion === 'trial'
     } catch { this.globalData.debugMode = false }
-    // Permission precedes any existing-session refresh. Guests still log in
-    // explicitly; Page registration prevents protected onLoad side effects.
+    // Home remains browsable. Existing sessions may refresh silently only
+    // after privacy status is checked; protected pages still require consent
+    // and identity, and guests are never logged in automatically.
     prepareEntry().then(allowed => allowed && consentAccepted() ? ensureWeChatSession({ silent: true }) : {status:'consent-required'}).then((result) => { this.globalData.wechatAuth = result }).catch((error) => { this.globalData.wechatAuth = { status: 'unavailable', errorCode: error && error.code } })
   },
   onShow() {
     this.globalData.deviceProfile = readDeviceProfile()
-    return prepareEntry().then(allowed=>{if(!allowed)getCurrentPages().slice(-1)[0]?.onShow?.()})
+    return prepareEntry().then(allowed=>{if(!allowed){const page=getCurrentPages().slice(-1)[0];if(page?.__entryInitialized)page.onShow?.()}})
   },
 })

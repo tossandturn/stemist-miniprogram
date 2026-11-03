@@ -16,13 +16,17 @@ const expected=[
  'bundles/coach/practiceRender.js',
  'bundles/marking/reportDownload.js','pages/ielts/writingReportDownload.js',
  'utils/listeningAudioCache.js','utils/listeningAudioRangeCache.js','utils/pdfDownload.js','utils/pdfRangeCache.js',
-].sort(),transports=[]
+].sort(),transports=[],generatedImageTransports=[]
 for(const directory of ['pages','components','utils','bundles'])for(const relative of fs.readdirSync(path.join(root,directory),{recursive:true})){
  if(!relative.endsWith('.js'))continue
  const file=directory+'/'+relative.replaceAll('\\','/'),source=read(file)
- if(/\b(?:wx|wxApi)\.downloadFile\s*\(|responseType:\s*['"]arraybuffer['"]/.test(source))transports.push(file)
+ if(/\b(?:wx|wxApi)\.downloadFile\s*\(/.test(source)||(/responseType:\s*['"]arraybuffer['"]/.test(source)&&file!=='utils/api.js'))transports.push(file)
+ else if(file==='utils/api.js'&&/responseType:\s*['"]arraybuffer['"]/.test(source)&&/\/api\/ai\/tavern\/image/.test(read('bundles/coach/tavernConversation.js'))&&/requestBinaryAt/.test(source))generatedImageTransports.push(file)
 }
 assert.deepEqual(transports.sort(),expected,'Every new binary download transport must be mapped to a visible progress surface and tested')
+assert.deepEqual(generatedImageTransports.sort(),['utils/api.js'],'Model-generated image bytes are not counted as a student download transport')
+assert.match(read('scripts/test-tavern-image-api-client.mjs'),/responseType.*arraybuffer/,'binary generated-image transport has a dedicated authenticated regression')
+assert.match(read('bundles/coach/tavern.wxml'),/story-image-pending/,'image generation displays a truthful in-chat pending state')
 for(const file of expected)assert.match(read(file),/onProgress|\.progress\(/,file+' publishes measured transfer progress')
 assert.match(read('bundles/coach/practice.wxml'),/<progress[^>]*percent="\{\{percent\}\}"/,'chapter image preparation renders real transfer progress')
 assert.match(read('bundles/coach/practice.js'),/loaded\/total\*100/,'chapter progress is measured bytes, not a timer')

@@ -1,4 +1,5 @@
 const {DEFAULT_API_BASE,safeApiBase}=require('../../utils/apiOrigin')
+const {parseTavernStoryMessage}=require('./tavernStoryFormat')
 const TAVERN_MEDIA_VERSION='tavern-media.v1',PREFIX='/api/ai/tavern/media/v1/'
 const ID=/^[a-z0-9][a-z0-9-]{1,79}$/,FILE=/^[a-z0-9][a-z0-9-]{1,100}\.(?:jpg|png|webp)$/
 const clean=(value,max)=>typeof value==='string'?Array.from(value.replace(/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,max).join(''):''
@@ -23,16 +24,22 @@ function normalizeTavernMedia(value){
 function mediaBase(){try{return safeApiBase(getApp()?.globalData?.apiBaseUrl)||DEFAULT_API_BASE}catch{return DEFAULT_API_BASE}}
 function decorateTavernTurns(turns,windowWidth=390){
  const available=Math.max(120,Math.min(252,(Number(windowWidth)||390)-88)),base=mediaBase()
- return Array.from(turns||[],turn=>{
+ const source=Array.from(turns||[],turn=>{
   const media=turn.role==='assistant'?normalizeTavernMedia(turn.media):[]
-  if(!media.length){const {media:ignored,...textTurn}=turn;return textTurn}
-  return{...turn,media:media.map(item=>{
+  const story=turn.role==='assistant'?parseTavernStoryMessage(turn.content):{segments:[],choices:[]}
+  const {media:ignored,...textTurn}=turn
+  return{
+   ...textTurn,
+   ...(story.segments.length?{storySegments:story.segments,storyChoices:story.choices}:{}),
+   ...(media.length?{media:media.map(item=>{
    const viewWidth=item.kind==='sticker'?Math.min(148,available):available
    const ratio=item.frame?(item.height/item.frame.rows)/(item.width/item.frame.columns):item.height/item.width
    const viewHeight=Math.round(Math.min(224,viewWidth*ratio)),frame=item.frame
    return{...item,key:turn.id+'|'+item.id,renderUrl:base+item.src,viewWidth,viewHeight,atlasStyle:frame?`width:${viewWidth*frame.columns}px;height:${viewHeight*frame.rows}px;left:${-viewWidth*frame.column}px;top:${-viewHeight*frame.row}px;`:''}
-  })}
- })
+   })}:{})
+ }})
+ const latestAssistant=source.findLastIndex?source.findLastIndex(turn=>turn.role==='assistant'):(()=>{for(let index=source.length-1;index>=0;index--)if(source[index].role==='assistant')return index;return-1})()
+ return source.map((turn,index)=>index===latestAssistant&&turn.storyChoices?.length?{...turn,showStoryChoices:true}:turn)
 }
 function tavernMediaState(turns,width,previous={}){const decorated=decorateTavernTurns(turns,width),keys=new Set(decorated.flatMap(turn=>(turn.media||[]).map(item=>item.key))),mediaFailures={},mediaLoaded={};for(const key of keys){if(previous.mediaFailures?.[key])mediaFailures[key]=true;if(previous.mediaLoaded?.[key])mediaLoaded[key]=true}return{turns:decorated,mediaFailures,mediaLoaded}}
 const tavernMediaViewMethods={

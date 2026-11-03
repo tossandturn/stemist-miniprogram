@@ -82,12 +82,33 @@ try{streamCurrent?.();stream.push(data)}catch(error){settled=true;reject(error);
 if(!settled&&typeof onDispatched==='function')try{onDispatched()}catch{}
 })
 }
+// This is a bounded image-generation response, not a downloadable file path.
+// Student downloads continue to use the measured-progress controllers below.
+function requestBinaryAt(origin,path,data,{timeout=75_000,method='POST',stemAuth=true}={}){
+const token=stemAuth?wx.getStorageSync('stemistSessionToken'):''
+return new Promise((resolve,reject)=>{
+const request={url:`${origin}${path}`,method:String(method||'POST').toUpperCase(),timeout,responseType:'arraybuffer',dataType:'arraybuffer',header:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},data}
+wx.request({...request,success(response){
+ if(response.statusCode===401){if(stemAuth&&token&&token===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true});return reject(requestError(token?'登录已过期，请重新登录后继续。':'请登录后继续。',401,'auth_required'))}
+ if(response.statusCode<200||response.statusCode>=300){const status=Number(response.statusCode)||0,message=status===503?'实时绘图服务尚未配置，文字回复已保留。':status===429?'图片生成请求较多或今日次数已用完，文字回复已保留。':status===504?'图片生成超时，文字回复已保留，请稍后重试。':'图片生成暂时不可用；文字回复已保留，请稍后重试。';return reject(requestError(message,status,'tavern_image_request_failed'))}
+ const mimeType=String(response.header?.['content-type']||response.header?.['Content-Type']||'').split(';')[0].toLowerCase(),bytes=response.data,length=Number(bytes?.byteLength)||0
+ if(!/^image\/(?:png|jpeg|webp)$/.test(mimeType)||!length||length>2*1024*1024)return reject(requestError('生成图片未通过格式或大小检查；文字回复已保留。',502,'tavern_image_response_invalid'))
+ captureNativeCookie(origin,path,response);resolve({bytes,mimeType})
+ },fail(error){const raw=String(error?.errMsg||'');reject(requestError(/timeout|超时/i.test(raw)?'图片生成超时；文字回复已保留，请稍后重试。':'图片生成失败；文字回复已保留，请稍后重试。',0,/timeout|超时/i.test(raw)?'network_timeout':'network_error'))}})
+})
+}
 async function requestJson(path, data, options = {}) {
 const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 if(options.stemAuth!==false&&!path.startsWith('/api/auth/'))await refreshNativeSession()
 if(options.isCancelled?.())throw requestError('AI 请求超时，问题和图片已保留，请重试。',0,'network_timeout')
 if(!path.startsWith('/data/')&&(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')
 return requestJsonAt(baseUrl(), path, data, options)
+}
+async function requestBinary(path,data,options={}){
+const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
+if(options.stemAuth!==false)await refreshNativeSession()
+if(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))throw requestError('账号状态已变化，请重新进入酒馆。',409,'account_changed')
+return requestBinaryAt(baseUrl(),path,data,options)
 }
 function requestIeltsJson(path, data, options = {}) {
 return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false })
@@ -132,4 +153,4 @@ providerStatus: result && result.providerStatus
 : result && result.mode === 'ai' ? 'connected' : result && result.mode === 'local' ? 'skipped' : 'error',
 }))
 }
-module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, IELTS_API_BASE: DEFAULT_IELTS_API_BASE, askCoach, askIeltsCoach, getJson, isAuthError, requestError, requestIeltsJson, requestJson, safeErrorMessage }
+module.exports = { COACH_IMAGE_TIMEOUT_MS, COACH_TEXT_TIMEOUT_MS, IELTS_API_BASE: DEFAULT_IELTS_API_BASE, askCoach, askIeltsCoach, getJson, isAuthError, requestBinary, requestError, requestIeltsJson, requestJson, safeErrorMessage }

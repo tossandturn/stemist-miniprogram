@@ -3,17 +3,18 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import {deferred,miniRuntime,settle} from './helpers/mini-runtime.mjs'
 
-const IDS=['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide','eastern-oracle','tarot-reader']
-const TITLES=['温柔树洞','嘴替损友','傲娇猫猫','奇幻冒险','江湖剑客','侦探茶室','东方玄学','西方塔罗']
-const CONVERSATION_IDS=IDS.slice(0,6)
-const ICONS=['keeper-tree-lantern.svg','study-buddy-banter.svg','cat-companion-face.svg','story-traveler-map.svg','xianxia-sword-bamboo.svg','mystery-tea-lens.svg','eastern-oracle-lots.svg','tarot-moon-cards.svg']
+const IDS=['keeper','study-buddy','cat-companion','story-traveler','xianxia-guide','mystery-guide','horror-guide','eastern-oracle','tarot-reader']
+const TITLES=['温柔树洞','嘴替损友','傲娇猫猫','奇幻冒险','江湖剑客','侦探茶室','恐怖故事','东方玄学','西方塔罗']
+const CONVERSATION_IDS=IDS.filter(id=>!['eastern-oracle','tarot-reader'].includes(id))
+const ICONS=['keeper-tree-lantern.svg','study-buddy-banter.svg','cat-companion-face.svg','story-traveler-map.svg','xianxia-sword-bamboo.svg','mystery-tea-lens.svg','horror-lantern.svg','eastern-oracle-lots.svg','tarot-moon-cards.svg']
 const SAFE_METADATA=[
  ['keeper','温柔树洞','倾听陪伴','今晚的树洞给你留着。想讲点什么，或者只想有人陪你待一会儿？',['今天有件事想说说','陪我安静聊一会儿','给我一个轻松的小问题']],
  ['study-buddy','嘴替损友','轻松吐槽','来了？先把今天最想吐槽的一件事放桌上，我保证只损事情，不损你。',['替我吐槽一下今天','来个不伤人的损友点评','陪我聊点没用但好玩的']],
  ['cat-companion','傲娇猫猫','猫系陪伴','我只是刚好路过，才不是在等你。说吧，今天要聊天、接话，还是听一句别扭的夸奖？',['猫猫今天在忙什么','陪我玩三轮接话','傲娇地夸我一句']],
  ['story-traveler','奇幻冒险','互动奇幻','旅馆窗外，一封会发光的无名信正等人拆开。你想直接读信，还是先问问送信的银翼鸟？',['带我走进一座浮空城','给我两个冒险选择','继续一段雨夜旅程']],
- ['xianxia-guide','江湖剑客','江湖奇遇','客官，夜雨封山，前方古镇却亮着一盏无人看守的灯。是进镇避雨，还是沿河道继续赶路？',['陪我夜探一座古镇','来一段江湖偶遇','给我三个行路选择']],
- ['mystery-guide','侦探茶室','轻推理','茶室打烊后，柜台上的蓝色信封不翼而飞：地板是干的，窗户开着，茶壶却还很烫。你想先查哪条线索？',['出一道三条线索的小案','让我询问一位虚构嫌疑人','继续刚才的谜案']],
+ ['xianxia-guide','江湖剑客','江湖奇遇','沈照把旧伞靠在门边：白汀渡的灯又亮了，缺的那页渡口簿还没找着。',['进入《白汀渡的旧灯》','我想先查那页簿子','先和沈照聊聊']],
+ ['mystery-guide','侦探茶室','互动悬疑','闻笙发来消息：河岸档案室登记了八名访客，闭馆后展台上却多出第九张门票。',['进入《河岸档案室的第九张票》','我想先检查现场','先和闻笙聊聊']],
+ ['horror-guide','恐怖故事','互动恐怖','林漪发来消息：茶室断电后，空房里的呼叫铃在00:17响了三短一长。',['进入《雨窗茶室·00:17》','我想检查那只旧呼叫器','先和林漪聊聊']],
  ['eastern-oracle','东方玄学','东方卦签','这里的卦签只作休闲启发，不替你决定人生。想带着一个轻问题抽一卦，还是直接看看今天的随机提示？',['为我随机抽一卦','用卦签换个角度想想','解释我刚抽到的卦']],
  ['tarot-reader','西方塔罗','塔罗娱乐','牌面只是休闲联想的镜子，不是预言。你想抽单张提示，还是三张看看过去主题、当下主题和可能的方向？',['抽一张当下提示','抽三张主题牌','解读我刚抽到的牌']],
 ]
@@ -35,10 +36,10 @@ const {TAVERN_PRESETS,tavernPreset}=catalogRuntime.load('bundles/coach/tavernPre
 assert.deepEqual(plain(TAVERN_PRESETS.map(item=>item.id)),IDS)
 assert.deepEqual(plain(TAVERN_PRESETS.map(item=>item.name)),TITLES)
 assert.deepEqual(plain(TAVERN_PRESETS.map(item=>[item.id,item.name,item.tag,item.greeting,item.starters])),SAFE_METADATA,'client-safe openings and starters must match the server-owned public descriptors')
-assert.equal(new Set(TAVERN_PRESETS.map(item=>item.tag)).size,8,'every preset needs a distinct leisure genre tag')
-assert.equal(new Set(TAVERN_PRESETS.map(item=>item.greeting)).size,8,'every preset needs an original visible opening')
-assert.equal(new Set(TAVERN_PRESETS.map(item=>item.placeholder)).size,8,'each role needs an appropriate composer prompt')
-assert.equal(new Set(TAVERN_PRESETS.map(item=>JSON.stringify(item.starters))).size,8,'starter sets must be role-specific')
+assert.equal(new Set(TAVERN_PRESETS.map(item=>item.tag)).size,9,'every preset needs a distinct leisure genre tag')
+assert.equal(new Set(TAVERN_PRESETS.map(item=>item.greeting)).size,9,'every preset needs an original visible opening')
+assert.equal(new Set(TAVERN_PRESETS.map(item=>item.placeholder)).size,9,'each role needs an appropriate composer prompt')
+assert.equal(new Set(TAVERN_PRESETS.map(item=>JSON.stringify(item.starters))).size,9,'starter sets must be role-specific')
 for(const [index,preset] of TAVERN_PRESETS.entries()){
   assert.equal(tavernPreset(preset.id),preset)
   assert.equal(preset.name,TITLES[index])
@@ -170,6 +171,11 @@ assert.match(template,/bindtap="loadOlderHistory"/)
 assert.match(template,/bindtap="returnLatestHistory"/)
 assert.match(template,/wx:key="id"/)
 assert.match(template,/id="fortune-draw"[^>]*bindtap="drawFortune"/)
+assert.match(template,/story-segment/,'story narration and character speech are rendered in separate blocks')
+assert.match(template,/story-speaker/)
+assert.match(template,/bindtap="chooseStoryChoice"/,'players can choose a script option or type freely')
+assert.match(template,/story-image-note/,'on-demand story illustrations disclose that they may use server resources')
+assert.match(template,/generatedImagePath/,'requested story illustrations render below the assistant message')
 assert.match(template,/draw \? '再抽'/)
 assert.match(template,/canRetry && retryKind === 'chat' \? '重试' : '发送'/,'ordinary failure reuses the visible primary send action; interpretation retry stays separate')
 assert.doesNotMatch(template,/<button[^>]*class="secondary"[^>]*bindtap="retry"[^>]*>重试 AI<\/button>/,'ordinary failure must not add a second retry action below navigation')
@@ -211,12 +217,12 @@ assert.equal(provenance.schema,'stemist-original-tavern-icons-v2')
 assert.equal(provenance.designReferences.every(item=>item.copiedAssets===false),true)
 const iconHashes=[]
 for(const name of ICONS){const record=provenance.files.find(item=>item.name===name);assert.equal(record.original,true,`${name} must be project-original`);assert.equal(record.source,'project-original');const bytes=fs.readFileSync(new URL(name,iconRoot)),packaged=crypto.createHash('sha256').update(bytes).digest('hex'),source=bytes.toString('utf8');iconHashes.push(packaged);assert.equal(packaged,record.packagedSha256);assert.equal(packaged,record.sha256);assert.equal(bytes.length,record.packagedBytes);assert.match(source,/viewBox="0 0 48 48"/);assert.match(source,/stroke-linecap="round"/);assert.match(source,/stroke-linejoin="round"/);assert.match(source,/<(?:path|circle|rect|line|polyline|ellipse)[^>]*fill="#[A-Fa-f0-9]{6}"/);assert.doesNotMatch(source,/<text|currentColor|lucide/i)}
-assert.equal(new Set(iconHashes).size,8,'every role illustration has distinct original geometry')
+assert.equal(new Set(iconHashes).size,9,'every role illustration has distinct original geometry')
 for(const retired of ['message-circle.svg','messages-square.svg','cat.svg','compass.svg','swords.svg','search.svg','sparkles.svg','layers.svg'])assert.equal(fs.existsSync(new URL(retired,iconRoot)),false,`${retired} is retired rather than shipped unused`)
 assert.match(license.notice,/ISC License/);assert.match(license.additionalNotice,/MIT License/,'historical third-party attribution remains intact')
 
 const luminance=hex=>[1,3,5].map(index=>Number.parseInt(hex.slice(index,index+2),16)/255).map(value=>value<=.03928?value/12.92:((value+.055)/1.055)**2.4).reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0)
 const contrast=(left,right)=>(Math.max(luminance(left),luminance(right))+.05)/(Math.min(luminance(left),luminance(right))+.05)
-for(const [foreground,background] of [['#6848d7','#e9e4fc'],['#9b4f70','#fae8f0'],['#9a6328','#fff1dc'],['#356f9d','#e5f3ff'],['#34775f','#e5f5ed'],['#5d5a73','#edeef4'],['#5638b8','#f0ecfb'],['#66708a','#ffffff']])assert.ok(contrast(foreground,background)>=4.5,`${foreground} on ${background} must remain readable`)
+for(const [foreground,background] of [['#6848d7','#e9e4fc'],['#9b4f70','#fae8f0'],['#9a6328','#fff1dc'],['#356f9d','#e5f3ff'],['#34775f','#e5f5ed'],['#5d5a73','#edeef4'],['#5638b8','#f0ecfb'],['#6848d7','#f0ecfb'],['#66708a','#ffffff']])assert.ok(contrast(foreground,background)>=4.5,`${foreground} on ${background} must remain readable`)
 
-console.log('Tavern eight-preset catalog, original role illustrations, discovery, request identity and isolation passed.')
+console.log('Tavern nine-preset catalog, original role illustrations, discovery, request identity and isolation passed.')

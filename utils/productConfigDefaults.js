@@ -9,8 +9,8 @@ function deepFreeze(value) {
 // dependency-free and inside the Mini Program package.
 const DEFAULT_PRODUCT_CONFIG = deepFreeze({
   schemaVersion: 'stemist-product-config-v1',
-  revision: 'foundation-v1',
-  publishedAt: '2026-10-11T01:32:03.802+08:00',
+  revision: 'interactive-tavern-2026-11-03-v1',
+  publishedAt: '2026-11-03T00:00:00+08:00',
   minCapabilityVersion: 1,
   home: {
     heading: '今天想学什么？',
@@ -63,14 +63,19 @@ const DEFAULT_PRODUCT_CONFIG = deepFreeze({
         starters: ['带我走进一座浮空城', '给我两个冒险选择', '继续一段雨夜旅程'], category: 'story', icon: 'story-traveler-map.svg',
       },
       {
-        id: 'xianxia-guide', name: '江湖剑客', tag: '江湖奇遇', detail: '一盏热茶，一段属于你的江湖路。',
-        greeting: '客官，夜雨封山，前方古镇却亮着一盏无人看守的灯。是进镇避雨，还是沿河道继续赶路？', placeholder: '说出你在江湖中的下一步…',
-        starters: ['陪我夜探一座古镇', '来一段江湖偶遇', '给我三个行路选择'], category: 'story', icon: 'xianxia-sword-bamboo.svg',
+        id: 'xianxia-guide', name: '江湖剑客', tag: '江湖奇遇', detail: '旧伞、渡口簿和一段没写全的旧事。',
+        greeting: '沈照把旧伞靠在门边：白汀渡的灯又亮了，缺的那页渡口簿还没找着。', placeholder: '说出你在江湖中的下一步…',
+        starters: ['进入《白汀渡的旧灯》', '我想先查那页簿子', '先和沈照聊聊'], category: 'story', icon: 'xianxia-sword-bamboo.svg',
       },
       {
-        id: 'mystery-guide', name: '侦探茶室', tag: '轻推理', detail: '线索都在桌上，真相等你开口。',
-        greeting: '茶室打烊后，柜台上的蓝色信封不翼而飞：地板是干的，窗户开着，茶壶却还很烫。你想先查哪条线索？', placeholder: '记录你的观察或下一步推理…',
-        starters: ['出一道三条线索的小案', '让我询问一位虚构嫌疑人', '继续刚才的谜案'], category: 'story', icon: 'mystery-tea-lens.svg',
+        id: 'mystery-guide', name: '侦探茶室', tag: '互动悬疑', detail: '你亲自查线索，闻笙不替你抢答。',
+        greeting: '闻笙发来消息：河岸档案室登记了八名访客，闭馆后展台上却多出第九张门票。', placeholder: '记录你的观察或下一步推理…',
+        starters: ['进入《河岸档案室的第九张票》', '我想先检查现场', '先和闻笙聊聊'], category: 'story', icon: 'mystery-tea-lens.svg',
+      },
+      {
+        id: 'horror-guide', name: '恐怖故事', tag: '互动恐怖', detail: '雨夜、旧呼叫铃，以及你来决定的下一步。',
+        greeting: '林漪发来消息：茶室断电后，空房里的呼叫铃在00:17响了三短一长。', placeholder: '说出你要查的声音、物件或人物…',
+        starters: ['进入《雨窗茶室·00:17》', '我想检查那只旧呼叫器', '先和林漪聊聊'], category: 'story', icon: 'horror-lantern.svg',
       },
       {
         id: 'eastern-oracle', name: '东方玄学', tag: '东方卦签', detail: '随机起一卦，换个角度看当下。',

@@ -173,17 +173,17 @@ function clientRuntime({ request, envVersion = 'release' } = {}) {
   assert.equal(requests[0].dataType, 'text')
   assert.equal(requests[0].responseType, 'text')
   assert.equal(requests[0].header.Authorization, undefined, 'the public request must not send session credentials')
-  requests[0].success({ statusCode: 200, data: clone(fixture), header: { ETag: '"foundation-v1"' } })
+  requests[0].success({ statusCode: 200, data: clone(fixture), header: { ETag: '"interactive-tavern-2026-11-03-v1"' } })
   const firstResult = await first
   assert.equal(firstResult.source, 'network')
-  assert.equal(firstResult.config.revision, 'foundation-v1')
+  assert.equal(firstResult.config.revision, 'interactive-tavern-2026-11-03-v1')
 
   const second = client.loadProductConfig({ now: 11_000 })
-  assert.equal(requests[1].header['If-None-Match'], '"foundation-v1"')
-  requests[1].success({ statusCode: 304, data: '', header: { ETag: '"foundation-v1"' } })
+  assert.equal(requests[1].header['If-None-Match'], '"interactive-tavern-2026-11-03-v1"')
+  requests[1].success({ statusCode: 304, data: '', header: { ETag: '"interactive-tavern-2026-11-03-v1"' } })
   const secondResult = await second
   assert.equal(secondResult.source, 'not-modified')
-  assert.equal(secondResult.config.revision, 'foundation-v1')
+  assert.equal(secondResult.config.revision, 'interactive-tavern-2026-11-03-v1')
   const cached = runtime.storage.get(client.productConfigCacheKey('release'))
   assert.equal(cached.savedAt, 11_000, 'a confirming 304 refreshes the public last-good age')
 
@@ -191,7 +191,7 @@ function clientRuntime({ request, envVersion = 'release' } = {}) {
   requests[2].fail({ errMsg: 'request:fail timeout' })
   const timeoutResult = await timeout
   assert.equal(timeoutResult.source, 'cache')
-  assert.equal(timeoutResult.config.revision, 'foundation-v1')
+  assert.equal(timeoutResult.config.revision, 'interactive-tavern-2026-11-03-v1')
   assert.equal(runtime.storage.get('stemistSessionToken'), undefined)
 }
 
@@ -317,7 +317,7 @@ function clientRuntime({ request, envVersion = 'release' } = {}) {
   assert.equal(extra.interactionKind, 'textchat')
   assert.equal(extra.divinationKind, undefined)
   assert.equal(extra.category, 'companion')
-  assert.deepEqual(plain(catalog.presets.slice(0, 8).map(item => item.id)), remote.tavern.presets.slice(0, 8).map(item => item.id))
+  assert.deepEqual(plain(catalog.presets.map(item => item.id)), remote.tavern.presets.map(item => item.id))
 }
 
 {

@@ -36,9 +36,12 @@ function completeEntry(onFailure){
  const url=back?.url&&(!back.owner||back.owner===owner)?back.url:'/pages/index/index'
  wx.reLaunch({url,success:()=>{if(state?.entryReturn===back)delete state.entryReturn},fail:()=>onFailure?.('进入学习失败，请重试。')});return url
 }
-function exitEntry(onFailure){
- if(typeof wx.exitMiniProgram!=='function')return onFailure?.('请点击右上角关闭小程序。')
- wx.exitMiniProgram({fail:()=>onFailure?.('未退出，可点击右上角关闭小程序，或继续登录。')})
+function returnToBrowse(onFailure){
+ const state=getApp()?.globalData
+ if(state?.entryReturn)delete state.entryReturn
+ try{wx.reLaunch({url:'/pages/index/index',fail:()=>onFailure?.('暂时无法返回首页，请重试。')})}
+ catch{onFailure?.('暂时无法返回首页，请重试。')}
+ return '/pages/index/index'
 }
 function wrapEntryPage(definition){
  if(definition.entryPublic===true)return definition
@@ -59,4 +62,4 @@ function wrapEntryPage(definition){
   onUnload(){this.__entryDisposed=true;if(this.__entryInitialized)return definition.onUnload?.call(this)},
  }
 }
-module.exports={consentAccepted,hasValidSession,canEnter,acceptConsent,notePrivacy,prepareEntry,completeEntry,exitEntry,wrapEntryPage}
+module.exports={consentAccepted,hasValidSession,canEnter,acceptConsent,notePrivacy,prepareEntry,completeEntry,returnToBrowse,wrapEntryPage}

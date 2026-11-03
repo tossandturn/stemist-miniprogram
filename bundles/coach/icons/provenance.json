@@ -83,6 +83,17 @@
       "packagedBytes": 664
     },
     {
+      "name": "horror-lantern.svg",
+      "roleId": "horror-guide",
+      "concept": "original lantern with a soft signal glow",
+      "source": "project-original",
+      "original": true,
+      "viewBox": "0 0 48 48",
+      "sha256": "8d51b7fcd987a5fded5ed749e46b86e1fb91dd2e55158556c9ee733fb2c05760",
+      "packagedSha256": "8d51b7fcd987a5fded5ed749e46b86e1fb91dd2e55158556c9ee733fb2c05760",
+      "packagedBytes": 693
+    },
+    {
       "name": "eastern-oracle-lots.svg",
       "roleId": "eastern-oracle",
       "concept": "fortune sticks with a small yin-yang seal",

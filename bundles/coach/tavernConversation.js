@@ -1,4 +1,4 @@
-const {requestJson:requestApiJson}=require('../../utils/api')
+const {requestJson:requestApiJson,requestBinary:requestApiBinary}=require('../../utils/api')
 const {coachEffortTimeout}=require('../../utils/coachEffort')
 const {TAVERN_MEDIA_VERSION,normalizeTavernMedia}=require('./tavernMedia')
 const {historyDraw}=require('./tavernDrawHistory')
@@ -139,6 +139,15 @@ async function deleteTavernConversation({conversationId,persona,attemptId=''}={}
  return{deleted:true,conversationId:id}
 }
 
+async function requestTavernImage({persona,prompt}={}){
+ const role=scalar(persona,'persona',80)
+ if(!['story-traveler','xianxia-guide','mystery-guide','horror-guide'].includes(role))fail('当前角色不支持剧本配图','tavern_image_persona_invalid')
+ if(typeof prompt!=='string')fail('图片描述无效','tavern_image_prompt_invalid')
+ const text=prompt.replaceAll(String.fromCharCode(0),'').trim()
+ if(!text||Array.from(text).length>500)fail('图片描述最多 500 个字','tavern_image_prompt_invalid')
+ return requestApiBinary('/api/ai/tavern/image',{persona:role,prompt:text},{timeout:75_000})
+}
+
 function memoryRecord(value){
  if(!value||typeof value!=='object'||Array.isArray(value))fail('长期记忆状态无效')
  const countingMethod=typeof value.countingMethod==='string'?value.countingMethod.trim():'';if(!countingMethod||countingMethod.length>80||typeof value.historyTruncated!=='boolean')fail('长期记忆状态无效')
@@ -164,4 +173,4 @@ async function sendTavernTurn({persona,message,conversationId,clientTurnId,expec
  return local
 }
 
-module.exports={TAVERN_PAGE_LIMIT,TAVERN_MESSAGE_MAX_BYTES,TAVERN_PAGE_MAX_BYTES,TAVERN_LEGACY_IMPORT_MAX_BYTES,displayTavernMessages,legacyDisplayTavernMessages,legacyImportIdFor,legacyTavernMessages,mergeTavernMessages,newClientTurnId,normalizeTavernEnvelope,resumeTavernConversation,fetchTavernMessages,deleteTavernConversation,sendTavernTurn}
+module.exports={TAVERN_PAGE_LIMIT,TAVERN_MESSAGE_MAX_BYTES,TAVERN_PAGE_MAX_BYTES,TAVERN_LEGACY_IMPORT_MAX_BYTES,displayTavernMessages,legacyDisplayTavernMessages,legacyImportIdFor,legacyTavernMessages,mergeTavernMessages,newClientTurnId,normalizeTavernEnvelope,resumeTavernConversation,fetchTavernMessages,deleteTavernConversation,requestTavernImage,sendTavernTurn}

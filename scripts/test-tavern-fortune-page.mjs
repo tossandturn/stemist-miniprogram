@@ -30,7 +30,7 @@ const runtime=miniRuntime({modules:{'utils/api':{
 runtime.storage.set('stemistUser',{id:'fortune-owner'})
 const page=runtime.page('bundles/coach/tavern');page.onLoad()
 assert.deepEqual(page.data.categories.map(item=>item.id),['all','companion','story','fortune'])
-assert.equal(page.data.personas.length,8)
+assert.equal(page.data.personas.length,9)
 page.chooseCategory({currentTarget:{dataset:{category:'fortune'}}})
 assert.deepEqual(Array.from(page.data.visiblePersonas,item=>item.id),['eastern-oracle','tarot-reader'])
 assert.equal(calls.length,0,'category filtering never calls an API')

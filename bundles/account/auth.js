@@ -23,7 +23,7 @@ Page({
  cancelWechatAttempt(){const attempt=this._wechatAttempt;this._wechatAttempt=null;if(!attempt)return false;const changed=attempt.cancel();if(!this._disposed)this.setData({wechatLoading:false});return changed},
  cancelPasswordAttempt(){const attempt=this._passwordAttempt;this._passwordAttempt=null;if(!attempt)return false;const changed=attempt.cancel();if(!this._disposed)this.setData({loading:false});return changed},
  cancelLoginAttempts(){const wechat=this.cancelWechatAttempt(),password=this.cancelPasswordAttempt();return wechat||password},
- goBack(){this.cancelLoginAttempts();this._version=(this._version||0)+1;if(this.data.entry||!access.canEnter())return access.exitEntry(error=>this.setData({error}));this._active=false;leaveAccount()},
+ goBack(){this.cancelLoginAttempts();this._version=(this._version||0)+1;if(this.data.entry||!access.canEnter())return access.returnToBrowse(error=>this.setData({error}));this._active=false;leaveAccount()},
  checkPrivacy(){
   const version=this._version||0;this.setData({privacyKnown:false});clearTimeout(this._privacyTimer)
   let settled=false;const finish=result=>{if(settled||!this._active||version!==(this._version||0))return;settled=true;clearTimeout(this._privacyTimer);const known=typeof result?.needAuthorization==='boolean';access.notePrivacy(known&&result.needAuthorization===false);this.setData({privacyKnown:known,privacy:!access.consentAccepted()||!known,nativePrivacyRequired:result?.needAuthorization!==false,contractName:result?.privacyContractName||'用户隐私保护指引',...(known?{}:{error:'隐私许可暂未读取，请重试。'})});if(this.data.entry&&access.canEnter())this.finishEntry()}
