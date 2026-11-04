@@ -3,6 +3,7 @@
   <stemist-header wx:if="{{selectorOpen || !presetChosen}}" compact="{{true}}" eyebrow="AI 休闲酒馆" title="星光酒馆" />
   <app-nav wx:if="{{selectorOpen || !presetChosen}}" id="tavern-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
   <view wx:if="{{selectorOpen || !presetChosen}}" class="preset-discovery">
+    <navigator class="script-room-entry" url="/bundles/coach/scripts"><view><text class="script-entry-title">AI 剧本杀</text><text class="script-entry-detail">四本故事 · 1–4 人 · 好友邀请 / AI 补位</text></view><text aria-hidden="true">›</text></navigator>
     <image class="tavern-illustration" src="/bundles/coach/art/tavern-lounge.jpg" mode="aspectFit" aria-label="月光窗边的猫咪与热茶" />
     <view class="tavern-note">AI 虚构角色，不读取学术内容。</view>
     <view class="preset-head"><text class="preset-title">今晚，想和谁聊聊？</text></view>
@@ -33,11 +34,11 @@
         <view wx:if="{{selected.divinationKind}}" class="fortune-panel">
           <view class="fortune-note">可聊天或抽取。仅供娱乐，不是科学预测。</view>
         </view>
-        <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}}">
-          <image wx:if="{{item.role !== 'user'}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
-          <view wx:else class="message-avatar user-avatar" aria-hidden="true">你</view>
+        <view wx:for="{{turns}}" wx:key="id" class="chat-row {{item.role}} {{item.storySegments && item.storySegments.length ? 'script-row' : ''}}">
+          <image wx:if="{{item.role !== 'user' && !(item.storySegments && item.storySegments.length)}}" class="message-avatar" src="/bundles/coach/icons/{{selected.icon}}" mode="aspectFit" aria-hidden="true" />
+          <view wx:elif="{{item.role === 'user'}}" class="message-avatar user-avatar" aria-hidden="true">我</view>
           <view class="message-content {{item.draw ? 'has-draw' : ''}}">
-            <view class="chat-turn {{item.role}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><block wx:elif="{{item.storySegments && item.storySegments.length}}"><view wx:for="{{item.storySegments}}" wx:for-item="segment" wx:for-index="segmentIndex" wx:key="segmentIndex" class="story-segment {{segment.kind}}"><text wx:if="{{segment.label}}" class="story-speaker">{{segment.label}}</text><text class="story-segment-copy" selectable="{{true}}">{{segment.text}}</text></view><view wx:if="{{item.showStoryChoices && item.storyChoices.length && !historyBrowsing}}" class="story-choices" aria-label="可选行动"><button wx:for="{{item.storyChoices}}" wx:for-item="choice" wx:key="*this" class="story-choice" data-turn-id="{{item.id}}" data-choice="{{choice}}" bindtap="chooseStoryChoice" disabled="{{loading || examBlocked || authRequired}}">{{choice}}</button></view></block><answer-content wx:else compact="{{true}}" text="{{item.content}}" /></view>
+            <view class="chat-turn {{item.role}} {{item.storySegments && item.storySegments.length ? 'script-turn' : ''}}"><text wx:if="{{item.role === 'user'}}" selectable="{{true}}">{{item.content}}</text><block wx:elif="{{item.storySegments && item.storySegments.length}}"><view wx:for="{{item.storySegments}}" wx:for-item="segment" wx:for-index="segmentIndex" wx:key="segmentIndex" class="story-segment {{segment.kind}}"><text wx:if="{{segment.label}}" class="story-speaker">{{segment.label}}</text><text class="story-segment-copy" selectable="{{true}}">{{segment.text}}</text></view><view wx:if="{{item.showStoryChoices && item.storyChoices.length && !historyBrowsing}}" class="story-choices" aria-label="可选行动"><button wx:for="{{item.storyChoices}}" wx:for-item="choice" wx:key="*this" class="story-choice" data-turn-id="{{item.id}}" data-choice="{{choice}}" bindtap="chooseStoryChoice" disabled="{{loading || examBlocked || authRequired}}">{{choice}}</button></view></block><answer-content wx:else compact="{{true}}" text="{{item.content}}" /></view>
             <tavern-draw-art wx:if="{{item.draw && selected.divinationKind}}" id="draw-message-{{index}}" class="tavern-message-art" draw="{{item.draw}}" />
             <view wx:for="{{item.media}}" wx:for-item="mediaItem" wx:key="id" class="reply-media {{mediaItem.kind}}" aria-label="{{mediaItem.alt}}">
               <view class="reply-media-frame" style="width:{{mediaItem.viewWidth}}px;height:{{mediaItem.viewHeight}}px;">
@@ -71,7 +72,7 @@
       <view wx:if="{{historyAnchor}}" id="{{historyAnchor}}" class="chat-tail" aria-hidden="true"></view>
     </scroll-view>
     <view class="chat-composer">
-      <text wx:if="{{selected.storyMode}}" class="story-image-note">明确要求画图时才生成配图；图像服务可能产生服务器成本。</text>
+      <text wx:if="{{selected.storyMode}}" class="story-image-note">想看某个画面，可以直接说“画出来”。</text>
       <view wx:if="{{selected.divinationKind}}" class="fortune-tools">
         <view wx:if="{{selected.divinationKind === 'tarot'}}" class="fortune-spreads" role="group" aria-label="下次抽牌方式"><button class="spread-option {{spread === 'single' ? 'active' : ''}}" data-spread="single" bindtap="chooseSpread" disabled="{{loading || examBlocked}}" aria-pressed="{{spread === 'single'}}">单张</button><button class="spread-option {{spread === 'three' ? 'active' : ''}}" data-spread="three" bindtap="chooseSpread" disabled="{{loading || examBlocked}}" aria-pressed="{{spread === 'three'}}">三张</button></view>
         <text wx:else class="fortune-tools-caption">抽一卦，也能接着聊</text>

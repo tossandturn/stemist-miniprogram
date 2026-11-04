@@ -19,7 +19,7 @@ function prepareEntry(){
 }
 function publicReturn(route,options){
  const path=String(route||'');if(!/^(pages|bundles)\/[A-Za-z0-9_/-]+$/.test(path)||/account\/auth|legal\//.test(path))return '/pages/index/index'
- const keys=['source','feature','category','family','subjectCode','stage','routeId','book','test','curriculum','paperId','view']
+ const keys=['source','feature','category','family','subjectCode','stage','routeId','book','test','curriculum','paperId','view','roomId','invite','create']
  const query=keys.filter(k=>typeof options?.[k]==='string'&&/^[A-Za-z0-9_:. -]{1,100}$/.test(options[k])).map(k=>k+'='+encodeURIComponent(options[k])).join('&')
  return '/'+path+(query?'?'+query:'')
 }

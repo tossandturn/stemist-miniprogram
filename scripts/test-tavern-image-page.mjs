@@ -15,7 +15,7 @@ const state=page.read('horror-guide');state.turns=[{id:'story-image-turn-01',rol
 assert.equal(await page.generateStoryImage(state.turns[0].id,'随便聊聊'),false)
 assert.equal(binaryCalls.length,0,'non-image chat text does not invoke a paid image model')
 assert.equal(await page.generateStoryImage(state.turns[0].id,'给我画一张雾里的茶室图片'),true)
-assert.deepEqual(plain(binaryCalls[0]),{path:'/api/ai/tavern/image',body:{persona:'horror-guide',prompt:'给我画一张雾里的茶室图片'}})
+assert.deepEqual(plain(binaryCalls[0]),{path:'/api/ai/tavern/image',body:{persona:'horror-guide',prompt:'给我画一张雾里的茶室图片',conversationId:'story-image-conversation',clientImageId:'image-story-image-turn-01'}})
 assert.match(page.data.turns[0].generatedImagePath,/tavern-generated-[A-Za-z0-9_-]+\.png$/)
 assert.ok(files.has(page.data.turns[0].generatedImagePath))
 const saved=runtime.storage.get('stemistTavern:ielts:775:0:horror-guide')

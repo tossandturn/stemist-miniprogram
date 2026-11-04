@@ -20,7 +20,7 @@ const viewPreset=value=>({...value,starters:Array.from(value.starters||[]),...(v
 const hasSession=()=>Boolean(wx.getStorageSync('stemistSessionToken'))
 const LOCAL_CLEAR_FENCES=new Map()
 const MAX_LOCAL_GENERATED_IMAGES=4
-const imageRequestIntent=value=>/(?:画一张|画个|给我画|帮我画|生成|我想看|给我看|看看|看一下|看个|展示|画出).{0,80}(?:图片|插图|图像|画面|场景图|图)|(?:图片|插图|图像|场景图).{0,80}(?:生成|画一下)/i.test(String(value||''))
+const {imageRequestIntent}=require('./tavernImageIntent')
 function localGeneratedImages(value){
  const root=String(wx.env?.USER_DATA_PATH||'');if(!root||!Array.isArray(value))return[]
  return value.filter(item=>item&&typeof item.turnId==='string'&&/^[A-Za-z0-9:_-]{1,180}$/.test(item.turnId)&&typeof item.path==='string'&&item.path.startsWith(root+'/tavern-generated-')&&/\/tavern-generated-[A-Za-z0-9_-]{12,100}\.(?:png|jpg|webp)$/.test(item.path)&&Number.isFinite(item.createdAt)).slice(-MAX_LOCAL_GENERATED_IMAGES)
@@ -201,7 +201,7 @@ Page({
   this.setData({imageGenerating:true,imageTurnId:turnId,imageError:'',status:'文字已返回 · 正在生成配图…'})
   let filePath=''
   try{
-   const result=await requestTavernImage({persona,prompt}),root=String(wx.env?.USER_DATA_PATH||''),manager=wx.getFileSystemManager?.()
+   const result=await requestTavernImage({persona,prompt,conversationId:this.read(persona).conversation?.id,clientImageId:'image-'+turnId.replace(/[^A-Za-z0-9_-]/g,'-').slice(0,140)}),root=String(wx.env?.USER_DATA_PATH||''),manager=wx.getFileSystemManager?.()
    if(!root||!manager)throw Error('当前设备暂不支持保存配图。')
    if(!this.current()||generation!==this.__conversationGeneration||this.__imageRequestId!==requestId||this.data.persona!==persona)return false
    const extension=result.mimeType==='image/png'?'png':result.mimeType==='image/webp'?'webp':'jpg',safeId=requestId.replace(/[^A-Za-z0-9_-]/g,'-')

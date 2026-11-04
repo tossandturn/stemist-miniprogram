@@ -1,0 +1,15 @@
+<view class="page {{deviceClass}} {{orientation}} script-catalog">
+ <stemist-header compact="{{true}}" title="AI 剧本杀" />
+ <view class="script-intro"><text class="script-eyebrow">四个故事 · 四种人生</text><text class="script-hero-title">这一次，你在故事里。</text><text class="script-subtitle">1–4 人，邀请好友或由 AI 补位。搜证、交流、作出自己的选择。</text></view>
+ <view class="script-join card"><label class="field-label" for="invite-input">加入好友的房间</label><view class="join-row"><input id="invite-input" class="input" value="{{invite}}" maxlength="16" placeholder="16 位邀请码" bindinput="typeInvite" /><button class="secondary" bindtap="join">加入</button></view></view>
+ <view wx:if="{{rooms.length}}" class="my-rooms"><text class="section-title">继续我的故事</text><button wx:for="{{rooms}}" wx:key="id" data-id="{{item.id}}" bindtap="resume" class="resume-card"><text>{{item.title}}</text><text class="muted">{{item.status}} ›</text></button></view>
+ <view wx:if="{{loading}}" class="notice">正在加载剧本…</view>
+ <view wx:if="{{error}}" class="error">{{error}}<button class="text-button" bindtap="refresh">重新加载</button></view>
+ <view class="script-grid">
+  <view wx:for="{{scripts}}" wx:key="id" class="script-card">
+   <image src="{{item.cover}}" class="script-cover" mode="aspectFill" lazy-load="{{true}}" aria-label="{{item.title}}氛围插图" />
+   <view class="script-card-body"><text class="script-eyebrow">{{item.genre}} · {{item.duration}}</text><text class="script-title">{{item.title}}</text><text class="script-summary">{{item.summary}}</text><text class="script-subtitle">{{item.difficulty}} · 4 个角色</text><text class="script-warning">{{item.warning}}</text><button class="primary" data-id="{{item.id}}" bindtap="create">创建房间</button></view>
+  </view>
+ </view>
+ <text class="script-footnote">原创虚构剧本 · 不含真实危险操作 · 房间保留72小时</text>
+</view>

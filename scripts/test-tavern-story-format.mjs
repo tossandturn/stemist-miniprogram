@@ -25,6 +25,13 @@ assert.deepEqual(plain(unsafe.segments), [
   { kind: 'narration', label: '旁白', text: '门外传来三声轻响。' },
   { kind: 'dialogue', label: '沈照', text: '我先不动，你来选。' },
 ], 'assistant-authored player action is never rendered as user speech')
+const inline = plain(parseTavernStoryMessage('雨落在渡口。**【旁白】**沈照收起伞。【沈照】我先去问问。\n【我】我替玩家作决定。\n【可选行动】1. 检查旧伞柄 2. 查看渡口簿缺页'))
+assert.deepEqual(inline.segments.map(item => [item.kind,item.label,item.text]), [
+ ['narration','旁白','雨落在渡口。'],
+ ['narration','旁白','沈照收起伞。'],
+ ['dialogue','沈照','我先去问问。'],
+])
+assert.deepEqual(inline.choices,['检查旧伞柄','查看渡口簿缺页'])
 const choices = parseTavernStoryMessage('【闻笙】线索还不够，先检查门票背面。\n【可选行动】\nA. 查看票根\nB. 询问值班员\nC. 自由输入')
 assert.deepEqual(plain(choices.choices), ['查看票根', '询问值班员', '自由输入'])
 

@@ -86,3 +86,10 @@
 @media(max-width:375px){.chat-inner{padding-left:12px;padding-right:12px}.selected-preset{padding-left:12px;padding-right:12px}.chat-row{gap:8px}.chat-turn{max-width:calc(100% - 42px)}}
 @media(max-width:330px){.category-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.persona-list{grid-template-columns:1fr}.persona{min-height:126px}.persona-top{align-items:center}.selected-detail{font-size:12px}.starter-list{margin-left:0}.draw-grid.three{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.persona{transition:none}.persona:active{transform:none}}
+.script-row .message-content{width:100%;max-width:100%;align-items:stretch}
+.tavern-page .chat-turn.script-turn{width:100%;max-width:100%;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.script-turn .story-segment.narration{margin:2px 0 12px;padding:10px 12px;border-left:2px solid #c8cbd7;border-radius:0 8px 8px 0;background:#eeeff4;color:#596279;font-size:14px;line-height:1.7}
+.script-turn .story-segment.narration .story-speaker{color:#66708a;font-weight:500}
+.script-turn .story-segment.dialogue{margin:8px 0 12px;padding:12px 14px;border:1px solid #dedee6;border-radius:4px 14px 14px 14px;background:#fff}
+.script-turn .story-segment.dialogue .story-speaker{margin-bottom:6px;font-size:13px}
+.script-room-entry{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px;margin:12px 0 18px;border:1px solid #d9d0f5;border-radius:18px;background:linear-gradient(120deg,#e9e3fb,#e9f5f2);color:#18213d;min-height:72px;}.script-entry-title{display:block;font-size:22px;font-weight:700;}.script-entry-detail{display:block;margin-top:8px;font-size:13px;color:#5638b8;}

@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory)][string]$Version,
   [Parameter(Mandatory)][string]$Description,
+  [string]$AppId,
   [switch]$PrepareOnly,
   [string]$DeveloperToolsCli='D:\微信web开发者工具\cli.bat'
 )
@@ -19,7 +20,9 @@ if($LASTEXITCODE -ne 0){throw 'Cannot resolve the maintained commit.'}
 $frozen=Join-Path $workspace "stemist-miniprogram-review-$Version-$($commit.Substring(0,7))"
 $sourceConfigHash=(Get-FileHash -LiteralPath (Join-Path $repo 'project.config.json')).Hash
 if(-not(Test-Path -LiteralPath $frozen)){
-  & node (Join-Path $PSScriptRoot 'build-native-package.mjs') --out $frozen
+  $buildArgs=@((Join-Path $PSScriptRoot 'build-native-package.mjs'),'--out',$frozen)
+  if($AppId){$buildArgs+=@('--appid',$AppId)}
+  & node @buildArgs
   if($LASTEXITCODE -ne 0){throw 'Package freeze failed.'}
 }
 $manifest=Get-Content -LiteralPath ($frozen+'-manifest.json') -Raw -Encoding utf8 | ConvertFrom-Json
@@ -28,8 +31,11 @@ foreach($file in $manifest.files){
   $hash=(Get-FileHash -LiteralPath (Join-Path $frozen $file.path)).Hash.ToLowerInvariant()
   if($hash -ne $file.sha256){throw "Frozen runtime drift: $($file.path)"}
   $sourceHash=(Get-FileHash -LiteralPath (Join-Path $repo $file.path)).Hash.ToLowerInvariant()
-  if($sourceHash -ne $file.sha256){throw "Maintained source drift: $($file.path)"}
+  if($sourceHash -ne $file.sourceSha256){throw "Maintained source drift: $($file.path)"}
 }
+$frozenConfig=Get-Content -LiteralPath (Join-Path $frozen 'project.config.json') -Raw -Encoding utf8 | ConvertFrom-Json
+if($frozenConfig.appid -notmatch '^wx[a-f0-9]{16}$'){throw 'A verified real AppID is required for development upload; pass -AppId without editing source config.'}
+if($AppId -and $frozenConfig.appid -ne $AppId){throw 'Frozen project AppID differs from the verified upload target.'}
 if($PrepareOnly){Write-Output ('DEVELOPMENT_PREPARE=PASS|version:'+ $Version +'|commit:'+ $commit +'|project:'+ $frozen);exit 0}
 $receiptDir=Join-Path $workspace ('stemist-release-coordination\release-'+$Version+'-'+(Get-Date -Format 'yyyyMMdd'))
 New-Item -ItemType Directory -Path $receiptDir -Force | Out-Null

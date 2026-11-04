@@ -139,13 +139,14 @@ async function deleteTavernConversation({conversationId,persona,attemptId=''}={}
  return{deleted:true,conversationId:id}
 }
 
-async function requestTavernImage({persona,prompt}={}){
+async function requestTavernImage({persona,prompt,conversationId,clientImageId}={}){
  const role=scalar(persona,'persona',80)
  if(!['story-traveler','xianxia-guide','mystery-guide','horror-guide'].includes(role))fail('当前角色不支持剧本配图','tavern_image_persona_invalid')
  if(typeof prompt!=='string')fail('图片描述无效','tavern_image_prompt_invalid')
  const text=prompt.replaceAll(String.fromCharCode(0),'').trim()
  if(!text||Array.from(text).length>500)fail('图片描述最多 500 个字','tavern_image_prompt_invalid')
- return requestApiBinary('/api/ai/tavern/image',{persona:role,prompt:text},{timeout:75_000})
+ const conversation=optionalScalar(conversationId,'conversationId'),imageId=optionalScalar(clientImageId,'clientImageId')
+ return requestApiBinary('/api/ai/tavern/image',{persona:role,prompt:text,...(conversation?{conversationId:conversation}:{}),...(imageId?{clientImageId:imageId}:{})},{timeout:75_000})
 }
 
 function memoryRecord(value){

@@ -29,7 +29,7 @@ assert.doesNotMatch(account,/返回浏览/);assert.match(account,/每天.*2/);as
 const accountPage=r.page('bundles/account/auth');accountPage.onLoad({required:'1'});const before=calls.length;accountPage.finishEntry();accountPage.finishEntry();assert.equal(calls.length,before+1,'concurrent privacy/login completion must not redirect twice and lose the deep link')
 const manifest=JSON.parse(fs.readFileSync(new URL('../app.json',import.meta.url),'utf8'))
 for(const route of [...manifest.pages,...manifest.subPackages.flatMap(s=>s.pages.map(p=>s.root+'/'+p))]){
- const publicRoute=['pages/index/index','bundles/account/auth','pages/account/auth','pages/legal/privacy'].includes(route),source=fs.readFileSync(new URL('../'+route+'.js',import.meta.url),'utf8')
+ const publicRoute=['pages/index/index','bundles/account/auth','pages/account/auth','pages/legal/privacy','bundles/coach/scripts'].includes(route),source=fs.readFileSync(new URL('../'+route+'.js',import.meta.url),'utf8')
  assert.equal(/entryPublic\s*:\s*true/.test(source),publicRoute,'home browsing, login and privacy are public: '+route)
  if(!publicRoute)assert.match(fs.readFileSync(new URL('../'+route+'.wxml',import.meta.url),'utf8'),/^<block wx:if="\{\{!__entryGateBlocked\}\}">/,'protect render and child lifetimes: '+route)
 }

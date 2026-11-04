@@ -72,7 +72,9 @@ if(checkOnly){console.log(JSON.stringify(summary));process.exit(0)}
 fs.mkdirSync(out)
 for(const item of manifest){const target=path.join(out,item.path);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,item.output)}
 const original=JSON.parse(fs.readFileSync(path.join(root,'project.config.json'),'utf8'))
-const config={appid:original.appid,projectname:'stemist-native',compileType:'miniprogram',libVersion:original.libVersion,miniprogramRoot:'./',setting:{...original.setting,urlCheck:true,minified:true,minifyWXSS:true,compileHotReLoad:false},packOptions:{ignore:[],include:[]}}
+const appIdIndex=process.argv.indexOf('--appid'),appId=appIdIndex>=0?process.argv[appIdIndex+1]:original.appid
+if(appIdIndex>=0&&!/^wx[a-f0-9]{16}$/.test(appId||''))throw Error('Explicit appid must be a verified WeChat AppID')
+const config={appid:appId,projectname:'stemist-native',compileType:'miniprogram',libVersion:original.libVersion,miniprogramRoot:'./',setting:{...original.setting,urlCheck:true,minified:true,minifyWXSS:true,compileHotReLoad:false},packOptions:{ignore:[],include:[]}}
 fs.writeFileSync(path.join(out,'project.config.json'),JSON.stringify(config,null,2)+'\n','utf8')
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()
 const receipt={schemaVersion:'stemist-native-upload-v3',commit,transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeBytes:mainPackageBytes,runtimeHeadroomBytes:mainPackageHeadroom,minimumHeadroomBytes:MINIMUM_HEADROOM,sourceMainPackageBytes,mainPackageSavingsBytes,mainPackage:{files:mainFiles.length,bytes:mainPackageBytes,headroom:mainPackageHeadroom,budget:MAX_RUNTIME_BYTES},subPackages,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,files:receiptFiles,originalProjectConfigChanged:false}
