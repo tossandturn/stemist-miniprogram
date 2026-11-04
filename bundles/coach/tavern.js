@@ -198,7 +198,7 @@ Page({
  async generateStoryImage(turnId,prompt,generation=this.__conversationGeneration){
   if(!this.current()||!this.data.selected?.storyMode||!turnId||!imageRequestIntent(prompt))return false
   const requestId=newClientTurnId(),persona=this.data.persona;this.__imageRequestId=requestId
-  this.setData({imageGenerating:true,imageTurnId:turnId,imageError:'',status:'正在生成配图，通常约 30–90 秒 · 可以继续聊天'})
+  this.setData({imageGenerating:true,imageTurnId:turnId,imageError:'',status:'配图生成中 · 可以继续聊天，完成后显示'})
   let filePath=''
   try{
    const result=await requestTavernImage({persona,prompt,conversationId:this.read(persona).conversation?.id,clientImageId:'image-'+turnId.replace(/[^A-Za-z0-9_-]/g,'-').slice(0,140)}),root=String(wx.env?.USER_DATA_PATH||''),manager=wx.getFileSystemManager?.()
