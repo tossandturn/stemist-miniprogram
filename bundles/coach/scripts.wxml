@@ -1,15 +1,19 @@
-<view class="page {{deviceClass}} {{orientation}} script-catalog">
- <stemist-header compact="{{true}}" title="AI 剧本杀" />
- <view class="script-intro"><text class="script-eyebrow">四个故事 · 四种人生</text><text class="script-hero-title">这一次，你在故事里。</text><text class="script-subtitle">1–4 人，邀请好友或由 AI 补位。搜证、交流、作出自己的选择。</text></view>
- <view class="script-join card"><label class="field-label" for="invite-input">加入好友的房间</label><view class="join-row"><input id="invite-input" class="input" value="{{invite}}" maxlength="16" placeholder="16 位邀请码" bindinput="typeInvite" /><button class="secondary" bindtap="join">加入</button></view></view>
- <view wx:if="{{rooms.length}}" class="my-rooms"><text class="section-title">继续我的故事</text><button wx:for="{{rooms}}" wx:key="id" data-id="{{item.id}}" bindtap="resume" class="resume-card"><text>{{item.title}}</text><text class="muted">{{item.status}} ›</text></button></view>
+<view class="page {{deviceClass}} {{orientation}} script-catalog" aria-hidden="{{selectedScript !== null || joinOpen || historyOpen}}">
+ <view class="catalog-heading"><view><text class="catalog-title">选一个故事</text><text class="catalog-subtitle">1–4 人 · 好友同行，或由 AI 入戏</text></view><button class="join-entry" bindtap="openInvite">加入房间</button></view>
+ <view wx:if="{{latestRoom}}" class="resume-row"><button class="resume-latest" data-id="{{latestRoom.id}}" bindtap="resume"><text>{{latestRoom.title}}</text><text class="muted">{{latestRoom.status}} ›</text></button><button wx:if="{{rooms.length > 1}}" class="history-entry" bindtap="openHistory">全部</button></view>
  <view wx:if="{{loading}}" class="notice">正在加载剧本…</view>
  <view wx:if="{{error}}" class="error">{{error}}<button class="text-button" bindtap="refresh">重新加载</button></view>
  <view class="script-grid">
-  <view wx:for="{{scripts}}" wx:key="id" class="script-card script-theme-{{item.theme}}">
+  <button wx:for="{{scripts}}" wx:key="id" class="script-card script-theme-{{item.theme}}" data-id="{{item.id}}" bindtap="showScript" aria-label="了解{{item.title}}">
    <view class="script-poster"><image src="{{item.cover}}" class="script-cover" mode="aspectFill" lazy-load="{{true}}" aria-label="{{item.title}}氛围插图" /><view class="script-poster-shade" /><view class="script-poster-copy"><text class="script-eyebrow">{{item.genre}}</text><text class="script-title">{{item.title}}</text><text class="script-poster-line">{{item.atmosphereLine}}</text></view></view>
-   <view class="script-card-body"><text class="script-meta">{{item.duration}} · 1–4 人</text><text class="script-summary">{{item.summary}}</text><text class="script-subtitle">{{item.difficulty}} · 4 个角色</text><text class="script-warning">{{item.warning}}</text><button class="primary" data-id="{{item.id}}" bindtap="create">创建房间 · 选择角色</button></view>
-  </view>
+   <view class="poster-footer"><text>{{item.duration}} · {{item.difficulty}}</text><text>了解故事 ›</text></view>
+  </button>
  </view>
  <text class="script-footnote">原创虚构剧本 · 不含真实危险操作 · 房间保留72小时</text>
 </view>
+<view wx:if="{{selectedScript || joinOpen || historyOpen}}" class="catalog-overlay" bindtap="closeOverlays"><view class="catalog-sheet" catchtap="swallowTouch" role="dialog" aria-modal="true" aria-label="{{joinOpen ? '加入房间' : historyOpen ? '我的故事' : selectedScript.title}}">
+ <view class="catalog-sheet-header"><text>{{joinOpen ? '加入房间' : historyOpen ? '我的故事' : selectedScript.title}}</text><button bindtap="closeOverlays">关闭</button></view>
+ <scroll-view wx:if="{{selectedScript}}" class="catalog-detail-scroll" scroll-y="{{true}}"><text class="detail-meta">{{selectedScript.genre}} · {{selectedScript.duration}}</text><text class="detail-summary">{{selectedScript.summary}}</text><text class="detail-meta">{{selectedScript.difficulty}} · 4 个角色</text><text class="detail-warning">{{selectedScript.warning}}</text><text class="detail-help">先选角色，再邀请朋友。空位可由 AI 补齐。</text><button class="primary" data-id="{{selectedScript.id}}" bindtap="create">创建房间 · 选择角色</button></scroll-view>
+ <view wx:elif="{{joinOpen}}"><text class="detail-help">粘贴好友的16位邀请码，或直接打开邀请链接。</text><input class="input" value="{{invite}}" maxlength="16" placeholder="16 位邀请码" bindinput="typeInvite" adjust-position="{{true}}" cursor-spacing="16" /><text wx:if="{{inviteError}}" class="invite-error">{{inviteError}}</text><button class="primary" bindtap="join">加入故事</button></view>
+ <scroll-view wx:else class="catalog-detail-scroll" scroll-y="{{true}}"><button wx:for="{{rooms}}" wx:key="id" data-id="{{item.id}}" bindtap="resume" class="resume-card"><text>{{item.title}}</text><text class="muted">{{item.status}} ›</text></button></scroll-view>
+</view></view>

@@ -12,6 +12,8 @@
 
 Follow-up correction: the user rejected putting scene, roster, identity tabs, clues and recipients on the same primary screen. The room must use progressive disclosure: primary = one compact chapter entry + dialogue + composer; one “本局” menu leads to identity, tasks, players and settings. Each secondary panel has an explicit back action. Identity and debrief content open one section at a time; public/previous clues are collapsed until requested; the answer form appears only when the shared evidence is complete. Recipient choice moves into a composer action, not a permanent full-width picker. Native screenshots must verify the main dialogue area is materially larger, not merely recolored.
 
+Apply the same hierarchy to the catalog: poster-first selection without a duplicate title/marketing hero/permanent invite form. Story details and warnings open before explicit room creation; invitations and the full history open on demand. At most one recent room is promoted. Browsing details must not create a room or consume a turn.
+
 The user accepted the visual proposal with “你补啊”, then explicitly cancelled environment audio: “环境音不用了，主要是氛围的视觉效果”. The partial audio implementation was removed before integration; generated MP3s moved outside the app to local unshipped artifacts. Only visual features ship. General learning-app screens retain the existing brand; these entertainment rooms have scoped visual themes.
 
 Prompt-only changes do not address the visual gap. A new WebView/game engine would unnecessarily replace auth and controls. Use native layered scenes and opaque readable text surfaces. The UI search suggested Spatial UI; retain depth and a skippable intro, reject expensive blur and the unrelated pink palette.
