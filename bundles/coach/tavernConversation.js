@@ -146,7 +146,21 @@ async function requestTavernImage({persona,prompt,conversationId,clientImageId}=
  const text=prompt.replaceAll(String.fromCharCode(0),'').trim()
  if(!text||Array.from(text).length>500)fail('图片描述最多 500 个字','tavern_image_prompt_invalid')
  const conversation=optionalScalar(conversationId,'conversationId'),imageId=optionalScalar(clientImageId,'clientImageId')
- return requestApiBinary('/api/ai/tavern/image',{persona:role,prompt:text,...(conversation?{conversationId:conversation}:{}),...(imageId?{clientImageId:imageId}:{})},{timeout:75_000})
+ const body={persona:role,prompt:text,...(conversation?{conversationId:conversation}:{})}
+ if(!imageId)return requestApiBinary('/api/ai/tavern/image',body,{timeout:75_000})
+ const identity=()=>String(wx.getStorageSync('stemistUser')?.id||'')+':'+String(wx.getStorageSync('stemistPrivacyEpoch')||0),startedOwner=identity(),path='/api/ai/tavern/image-jobs/'+encodeURIComponent(imageId),deadline=Date.now()+150_000
+ let state
+ try{state=await requestJson(path,{...body,retry:true},{method:'PUT',timeout:15_000})}
+ catch(error){if(error.statusCode===404)return requestApiBinary('/api/ai/tavern/image',{...body,clientImageId:imageId},{timeout:75_000});throw error}
+ while(true){
+  if(identity()!==startedOwner)fail('账号已变化，请重新进入酒馆。','account_changed')
+  if(state?.status==='completed')return requestApiBinary(path+'/result',null,{method:'GET',timeout:20_000})
+  if(state?.status==='failed')fail(state.error?.message||'图片暂未生成，文字已保留。',state.error?.code||'tavern_image_failed')
+  if(state?.status!=='processing')fail('配图状态无效，请稍后重试。','tavern_image_state_invalid')
+  if(Date.now()>deadline)fail('配图仍未完成，文字已保留；可稍后重试取回。','tavern_image_timeout')
+  await new Promise(resolve=>setTimeout(resolve,2000))
+  state=await requestJson(path,null,{method:'GET',timeout:15_000})
+ }
 }
 
 function memoryRecord(value){

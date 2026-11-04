@@ -5,7 +5,7 @@ const files=new Map(),binaryCalls=[];let imageFailure=false
 const plain=value=>JSON.parse(JSON.stringify(value))
 const runtime=miniRuntime({wx:{env:{USER_DATA_PATH:'wxfile://usr'},getFileSystemManager:()=>({writeFile(options){files.set(options.filePath,options.data);options.success?.()},unlink(options){files.delete(options.filePath);options.success?.()}})},modules:{'utils/api':{
  isAuthError:()=>false,COACH_TEXT_TIMEOUT_MS:55_000,
- requestJson:async()=>({conversation:{id:'story-image-conversation',persona:'horror-guide',revision:0,turnCount:0},messages:[],nextBefore:''}),
+ requestJson:async path=>path.includes('/image-jobs/')?{status:'completed'}:({conversation:{id:'story-image-conversation',persona:'horror-guide',revision:0,turnCount:0},messages:[],nextBefore:''}),
  requestBinary:async(path,body)=>{binaryCalls.push({path,body});if(imageFailure)throw Error('provider not configured');return{bytes:new Uint8Array([137,80,78,71,13,10,26,10]).buffer,mimeType:'image/png'}},
 }}})
 runtime.storage.set('stemistUser',{id:'ielts:775'})
@@ -15,7 +15,7 @@ const state=page.read('horror-guide');state.turns=[{id:'story-image-turn-01',rol
 assert.equal(await page.generateStoryImage(state.turns[0].id,'随便聊聊'),false)
 assert.equal(binaryCalls.length,0,'non-image chat text does not invoke a paid image model')
 assert.equal(await page.generateStoryImage(state.turns[0].id,'给我画一张雾里的茶室图片'),true)
-assert.deepEqual(plain(binaryCalls[0]),{path:'/api/ai/tavern/image',body:{persona:'horror-guide',prompt:'给我画一张雾里的茶室图片',conversationId:'story-image-conversation',clientImageId:'image-story-image-turn-01'}})
+assert.deepEqual(plain(binaryCalls[0]),{path:'/api/ai/tavern/image-jobs/image-story-image-turn-01/result',body:null})
 assert.match(page.data.turns[0].generatedImagePath,/tavern-generated-[A-Za-z0-9_-]+\.png$/)
 assert.ok(files.has(page.data.turns[0].generatedImagePath))
 const saved=runtime.storage.get('stemistTavern:ielts:775:0:horror-guide')
@@ -29,7 +29,7 @@ assert.match(page.data.imageError,/文字回复已保留/)
 
 const pending=deferred();let lateFileWrites=0
 const switched=miniRuntime({wx:{env:{USER_DATA_PATH:'wxfile://usr'},getFileSystemManager:()=>({writeFile(options){lateFileWrites++;options.success?.()}})},modules:{'utils/api':{
- isAuthError:()=>false,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async()=>({conversation:{id:'story-image-conversation',persona:'horror-guide',revision:0,turnCount:0},messages:[],nextBefore:''}),requestBinary:async()=>pending.promise,
+ isAuthError:()=>false,COACH_TEXT_TIMEOUT_MS:55_000,requestJson:async path=>path.includes('/image-jobs/')?{status:'completed'}:({conversation:{id:'story-image-conversation',persona:'horror-guide',revision:0,turnCount:0},messages:[],nextBefore:''}),requestBinary:async()=>pending.promise,
 }}})
 switched.storage.set('stemistUser',{id:'ielts:776'});switched.storage.set('stemistSessionToken','fixture-session')
 const switchedPage=switched.page('bundles/coach/tavern');switchedPage.onLoad();switchedPage.choosePersona({currentTarget:{dataset:{persona:'horror-guide'}}});await settle();await settle()

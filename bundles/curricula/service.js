@@ -1,7 +1,7 @@
 const {getJson}=require('../../utils/api')
 const {DEFAULT_API_BASE,safeApiBase}=require('../../utils/apiOrigin')
 
-const KNOWN_BOARDS=Object.freeze({ap:'AP',ib:'IB'})
+const KNOWN_BOARDS=Object.freeze({ap:'AP',ib:'IB',edexcel:'Edexcel IAL',oxfordaqa:'AQA · OxfordAQA 国际 A-Level'})
 const FILTER_KEYS=['course','level','year','session','paper']
 const clean=(value,max=160)=>String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max)
 const integer=value=>Number.isSafeInteger(Number(value))&&Number(value)>=0?Number(value):0

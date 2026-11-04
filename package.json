@@ -67,7 +67,7 @@
     "test:announcements": "node scripts/test-announcements.mjs",
     "test:stem-catalog": "node scripts/test-stem-catalog.mjs",
     "test:ielts-catalog": "node scripts/test-ielts-catalog.mjs",
-    "test:practice-entry": "node scripts/test-practice-entry.mjs",
+    "test:practice-entry": "node scripts/test-practice-entry.mjs && node scripts/test-alevel-board-entry.mjs",
     "test:paper-fixtures": "node scripts/test-paper-catalog-fixtures.mjs",
     "test:paper-entry-scope": "node scripts/test-paper-entry-scope.mjs",
     "test:notebook-entry-scope": "node scripts/test-notebook-entry-scope.mjs",

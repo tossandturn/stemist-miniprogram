@@ -3,7 +3,10 @@
   <stemist-header title="{{activeCategory === 'ielts' ? 'IELTS' : 'A-Level 学科'}}" />
   <app-nav active="practice" source="{{activeCategory}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" category="{{activeCategory}}" family="{{family}}" is-tablet="{{isTablet}}" />
   <block wx:if="{{activeCategory === 'alevel'}}">
-    <view class="route-setup-card">
+    <view class="board-heading"><text class="board-label">考试局</text><text class="board-caption">各考试局独立选卷与学习</text></view>
+    <view class="exam-board-grid"><button wx:for="{{examBoards}}" wx:key="id" class="exam-board {{item.id === examBoard ? 'active' : ''}}" data-board="{{item.id}}" bindtap="chooseBoard"><text>{{item.label}}</text><text class="board-detail">{{item.detail}}</text></button></view>
+    <view wx:if="{{examBoard !== 'cie'}}" class="new-board-subjects"><button wx:for="{{boardSubjects}}" wx:key="id" class="route-chip {{item.id === boardSubject ? 'active' : ''}}" data-subject="{{item.id}}" bindtap="chooseBoardSubject">{{item.label}}</button></view>
+    <view wx:if="{{examBoard === 'cie'}}" class="route-setup-card">
       <view class="chip-grid stage-options">
         <button wx:for="{{stages}}" wx:key="*this" class="route-chip {{item === stage ? 'active' : ''}}" data-stage="{{item}}" bindtap="chooseStage">{{item}}</button>
       </view>
@@ -18,10 +21,10 @@
     <navigator class="secondary" url="/bundles/curricula/universities?tab=official&amp;board=alevel">A-Level 官网</navigator>
     <view class="section-title">开始练习</view>
     <view class="feature-grid">
-      <button wx:for="{{stemTools}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-tool="{{item.id}}" bindtap="openStemTool" disabled="{{!routeId}}"><text class="feature-title">{{item.label}}</text><text class="feature-detail">{{item.detail}}</text></button>
+      <button wx:for="{{stemTools}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-tool="{{item.id}}" bindtap="openStemTool" disabled="{{examBoard === 'cie' && !routeId}}"><view class="practice-mark mark-{{item.id}}" aria-hidden="true"></view><text class="feature-title">{{item.label}}</text><text class="feature-detail">{{examBoard !== 'cie' && item.id !== 'papers' ? '待题目核对后开放' : item.detail}}</text></button>
     </view>
     <view wx:if="{{inventoryTopics.length}}" class="card topic-preview">
-      <view class="context-card-title">当前章节</view>
+      <view class="context-card-title">章节概览</view>
       <view wx:for="{{inventoryTopics}}" wx:key="id" class="inventory-topic"><text>{{item.code}} {{item.name}}</text><text>{{item.availableQuestionCount === null ? '待更新' : item.availableQuestionCount + ' 题'}}</text></view>
       <button class="text-button" data-tool="topics" bindtap="openStemTool">查看全部章节</button>
     </view>

@@ -5,13 +5,12 @@ const { IELTS_FEATURE_GROUPS, getIeltsFeature } = require('../../utils/ieltsCata
 const { routeById } = require('../../utils/stemRoutes')
 
 const STEM_TOOLS = [
-  { id: 'photo', label: '拍照问一题', detail: '拍照后裁剪', tone: 'photo' },
-  { id: 'topics', label: '章节练习', detail: '按知识点练习', tone: 'topics' },
   { id: 'papers', label: '历年真题', detail: '选卷作答', tone: 'papers' },
+  { id: 'topics', label: '章节练习', detail: '按知识点练习', tone: 'topics' },
+  { id: 'current', label: '当前章节', detail: '继续上次章节练习', tone: 'current' },
   { id: 'exams', label: '模拟考试', detail: '计时、提交和复盘', tone: 'exams' },
-  { id: 'progress', label: '学习进度', detail: '提交记录和下一步', tone: 'progress' },
-  { id: 'notebook', label: '笔记本', detail: '整理错题与思路', tone: 'notebook' },
 ]
+const EXAM_BOARDS=[{id:'cie',label:'CIE',detail:'Cambridge International'},{id:'edexcel',label:'Edexcel',detail:'Pearson 国际 A-Level'},{id:'oxfordaqa',label:'AQA',detail:'OxfordAQA 国际 A-Level'}]
 
 function categoryStages(category) {
   return stemCategoryProfile(category).stages.slice()
@@ -38,6 +37,7 @@ Page({
   ...require('../../utils/share').public,
   data: deviceState({
     activeCategory: 'alevel',
+    examBoards:EXAM_BOARDS,examBoard:'cie',boardSubject:'physics',boardSubjects:[{id:'physics',label:'物理'},{id:'maths',label:'数学'}],
     categoryProfile: stemCategoryProfile('alevel'),
     family: 'exam',
     pageTitle: categoryPageCopy('alevel').title,
@@ -61,6 +61,8 @@ Page({
   onLoad(options) {
     this.__requestId = 0
     const activeCategory = normalizeCategory(options && options.category)
+    const requestedBoard=EXAM_BOARDS.find(item=>item.id===options?.board)?.id||'cie'
+    if(activeCategory==='alevel'&&requestedBoard!=='cie'){this.setData({activeCategory,examBoard:requestedBoard,routeId:'',inventory:null,inventoryTopics:[]});return}
     if (activeCategory === 'competition') {
       this.setData({ activeCategory })
       wx.redirectTo({ url: '/pages/papers/index?category=competition' })
@@ -77,9 +79,11 @@ Page({
     const copy = categoryPageCopy(activeCategory)
     this.setData({ activeCategory, categoryProfile: activeCategory === 'ielts' ? null : stemCategoryProfile(activeCategory), family: activeCategory === 'ielts' ? '' : familyForCategoryStage(activeCategory, stage), pageTitle: copy.title, pageSubtitle: copy.subtitle, subjects, stages, subjectCode: preferredCode, subjectLabel: subjects.find((item) => item.code === preferredCode)?.label || '', stage, routeOptions, routeId: route?.routeId || '', inventory: null, inventoryTopics: [], inventoryError: '' }, () => { if (activeCategory !== 'ielts' && route) this.refreshInventory(route.routeId) })
   },
-  onShow() { syncDevice(this); if (this.data.activeCategory === 'alevel' && !this.data.inventoryLoading && !this.data.inventory) this.refreshInventory(this.data.routeId) },
+  onShow() { syncDevice(this); if (this.data.activeCategory === 'alevel' && this.data.examBoard==='cie' && !this.data.inventoryLoading && !this.data.inventory) this.refreshInventory(this.data.routeId) },
   onResize() { syncDevice(this) },
   onUnload() { this.__requestId += 1 },
+  chooseBoard(event){const board=String(event.currentTarget?.dataset?.board||'');if(!EXAM_BOARDS.some(item=>item.id===board)||board===this.data.examBoard)return;this.__requestId++;this.setData({examBoard:board,inventory:null,inventoryTopics:[],inventoryLoading:false,inventoryError:'',error:''});if(board==='cie'){const route=routesForSubjectStage(this.data.subjectCode,this.data.stage)[0];this.setData({routeId:route?.routeId||''});if(route)this.refreshInventory(route.routeId)}else this.setData({routeId:''})},
+  chooseBoardSubject(event){const subject=String(event.currentTarget?.dataset?.subject||'');if(this.data.boardSubjects.some(item=>item.id===subject))this.setData({boardSubject:subject,error:''})},
 
   chooseSubject(event) {
     const subject = this.data.subjects.find((item) => item.code === String(event.currentTarget.dataset.code || ''))
@@ -105,7 +109,7 @@ Page({
   refreshInventory(routeId) {
     if (routeId && typeof routeId === 'object') routeId = routeId.currentTarget?.dataset?.routeId
     const id = String(routeId || '').trim()
-    if (!id || this.data.activeCategory !== 'alevel') return
+    if (!id || this.data.activeCategory !== 'alevel' || this.data.examBoard!=='cie') return
     const requestId = ++this.__requestId
     this.setData({ inventoryLoading: true, inventoryError: '' })
     fetchRouteInventory(id).then((inventory) => {
@@ -114,7 +118,7 @@ Page({
       this.setData({ inventory, inventoryTopics: inventory.topics.slice(0, 4) })
     }).catch(() => {
       if (requestId !== this.__requestId) return
-      this.setData({ inventory: null, inventoryTopics: [], inventoryError: '题库状态暂不可用；仍可拍题，提交后由 Coach 分析。' })
+      this.setData({ inventory: null, inventoryTopics: [], inventoryError: '章节状态暂未加载，可先进入历年真题，或稍后重试。' })
     }).finally(() => { if (requestId === this.__requestId) this.setData({ inventoryLoading: false }) })
   },
   openStem() {
@@ -145,12 +149,14 @@ Page({
   },
   openStemTool(event) {
     const tool = String(event.currentTarget.dataset.tool || '')
-    if (tool === 'photo') return this.openStem()
+    if(!STEM_TOOLS.some(item=>item.id===tool))return
+    if(this.data.examBoard!=='cie'){
+      if(tool==='papers')return wx.navigateTo({url:'/bundles/curricula/index?board='+this.data.examBoard+'&course='+this.data.examBoard+'-ial-'+this.data.boardSubject})
+      return this.setData({error:'该考试局的章节与模拟练习正在核对，暂不混用 CIE 题库。你可以先查看历年真题目录。'})
+    }
     if (tool === 'papers') return this.openPapers()
     if (tool === 'topics') return wx.navigateTo({ url: `/pages/stem/topics?routeId=${encodeURIComponent(this.data.routeId)}`, fail: () => this.setData({ error: '章节练习未能打开，请重试。' }) })
-    if (tool === 'progress') return wx.navigateTo({ url: '/pages/progress/index' })
-    if (tool === 'notebook') return wx.navigateTo({ url: `/pages/notebook/index?category=${encodeURIComponent(this.data.activeCategory)}&routeId=${encodeURIComponent(this.data.routeId || '')}` })
+    if (tool === 'current') {const recent=require('../../utils/nativePractice').recentSession(this.data.routeId);return wx.navigateTo({url:recent?.id?'/pages/stem/practice?sessionId='+encodeURIComponent(recent.id):'/pages/stem/topics?routeId='+encodeURIComponent(this.data.routeId)})}
     if(tool==='exams')return wx.navigateTo({url:'/pages/papers/index?category='+encodeURIComponent(this.data.activeCategory)+'&subject='+encodeURIComponent(this.data.subjectCode)+'&routeId='+encodeURIComponent(this.data.routeId)+'&stage='+encodeURIComponent(this.data.stage)+'&mode=exam-simulation'})
-    if(tool==='vocabulary')return wx.navigateTo({url:'/pages/ielts/vocabulary?bank=stem&routeId='+encodeURIComponent(this.data.routeId)})
   },
 })

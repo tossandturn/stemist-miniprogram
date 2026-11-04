@@ -12,10 +12,10 @@ const answerPresentation=(value,hasMarkScheme)=>{
  return{pairLabel:annotated?'附批注参考答案':value.pairStatus==='verified'&&hasMarkScheme?'原卷 / 评分标准已核对':value.pairStatus==='candidate'&&hasMarkScheme?'答案关联待核对':noOfficialAnswer(value)?'暂无官方答案':'未附答案',answerDocumentTitle:annotated?'批注参考答案':'评分标准',answerActionLabel:annotated?'查看批注参考答案':'查看评分标准',answerDownloadLabel:annotated?'批注参考答案':'评分标准',answerNotice:hasMarkScheme?'':noOfficialAnswer(value)?'这份原卷暂无官方答案。':'答案资料未收录，原卷仍可查看。'}
 }
 const displayPresentation=value=>{
- const board=String(value.board||''),rawVariant=String(value.variant||''),variant=board==='ap'?(AP_VARIANTS[rawVariant]||''):/^TZ[1-3]$/.test(rawVariant)?rawVariant:''
+ const board=String(value.board||''),rawVariant=String(value.variant||''),variant=board==='ap'?(AP_VARIANTS[rawVariant]||''):['edexcel','oxfordaqa'].includes(board)?rawVariant:/^TZ[1-3]$/.test(rawVariant)?rawVariant:''
  const session=board==='ap'&&String(value.session||'').toLowerCase()==='annual'?'':String(value.session||'')
  const metaText=[value.year,session,value.paper,variant].filter(Boolean).join(' · ')
- const detailText=board==='ib'?[value.level].filter(Boolean).join(' · '):''
+ const detailText=['ib','edexcel','oxfordaqa'].includes(board)?[value.level].filter(Boolean).join(' · '):''
  const variantNote=board==='ib'&&/^TZ[1-3]$/.test(rawVariant)?'时区标签沿用来源文件':board==='ib'&&rawVariant==='unspecified'?'来源未标明时区版本':''
  return{metaText,detailText,variantNote}
 }
