@@ -9,6 +9,7 @@ const pendingStemPhoto=wx.getStorageSync('stemistCroppedImage')
 const pendingCoachPhoto=wx.getStorageSync('stemistCoachPhoto')
 const pendingCoachPhotos=wx.getStorageSync('stemistCoachPhotoMeta')?.paths
 const paperInputs=wx.getStorageSync('stemistWholePaperFiles')
+const scriptImages=wx.getStorageSync('stemistScriptImages')
 wx.removeStorageSync('stemistSessionToken')
 wx.removeStorageSync('stemistUser')
 // Preserve on 401; erase owned drafts only on logout.
@@ -45,6 +46,8 @@ keys.filter((key) => /^stemist(?:Notebook|Draft|Submission|NativePractice|Native
 if (wx.env?.USER_DATA_PATH && wx.getFileSystemManager) {
 try {
 const fs = wx.getFileSystemManager()
+for(const p of Array.isArray(scriptImages)?scriptImages:[])if(typeof p==='string'&&p.startsWith(wx.env.USER_DATA_PATH+'/')&&/^script-image-[a-z0-9-]+\.(png|jpg|webp)$/.test(p.slice(wx.env.USER_DATA_PATH.length+1)))fs.unlink({filePath:p,fail(){}})
+wx.removeStorageSync('stemistScriptImages')
 const inputFolder=wx.env.USER_DATA_PATH+'/whole-paper-inputs/'
 for(const f of Array.isArray(paperInputs)?paperInputs:[])if(typeof f?.path==='string'&&f.path.startsWith(inputFolder)&&/^paper-[a-z0-9-]+\.(pdf|jpg|png|webp)$/.test(f.path.slice(inputFolder.length)))fs.unlink({filePath:f.path,fail(){}})
 const folder=wx.env.USER_DATA_PATH+'/marking-reports/'

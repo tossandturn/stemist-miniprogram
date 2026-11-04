@@ -6,7 +6,8 @@
     "esbuild": "0.28.2"
   },
   "scripts": {
-    "test:script-rooms": "node scripts/test-script-room-client.mjs",
+    "test:script-rooms": "node scripts/test-script-room-client.mjs && node scripts/test-script-room-v2-client.mjs && node scripts/test-script-room-image-cache.mjs",
+    "pretest": "npm run test:script-rooms",
     "test:entry-access": "node scripts/test-entry-access.mjs && node scripts/test-coach-diagram.mjs && node scripts/test-coach-diagram-requests.mjs && node scripts/test-advisor-research-progress.mjs",
     "test:coach-compact-ui": "node scripts/test-coach-compact-ui.mjs",
     "test:coach-tasks": "node scripts/test-coach-mode-copy.mjs && node scripts/test-coach-task-defaults.mjs && node scripts/test-coach-task-progress.mjs && node scripts/test-coach-task-selection.mjs && node scripts/test-coach-task-job.mjs && node scripts/test-coach-task-controls.mjs && node scripts/test-coach-task-history.mjs && node scripts/test-coach-task-page.mjs",
