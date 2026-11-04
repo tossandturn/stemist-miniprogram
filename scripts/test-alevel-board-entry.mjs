@@ -9,6 +9,8 @@ p.chooseBoard({currentTarget:{dataset:{board:'oxfordaqa'}}});const before=reques
 p.chooseBoardSubject({currentTarget:{dataset:{subject:'maths'}}})
 p.openStemTool({currentTarget:{dataset:{tool:'papers'}}})
 assert.match(r.calls.at(-1).url,/board=oxfordaqa/);assert.match(r.calls.at(-1).url,/course=oxfordaqa-ial-maths/)
+p.route='pages/practice/index';assert.match(p.onShareAppMessage().path,/board=oxfordaqa&boardSubject=maths/)
+const shared=r.page('pages/practice/index');shared.onLoad({category:'alevel',board:'edexcel',boardSubject:'further-maths'});assert.equal(shared.data.examBoard,'edexcel');assert.equal(shared.data.boardSubject,'further-maths');assert.equal(shared.data.routeId,'')
 assert.equal(requested.length,before,'new boards must not query or borrow CIE topic inventory')
 const calls=r.calls.length;p.openStemTool({currentTarget:{dataset:{tool:'photo'}}});p.openStemTool({currentTarget:{dataset:{tool:'notebook'}}});assert.equal(r.calls.length,calls)
 p.chooseBoard({currentTarget:{dataset:{board:'cie'}}});await settle();p.openStemTool({currentTarget:{dataset:{tool:'current'}}});assert.match(r.calls.at(-1).url,/pages\/stem\/topics/)

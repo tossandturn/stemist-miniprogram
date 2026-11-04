@@ -13,7 +13,7 @@ module.exports={onShareAppMessage(){
   if(course&&['IGCSE','AS','A2'].includes(course.stage)){path='/pages/stem/topics?routeId='+encodeURIComponent(course.routeId);title=course.subjectLabel+' · 章节练习'}
  }else if(['pages/papers/index','pages/stem/paper'].includes(route)){
   path='/pages/papers/index?category='+(data.category==='competition'?'competition':'alevel');title='STEMist · 历年真题'
- }else if(route==='pages/practice/index'){const category=data.activeCategory||data.category;path='/pages/practice/index?category='+(['ielts','competition'].includes(category)?category:'alevel')}
+ }else if(route==='pages/practice/index'){const category=data.activeCategory||data.category;path='/pages/practice/index?category='+(['ielts','competition'].includes(category)?category:'alevel');if(!['ielts','competition'].includes(category)&&['edexcel','oxfordaqa'].includes(data.examBoard)){path+='&board='+data.examBoard;if(['physics','maths','further-maths'].includes(data.boardSubject))path+='&boardSubject='+data.boardSubject}}
  // Never forward page options, private record IDs, user text, or default screenshots.
  return {title,path,imageUrl:IMAGE}
 }}

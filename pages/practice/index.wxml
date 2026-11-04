@@ -1,7 +1,7 @@
 <block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} practice-page">
   <stemist-header compact="{{true}}" title="{{activeCategory === 'ielts' ? 'IELTS' : 'A-Level 学科'}}" />
-  <app-nav active="practice" source="{{activeCategory}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" category="{{activeCategory}}" family="{{family}}" is-tablet="{{isTablet}}" />
+  <app-nav active="practice" source="{{activeCategory}}" route-id="{{examBoard === 'cie' ? routeId : ''}}" stage="{{examBoard === 'cie' ? stage : ''}}" subject-code="{{examBoard === 'cie' ? subjectCode : ''}}" category="{{activeCategory}}" family="{{family}}" is-tablet="{{isTablet}}" />
   <block wx:if="{{activeCategory === 'alevel'}}">
     <view class="board-heading"><text class="board-label">考试局</text><text class="board-caption">各考试局独立选卷与学习</text></view>
     <view class="exam-board-grid"><button wx:for="{{examBoards}}" wx:key="id" class="exam-board {{item.id === examBoard ? 'active' : ''}}" data-board="{{item.id}}" bindtap="chooseBoard"><text>{{item.label}}</text><text class="board-detail">{{item.detail}}</text></button></view>

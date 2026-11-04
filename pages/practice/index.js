@@ -62,7 +62,7 @@ Page({
     this.__requestId = 0
     const activeCategory = normalizeCategory(options && options.category)
     const requestedBoard=EXAM_BOARDS.find(item=>item.id===options?.board)?.id||'cie'
-    if(activeCategory==='alevel'&&requestedBoard!=='cie'){this.setData({activeCategory,examBoard:requestedBoard,routeId:'',inventory:null,inventoryTopics:[]});return}
+    if(activeCategory==='alevel'&&requestedBoard!=='cie'){const boardSubject=this.data.boardSubjects.find(s=>s.id===options?.boardSubject)?.id||'physics';this.setData({activeCategory,examBoard:requestedBoard,boardSubject,routeId:'',inventory:null,inventoryTopics:[]});return}
     if (activeCategory === 'competition') {
       this.setData({ activeCategory })
       wx.redirectTo({ url: '/pages/papers/index?category=competition' })
