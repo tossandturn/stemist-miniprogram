@@ -6,9 +6,9 @@
  <view wx:if="{{loading}}" class="notice">正在加载剧本…</view>
  <view wx:if="{{error}}" class="error">{{error}}<button class="text-button" bindtap="refresh">重新加载</button></view>
  <view class="script-grid">
-  <view wx:for="{{scripts}}" wx:key="id" class="script-card">
-   <image src="{{item.cover}}" class="script-cover" mode="aspectFill" lazy-load="{{true}}" aria-label="{{item.title}}氛围插图" />
-   <view class="script-card-body"><text class="script-eyebrow">{{item.genre}} · {{item.duration}}</text><text class="script-title">{{item.title}}</text><text class="script-summary">{{item.summary}}</text><text class="script-subtitle">{{item.difficulty}} · 4 个角色</text><text class="script-warning">{{item.warning}}</text><button class="primary" data-id="{{item.id}}" bindtap="create">创建房间</button></view>
+  <view wx:for="{{scripts}}" wx:key="id" class="script-card script-theme-{{item.theme}}">
+   <view class="script-poster"><image src="{{item.cover}}" class="script-cover" mode="aspectFill" lazy-load="{{true}}" aria-label="{{item.title}}氛围插图" /><view class="script-poster-shade" /><view class="script-poster-copy"><text class="script-eyebrow">{{item.genre}}</text><text class="script-title">{{item.title}}</text><text class="script-poster-line">{{item.atmosphereLine}}</text></view></view>
+   <view class="script-card-body"><text class="script-meta">{{item.duration}} · 1–4 人</text><text class="script-summary">{{item.summary}}</text><text class="script-subtitle">{{item.difficulty}} · 4 个角色</text><text class="script-warning">{{item.warning}}</text><button class="primary" data-id="{{item.id}}" bindtap="create">创建房间 · 选择角色</button></view>
   </view>
  </view>
  <text class="script-footnote">原创虚构剧本 · 不含真实危险操作 · 房间保留72小时</text>

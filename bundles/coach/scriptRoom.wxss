@@ -1,3 +1,4 @@
+@import "./scriptAtmosphere.wxss";
 page{overflow:hidden;}.script-room{display:flex;flex-direction:column;max-width:1100px;margin:0 auto;color:#18213d;background:#f5f6fb;box-sizing:border-box;--room-border:#e4e7f0;--room-muted:#66708a;--room-purple:#5638b8;}
 .script-room .next-step{width:calc(100% - 24px);box-sizing:border-box;align-self:stretch;}.conclusion-card{margin-top:24px;}
 .next-step{display:flex;justify-content:space-between;gap:10px;width:auto;margin:0 12px 8px;min-height:44px;padding:8px 12px;background:#e9f4f0;color:#275b50;border-radius:10px;font-size:12px;line-height:1.5;text-align:left;flex:none;}.next-step text{flex:none;align-self:center;}.next-task{padding:12px 16px;margin-bottom:16px;background:#e9f4f0;border-radius:12px;font-size:14px;line-height:1.6;color:#275b50;}.next-task .text-button{margin:4px 0 0;padding-left:0;text-align:left;}
