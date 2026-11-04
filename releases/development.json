@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.86",
+  "highestAssignedVersion": "1.0.87",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -109,7 +109,7 @@
       "manifest": "D:\\CodexWork\\ielts-unified-downloads-20261101/development-1.0.81-ready-manifest.json",
       "runtimeManifestSha256": "ab5dba35f36eabaf5b7d17b1a43fb04c6a20bab2e4bc14025d0a08f39f0fbc82",
       "scope": "Unified Cambridge listening question/answer PDF and audio downloads; existing shared quota and legacy deep links unchanged; includes 1.0.80 Coach upload fixes",
-      "uploadConfirmedAt": "2026-10-31T17:24:02.480Z",
+      "uploadConfirmedAt": "2026-10-31T17:24:02.48Z",
       "officialInfo": "D:\\CodexWork\\ielts-unified-downloads-20261101/wechat-upload-receipt.json",
       "success": true,
       "reviewSubmitted": false,
@@ -135,7 +135,7 @@
     {
       "version": "1.0.79",
       "assignedOn": "2026-10-31",
-      "uploadConfirmedAt": "2026-10-31T05:22:28.090Z",
+      "uploadConfirmedAt": "2026-10-31T05:22:28.09Z",
       "commit": "c1a4f071e8ecc4b4ab6e68df27c5a7d257977f73",
       "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.79-ready",
       "officialInfo": "D:/CodexWork/tavern-inline-draws-20261031/wechat-upload-receipt.json",
@@ -149,7 +149,7 @@
     {
       "version": "1.0.78",
       "assignedOn": "2026-10-31",
-      "uploadConfirmedAt": "2026-10-30T20:03:11.150Z",
+      "uploadConfirmedAt": "2026-10-30T20:03:11.15Z",
       "commit": "afb17aabb899e383b541881bce93942ffe26e873",
       "project": "D:/CodexWork/chapter-mistake-coach-20261029/development-1.0.78-ready-r2",
       "officialInfo": "D:/CodexWork/listening-download-quota-20261031/wechat-upload-receipt.json",
@@ -1206,6 +1206,54 @@
           {
             "name": "/bundles/marking/",
             "size": 104802
+          }
+        ]
+      },
+      "originalProjectConfigChanged": false,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    },
+    {
+      "version": "1.0.87",
+      "uploadedAt": "2026-11-04T23:32:52.0013931+08:00",
+      "commit": "0bb3b9c59a85867a918e7ebdbbae232a073a2f09",
+      "project": "D:\\CodexWork\\ai-function-regression-20261103\\stemist-miniprogram-review-1.0.87-0bb3b9c",
+      "success": true,
+      "officialInfo": "D:\\CodexWork\\ai-function-regression-20261103\\stemist-release-coordination\\release-1.0.87-20261104\\wechat-upload-1.0.87-info.json",
+      "size": {
+        "total": 2807052,
+        "packages": [
+          {
+            "name": "TOTAL",
+            "size": 2807052
+          },
+          {
+            "name": "main",
+            "size": 2065789
+          },
+          {
+            "name": "/bundles/account/",
+            "size": 64088
+          },
+          {
+            "name": "/bundles/announcements/",
+            "size": 25263
+          },
+          {
+            "name": "/bundles/coach/",
+            "size": 364930
+          },
+          {
+            "name": "/bundles/configured/",
+            "size": 9278
+          },
+          {
+            "name": "/bundles/curricula/",
+            "size": 173167
+          },
+          {
+            "name": "/bundles/marking/",
+            "size": 104537
           }
         ]
       },
