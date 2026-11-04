@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 
 const css = fs.readFileSync(new URL('../bundles/coach/tavern.wxss', import.meta.url), 'utf8')
 const wxml = fs.readFileSync(new URL('../bundles/coach/tavern.wxml', import.meta.url), 'utf8')
+const composerSource=wxml.slice(wxml.indexOf('<view class="chat-composer">'))
+assert.ok(!composerSource.includes('class="story-image-note"'),'story hint must not occupy the input column and push send to another row')
+assert.match(wxml,/<coach-effort\b[^>]*wx:if="{{!\(keyboardOpen && chatViewportHeight < 260\)}}"/,'very short keyboard windows reserve space for the composer')
 const rule = selector => {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = css.match(new RegExp(escaped + '\\s*\\{([^}]+)\\}'))

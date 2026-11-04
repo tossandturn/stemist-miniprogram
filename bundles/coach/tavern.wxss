@@ -62,8 +62,8 @@
 .fortune-tools{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.fortune-spreads{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;flex:1;max-width:240px;min-width:0}.fortune-tools-caption{flex:1;min-width:0;color:#66708a;font-size:12px;line-height:1.5;overflow-wrap:anywhere}.tavern-page button.fortune-draw{box-sizing:border-box;flex:0 0 96px;width:96px;min-width:0;max-width:96px;min-height:44px;margin:0;padding:8px 6px;border:1px solid #ded7f8;border-radius:10px;color:#5638b8;background:#f0ecfb;font-size:13px;line-height:1.5}.tavern-page .fortune-tools button:active{opacity:.8}.compact-chat .fortune-tools{display:none}
 .compact-chat .selected-preset{display:none}
 .tavern-page.compact-chat textarea.tavern-input{max-height:44px}
-.tavern-page textarea.tavern-input{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;height:44px;min-height:44px;max-height:116px;margin:0;padding:10px 12px;border:1px solid #dfdfe7;border-radius:10px;color:#18213d;background:#fff;font-size:16px;line-height:24px}
-.tavern-page button.tavern-submit{box-sizing:border-box;width:72px;min-width:0;max-width:72px;min-height:44px;margin:0;padding:10px 5px;border-radius:10px;background:#6848d7;color:#fff;font-size:14px;line-height:24px}
+.tavern-page textarea.tavern-input{grid-column:1;display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;height:44px;min-height:44px;max-height:116px;margin:0;padding:10px 12px;border:1px solid #dfdfe7;border-radius:10px;color:#18213d;background:#fff;font-size:16px;line-height:24px}
+.tavern-page button.tavern-submit{grid-column:2;box-sizing:border-box;width:72px;min-width:0;max-width:72px;min-height:44px;margin:0;padding:10px 5px;border-radius:10px;background:#6848d7;color:#fff;font-size:14px;line-height:24px}
 .tavern-page button.tavern-submit[disabled]{color:#75668f;background:#e4ddf2;opacity:1}
 .tavern-page button.tavern-submit:active,.preset-change:active{opacity:.8}
 .fortune-panel,.fortune-result-priority{margin:12px 0 18px}
