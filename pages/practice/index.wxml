@@ -1,6 +1,6 @@
 <block wx:if="{{!__entryGateBlocked}}">
 <view class="page {{deviceClass}} {{orientation}} practice-page">
-  <stemist-header title="{{activeCategory === 'ielts' ? 'IELTS' : 'A-Level 学科'}}" />
+  <stemist-header compact="{{true}}" title="{{activeCategory === 'ielts' ? 'IELTS' : 'A-Level 学科'}}" />
   <app-nav active="practice" source="{{activeCategory}}" route-id="{{routeId}}" stage="{{stage}}" subject-code="{{subjectCode}}" category="{{activeCategory}}" family="{{family}}" is-tablet="{{isTablet}}" />
   <block wx:if="{{activeCategory === 'alevel'}}">
     <view class="board-heading"><text class="board-label">考试局</text><text class="board-caption">各考试局独立选卷与学习</text></view>
@@ -18,8 +18,7 @@
         <view class="route-list"><button wx:for="{{routeOptions}}" wx:key="routeId" class="route-option {{item.routeId === routeId ? 'active' : ''}}" data-route="{{item.routeId}}" bindtap="chooseRoute">{{item.components}}</button></view>
       </block>
     </view>
-    <navigator class="secondary" url="/bundles/curricula/universities?tab=official&amp;board=alevel">A-Level 官网</navigator>
-    <view class="section-title">开始练习</view>
+    <view class="practice-section-heading"><view class="section-title">开始练习</view><navigator class="official-practice-link" url="/bundles/curricula/universities?tab=official&amp;board=alevel">A-Level 官网</navigator></view>
     <view class="feature-grid">
       <button wx:for="{{stemTools}}" wx:key="id" class="feature-card feature-{{item.tone}}" data-tool="{{item.id}}" bindtap="openStemTool" disabled="{{examBoard === 'cie' && !routeId}}"><view class="practice-mark mark-{{item.id}}" aria-hidden="true"></view><text class="feature-title">{{item.label}}</text><text class="feature-detail">{{examBoard !== 'cie' && item.id !== 'papers' ? '待题目核对后开放' : item.detail}}</text></button>
     </view>

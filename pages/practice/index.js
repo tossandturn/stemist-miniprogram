@@ -37,7 +37,7 @@ Page({
   ...require('../../utils/share').public,
   data: deviceState({
     activeCategory: 'alevel',
-    examBoards:EXAM_BOARDS,examBoard:'cie',boardSubject:'physics',boardSubjects:[{id:'physics',label:'物理'},{id:'maths',label:'数学'}],
+    examBoards:EXAM_BOARDS,examBoard:'cie',boardSubject:'physics',boardSubjects:[{id:'physics',label:'物理'},{id:'maths',label:'数学'},{id:'further-maths',label:'进阶数学'}],
     categoryProfile: stemCategoryProfile('alevel'),
     family: 'exam',
     pageTitle: categoryPageCopy('alevel').title,
