@@ -1,6 +1,6 @@
 {
   "schemaVersion": "stemist-development-releases-v1",
-  "highestAssignedVersion": "1.0.91",
+  "highestAssignedVersion": "1.0.92",
   "pendingUploads": [
     {
       "version": "1.0.69",
@@ -1434,6 +1434,54 @@
           {
             "name": "/bundles/coach/",
             "size": 430676
+          },
+          {
+            "name": "/bundles/configured/",
+            "size": 9278
+          },
+          {
+            "name": "/bundles/curricula/",
+            "size": 173167
+          },
+          {
+            "name": "/bundles/marking/",
+            "size": 104537
+          }
+        ]
+      },
+      "originalProjectConfigChanged": false,
+      "reviewSubmitted": false,
+      "publicReleasePerformed": false
+    },
+    {
+      "version": "1.0.92",
+      "uploadedAt": "2026-11-05T04:49:52.5058659+08:00",
+      "commit": "83b8d9f0bd9fd8510d33626f6709b04ef25fcb65",
+      "project": "D:\\CodexWork\\ai-function-regression-20261103\\stemist-miniprogram-review-1.0.92-83b8d9f",
+      "success": true,
+      "officialInfo": "D:\\CodexWork\\ai-function-regression-20261103\\stemist-release-coordination\\release-1.0.92-20261105\\wechat-upload-1.0.92-info.json",
+      "size": {
+        "total": 2873839,
+        "packages": [
+          {
+            "name": "TOTAL",
+            "size": 2873839
+          },
+          {
+            "name": "main",
+            "size": 2066726
+          },
+          {
+            "name": "/bundles/account/",
+            "size": 64088
+          },
+          {
+            "name": "/bundles/announcements/",
+            "size": 25263
+          },
+          {
+            "name": "/bundles/coach/",
+            "size": 430780
           },
           {
             "name": "/bundles/configured/",
