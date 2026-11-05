@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {miniRuntime,settle,deferred} from './helpers/mini-runtime.mjs'
 const template=fs.readFileSync(new URL('../bundles/coach/scripts.wxml',import.meta.url),'utf8')
+assert.ok(template.includes('{{selectedScript.roles.length}} 个角色'),'role count comes from the selected server script')
+assert.ok(!fs.readFileSync(new URL('../bundles/coach/tavern.wxml',import.meta.url),'utf8').includes('四本故事'),'server additions do not leave a fixed book-count claim')
 assert.ok(!template.includes('class="script-intro"'),'a permanent marketing hero must not push the stories below the fold')
 assert.ok(!template.includes('class="script-join card"'),'joining is an explicit secondary action')
 let writes=0

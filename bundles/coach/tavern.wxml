@@ -3,7 +3,7 @@
   <stemist-header wx:if="{{selectorOpen || !presetChosen}}" compact="{{true}}" eyebrow="AI 休闲酒馆" title="星光酒馆" />
   <app-nav wx:if="{{selectorOpen || !presetChosen}}" id="tavern-nav" active="coach" is-tablet="{{isTablet}}" show-ai="{{false}}" />
   <view wx:if="{{selectorOpen || !presetChosen}}" class="preset-discovery">
-    <navigator class="script-room-entry" url="/bundles/coach/scripts"><view><text class="script-entry-title">AI 剧本杀</text><text class="script-entry-detail">四本故事 · 1–4 人 · 好友邀请 / AI 补位</text></view><text aria-hidden="true">›</text></navigator>
+    <navigator class="script-room-entry" url="/bundles/coach/scripts"><view><text class="script-entry-title">AI 剧本杀</text><text class="script-entry-detail">好友同行 · AI 补位 · 人数以剧本为准</text></view><text aria-hidden="true">›</text></navigator>
     <image class="tavern-illustration" src="/bundles/coach/art/tavern-lounge.jpg" mode="aspectFit" aria-label="月光窗边的猫咪与热茶" />
     <view class="tavern-note">AI 虚构角色，不读取学术内容。</view>
     <view class="preset-head"><text class="preset-title">今晚，想和谁聊聊？</text></view>
