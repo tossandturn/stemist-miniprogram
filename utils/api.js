@@ -29,6 +29,12 @@ return error
 function isAuthError(error) {
 return Number(error && error.statusCode) === 401 || String(error && error.code) === 'auth_required'
 }
+function authRequestError(token){
+const error=requestError(token?'登录已过期，请重新登录后继续。':'请登录后继续。',401,'auth_required')
+// Comparison-only credential metadata must never appear in serialized errors.
+Object.defineProperty(error,'rejectedToken',{value:token})
+return error
+}
 function requestJsonAt(origin, path, data, { timeout = 30000, method = 'POST', stemAuth = true, nativeSourceRegions = false, authCheck = null, onDispatched = null, onTask = null, isCancelled = null, stream = null, streamCurrent = null } = {}) {
 const token = stemAuth ? wx.getStorageSync('stemistSessionToken') : ''
 return new Promise((resolve, reject) => {
@@ -57,8 +63,7 @@ resolve(payload)
 return
 }
 if (response.statusCode === 401) {
-if (stemAuth && token && token === wx.getStorageSync('stemistSessionToken')) clearLocalSession({ preserveDrafts: true })
-reject(requestError(token?'登录已过期，请重新登录后继续。':'请登录后继续。', 401, 'auth_required'))
+reject(authRequestError(token))
 return
 }
 reject(requestError(safeErrorMessage(payload, response.statusCode), response.statusCode, payload && (payload.code || payload.error && payload.error.code)))
@@ -66,10 +71,7 @@ reject(requestError(safeErrorMessage(payload, response.statusCode), response.sta
 fail(error) {
 if(settled||isCancelled?.())return
 settled=true
-const raw = String(error && error.errMsg || '')
-if (/not in (?:domain|legal domain) list|不在.*合法域名|域名.*校验/i.test(raw)) return reject(requestError('当前版本的服务连接配置有误，请更新小程序后重试。', 0, 'network_domain_blocked'))
-if (/ssl|tls|certificate|cert[ _-]|证书/i.test(raw)) return reject(requestError('安全连接未能建立，请稍后重试。', 0, 'network_tls_error'))
-reject(requestError(/timeout|超时/i.test(raw) ? '请求超时，请检查网络后重试。' : '网络连接失败，请稍后重试', 0, /timeout|超时/i.test(raw) ? 'network_timeout' : 'network_error'))
+reject(require('./networkError').networkFailure(error))
 },
 }
 if (data !== undefined && data !== null) request.data = data
@@ -89,12 +91,12 @@ const token=stemAuth?wx.getStorageSync('stemistSessionToken'):''
 return new Promise((resolve,reject)=>{
 const request={url:`${origin}${path}`,method:String(method||'POST').toUpperCase(),timeout,responseType:'arraybuffer',dataType:'arraybuffer',header:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},data}
 wx.request({...request,success(response){
- if(response.statusCode===401){if(stemAuth&&token&&token===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true});return reject(requestError(token?'登录已过期，请重新登录后继续。':'请登录后继续。',401,'auth_required'))}
+ if(response.statusCode===401)return reject(authRequestError(token))
  if(response.statusCode<200||response.statusCode>=300){const status=Number(response.statusCode)||0,message=status===503?'实时绘图服务尚未配置，文字回复已保留。':status===429?'图片生成请求较多或今日次数已用完，文字回复已保留。':status===504?'图片生成超时，文字回复已保留，请稍后重试。':'图片生成暂时不可用；文字回复已保留，请稍后重试。';return reject(requestError(message,status,'tavern_image_request_failed'))}
  const mimeType=String(response.header?.['content-type']||response.header?.['Content-Type']||'').split(';')[0].toLowerCase(),bytes=response.data,length=Number(bytes?.byteLength)||0
  if(!/^image\/(?:png|jpeg|webp)$/.test(mimeType)||!length||length>2*1024*1024)return reject(requestError('生成图片未通过格式或大小检查；文字回复已保留。',502,'tavern_image_response_invalid'))
  captureNativeCookie(origin,path,response);resolve({bytes,mimeType})
- },fail(error){const raw=String(error?.errMsg||'');reject(requestError(/timeout|超时/i.test(raw)?'图片生成超时；文字回复已保留，请稍后重试。':'图片生成失败；文字回复已保留，请稍后重试。',0,/timeout|超时/i.test(raw)?'network_timeout':'network_error'))}})
+ },fail(error){reject(require('./networkError').networkFailure(error,{timeoutMessage:'图片生成超时；文字回复已保留，请稍后重试。',defaultMessage:'图片生成失败；文字回复已保留，请稍后重试。'}))}})
 })
 }
 async function requestJson(path, data, options = {}) {
@@ -102,13 +104,44 @@ const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),started
 if(options.stemAuth!==false&&!path.startsWith('/api/auth/'))await refreshNativeSession()
 if(options.isCancelled?.())throw requestError('AI 请求超时，问题和图片已保留，请重试。',0,'network_timeout')
 if(!path.startsWith('/data/')&&(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)))throw requestError('账号已变化，请重新打开练习。',409,'account_changed')
-return requestJsonAt(baseUrl(), path, data, options)
+return withSessionRecovery(()=>requestJsonAt(baseUrl(),path,data,options),{...options,stemAuth:options.stemAuth!==false&&!path.startsWith('/api/auth/')},startedOwner,startedEpoch)
 }
 async function requestBinary(path,data,options={}){
 const startedOwner=String(wx.getStorageSync('stemistUser')?.id||'guest'),startedEpoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 if(options.stemAuth!==false)await refreshNativeSession()
 if(startedOwner!==String(wx.getStorageSync('stemistUser')?.id||'guest')||startedEpoch!==(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0))throw requestError('账号状态已变化，请重新进入酒馆。',409,'account_changed')
-return requestBinaryAt(baseUrl(),path,data,options)
+return withSessionRecovery(()=>requestBinaryAt(baseUrl(),path,data,options),options,startedOwner,startedEpoch)
+}
+async function withSessionRecovery(send,options,startedOwner,startedEpoch){
+ const current=()=>startedOwner===String(wx.getStorageSync('stemistUser')?.id||'guest')&&startedEpoch===(Number(wx.getStorageSync('stemistPrivacyEpoch'))||0)
+ const assertCurrent=()=>{
+  if(!current())throw requestError('账号已变化，请重新打开页面。',409,'account_changed')
+  if(options.isCancelled?.())throw requestError('请求已取消。',0,'request_cancelled')
+ }
+ // Native callbacks and promise continuations are separate turns. Check after
+ // every completed send as well as before replaying, so old-account data can
+ // never reach a new page/account even if the transport itself returned 200.
+ const sendCurrent=async()=>{const result=await send();assertCurrent();return result}
+ try{return await sendCurrent()}catch(error){
+  assertCurrent()
+  if(!isAuthError(error)||options.stemAuth===false||!error.rejectedToken)throw error
+  try{
+   // Repair the identity once; a payment, write or partial stream still
+   // requires an explicit user retry. Only read-only requests are replayed.
+   await refreshNativeSession({force:true,rejectedToken:error.rejectedToken})
+   assertCurrent()
+   if(error.rejectedToken===wx.getStorageSync('stemistSessionToken'))throw error
+   if(options.stream||!['GET','HEAD'].includes(String(options.method||'POST').toUpperCase()))throw requestError('登录状态已恢复，请重新操作；未重复提交。',409,'session_refreshed')
+   return await sendCurrent()
+  }catch(recoveryError){
+   assertCurrent()
+   if(isAuthError(recoveryError)&&current()){
+    const rejected=recoveryError.rejectedToken||error.rejectedToken
+    if(rejected===wx.getStorageSync('stemistSessionToken'))clearLocalSession({preserveDrafts:true})
+   }
+   throw recoveryError
+  }
+ }
 }
 function requestIeltsJson(path, data, options = {}) {
 return requestJsonAt(ieltsBaseUrl(), path, data, { ...options, stemAuth: false })

@@ -4,7 +4,7 @@
   <ai-fab source="home" />
   <view class="home-announcement" bindtap="openAnnouncements" hover-class="home-announcement-pressed" hover-stay-time="100" role="button" aria-label="打开公告中心">
     <view class="home-announcement-head"><view><text class="home-announcement-label">公告中心</text><text wx:if="{{announcementUnread}}" class="home-announcement-unread">新公告</text></view><text class="home-announcement-link">查看全部</text></view>
-    <view wx:if="{{announcementLoading}}" class="home-announcement-loading" role="status">正在读取最新公告…</view>
+    <view wx:if="{{announcementLoading && !announcement}}" class="home-announcement-loading" role="status">正在读取最新公告…</view>
     <block wx:elif="{{announcement}}"><text class="home-announcement-title">{{announcement.title}}</text><text class="home-announcement-summary">{{announcement.summary}}</text><text class="home-announcement-date">{{announcement.categoryLabel}} · {{announcement.publishedLabel}}</text></block>
     <text wx:elif="{{announcementError}}" class="home-announcement-summary">公告暂未加载，点击重试。</text>
     <text wx:else class="home-announcement-summary">暂无公告</text>

@@ -3,6 +3,7 @@ const api=require('./scriptRoomApi')
 const {imageRequestIntent}=require('./tavernImageIntent')
 const {createRoomImageCache}=require('./scriptRoomImages')
 const {sceneForRoom,createSceneMemory,readPreferences,savePreferences}=require('./scriptAtmosphere')
+const {roomFailure}=require('./scriptRoomRecovery')
 const phaseName={lobby:'选角准备',play:'故事进行中',vote:'最终投票',ended:'复盘',closed:'已关闭'}
 const panelNames={chat:'对话',identity:'我的身份',evidence:'本幕任务',players:'同场玩家',ending:'结局与复盘'}
 function presentation(room,channel,images){
@@ -21,13 +22,13 @@ function presentation(room,channel,images){
 }
 Page({
  data:deviceState({room:null,loading:true,busy:false,error:'',draft:'',answer:'',panel:'chat',panelTitle:'对话',backPanel:'chat',menuOpen:false,identitySection:'profile',debriefSection:'',publicCluesOpen:false,pastCluesOpen:false,companionsOpen:false,currentMyClues:[],previousMyClues:[],currentPublicClues:[],previousPublicClues:[],pastMissions:[],channel:'public',recipientLabel:'公开',channelIndex:0,channels:[],messages:[],jobs:[],anchor:'',syncLabel:'连接中',canChat:false,currentMission:null,nextStep:'',imageMode:false,scene:null,introOpen:false,settingsOpen:false,motionEnabled:true,motionPlaying:false,sceneImageFailed:false,accessEnded:false}),
- onLoad(options){this.__alive=true;this.__visible=true;this.__owner=api.identity();this.__options=options||{};this.__request=0;this.__pending=null;this.__sceneMemory=createSceneMemory(this.__owner);this.setData({motionEnabled:readPreferences().motion});this.__images=createRoomImageCache({load:api.image,current:()=>this.current(),changed:()=>{if(this.__rawRoom)this.adopt(this.__rawRoom)}});this.open()},
+ onLoad(options){this.__alive=true;this.__visible=true;this.__owner=api.identity();this.__options=options||{};this.__request=0;this.__pending=null;this.__syncFailures=0;this.__syncDelay=3000;this.__sceneMemory=createSceneMemory(this.__owner);this.setData({motionEnabled:readPreferences().motion,syncPaused:false,showRoomList:false});this.__images=createRoomImageCache({load:api.image,current:()=>this.current(),changed:()=>{if(this.__rawRoom)this.adopt(this.__rawRoom)}});this.open()},
  onShow(){syncDevice(this);if(this.__owner&&this.__owner!==api.identity()){this.invalidateRoom();wx.redirectTo({url:'/bundles/coach/scripts'});return}this.__visible=true;if(this.__rawRoom)this.syncAtmosphere(this.__rawRoom);if(this.data.room)this.poll()},onResize(){syncDevice(this)},
  onHide(){this.__visible=false;clearTimeout(this.__timer);clearTimeout(this.__scrollTimer);this.setData({motionPlaying:false})},onUnload(){this.__alive=false;this.__visible=false;this.__request++;clearTimeout(this.__timer);clearTimeout(this.__scrollTimer);this.__images?.dispose()},
  current(){return this.__alive&&this.__owner===api.identity()},
  invalidateRoom(message='账号或房间状态已变化，请重新进入。'){if(!this.__alive)return;this.__alive=false;this.__visible=false;this.__request++;clearTimeout(this.__timer);clearTimeout(this.__scrollTimer);this.__images?.dispose();this.__rawRoom=null;this.__pending=null;this.setData({room:null,scene:null,messages:[],jobs:[],channels:[],currentMission:null,currentMyClues:[],previousMyClues:[],currentPublicClues:[],previousPublicClues:[],pastMissions:[],draft:'',answer:'',introOpen:false,settingsOpen:false,menuOpen:false,motionPlaying:false,canChat:false,loading:false,busy:false,pending:false,accessEnded:true,error:message})},
  returnToScripts(){wx.redirectTo({url:'/bundles/coach/scripts'})},
- adopt(room){if(!this.current())return;this.__rawRoom=room;const data=presentation(room,this.data.channel,this.__images),old=this.data.messages[this.data.messages.length-1]?.id,newId=data.messages[data.messages.length-1]?.id;this.setData({...data,loading:false,error:'',canChat:['play','vote'].includes(room.phase),syncLabel:'已同步',...(newId!==old?{anchor:'message-'+newId}:{})});this.syncAtmosphere(room);for(const m of data.messages)if(m.imageId)this.__images?.request(room.id,m.imageId)},
+ adopt(room){if(!this.current()||this.__rawRoom?.id===room.id&&this.__rawRoom.revision>room.revision)return;this.__rawRoom=room;const data=presentation(room,this.data.channel,this.__images),old=this.data.messages[this.data.messages.length-1]?.id,newId=data.messages[data.messages.length-1]?.id;this.setData({...data,loading:false,error:this.__pending?this.data.error||'原操作结果尚待确认，输入已保留。':this.__syncFailures?this.data.error:'',canChat:['play','vote'].includes(room.phase),syncLabel:this.__syncFailures?this.data.syncLabel:'已同步',...(newId!==old?{anchor:'message-'+newId}:{})});this.syncAtmosphere(room);for(const m of data.messages)if(m.imageId)this.__images?.request(room.id,m.imageId)},
  syncAtmosphere(room){
   if(!this.current())return
   const scene=sceneForRoom(room),key=[room.id,room.scriptVersion,room.stage,room.phase].join(':'),same=this.__sceneKey===key
@@ -48,16 +49,17 @@ Page({
  setMotion(e){if(!this.current())return;const motion=e.detail.value===true;savePreferences({motion});this.setData({motionEnabled:motion,motionPlaying:motion&&this.__visible})},
  sceneImageFailed(){if(this.current())this.setData({sceneImageFailed:true})},
  retrySceneImage(){if(!this.current()||!this.__rawRoom)return;this.__sceneImageAttempt=(this.__sceneImageAttempt||0)+1;this.setData({sceneImageFailed:false});this.syncAtmosphere(this.__rawRoom)},
- async open(){const request=++this.__request;this.setData({loading:true,error:''});try{
+ async open(){if(!this.current()||this.__opening)return;this.__opening=true;const request=++this.__request;this.setData({loading:true,error:'',showRoomList:false});try{
   const o=this.__options;let room
   if(o.roomId)room=await api.get(o.roomId)
   else if(o.invite){this.__openingRequest||={inviteCode:o.invite,requestId:api.requestId()};room=await api.join(this.__openingRequest)}
   else if(o.create){this.__openingRequest||={scriptId:o.create,requestId:api.requestId()};room=await api.create(this.__openingRequest)}
   else throw Error('缺少房间信息，请从剧本列表进入。')
-  if(!this.current()||request!==this.__request)return;this.__options={roomId:room.id};this.adopt(room);this.schedule()
- }catch(e){if(this.__alive&&([401,404,410].includes(e.statusCode)||this.__owner!==api.identity())){this.invalidateRoom(e.message);return}if(this.current()&&request===this.__request)this.setData({loading:false,error:e.message,syncLabel:'尚未连接'})}},
- schedule(){clearTimeout(this.__timer);if(this.current()&&this.__visible&&this.data.room&&!['closed'].includes(this.data.room.phase))this.__timer=setTimeout(()=>this.poll(),3000)},
- async poll(){if(!this.current()||!this.__visible||this.__polling)return;this.__polling=true;const id=this.data.room?.id;try{if(id){const room=await api.get(id);if(this.__alive&&this.__owner!==api.identity())this.invalidateRoom();else if(this.current()&&!this.data.busy)this.adopt(room)}}catch(e){if(this.__alive&&([401,404,410].includes(e.statusCode)||this.__owner!==api.identity()))this.invalidateRoom(e.message);else if(this.current())this.setData({syncLabel:'连接暂断，正在重连',error:e.message})}finally{this.__polling=false;this.schedule()}},
+  if(!this.current()||request!==this.__request)return;this.__options={roomId:room.id};this.__syncFailures=0;this.__syncDelay=3000;this.setData({syncPaused:false});this.adopt(room);this.schedule()
+ }catch(e){if(this.__alive&&([401,404,410].includes(e.statusCode)||this.__owner!==api.identity())){this.invalidateRoom(e.message);return}if(this.current()&&request===this.__request){const failure=roomFailure(e);this.setData({loading:false,error:failure.message,showRoomList:failure.showRoomList,syncLabel:e.statusCode===429?'暂时受限':'尚未连接'})}}finally{this.__opening=false}},
+ schedule(){clearTimeout(this.__timer);if(this.current()&&this.__visible&&!this.data.syncPaused&&this.data.room&&!['closed'].includes(this.data.room.phase))this.__timer=setTimeout(()=>this.poll(),this.__syncDelay||3000)},
+ async retrySync(){if(!this.current()||this.__polling)return;this.__syncFailures=0;this.__syncDelay=3000;this.setData({syncPaused:false,error:'',syncLabel:'正在同步'});return this.poll()},
+ async poll(){if(!this.current()||!this.__visible||this.__polling||this.data.syncPaused)return;this.__polling=true;const id=this.data.room?.id;try{if(id){const room=await api.get(id);if(this.__alive&&this.__owner!==api.identity())this.invalidateRoom();else if(this.current()&&!this.data.busy){this.__syncFailures=0;this.__syncDelay=3000;this.setData({syncPaused:false});this.adopt(room)}}}catch(e){if(this.__alive&&([401,404,410].includes(e.statusCode)||this.__owner!==api.identity()))this.invalidateRoom(e.message);else if(this.current()){const failure=roomFailure(e,++this.__syncFailures);this.__syncDelay=failure.delay;this.setData({syncPaused:failure.paused,syncLabel:failure.paused?'同步已暂停':e.statusCode===429?'请求暂时受限，稍后同步':'连接暂断，正在重连',error:failure.message+(failure.paused?' 点“重新同步”可继续。':'')})}}finally{this.__polling=false;this.schedule()}},
  async perform(type,extra={}){
   if(!this.current()||this.data.busy||!this.data.room)return
   if(this.__pending&&type!==this.__pending.type){this.setData({error:'请先重试原操作，确认结果后再继续。'});return}
@@ -65,10 +67,12 @@ Page({
   this.__pending=p;this.setData({busy:true,error:''})
   try{const result=await api.act(id,p);if(!this.current()){if(this.__alive&&this.__owner!==api.identity())this.invalidateRoom();return}this.__pending=null
    if(result.left){wx.redirectTo({url:'/bundles/coach/scripts'});return}
-   this.adopt(result);if(p.type==='chat'||p.type==='image')this.setData({draft:'',imageMode:false});if(p.type==='solve')this.setData({answer:''})
+   this.__syncFailures=0;this.__syncDelay=3000;this.setData({syncPaused:false});this.adopt(result);if((p.type==='chat'||p.type==='image')&&this.data.draft.trim()===p.text)this.setData({draft:'',imageMode:false});if(p.type==='solve'&&this.data.answer.trim()===p.answer)this.setData({answer:''})
   }catch(e){if(this.__alive&&([401,404,410].includes(e.statusCode)||this.__owner!==api.identity())){this.invalidateRoom(e.message);return}if(!this.current())return
-   if(e.statusCode){this.__pending=null;if(e.code==='script_revision_conflict')try{this.adopt(await api.get(id))}catch{}}
-   this.setData({error:e.message+(this.__pending?' 输入已保留，点“重试操作”确认原请求结果。':'')})
+   const failure=roomFailure(e)
+   if(!failure.uncertain){this.__pending=null;if(e.code==='script_revision_conflict')try{this.adopt(await api.get(id))}catch{}}
+   if(!this.current()){if(this.__alive&&this.__owner!==api.identity())this.invalidateRoom();return}
+   this.setData({error:failure.message+(this.__pending?' 输入已保留，点“重试操作”确认原请求结果。':''),showRoomList:failure.showRoomList})
   }finally{if(this.current())this.setData({busy:false,pending:!!this.__pending});this.schedule()}
  },
  action(e){this.perform(e.currentTarget.dataset.type,e.currentTarget.dataset.role?{roleId:e.currentTarget.dataset.role}:{})},

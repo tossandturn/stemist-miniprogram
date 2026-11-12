@@ -41,6 +41,7 @@ function createAudioDownloadController({onState=()=>{}}={}){
    const changedToken=String(wx.getStorageSync('stemistSessionToken')||'')!==context.token,quota=error?.code==='pdf_daily_limit_reached'
    const message=auth&&changedToken?'登录状态已更新，请重试。':safeMessage(error)
    emit({active:false,ready:false,error:message,progress:{...buildTransferProgress({...state.progress,phase:'error'},label,{error:message,canRetry:!quota&&(!auth||changedToken)&&!['pdf_access_denied','audio_source_changed'].includes(error?.code)}),authRequired:auth&&!changedToken,quotaExhausted:quota}})
+   if(quota)require('../../utils/downloadQuotaNotice').showDownloadQuotaNotice({isCurrent:()=>current(context)})
    if(auth&&!changedToken&&context.token)require('../../utils/session').clearLocalSession({preserveDrafts:true})
    release();return false
   }

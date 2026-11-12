@@ -2,6 +2,9 @@ const { getJson, requestJson } = require('./api')
 
 const PROTOCOL = 'stem-announcements-v1'
 const MAX_READ_IDS = 300
+const PUBLIC_CACHE_KEY = 'stemistAnnouncementPublicCache:v1'
+const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+const PAPER_CODE_GUIDE_ID = 'announcement-paper-code-guide-v1'
 const CATEGORIES = {
   system: '系统通知',
   feature: '功能更新',
@@ -123,6 +126,22 @@ function normalizeItems(values) {
   return (Array.isArray(values) ? values : []).map(normalizeAnnouncement).filter((value) => value && value.id)
 }
 
+function readAnnouncementSnapshot() {
+  let cached
+  try { cached = wx.getStorageSync(PUBLIC_CACHE_KEY) } catch { return null }
+  const age = Date.now() - Number(cached?.fetchedAt)
+  if (cached?.version !== 1 || !Number.isFinite(age) || age < -60000 || age > CACHE_MAX_AGE_MS) return null
+  const items = normalizeItems(cached.items).filter(item => item.status === 'published' && (!item.expiresAt || Date.parse(item.expiresAt) > Date.now()))
+  // This public ID is supplied by the server, not a fabricated local notice.
+  items.sort((a,b) => Number(b.id === PAPER_CODE_GUIDE_ID) - Number(a.id === PAPER_CODE_GUIDE_ID))
+  return { items, fetchedAt: cached.fetchedAt }
+}
+
+function cachePublicAnnouncements(items) {
+  const publicItems = normalizeItems(items).slice(0,30).map(item => { const {readAt, ...publicItem} = item; return publicItem })
+  try { wx.setStorageSync(PUBLIC_CACHE_KEY, {version:1, fetchedAt:Date.now(), items:publicItems}) } catch { /* Cache pressure must not hide the fresh response. */ }
+}
+
 function isSafeAnnouncementRoute(value) {
   try {
     if (typeof value !== 'string' || value.length < 2 || value.length > 260 || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return false
@@ -171,6 +190,7 @@ async function fetchAnnouncements({ limit = 12, offset = 0 } = {}) {
   const pageOffset = Math.max(0, Math.min(100000, Number(offset) || 0))
   const path = `/api/stem/announcements?limit=${pageLimit}&offset=${pageOffset}`
   const authenticated = Boolean(wx.getStorageSync('stemistSessionToken'))
+  const startedOwner = ownerId()
   let result
   try {
     result = await getJson(path, { timeout: 10000, stemAuth: authenticated })
@@ -179,7 +199,9 @@ async function fetchAnnouncements({ limit = 12, offset = 0 } = {}) {
     result = await getJson(path, { timeout: 10000, stemAuth: false })
   }
   result = assertProtocol(result)
-  return { ...result, items: normalizeItems(result.items) }
+  const items = normalizeItems(result.items)
+  if (pageOffset === 0) cachePublicAnnouncements(items)
+  return { ...result, items, canManage: authenticated && ownerId() === startedOwner && result.canManage === true }
 }
 
 async function fetchAnnouncementManagement() {
@@ -232,6 +254,7 @@ module.exports = {
   normalizeAnnouncement,
   ownerId,
   recordAnnouncementRead,
+  readAnnouncementSnapshot,
   saveAnnouncement,
   unreadAnnouncementCount,
 }

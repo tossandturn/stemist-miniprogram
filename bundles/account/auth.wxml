@@ -11,8 +11,10 @@
     </view>
   </view>
   <view wx:if="{{!privacy}}" class="panel account-form">
-    <block wx:if="{{user}}"><image wx:if="{{user.avatarDataUrl}}" class="account-avatar" src="{{user.avatarDataUrl}}" mode="aspectFill" aria-label="我的头像" /><view class="card-title">{{userLabel}}</view><view class="account-purpose">账号身份用于同步学习记录并由服务端识别可用会员权益；头像与昵称为可选资料。</view><button class="text-button" bindtap="editProfile">{{user.displayName ? '修改头像与昵称（可选）' : '设置头像与昵称（可选）'}}</button><button class="text-button" bindtap="logout">退出登录</button></block>
-    <block wx:else>
+    <block wx:if="{{user}}"><image wx:if="{{user.avatarDataUrl}}" class="account-avatar" src="{{user.avatarDataUrl}}" mode="aspectFill" aria-label="我的头像" /><view class="card-title">{{userLabel}}</view><view class="account-purpose">账号身份用于同步学习记录并由服务端识别可用会员权益；头像与昵称为可选资料。</view><view wx:if="{{!user.displayName}}" class="account-profile-hint">微信登录不会自动读取昵称。点下方按钮，再点昵称输入框即可选择微信昵称。</view><button class="secondary" bindtap="editProfile" disabled="{{sessionRecovering || sessionRetry}}">{{user.displayName ? '修改头像与昵称（可选）' : '设置头像与昵称（可选）'}}</button><button class="text-button" bindtap="logout">退出登录</button></block>
+    <view wx:if="{{sessionRecovering}}" class="account-purpose" aria-role="status">正在恢复账号连接，无需重新登录…</view>
+    <button wx:if="{{sessionRetry}}" class="secondary" bindtap="restoreSession">重试连接</button>
+    <block wx:if="{{!user}}">
       <view class="card-title">微信登录</view>
       <view class="account-purpose">登录后，每天免费合计下载 2 份真题、答案 PDF 或听力音频。按账号计算，北京时间零点重置；同一文件当天重试不重复扣次。</view>
       <view class="account-purpose">头像、昵称、手机号均非必填；登录不会自动开通付费会员。</view>

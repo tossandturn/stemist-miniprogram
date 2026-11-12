@@ -1,11 +1,11 @@
 const { deviceState, syncDevice } = require('../../utils/page')
-const { announcementViews, fetchAnnouncementManagement, fetchAnnouncements, ownerId, recordAnnouncementRead, unreadAnnouncementCount } = require('../../utils/announcements')
+const { announcementViews, fetchAnnouncements, ownerId, recordAnnouncementRead, unreadAnnouncementCount } = require('../../utils/announcements')
 
 const filters = [{ id: 'all', label: '全部' }, { id: 'system', label: '系统' }, { id: 'feature', label: '更新' }, { id: 'learning', label: '学习' }, { id: 'service', label: '服务' }]
 
 Page({
   data: deviceState({ loading: true, loadingMore: false, error: '', items: [], allItems: [], filters, activeFilter: 'all', expandedId: '', unreadCount: 0, canManage: false, total: 0, hasMore: false, nextOffset: null }),
-  onLoad() { this.__disposed = false; this.__requestId = 0; this.__loaded = false; return this.loadAnnouncements() },
+  onLoad(options={}) { this.__disposed = false; this.__requestId = 0; this.__loaded = false; this.__requestedNotice=/^[A-Za-z0-9_-]{1,120}$/.test(String(options.noticeId||''))?options.noticeId:'';return this.loadAnnouncements() },
   onShow() { syncDevice(this); if (this.__loaded) this.loadAnnouncements() },
   onResize() { syncDevice(this) },
   onUnload() { this.__disposed = true; this.__requestId++ },
@@ -15,15 +15,15 @@ Page({
   async loadAnnouncements({ append = false } = {}) {
     if (append && (!this.data.hasMore || this.data.loadingMore || this.data.loading)) return false
     const request = ++this.__requestId
-    this.setData(append ? { loadingMore: true, error: '' } : { loading: true, error: '' })
+    this.setData(append ? { loadingMore: true, error: '' } : { loading: true, error: '', canManage:false })
     try {
-      const managerRequest = wx.getStorageSync('stemistSessionToken') ? fetchAnnouncementManagement().catch(() => null) : Promise.resolve(null)
-      const [result, manager] = await Promise.all([fetchAnnouncements({ limit: 30, offset: append ? this.data.nextOffset : 0 }), managerRequest])
+      const result = await fetchAnnouncements({ limit: 30, offset: append ? this.data.nextOffset : 0 })
       if (this.__disposed || request !== this.__requestId) return false
       const currentOwner = ownerId()
       const merged = append ? [...this.data.allItems, ...result.items] : result.items
       const allItems = announcementViews([...new Map(merged.map((item) => [item.id, item])).values()], currentOwner)
-      this.setData({ allItems, items: this.filteredItems(allItems), unreadCount: unreadAnnouncementCount(allItems, currentOwner), canManage: manager?.canManage === true, total: Number(result.total) || allItems.length, hasMore: result.hasMore === true, nextOffset: Number.isInteger(result.nextOffset) ? result.nextOffset : null })
+      this.setData({ allItems, items: this.filteredItems(allItems), unreadCount: unreadAnnouncementCount(allItems, currentOwner), canManage: result.canManage === true, total: Number(result.total) || allItems.length, hasMore: result.hasMore === true, nextOffset: Number.isInteger(result.nextOffset) ? result.nextOffset : null })
+      if(this.__requestedNotice&&allItems.some(item=>item.id===this.__requestedNotice)){const id=this.__requestedNotice;this.__requestedNotice='';await this.openAnnouncement({currentTarget:{dataset:{id}}})}
       return true
     } catch (error) {
       if (!this.__disposed && request === this.__requestId) this.setData(append ? { error: error?.message || '更多公告暂时无法读取，请稍后重试。' } : { error: error?.message || '公告暂时无法读取，请稍后重试。', allItems: [], items: [], unreadCount: 0, canManage: false, total: 0, hasMore: false, nextOffset: null })

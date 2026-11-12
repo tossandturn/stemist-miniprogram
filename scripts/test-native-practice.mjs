@@ -246,6 +246,34 @@ await check('parallel marking reports pending instead of a false second success'
   imageGate.resolve('data:image/jpeg;base64,cGhvdG8='); await first
   assert.equal(native.readSession(session.id).answers.q0.results['q0:a'].score, 1)
 })
+await check('same-account token renewal during marking is not a logout and still rejects actual identity changes', async () => {
+  for (const change of ['renew', 'switch', 'privacy', 'logout']) {
+    const gate=deferred(),paths=[]
+    const runtime=miniRuntime({modules:{'utils/image':{readAsJpegDataUrl:async()=> 'data:image/jpeg;base64,cGhvdG8='},'utils/api':{requestJson:async(path,body)=>{
+      paths.push(path)
+      if(path.endsWith('/attempts'))return {attempt:{attemptId:body.attemptId}}
+      if(path.endsWith('/capabilities')){await gate.promise;return {capabilities:[{questionPartId:'q0:a',markingGrant:'test-grant'}]}}
+      return {mode:'vision',providerStatus:'connected',score:1,maxScore:2,confidence:.8,summary:'Checked.',reviewRequired:true}
+    }}}})
+    runtime.storage.set('stemistUser',{id:'student-a'});runtime.storage.set('stemistSessionToken','old-token')
+    const native=runtime.load('utils/nativePractice'),session=native.createSession(payload(),spec)
+    session.answers.q0={photo:'wxfile://usr/native-practice/test.jpg',revision:1,results:{},attemptId:'native-renew-'+change};native.saveSession(session)
+    const pending=native.markQuestion(session.id,'q0');await settle()
+    if(change==='renew')runtime.storage.set('stemistSessionToken','renewed-token')
+    if(change==='switch')runtime.storage.set('stemistUser',{id:'student-b'})
+    if(change==='privacy')runtime.storage.set('stemistPrivacyEpoch',1)
+    if(change==='logout')runtime.storage.delete('stemistSessionToken')
+    gate.resolve()
+    if(change==='renew'){
+      await pending
+      assert.equal(paths.filter(path=>path==='/api/ai/mark-handwriting').length,1)
+      assert.equal(native.readSession(session.id).answers.q0.results['q0:a'].score,1)
+    }else{
+      await assert.rejects(pending,/登录|状态|失效|切换|结束/)
+      assert.equal(paths.filter(path=>path==='/api/ai/mark-handwriting').length,0,'revoked or different identity must stop before paid marking')
+    }
+  }
+})
 await check('durable crop binds one question, retake clears stale marking only after copy succeeds', async () => {
   const copied = [], removed = []
   let failCopy = false

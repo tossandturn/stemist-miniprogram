@@ -25,9 +25,9 @@ const runtime = miniRuntime({
         if (path === '/api/ai/status') return { provider: 'qwen', coachEnabled: true }
         if (path.startsWith('/api/stem/announcements?')) {
           publicFetches += 1
-          if (path.includes('offset=30')) return { schemaVersion: 'stem-announcements-v1', items: [secondNotice], total: 31, offset: 30, nextOffset: null, hasMore: false }
-          if (publicFetches === 1) return { schemaVersion: 'stem-announcements-v1', items: [{ ...notice, readAt: '2026-09-30T08:01:00.000Z' }, secondNotice], total: 2, offset: 0, nextOffset: null, hasMore: false }
-          return { schemaVersion: 'stem-announcements-v1', items: [notice], total: 31, offset: 0, nextOffset: 30, hasMore: true }
+          if (path.includes('offset=30')) return { schemaVersion: 'stem-announcements-v1', canManage:true, items: [secondNotice], total: 31, offset: 30, nextOffset: null, hasMore: false }
+          if (publicFetches === 1) return { schemaVersion: 'stem-announcements-v1', canManage:true, items: [{ ...notice, readAt: '2026-09-30T08:01:00.000Z' }, secondNotice], total: 2, offset: 0, nextOffset: null, hasMore: false }
+          return { schemaVersion: 'stem-announcements-v1', canManage:true, items: [notice], total: 31, offset: 0, nextOffset: 30, hasMore: true }
         }
         if (path === '/api/stem/announcements/manage') return { schemaVersion: 'stem-announcements-v1', canManage: true, items: [notice] }
         throw new Error(`Unexpected GET ${path}`)

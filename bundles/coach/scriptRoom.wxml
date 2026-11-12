@@ -10,7 +10,7 @@
   </view>
   <view wx:elif="{{room}}" class="panel-toolbar"><button class="panel-back" bindtap="backFromPanel">‹ 返回</button><text class="panel-heading">{{panelTitle}}</text></view>
   <view wx:if="{{loading}}" class="notice">正在连接房间…</view>
-  <view wx:if="{{error}}" class="error room-error">{{error}}<button wx:if="{{!room && !accessEnded}}" class="text-button" bindtap="open">重试连接</button><button wx:if="{{accessEnded}}" class="text-button" bindtap="returnToScripts">返回剧本列表</button><button wx:if="{{pending}}" class="text-button" bindtap="retryAction" disabled="{{busy}}">重试操作</button></view>
+  <view wx:if="{{error}}" class="error room-error" role="alert"><text class="room-error-message">{{error}}</text><view class="room-error-actions"><button wx:if="{{!room && !accessEnded && !showRoomList}}" class="text-button" bindtap="open" disabled="{{loading}}">重试连接</button><button wx:if="{{accessEnded || showRoomList}}" class="text-button" bindtap="returnToScripts">返回剧本列表</button><button wx:if="{{pending}}" class="text-button" bindtap="retryAction" disabled="{{busy}}">重试操作</button><button wx:if="{{room && syncPaused}}" class="text-button" bindtap="retrySync" disabled="{{busy}}">重新同步</button></view></view>
   <scroll-view wx:if="{{room.phase === 'lobby'}}" class="room-scroll" scroll-y="{{true}}">
    <view class="lobby-content">
     <view class="lobby-poster"><image wx:if="{{scene.image && !sceneImageFailed}}" src="{{scene.image}}" mode="aspectFill" class="lobby-poster-image" binderror="sceneImageFailed" /><view class="lobby-poster-shade" /><view class="lobby-poster-copy"><text class="scene-eyebrow">{{scene.genre}}</text><text class="lobby-poster-title">{{room.title}}</text><text class="lobby-poster-line">{{scene.eyebrow}}</text></view></view>

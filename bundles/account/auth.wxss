@@ -2,6 +2,7 @@
 .wechat-login { margin-top: 0; }
 .account-avatar { width: 64px; height: 64px; border-radius: 50%; margin-bottom: 12px; }
 .account-purpose { margin: 10px 0 16px; color: #536079; font-size: 15px; line-height: 1.6; }
+.account-profile-hint { margin: 12px 0; color: #536079; font-size: 15px; line-height: 1.6; }
 .account-form .guest-exit { min-height: 44px; color: #5638c3; }
 .entry-privacy{position:fixed;z-index:60;inset:0;box-sizing:border-box;padding:24px 16px;display:flex;align-items:center;justify-content:center;background:rgba(16,26,56,.5)}
 .entry-privacy-card{box-sizing:border-box;max-height:90vh;overflow:auto;width:100%;max-width:540px;padding:20px;border:1px solid #dcd3f4;border-radius:16px;background:#fff}

@@ -2,7 +2,7 @@ const { deviceState, syncDevice } = require('../../utils/page')
 const { getJson } = require('../../utils/api')
 const { localLearningSummary } = require('../../utils/learningSummary')
 const { ensureWeChatSession } = require('../../utils/wechatAuth')
-const { announcementViews, fetchAnnouncements, ownerId } = require('../../utils/announcements')
+const { announcementViews, fetchAnnouncements, readAnnouncementSnapshot, ownerId } = require('../../utils/announcements')
 const { loadProductConfig, readProductConfigSnapshot, resolveProductAction } = require('../../utils/productConfig')
 const ENTRY_POINTS = [
 {id:'alevel',title:'A-Level 学科',detail:'IGCSE · AS · A2',tone:'alevel',url:'/pages/practice/index?category=alevel'},
@@ -81,7 +81,9 @@ this.applyProductConfig(result);return true
 async loadAnnouncementPreview() {
 const request = (this.__announcementRequest || 0) + 1
 this.__announcementRequest = request
-this.setData({ announcementLoading: true, announcementError: false })
+const cached=typeof readAnnouncementSnapshot==='function'?readAnnouncementSnapshot():null
+const cachedItems=cached?announcementViews(cached.items,ownerId()):[]
+this.setData({ announcementLoading: true, announcementError: false,...(cachedItems.length?{announcement:cachedItems[0],announcementUnread:cachedItems.some(item=>item.unread)}:{}) })
 try {
 const result = await fetchAnnouncements({ limit: 2 })
 if (this.__disposed || request !== this.__announcementRequest) return
@@ -89,7 +91,7 @@ const currentOwner = ownerId()
 const items = announcementViews(result.items, currentOwner)
 this.setData({ announcement: items[0] || null, announcementUnread: items.some((item) => item.unread) })
 } catch {
-if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcement: null, announcementUnread: false, announcementError: true })
+if (!this.__disposed && request === this.__announcementRequest) this.setData({ ...(!cachedItems.length?{announcement:null,announcementUnread:false}:{}), announcementError: true })
 } finally { if (!this.__disposed && request === this.__announcementRequest) this.setData({ announcementLoading: false }) }
 },
 loginWechat(){wx.navigateTo({url:'/bundles/account/auth',fail:()=>this.setData({entryError:'账号页面未能打开，请重试。'})})},

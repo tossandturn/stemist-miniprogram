@@ -5,15 +5,21 @@ function consentAccepted(){const value=wx.getStorageSync(CONSENT_KEY);return val
 function hasValidSession(){const user=wx.getStorageSync('stemistUser'),meta=wx.getStorageSync('stemistSessionMeta');return /^ielts:\d+$/.test(String(user?.id||''))&&!!String(wx.getStorageSync('stemistSessionToken')||'').trim()&&meta?.owner===user.id&&Number.isFinite(Date.parse(meta.expiresAt))&&Date.parse(meta.expiresAt)>Date.now()}
 function canEnter(){return privacyReady&&consentAccepted()&&hasValidSession()}
 function acceptConsent(){wx.setStorageSync(CONSENT_KEY,{version:VERSION,accepted:true});privacyReady=true;privacyRevision++}
-function notePrivacy(allowed){privacyReady=allowed===true;privacyRevision++;if(!privacyReady)wx.removeStorageSync(CONSENT_KEY)}
+function notePrivacy(allowed){
+ // An unavailable platform lookup is not a withdrawal of a prior explicit
+ // agreement. It must never manufacture agreement for a guest either.
+ if(typeof allowed!=='boolean'){privacyReady=privacyReady||consentAccepted();return privacyReady}
+ privacyReady=allowed;privacyRevision++;if(!privacyReady)wx.removeStorageSync(CONSENT_KEY)
+ return privacyReady
+}
 function prepareEntry(){
  if(preparing)return preparing
  const revision=privacyRevision
  preparing=new Promise(resolve=>{
   let done=false;const finish=value=>{if(done)return;done=true;clearTimeout(timer);if(revision===privacyRevision)notePrivacy(value);resolve(privacyReady)}
-  const timer=setTimeout(()=>finish(false),6000)
-  if(typeof wx.getPrivacySetting!=='function')return finish(false)
-  try{wx.getPrivacySetting({success:r=>finish(r.needAuthorization===false),fail:()=>finish(false)})}catch{finish(false)}
+  const timer=setTimeout(()=>finish(null),6000)
+  if(typeof wx.getPrivacySetting!=='function')return finish(null)
+  try{wx.getPrivacySetting({success:r=>finish(typeof r?.needAuthorization==='boolean'?!r.needAuthorization:null),fail:()=>finish(null)})}catch{finish(null)}
  }).finally(()=>{preparing=null})
  return preparing
 }
@@ -45,20 +51,51 @@ function returnToBrowse(onFailure){
 }
 function wrapEntryPage(definition){
  if(definition.entryPublic===true)return definition
+ function recoverable(){const user=wx.getStorageSync('stemistUser'),meta=wx.getStorageSync('stemistSessionMeta');return consentAccepted()&&/^ielts:\d+$/.test(String(user?.id||''))&&!!wx.getStorageSync('stemistSessionToken')&&meta?.owner===user.id&&['wechat','password'].includes(meta.kind)}
  function start(page){
-  if(page.__entryDisposed||page.__entryInitialized)return
+  if(page.__entryDisposed)return
   if(!canEnter())return requireEntry(page,page.__entryOptions)
-  page.__entryInitialized=true;page.setData({__entryGateBlocked:false})
+  page.__entryRedirected=false;page.setData({__entryGateBlocked:false,__entryRecoveryMessage:''})
+  if(page.__entryInitialized){if(page.__entryVisible){page.__entryShown=true;definition.onShow?.call(page)}return}
+  page.__entryInitialized=true
   definition.onLoad?.call(page,page.__entryOptions)
-  if(page.__entryVisible)definition.onShow?.call(page)
+  if(page.__entryVisible){page.__entryShown=true;definition.onShow?.call(page)}
   if(page.__entryReady)definition.onReady?.call(page)
  }
+ function resume(page){
+  if(page.__entryDisposed)return
+  if(page.__entryRecovery)return page.__entryRecovery
+  if(canEnter())return start(page)
+  if(page.__entryShown){page.__entryShown=false;definition.onHide?.call(page)}
+  if(!recoverable()&&!(consentAccepted()&&hasValidSession()))return requireEntry(page,page.__entryOptions)
+  page.setData({__entryGateBlocked:true,__entryRecoveryMessage:''})
+  const token=wx.getStorageSync('stemistSessionToken')
+  const work=(async()=>{
+   await prepareEntry()
+   if(page.__entryDisposed)return
+   if(!consentAccepted())return requireEntry(page,page.__entryOptions)
+   try{await require('./nativeSession').refreshNativeSession()}
+   catch(error){
+    if(page.__entryDisposed)return
+    if(error?.code==='auth_required'){
+     if(token===wx.getStorageSync('stemistSessionToken'))require('./session').clearLocalSession({preserveDrafts:true})
+     return requireEntry(page,page.__entryOptions)
+    }
+    const message=error?.code==='network_proxy_tunnel'?error.message:'连接暂时失败，账号与草稿已保留。'
+    page.setData({__entryRecoveryMessage:message})
+    if(page.__entryVisible&&typeof wx.showModal==='function')wx.showModal({title:'连接暂时失败',content:error?.code==='network_proxy_tunnel'?message:'账号与草稿已保留，无需重新登录。请检查网络后重试。',confirmText:'重试连接',cancelText:'返回首页',success:choice=>{if(page.__entryDisposed)return;if(choice.confirm)resume(page);else if(choice.cancel)returnToBrowse()}})
+    return
+   }
+   start(page)
+  })().finally(()=>{if(page.__entryRecovery===work)page.__entryRecovery=null})
+  page.__entryRecovery=work;return work
+ }
  return {...definition,data:{...definition.data,__entryGateBlocked:true},
-  onLoad(options){this.__entryOptions=options||{};this.__entryDisposed=false;if(canEnter())return start(this);if(consentAccepted()&&hasValidSession())return prepareEntry().then(()=>start(this));requireEntry(this,this.__entryOptions)},
-  onShow(){this.__entryVisible=true;if(this.__entryInitialized){if(!canEnter()){definition.onHide?.call(this);return requireEntry(this,this.__entryOptions)}return definition.onShow?.call(this)}},
+  onLoad(options){this.__entryOptions=options||{};this.__entryDisposed=false;return resume(this)},
+  onShow(){this.__entryVisible=true;return resume(this)},
   onReady(){this.__entryReady=true;if(this.__entryInitialized&&canEnter())return definition.onReady?.call(this)},
   onResize(event){if(this.__entryInitialized&&canEnter())return definition.onResize?.call(this,event)},
-  onHide(){this.__entryVisible=false;if(this.__entryInitialized)return definition.onHide?.call(this)},
+  onHide(){this.__entryVisible=false;if(this.__entryShown){this.__entryShown=false;return definition.onHide?.call(this)}},
   onUnload(){this.__entryDisposed=true;if(this.__entryInitialized)return definition.onUnload?.call(this)},
  }
 }

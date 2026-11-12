@@ -12,7 +12,7 @@
         <text>{{processing ? '正在处理头像…' : '选择微信头像'}}</text>
       </button>
       <label class="field-label" for="nickname">昵称</label>
-      <input id="nickname" name="nickname" class="profile-input" type="nickname" value="{{displayName}}" maxlength="64" cursor-spacing="100" adjust-position="{{true}}" disabled="{{saving}}" placeholder="点击使用微信昵称，也可以自行填写" />
+      <input id="nickname" name="nickname" class="profile-input" type="nickname" value="{{displayName}}" bindinput="onNicknameInput" bindblur="onNicknameInput" maxlength="64" cursor-spacing="100" adjust-position="{{true}}" disabled="{{saving}}" placeholder="点击使用微信昵称，也可以自行填写" />
       <view class="profile-help">点击昵称输入框，可在微信键盘上方选用微信昵称。</view>
       <button class="primary" form-type="submit" loading="{{saving}}" disabled="{{saving || processing}}">{{saving ? '正在保存…' : '保存头像与昵称'}}</button>
     </form>

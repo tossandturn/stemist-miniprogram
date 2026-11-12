@@ -193,7 +193,7 @@ const changed=String(wxApi.getStorageSync?.('stemistSessionToken')||'')!==contex
 fail(context,changed?'登录状态已更新，请重试。':error.message);publish({authRequired:!changed,canRetry:changed})
 if(!changed&&context.identity.token)require('./session').clearLocalSession({preserveDrafts:true});return
 }
-if(['pdf_daily_limit_reached','pdf_access_denied'].includes(error?.code)){fail(context,error.message);publish({canRetry:false,quotaExhausted:error.code==='pdf_daily_limit_reached'});return}
+if(['pdf_daily_limit_reached','pdf_access_denied'].includes(error?.code)){fail(context,error.message);publish({canRetry:false,quotaExhausted:error.code==='pdf_daily_limit_reached'});if(error.code==='pdf_daily_limit_reached')require('./downloadQuotaNotice').showDownloadQuotaNotice({wxApi,isCurrent:()=>current(context)});return}
 if(['pdf_quota_unavailable','pdf_rate_limited'].includes(error?.code)){fail(context,error.message);return}
 const detail=error?.httpStatus||['pdf_domain','pdf_storage','pdf_storage_full','pdf_integrity','pdf_checkpoint','pdf_invalid_range','pdf_source_changed'].includes(error?.code)?error.message:''
 resumeOnNetwork=context.rangeBacked&&['pdf_network','pdf_timeout'].includes(error?.code)

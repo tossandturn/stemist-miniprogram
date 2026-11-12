@@ -85,7 +85,11 @@ function createAdvisorConversation({root,streamPath,persona,errorPrefix,copy={}}
      if(result?.mode!=='ai'||result.providerStatus!=='connected'||result.partial===true||result.answerStatus==='partial'){const partialAnswer=String(result?.answer||'').trim();throw Object.assign(fail(text.incomplete,result?.code||code('incomplete')),{statusCode:Number(result?.statusCode)||0,...receiptFields(result),...(partialAnswer?{partialAnswer}:{})})}
      const returnedTurns=Array.isArray(result.turns)?result.turns.map(turn=>persona==='admissions-advisor'&&turn.role==='assistant'?{...turn,research:turn.research||result.research}:turn):result.turns
      const envelope=normalizeAdvisorEnvelope({conversation:result.conversation,messages:returnedTurns,nextBefore:''},persona),turns=envelope.messages,answer=String(result.answer||'').trim()
-     if(result.clientTurnId!==body.clientTurnId||envelope.conversation.id!==body.conversationId||envelope.conversation.revision<=body.expectedRevision||turns.length!==2||turns[0].id!==body.clientTurnId+':user'||turns[1].id!==body.clientTurnId+':assistant'||turns[0].role!=='user'||turns[1].role!=='assistant'||turns[0].content!==body.message||!answer||turns[1].content!==answer)throw fail(text.mismatch)
+     // An exact completed-turn replay does not mutate the conversation. After
+     // a recovery read its current revision can equal the expected revision.
+     // Keep every turn ID/content binding and still reject revision rollback.
+     const staleRevision=result.replayed===true?envelope.conversation.revision<body.expectedRevision:envelope.conversation.revision<=body.expectedRevision
+     if(result.clientTurnId!==body.clientTurnId||envelope.conversation.id!==body.conversationId||staleRevision||turns.length!==2||turns[0].id!==body.clientTurnId+':user'||turns[1].id!==body.clientTurnId+':assistant'||turns[0].role!=='user'||turns[1].role!=='assistant'||turns[0].content!==body.message||!answer||turns[1].content!==answer)throw fail(text.mismatch)
      finish(resolve,{...result,answer,conversation:envelope.conversation,turns})
     }catch(error){finish(reject,safeError(error))}
    },error=>finish(reject,safeError(error)))

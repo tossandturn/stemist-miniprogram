@@ -38,7 +38,7 @@ function wxLoginCode(control=null){
   const finish=(settle,value)=>{if(settled)return;settled=true;clearTimeout(timer);off();settle(value)}
   timer=setTimeout(()=>finish(reject,Object.assign(new Error('微信登录超时，请稍后重试'),{code:'wechat_login_timeout'})),10000)
   off=control?.onCancel(()=>finish(reject,cancelError()))||off
-  wx.login({timeout:10000,success:result=>{const code=String(result?.code||'').trim();code?finish(resolve,code):finish(reject,Object.assign(new Error('微信登录没有返回有效凭证'),{code:'wechat_code_missing'}))},fail:error=>finish(reject,Object.assign(new Error('微信登录暂时失败，请稍后重试'),{code:'wechat_login_failed',detail:error?.errMsg}))})
+  wx.login({timeout:10000,success:result=>{const code=String(result?.code||'').trim();code?finish(resolve,code):finish(reject,Object.assign(new Error('微信登录没有返回有效凭证'),{code:'wechat_code_missing'}))},fail:error=>finish(reject,require('./networkError').networkFailure(error,{defaultMessage:'微信登录暂时失败，请稍后重试。'}))})
  })
 }
 
@@ -50,14 +50,18 @@ function presentWeChatIdentityError(error){
 async function exchangeCode(code,check=authGuard(),control=null){
  control?.current()
  check()
+ let expired=false,timer=null,task=null
+ const timeoutError=()=>Object.assign(new Error('微信登录连接超时，请检查网络后重试。'),{code:'wechat_login_timeout'})
+ const checked=payload=>{if(expired)throw timeoutError();control?.current();return check(payload)}
  try{
-  const request=requestJson('/api/auth/wechat',{code},{method:'POST',timeout:10000,stemAuth:false,authCheck:check,isCancelled:()=>control?.isCancelled()===true,onTask:task=>control?.onTask(task)})
-  const payload=control?await Promise.race([request,control.cancelPromise]):await request
+  const deadline=new Promise((resolve,reject)=>{timer=setTimeout(()=>{expired=true;reject(timeoutError());try{task?.abort()}catch{}},10000)})
+  const request=requestJson('/api/auth/wechat',{code},{method:'POST',timeout:10000,stemAuth:false,authCheck:checked,isCancelled:()=>expired||control?.isCancelled()===true,onTask:value=>{task=value;control?.onTask(value)}})
+  const payload=await Promise.race(control?[request,deadline,control.cancelPromise]:[request,deadline])
   control?.current()
-  const verified=check(payload)
+  const verified=checked(payload)
   control?.current()
   return{status:'authenticated',user:storeIdentity(payload,verified),payload}
- }catch(error){throw presentWeChatIdentityError(error)}
+ }catch(error){throw presentWeChatIdentityError(error)}finally{clearTimeout(timer)}
 }
 
 function beginWeChatLogin(){

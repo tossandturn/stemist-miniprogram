@@ -28,7 +28,10 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
  const text={...DEFAULT_COPY,...copy},effortScope=persona==='ielts-teacher'?'ielts-teacher':'admissions'
  const {cleanMessage,newClientTurnId,resume,fetchMessages,deleteConversation,send}=client
  const owner=()=>String(wx.getStorageSync('stemistUser')?.id||'guest'),epoch=()=>Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
- const revisionConflict=error=>Number(error?.statusCode)===409&&/revision_conflict|generated_result_pending/.test(String(error?.code||''))
+ // Native chunked requests may return a non-2xx JSON body as plain text,
+ // leaving only the HTTP status. Reconcile an unknown 409 as well as the
+ // explicit stale/busy states; never automatically re-submit an AI turn.
+ const revisionConflict=error=>Number(error?.statusCode)===409&&(!String(error?.code||'')||/revision_conflict|generated_result_pending|turn_in_progress/.test(String(error?.code||'')))
  const confirmedDeleted=error=>Number(error?.statusCode)===410&&String(error?.code||'')===errorPrefix+'conversation_deleted'
  const canonicalDraft=value=>{try{return cleanMessage(String(value||''))}catch{return''}}
  const normalizedDraftLength=value=>Array.from(String(value||'').replaceAll(String.fromCharCode(0),'').replace(/\r\n?/g,'\n').trim()).length
@@ -132,7 +135,7 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     const pending=this.__pending,committed=pending&&result.messages.some(item=>item.id===pending.clientTurnId+':assistant'&&item.role==='assistant')&&result.messages.some(item=>item.id===pending.clientTurnId+':user'&&item.content===pending.message)
     const patch={turns:result.messages,historyBrowsing:false,hasOlderHistory:Boolean(result.nextBefore),historyLoading:false,error:''}
     if(committed){if(canonicalDraft(this.data.message)===pending.message)patch.message='';this.__pending=null;patch.canRetry=false;patch.partialAnswer=''}
-    else if(pending?.needsRebase){pending.expectedRevision=result.conversation.revision;delete pending.needsRebase;patch.canRetry=canonicalDraft(this.data.message)===pending.message}
+    else if(pending?.needsRebase){pending.expectedRevision=result.conversation.revision;patch.canRetry=canonicalDraft(this.data.message)===pending.message}
     const draft=Object.prototype.hasOwnProperty.call(patch,'message')?patch.message:this.data.message;Object.assign(patch,receiptUi(this.__pending,draft));if(patch.receiptState)patch.error=receiptError(patch)
     if(this.__localClearFence){
      const partialAnswer=Object.prototype.hasOwnProperty.call(patch,'partialAnswer')?patch.partialAnswer:this.data.partialAnswer
@@ -151,10 +154,10 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
    let draftMessage='';if(this.__pending?.receiptState!=='commit-deferred')try{draftMessage=cleanMessage(this.data.message)}catch(error){this.setData({error:String(error?.message||text.invalidInput),canRetry:false});return}
    const message=this.__pending?.receiptState==='commit-deferred'?this.__pending.message:draftMessage
    if(!wx.getStorageSync('stemistSessionToken')){this.setData({authRequired:true,error:text.authRequired});return}
-   const generation=this.__generation;this.__submitting=true
+   const generation=this.__generation;let stateRecovered=false;this.__submitting=true
    try{
     if(!this.__conversation||this.data.historyBrowsing||this.__localClearFence){if(!await this.resumeLatest()||!this.current(generation))return}
-    if(this.__pending?.needsRebase){if(!await this.resumeLatest()||!this.current(generation)||!this.__pending)return}
+    if(this.__pending?.needsRebase){stateRecovered=true;if(!await this.resumeLatest()||!this.current(generation)||!this.__pending)return;delete this.__pending.needsRebase}
     if(!this.__pending&&canonicalDraft(this.data.message)!==message)return
     if(!this.__pending||this.__pending.message!==message){const target=persona==='admissions-advisor'?normalizeDirectoryTarget(this.directoryTargetForMessage?.(message)):null;this.__pending={clientTurnId:newClientTurnId(),message,expectedRevision:this.__conversation.revision,reasoningEffort:readCoachEffort(effortScope,message),...(target?{directoryTarget:target}:{})}}
     const pending=this.__pending
@@ -166,7 +169,13 @@ function createAdvisorPage({storagePrefix,persona,errorPrefix,starters,client,co
     this.__conversation=result.conversation;this.__pending=null;this.__nextBefore=''
     const remainingDraft=canonicalDraft(this.data.message)===pending.message?'':this.data.message
     this.setData({turns:(persona==='admissions-advisor'?mergeAdvisorMessages:mergeTavernMessages)(this.data.turns,result.turns),latestSourceTurnId:persona==='admissions-advisor'?result.turns.find(turn=>turn.role==='assistant')?.id||'':'',message:remainingDraft,partialAnswer:'',loading:false,canRetry:false,receiptState:'',sendBlocked:false,pendingEffort:'',effortLocked:false,error:'',status:'',hasOlderHistory:this.data.hasOlderHistory||this.__conversation.turnCount>20});this.save();this.scrollChatToLatest()
-   }catch(error){this.fail(error,generation)}finally{if(this.current(generation)){this.__submitting=false;this.__cancel=null}}
+   }catch(error){
+    this.fail(error,generation)
+    if(!stateRecovered&&revisionConflict(error)&&this.current(generation)&&this.__pending&&!this.__pending.receiptState){
+     const recovered=await this.resumeLatest()
+     if(recovered&&this.current(generation)&&this.__pending)this.setData({error:'已取回最新对话，输入已保留。请稍后重试。',status:''})
+    }
+   }finally{if(this.current(generation)){this.__submitting=false;this.__cancel=null}}
   },
   async loadOlderHistory(){
    if(!this.current()||this.data.loading||this.data.historyLoading||!this.__conversation)return

@@ -6,7 +6,7 @@ Page({
  onShareAppMessage(){return require('../../utils/share').onShareAppMessage.call(this)},
  data:deviceState({displayName:'',avatarDataUrl:'',loading:false,loaded:false,processing:false,saving:false,error:'',saved:false,authRequired:false}),
  onLoad(){this._owner=context();this._disposed=false;this._leaving=false;this._generation=0;this._avatarVersion=0;return this.loadProfile()},
- onShow(){this._leaving=false;syncDevice(this);this.checkOwner()},
+ onShow(){this._leaving=false;syncDevice(this);if(this.checkOwner()&&!this.data.loaded&&!this.data.loading)return this.loadProfile()},
  onResize(){syncDevice(this)},
  onHide(){this.invalidatePending()},
  onUnload(){this._disposed=true;this.invalidatePending(false)},
@@ -34,6 +34,7 @@ Page({
   catch(error){if(this.checkOwner(generation)&&version===this._avatarVersion)this.setData({error:error.message||'头像处理失败，请重新选择。'})}
   finally{if(this.current(generation)&&version===this._avatarVersion)this.setData({processing:false})}
  },
+ onNicknameInput(event){if(this.current()&&this.data.loaded&&!this.data.saving)this.setData({displayName:String(event.detail?.value||''),saved:false,error:''})},
  async submit(event){
   if(!this.current()||!this.data.loaded||this.data.loading||this.data.processing||this.data.saving)return
   let displayName;try{displayName=normalizeName(event.detail?.value?.nickname)}catch(error){this.setData({error:error.message});return}
