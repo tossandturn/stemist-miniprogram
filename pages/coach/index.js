@@ -1,5 +1,6 @@
 const { deviceState, syncDevice, readDraft, writeDraft, scheduleDraft, clearDraft, cancelDraft } = require('../../utils/page')
 const {coachHelpPolicy,normalizeCoachFeature,normalizeHelpIntent,runCoach}=require('../../utils/coach')
+const {diagramRequestKey,normalizeDiagramOffer}=require('../../utils/coachDiagramOffer')
 const { isAuthError } = require('../../utils/api')
 const {readCoachEffort,academicEffortScope}=require('../../utils/coachEffort')
 const {requestIeltsLearning}=require('../../utils/ieltsLearning')
@@ -49,9 +50,13 @@ progress: {},
 helpIntent: '',
 feature:'',
 solutionDisabled: false,
+diagramOffer:null,
+diagramAnswer:'',
+diagramLoading:false,
+diagramError:'',
 }),
-onLoad(options) {
-this.__disposed = false;this.__mediaRequest=0
+ onLoad(options) {
+ this.__disposed = false;this.__mediaRequest=0;this.__diagramRun=0;this.__diagramRequest=null;this.__diagramRequestKey='';this.__diagramDeclinedKey=''
 this.__mode=normalizeCoachFeature(options?.feature)
 this.__owner=String(wx.getStorageSync('stemistUser')?.id||'guest');this.__epoch=Number(wx.getStorageSync('stemistPrivacyEpoch'))||0
 try{this.__entryKey=decodeURIComponent(String(options?.entry||''))}catch{this.__entryKey='invalid-entry'}
@@ -94,13 +99,14 @@ identity(){return {owner:this.__owner,epoch:this.__epoch}},
 effortDraft(){return{message:this.data.message,contextId:this.data.contextId,entryKey:this.__entryKey,reasoningEffort:this.data.reasoningEffort,saveTask:this.data.saveTask,effortScope:this.data.effortScope,effortOwner:this.__owner,effortEpoch:this.__epoch,effortPending:this.data.canRetry||this.data.loading,effortImagePath:this.data.imagePath||''}},
 refreshEffort(){if(!this.data.loading&&!this.data.canRetry){const effortScope=academicEffortScope(this.data.helpIntent,this.data.feature),reasoningEffort=readCoachEffort(effortScope);this.setData({effortScope,reasoningEffort,...(reasoningEffort==='low'?{saveTask:false}:{})})}},
 resetIdentity(){
+this.resetDiagramState(true)
 this.setData({reasoningEffort:readCoachEffort(),saveTask:false})
 this.__coachImageCache=null
 clearCoachPhoto(this.identity())
 clearCoachSource(this)
 this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null
 this.__coachProgress?.dispose();this.__mediaRequest+=1;cancelDraft(this);this.__entry=null;this.__entryKey='';this.__history=[];this.__historyKey=''
-this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false,helpIntent:'',feature:'',solutionDisabled:false})
+this.setData({contextId:'stem-photo',contextIndex:0,message:'',answer:'',warning:'',error:'账号已变化，请返回后重新打开 AI Coach。',loading:false,coachStatus:'',canRetry:false,authRequired:false,draftStatus:'账号已变化',routeContext:{},routeContextLabel:'',imagePath:'',imageSource:'',entryHasImage:false,mediaBusy:false,helpIntent:'',feature:'',solutionDisabled:false,diagramOffer:null,diagramAnswer:'',diagramLoading:false,diagramError:''})
 },
 async prepareEntry(){
 const entry=this.__entry;if(!entry)return {}
@@ -119,13 +125,14 @@ if (wx.getStorageSync('stemistSessionToken') && this.data.authRequired) this.set
 },
 onResize() { syncDevice(this) },
 onHide(){this.__stopWarm?.()},
-onUnload() { this.__coachImageCache=null;clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
+onUnload() { this.__coachImageCache=null;clearCoachSource(this,false);this.__disposed = true;this.__stopWarm?.();this.__cancelCoach?.();this.__cancelCoach=null;this.__cancelDiagram?.();this.__cancelDiagram=null;this.__diagramRun++;this.__coachProgress?.dispose();this.__mediaRequest++; cancelDraft(this) },
+resetDiagramState(clearDecline=false){this.__diagramRun=(this.__diagramRun||0)+1;this.__cancelDiagram?.();this.__cancelDiagram=null;this.__diagramRequest=null;this.__diagramRequestKey='';if(clearDecline)this.__diagramDeclinedKey='';if(!this.__disposed)this.setData({diagramOffer:null,diagramAnswer:'',diagramLoading:false,diagramError:''})},
 pauseCoachUpload(){if(this.current()&&this.data.loading&&this.data.progress?.phase==='uploading')this.__cancelCoach?.()},
 restorePhoto(){
 const binding=this.__entryKey&&!this.__entry?'missing-entry':this.__entryKey
 const imagePath=readCoachPhoto(this.identity(),this.data.contextId,binding)
 const changed=imagePath!==this.data.imagePath
-if(changed){clearCoachSource(this);this.__coachImageCache=null}
+if(changed){clearCoachSource(this);this.__coachImageCache=null;this.resetDiagramState(true)}
 const auto=imagePath&&this.data.feature==='answers'&&!this.data.solutionDisabled&&consumeCoachPhotoAutoSubmit(this.identity(),this.data.contextId,'answers',binding)
 const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,binding),count=paths.length
 if(imagePath&&this.__entry?.imagePaths)this.__entry.imagePaths=paths
@@ -134,6 +141,7 @@ if(changed){this.__pendingEffortPhoto=null;this.refreshEffort()}
 },
 previewPhotos(){if(!this.current()||!this.data.imagePath)return;const paths=readCoachPhotoPaths(this.identity(),this.data.contextId,this.__entryKey);if(paths.length)wx.previewImage({current:paths[0],urls:paths})},
 discardAttachedPhoto(){
+this.resetDiagramState(true)
 this.__coachImageCache=null
 clearCoachSource(this)
 clearCoachPhoto(this.identity())
@@ -184,6 +192,7 @@ if (!this.current() || this.data.loading) return
 const contextId = String(event.currentTarget.dataset.context || '')
 if (!CONTEXTS.some((item) => item.id === contextId)) return
 clearCoachSource(this)
+this.resetDiagramState(true)
 if(contextId!==this.data.contextId)this.discardAttachedPhoto()
 if(this.__entry?.skill!==contextId){this.__entry=null;this.__entryKey='';this.__historyKey='stemistCoachTurns:'+this.__owner+':'+contextId;const history=wx.getStorageSync(this.__historyKey);this.__history=Array.isArray(history)?history.slice(-12):[]}
 const selected=CONTEXTS.find(item=>item.id===contextId)||CONTEXTS[0],policy=coachHelpPolicy({product:selected.product,skill:selected.id,...(contextId==='stem-photo'?this.data.routeContext:{})})
@@ -198,6 +207,7 @@ if (selected && !this.data.loading) this.chooseContext({ currentTarget: { datase
 onMessage(event) {
 if (!this.current() || this.data.loading) return
 const message = String(event.detail.value || '')
+if(message!==this.data.message)this.resetDiagramState(true)
 this.setData({ message, error: '', canRetry:message.trim()===this.data.message.trim()&&this.data.canRetry, authRequired: false, draftStatus: message ? '正在自动保存…' : '自动保存已开启' })
 this.refreshEffort();scheduleDraft(this,'coach',this.effortDraft())
 },
@@ -208,7 +218,7 @@ if (!this.current() || this.data.loading) return
 const intent=normalizeHelpIntent(event.detail?.value||event.currentTarget?.dataset?.intent)
 if(!intent||(intent==='worked-solution'&&this.data.solutionDisabled))return
 if(intent===this.data.helpIntent)return
-this.setData({helpIntent:intent,feature:this.__mode?(intent==='hint'?'steps':'answers'):'',error:'',authRequired:false,canRetry:false});this.refreshEffort();writeDraft('coach',this.effortDraft())
+this.resetDiagramState(true);this.setData({helpIntent:intent,feature:this.__mode?(intent==='hint'?'steps':'answers'):'',error:'',authRequired:false,canRetry:false});this.refreshEffort();writeDraft('coach',this.effortDraft())
 },
 async submit() {
 const typedMessage = this.data.message.trim()
@@ -217,7 +227,8 @@ const selected = CONTEXTS.find((item) => item.id === this.data.contextId) || CON
 const entryImages=Array.isArray(this.__entry?.imagePaths)?this.__entry.imagePaths:[]
 if (!typedMessage&&!this.data.imagePath&&!entryImages.length) return this.setData({ error: '请先拍照、上传图片，或写下你的问题。' })
 clearCoachSource(this)
-this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…' })
+this.__diagramRun=(this.__diagramRun||0)+1;this.__cancelDiagram?.();this.__cancelDiagram=null;this.__diagramRequest=null;this.__diagramRequestKey=''
+this.setData({ loading: true, error: '', canRetry: false, authRequired: false, answer: '', warning: '', coachStatus: '正在分析…',diagramOffer:null,diagramAnswer:'',diagramLoading:false,diagramError:'' })
 this.__coachProgress?.dispose()
 this.__receiving=false
 const progress=this.__coachProgress=createOperationTracker({key:this.data.imagePath||entryImages.length?'coach-photo':'coach-text',taskMode:selected.product==='STEM Studio',effort:this.data.reasoningEffort,onChange:value=>{if(this.current())this.setData({progress:this.__receiving&&value.active&&value.phase!=='recovering'?{...value,label:'正在生成答案…'}:value})}})
@@ -239,6 +250,9 @@ const coachContext={ product: selected.product, skill: selected.id, inputMode: i
 const policy=coachHelpPolicy(coachContext)
 const helpIntent=policy.solutionDisabled&&this.data.helpIntent==='worked-solution'?'hint':this.data.helpIntent
 if(policy.solutionDisabled!==this.data.solutionDisabled||helpIntent!==this.data.helpIntent)this.setData({solutionDisabled:policy.solutionDisabled,helpIntent})
+const diagramKey=diagramRequestKey({message:typedMessage,helpIntent,feature:this.__mode?this.data.feature:'',context:coachContext,imagePaths:paths})
+if(this.__diagramDeclinedKey&&this.__diagramDeclinedKey!==diagramKey)this.__diagramDeclinedKey=''
+const diagramRequest={message:typedMessage,helpIntent,feature:this.__mode?this.data.feature:'',imageDataUrls:[...imageDataUrls],context:{...coachContext},history:this.__history.slice(-10),reasoningEffort:this.data.reasoningEffort,saveTask:false}
 const result = await runCoach({
 reasoningEffort:this.data.reasoningEffort,
 saveTask:this.data.saveTask===true&&['high','max'].includes(this.data.reasoningEffort),
@@ -248,6 +262,7 @@ feature:this.__mode?this.data.feature:'',
 imageDataUrls,
 context: coachContext,
 history:this.__history.slice(-10),
+diagramIntent:'ask',
 onStage:stage=>progress.stage(stage),
 ...(selected.product==='STEM Studio'?{
 onCancelReady:cancel=>{if(this.current())this.__cancelCoach=cancel;else cancel()},
@@ -265,7 +280,9 @@ writeDraft('coach',this.effortDraft())
 this.setData({answer:result.partialAnswer||'',warning:coachState.warning||'',error:result.failureMessage||'AI 未完成本次答疑，内容已保留，请重试。',coachStatus:coachState.label||'答疑未完成',canRetry:result.retryable!==false,draftStatus:'答疑未完成 · 内容已保留'})
 return
 }
-this.setData({ answer: result.answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问' })
+const diagramOffer=selected.product==='STEM Studio'&&this.__diagramDeclinedKey!==diagramKey?normalizeDiagramOffer(result.diagramOffer,true):null
+this.__diagramRequestKey=diagramKey;this.__diagramRequest={owner:this.__owner,epoch:this.__epoch,key:diagramKey,request:diagramRequest}
+this.setData({ answer: result.answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问',diagramOffer,diagramAnswer:'',diagramError:'' })
 offerCoachSource(this,{message:typedMessage,context:coachContext,imageDataUrls},{...result,completed})
 if(result.mode==='ai'&&result.providerStatus==='connected'){
 this.__history=[...this.__history,{role:'user',content:result.requestMessage||typedMessage},{role:'assistant',content:result.answer}].slice(-12)
@@ -287,6 +304,19 @@ else if(!this.__disposed&&selected.product==='STEM Studio'){this.resetIdentity()
 }
 }
 },
+async confirmDiagram(){
+ const snapshot=this.__diagramRequest
+ if(!this.current()||this.data.loading||this.data.diagramLoading||!this.data.diagramOffer||!snapshot||snapshot.owner!==this.__owner||snapshot.epoch!==this.__epoch||snapshot.key!==this.__diagramRequestKey)return
+ const run=++this.__diagramRun;this.setData({diagramLoading:true,diagramError:''})
+ try{
+  const result=await runCoach({...snapshot.request,saveTask:false,diagramIntent:'draw',onCancelReady:cancel=>{if(this.current()&&run===this.__diagramRun)this.__cancelDiagram=cancel;else cancel()}})
+  if(!this.current()||run!==this.__diagramRun||snapshot!==this.__diagramRequest)return
+  if(result.completed!==true||!String(result.answer||'').trim())throw new Error(result.failureMessage||'补图未完成，请重试。')
+  this.setData({diagramAnswer:result.answer,diagramOffer:null,diagramError:''})
+ }catch(error){if(this.current()&&run===this.__diagramRun&&snapshot===this.__diagramRequest)this.setData({diagramError:error.message||'补图失败，请重试。'})}
+ finally{if(run===this.__diagramRun){this.__cancelDiagram=null;if(this.current())this.setData({diagramLoading:false})}}
+},
+declineDiagram(){if(!this.current()||this.data.loading||this.data.diagramLoading||!this.data.diagramOffer||!this.__diagramRequest)return;this.__diagramDeclinedKey=this.__diagramRequest.key;this.__diagramRun++;this.__cancelDiagram?.();this.__cancelDiagram=null;this.setData({diagramOffer:null,diagramError:'',diagramLoading:false})},
 retry() { if (!this.data.loading) return this.submit() },
 identifySource(){return lookupCoachSource(this)},
 dismissSource(){clearCoachSource(this)},
@@ -299,11 +329,12 @@ openTasks(){if(this.current()&&(!this.data.loading||this.data.progress?.savedTas
 clear() {
 if (this.data.loading || !this.current()) return
 clearDraft('coach')
+this.resetDiagramState(true)
 this.setData({saveTask:false,progress:{}})
 this.discardAttachedPhoto()
 this.__history=[]
 wx.removeStorageSync(this.__historyKey)
-this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空',imagePath:'',imageSource:'',helpIntent:this.data.feature==='steps'?'hint':this.data.feature==='answers'?'worked-solution':'' })
+this.setData({ message: '', answer: '', warning: '', error: '', canRetry: false, authRequired: false, coachStatus: '', draftStatus: '已清空',imagePath:'',imageSource:'',helpIntent:this.data.feature==='steps'?'hint':this.data.feature==='answers'?'worked-solution':'',diagramOffer:null,diagramAnswer:'',diagramLoading:false,diagramError:'' })
 this.refreshEffort()
 },
 })

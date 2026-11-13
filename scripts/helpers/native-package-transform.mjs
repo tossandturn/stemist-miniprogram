@@ -84,6 +84,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
     id: 'esbuild-coach-stream-identifiers-v1',
     paths: Object.freeze(['utils/coach.js','utils/nativeSession.js','utils/coachSession.js','utils/coachStream.js','utils/operationProgress.js','utils/nativeCoachPhoto.js','pages/coach/index.js','pages/stem/coach.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
+    id: 'esbuild-ai-mode-headroom-v1',
+    paths: Object.freeze(['pages/ielts/home.js','pages/ielts/speaking.js','pages/ielts/vocabulary.js','pages/ielts/writing-full.js','pages/ielts/writing.js','pages/ielts/writingReportDownload.js','pages/progress/index.js','utils/agentHandoff.js','utils/calculatorCalcController.js','utils/coachDiagram.js','utils/cwMath.js','utils/cwTouchCursor.js','utils/entryAccess.js','utils/ieltsLearning.js','utils/ieltsUnits.js','utils/ieltsWriting.js','utils/inventory.js','utils/learningSummary.js','utils/listeningAudioCache.js','utils/nativeCaptions.js','utils/nativeNavigation.js','utils/nativePaper.js','utils/nativeSpeaking.js','utils/speakingStore.js','utils/wechatAuth.js','utils/writingSourceArchive.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
   })]),
   options: Object.freeze({
     charset: 'utf8',

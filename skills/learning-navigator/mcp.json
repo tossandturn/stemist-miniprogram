@@ -1,0 +1,59 @@
+{
+  "apis": [
+    {
+      "name": "discoverLearningOptions",
+      "description": "仅用于寻找 STEMist 学习入口或补齐课程体系、学科、阶段、路线和学习任务。信息不足时返回真实选项；不要用于回答产品介绍、FAQ 或知识问题，不读取用户私有记录。",
+      "_meta": { "ui": { "pagePath": "/bundles/ai-entry/index" } },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "courseSystem": { "type": "string", "enum": ["cambridge", "edexcel", "oxfordaqa", "ap", "ib", "ielts", "competition", "tools"], "description": "用户明确表达的课程体系；未明确时不要猜。" },
+          "subjectCode": { "type": "string", "description": "已确认的学科或考试代码，如 9702、0580、bpho；禁止从模糊学科名猜代码。" },
+          "stage": { "type": "string", "description": "已确认阶段，如 IGCSE、AS、A2、Competition、Admissions。" },
+          "routeId": { "type": "string", "description": "必须来自本 Skill 上一次返回的 routeId，禁止编造。" },
+          "task": { "type": "string", "description": "学习任务，如 workspace、photo、topics、papers、exam、coach、listening、reading、writing、speaking、vocabulary、progress、notebook、calculator。" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "missing": { "type": "array", "items": { "type": "string" } },
+          "choiceDimension": { "type": "string" },
+          "choices": { "type": "array", "items": { "type": "object", "properties": { "kind": { "type": "string" }, "id": { "type": "string" }, "title": { "type": "string" }, "detail": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "filters": { "type": "object", "properties": { "courseSystem": { "type": "string" }, "subjectCode": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "task": { "type": "string" } } } } } },
+          "destinationId": { "type": "string" },
+          "navigationLabel": { "type": "string" },
+          "navigationPath": { "type": "string", "format": "page-link", "x-link-text-field": "navigationLabel" }
+        }
+      }
+    },
+    {
+      "name": "openLearningDestination",
+      "description": "仅用于打开已明确的 STEMist 学习入口。优先传入上一步返回的 destinationId；若课程阶段或路线仍有歧义，会返回选项而不会猜测。不会自动开始相机、麦克风、付费、模型生成、考试或提交。",
+      "_meta": { "ui": { "pagePath": "/bundles/ai-entry/index" } },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destinationId": { "type": "string", "description": "必须来自 discoverLearningOptions 返回的稳定 ID。" },
+          "courseSystem": { "type": "string", "enum": ["cambridge", "edexcel", "oxfordaqa", "ap", "ib", "ielts", "competition", "tools"] },
+          "subjectCode": { "type": "string" },
+          "stage": { "type": "string" },
+          "routeId": { "type": "string" },
+          "task": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "missing": { "type": "array", "items": { "type": "string" } },
+          "choiceDimension": { "type": "string" },
+          "choices": { "type": "array", "items": { "type": "object", "properties": { "kind": { "type": "string" }, "id": { "type": "string" }, "title": { "type": "string" }, "detail": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "filters": { "type": "object", "properties": { "courseSystem": { "type": "string" }, "subjectCode": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "task": { "type": "string" } } } } } },
+          "destinationId": { "type": "string" },
+          "navigationLabel": { "type": "string" },
+          "navigationPath": { "type": "string", "format": "page-link", "x-link-text-field": "navigationLabel" }
+        }
+      }
+    }
+  ]
+}

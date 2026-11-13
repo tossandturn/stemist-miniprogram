@@ -17,8 +17,11 @@ function askCoachJob(payload,{request,onStage=null,onPartial=null,onCancelReady=
  const key='stemistCoachJobs:'+owner+':'+epoch,hash=fingerprint(payload),now=Date.now()
  let records=wx.getStorageSync(key);records=Array.isArray(records)?records.filter(r=>r&&/^[a-f0-9]{64}$/.test(r.hash)&&/^cj-[a-zA-Z0-9_-]{16,80}$/.test(r.id)&&r.expires>now).slice(-5):[]
  let record=records.find(r=>r.hash===hash)
- // Upgrade capability must not orphan an already submitted text-only request.
- if(!record&&payload.diagramFormat==='stem-diagram-v1'){const {diagramFormat,...legacyPayload}=payload;record=records.find(r=>r.hash===fingerprint(legacyPayload));if(record)payload=legacyPayload}
+ // Capability upgrades must not orphan an already submitted default text request.
+ const recovery=[]
+ if(payload.diagramFormat==='stem-diagram-v1'){const {diagramFormat,...withoutFormat}=payload;recovery.push(withoutFormat)}
+ if(payload.diagramIntent==='ask'){const {diagramIntent,...withoutIntent}=payload;recovery.push(withoutIntent);if(withoutIntent.diagramFormat==='stem-diagram-v1'){const {diagramFormat,...legacy}=withoutIntent;recovery.push(legacy)}}
+ for(const candidate of recovery)if(!record){record=records.find(r=>r.hash===fingerprint(candidate));if(record)payload=candidate}
  const known=Boolean(record)
  timing.replayed=known;timing.requestPreparationMs=elapsed()
  if(!record){record={hash,id:'cj-'+now.toString(36)+'-'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2),expires:now+(payload.saveTask===true?259200000:payload.saveTask===false?600000:TTL)};records.push(record)}

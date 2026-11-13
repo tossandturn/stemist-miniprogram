@@ -1,0 +1,28 @@
+<block wx:if="{{!__entryGateBlocked}}">
+  <view class="page {{deviceClass}} {{orientation}} ai-entry-page">
+    <stemist-header title="{{title}}" />
+    <view class="ai-entry-intro" role="status">
+      <text class="ai-entry-title">{{title}}</text>
+      <text class="ai-entry-detail">{{detail}}</text>
+    </view>
+    <view wx:if="{{state === 'choose'}}" class="ai-entry-list" role="list" aria-label="学习入口选项">
+      <button wx:for="{{choices}}" wx:key="id" class="ai-entry-choice" data-destination="{{item.id}}" bindtap="chooseDestination" role="listitem" aria-label="{{item.title}}：{{item.detail}}">
+        <text class="ai-entry-choice-title">{{item.title}}</text>
+        <text class="ai-entry-choice-detail">{{item.detail}}</text>
+        <text wx:if="{{item.routeLabel}}" class="ai-entry-choice-meta">{{item.routeLabel}}</text>
+      </button>
+    </view>
+    <view wx:elif="{{state === 'ready' && destination}}" class="ai-entry-ready">
+      <text class="ai-entry-ready-label">将进入</text>
+      <text class="ai-entry-ready-title">{{destination.title}}</text>
+      <text class="ai-entry-ready-detail">{{destination.detail}}</text>
+      <button class="primary ai-entry-open" bindtap="openDestination" role="button" aria-label="进入{{destination.title}}">确认进入</button>
+      <text class="ai-entry-note">拍照、录音、下载、AI 请求、考试和提交都需要你在目标页面主动操作。</text>
+    </view>
+    <view wx:elif="{{state === 'error'}}" class="ai-entry-error" role="alert">
+      <text class="ai-entry-error-title">{{error}}</text>
+      <navigator class="ai-entry-home" url="/pages/index/index" open-type="redirect">返回首页</navigator>
+    </view>
+  </view>
+</block>
+<view wx:else class="entry-blocked"><text>正在确认登录状态</text><navigator url="/bundles/account/auth?required=1" open-type="reLaunch">进入登录</navigator></view>

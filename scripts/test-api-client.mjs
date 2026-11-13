@@ -18,7 +18,7 @@ const wx = {
 const module = { exports: {} }
 let sessionCleanupOptions
 let jobPayload
-const fakeRequire = (name) => name === './coachEffort' ? miniRuntime().load('utils/coachEffort') : name === './ieltsLearning' ? {requestIeltsLearning:(...args)=>module.exports.requestIeltsJson(...args)} : name === './nativeSession' ? {captureNativeCookie(){},refreshNativeSession:async()=>{}} : name === './session' ? { clearLocalSession: (options) => {
+const fakeRequire = (name) => name === './coachEffort' ? miniRuntime().load('utils/coachEffort') : name === './coachDiagramOffer' ? miniRuntime().load('utils/coachDiagramOffer') : name === './ieltsLearning' ? {requestIeltsLearning:(...args)=>module.exports.requestIeltsJson(...args)} : name === './nativeSession' ? {captureNativeCookie(){},refreshNativeSession:async()=>{}} : name === './session' ? { clearLocalSession: (options) => {
   sessionCleanupOptions = options
   delete storage.stemistSessionToken
   delete storage.stemistUser

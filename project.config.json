@@ -53,6 +53,6 @@
   "appid": "touristappid",
   "projectname": "stemist-miniprogram",
   "miniprogramRoot": "./",
-  "libVersion": "3.8.8",
+  "libVersion": "3.16.2",
   "condition": {}
 }

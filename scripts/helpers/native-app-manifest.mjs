@@ -16,6 +16,11 @@ function unique(values,label){
  return values
 }
 
+function absoluteSkillPath(value,label){
+ if(typeof value!=='string'||value!==value.trim()||!value.startsWith('/')||value.includes('\\'))throw new Error(`${label} must be an absolute Mini Program path`)
+ return route(value.slice(1),label)
+}
+
 export function nativeAppManifest(app){
  if(!app||typeof app!=='object'||Array.isArray(app))throw new Error('app.json must contain an object')
  if(app.subPackages!==undefined&&app.subpackages!==undefined)throw new Error('Declare subPackages only once')
@@ -26,11 +31,11 @@ export function nativeAppManifest(app){
  const subPackages=rawSubPackages.map((entry,index)=>{
   if(!entry||typeof entry!=='object'||Array.isArray(entry))throw new Error(`subPackages[${index}] must be an object`)
   if(entry.independent!==undefined&&typeof entry.independent!=='boolean')throw new Error(`subPackages[${index}].independent must be boolean`)
-  if(entry.independent===true)throw new Error('Only ordinary non-independent subpackages may share the main runtime')
   const root=route(entry.root,`subPackages[${index}].root`).replace(/\/$/,'')
-  if(!Array.isArray(entry.pages)||!entry.pages.length)throw new Error(`subPackages[${index}].pages must be a non-empty array`)
+  const independent=entry.independent===true
+  if(!Array.isArray(entry.pages)||(!independent&&!entry.pages.length))throw new Error(`subPackages[${index}].pages must be a non-empty array unless the package is independent`)
   const pages=unique(entry.pages.map((page,pageIndex)=>route(page,`subPackages[${index}].pages[${pageIndex}]`)),`pages in ${root}`)
-  return {root,pages,pageRoutes:pages.map(page=>`${root}/${page}`)}
+  return {root,independent,pages,pageRoutes:pages.map(page=>`${root}/${page}`)}
  })
  unique(subPackages.map(entry=>entry.root),'subpackage roots')
  for(let i=0;i<subPackages.length;i++)for(let j=i+1;j<subPackages.length;j++){
@@ -39,7 +44,23 @@ export function nativeAppManifest(app){
  }
  const subPages=subPackages.flatMap(entry=>entry.pageRoutes),allPages=unique([...mainPages,...subPages],'registered pages')
  for(const page of mainPages)if(subPackages.some(entry=>page===entry.root||page.startsWith(entry.root+'/')))throw new Error(`main page overlaps subpackage root: ${page}`)
- return {mainPages,subPackages,allPages}
+ let agent=null
+ if(app.agent!==undefined){
+  if(!app.agent||typeof app.agent!=='object'||Array.isArray(app.agent))throw new Error('app.agent must be an object')
+  const instruction=route(app.agent.instruction,'app.agent.instruction'),pageMetadata=route(app.agent.pageMetadata,'app.agent.pageMetadata')
+  if(!Array.isArray(app.agent.skills)||!app.agent.skills.length||app.agent.skills.length>30)throw new Error('app.agent.skills must contain 1 to 30 skills')
+  const skills=app.agent.skills.map((skill,index)=>{
+   if(!skill||typeof skill!=='object'||Array.isArray(skill))throw new Error(`app.agent.skills[${index}] must be an object`)
+   const name=String(skill.name||''),description=String(skill.description||''),skillPath=absoluteSkillPath(skill.path,`app.agent.skills[${index}].path`)
+   if(!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)||!description.trim())throw new Error(`app.agent.skills[${index}] name and description are required`)
+   const owner=subPackages.find(entry=>entry.independent&&(skillPath===entry.root||skillPath.startsWith(entry.root+'/')))
+   if(!owner)throw new Error(`app.agent.skills[${index}] must live in an independent subpackage`)
+   return{name,description,path:`/${skillPath}`,packageRoot:owner.root}
+  })
+  unique(skills.map(item=>item.name),'agent skill names');unique(skills.map(item=>item.path),'agent skill paths')
+  agent={instruction,pageMetadata,skills}
+ }
+ return {mainPages,subPackages,allPages,agent}
 }
 
 export function packageRootForPath(value,subPackages){

@@ -1,0 +1,68 @@
+STEMist 课程与功能导航
+版本：stemist-ai-knowledge-v1.1.0-2026-11-13
+
+课程体系
+- A-Level / IGCSE：Cambridge 学科、阶段和路线
+- Edexcel IAL：Pearson 国际 A-Level 真题资料
+- OxfordAQA：OxfordAQA 国际 A-Level 真题资料
+- AP：课程资料、真题和已开放练习
+- IB：课程与真题资料
+- IELTS：听说读写、模考、词汇与资料
+- 竞赛 / 入学考试：BPhO、AMC 12、ESAT、TMUA
+- 学习工具：AI Coach、进度、笔记与计算器
+
+常见学科名称
+- IGCSE：0580 Mathematics（数学）、0606 Additional Mathematics（附加数学）、0610 Biology（生物）、0625 Physics（物理）。
+- Cambridge A-Level：9700 Biology、9701 Chemistry、9702 Physics、9708 Economics、9709 Mathematics、9231 Further Mathematics。
+- Edexcel IAL / OxfordAQA 国际 A-Level：Physics、Mathematics、Further Mathematics，当前进入各自真题目录。
+- “物理”还可能指 AP Physics 或 IB Physics；“数学”也可能指 AP、IB、IGCSE、Cambridge、Edexcel IAL 或 OxfordAQA，未说明课程体系时应先让用户选择。
+
+Cambridge 与竞赛路线
+- IGCSE Mathematics｜IGCSE｜IGCSE · P1 + P2 + P3 + P4｜IGCSE Mathematics 历年真题
+- IGCSE Additional Mathematics｜IGCSE｜IGCSE · P1 + P2｜IGCSE Additional Mathematics 历年真题
+- IGCSE Physics｜IGCSE｜IGCSE · P1–P6｜IGCSE Physics 历年真题
+- IGCSE Biology｜IGCSE｜IGCSE · P1–P6｜IGCSE Biology 历年真题
+- Biology｜AS｜AS · P1 + P2 + P3｜Biology 历年真题
+- Biology｜A2｜A2 · P4 + P5｜Biology 历年真题
+- Chemistry｜AS｜AS · P1 + P2 + P3｜Chemistry 历年真题
+- Chemistry｜A2｜A2 · P4 + P5｜Chemistry 历年真题
+- Physics｜AS｜AS · P1 + P2 + P3｜Physics 历年真题
+- Physics｜A2｜A2 · P4 + P5｜Physics 历年真题
+- Economics｜AS｜AS · P1 + P2｜Economics 历年真题
+- Economics｜A2｜A2 · P3 + P4｜Economics 历年真题
+- Mathematics｜AS｜AS · P1 + P2｜Mathematics 历年真题
+- Mathematics｜AS｜AS · P1 + M1｜Mathematics 历年真题
+- Mathematics｜AS｜AS · P1 + S1｜Mathematics 历年真题
+- Mathematics｜A2｜A2 · P3 + M1｜Mathematics 历年真题
+- Mathematics｜A2｜A2 · P3 + S2｜Mathematics 历年真题
+- Mathematics｜A2｜A2 · P3 + S1｜Mathematics 历年真题
+- Further Mathematics｜AS｜AS · P1 + P3｜Further Mathematics 历年真题
+- Further Mathematics｜AS｜AS · P1 + P4｜Further Mathematics 历年真题
+- Further Mathematics｜A2｜A2 · P2 + P4｜Further Mathematics 历年真题
+- Further Mathematics｜A2｜A2 · P2 + P3｜Further Mathematics 历年真题
+- British Physics Olympiad｜Competition｜Competition · Competition paper｜British Physics Olympiad 真题目录
+- AMC 12｜Competition｜Competition · Competition paper｜AMC 12 真题目录
+- ESAT｜Admissions｜Admissions · Maths + science modules｜ESAT 真题目录
+- TMUA｜Admissions｜Admissions · Paper 1 + Paper 2｜TMUA 真题目录
+
+怎样开始 Cambridge A-Level / IGCSE
+1. 选择 IGCSE、AS 或 A2 阶段。
+2. 选择学科。
+3. Mathematics、Further Mathematics 等出现多个试卷组合时，再选择课程路线。
+4. 选择章节练习、历年真题、模拟考试、拍题入口或 AI Coach。
+
+怎样开始 Edexcel IAL / OxfordAQA
+先选择考试局，再选择 Physics、Mathematics 或 Further Mathematics。当前只进入已核对的国际单元卷目录；章节与模拟能力未开放时不会借用 CIE 内容。
+
+怎样开始 AP / IB
+进入对应课程资料页，再按页面提供的课程、级别、年份、场次和卷别筛选。AP 页面会显示当前实际开放的练习；IB 以课程与真题资料为主。
+
+怎样开始 IELTS
+- Listening / Reading：进入资料库，选择练习。
+- Writing：进入题库后选择打字或照片方式。
+- Speaking：进入口语页面后主动开始录音。
+- 整套练习：选择剑桥套题或随机模考。
+- 词汇与资料：进入词汇复习、真题答案目录或配套音频目录。
+
+竞赛 / 入学考试
+BPhO、AMC 12、ESAT、TMUA 直接进入真题目录，不按 A-Level 章节练习处理。

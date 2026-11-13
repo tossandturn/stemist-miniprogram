@@ -54,6 +54,17 @@
 <view wx:if="{{answer}}" class="result">
 <answer-content id="coach-answer" text="{{answer}}" academic="{{academic}}" modular="{{academic}}" compact="{{streamlined}}"/>
 </view>
+<view wx:if="{{academic && diagramAnswer}}" class="coach-diagram-result">
+<answer-content text="{{diagramAnswer}}" academic="{{true}}" modular="{{true}}" compact="{{streamlined}}"/>
+</view>
+<view wx:if="{{academic && diagramOffer && answer && !loading}}" class="coach-diagram-offer">
+<view class="coach-diagram-question">{{diagramOffer.question}}</view>
+<view class="coach-diagram-actions">
+<button bindtap="onDiagramDraw" loading="{{diagramLoading}}" disabled="{{diagramLoading}}">补受力图</button>
+<button class="diagram-decline" bindtap="onDiagramDecline" disabled="{{diagramLoading}}">暂时不用</button>
+</view>
+<view wx:if="{{diagramError}}" class="coach-diagram-error" role="alert">{{diagramError}}</view>
+</view>
 <view wx:if="{{academic && sourceAction && answer && !loading}}" class="coach-source-offer">
 <view wx:if="{{sourceAction.status === 'offer'}}">是否识别这是哪一年的真题？</view>
 <view wx:if="{{sourceAction.status === 'loading'}}" class="coach-source-note" role="status">正在识别题目出处，答案可继续阅读…</view>

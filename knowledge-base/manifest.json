@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "stemist-ai-knowledge-manifest-v1",
+  "version": "stemist-ai-knowledge-v1.1.0-2026-11-13",
+  "generatedAt": "2026-11-13",
+  "encoding": "UTF-8 without BOM",
+  "officialUploadFormats": [
+    "PDF",
+    "DOC",
+    "DOCX",
+    "PPT",
+    "PPTX",
+    "TXT",
+    "MD",
+    "XLSX"
+  ],
+  "maxFiles": 10,
+  "maxBytesPerFile": 10485760,
+  "officialSourceUrl": "https://developers.weixin.qq.com/miniprogram/dev/ai/integration.html#四、知识库",
+  "officialSourceMarkdownUrl": "https://developers.weixin.qq.com/miniprogram/dev/ai/integration.md",
+  "officialSourceReadDate": "2026-11-13",
+  "officialFormatSupportVerified": true,
+  "actualPlatformUploadVerified": false,
+  "actualPlatformParsingVerified": false,
+  "files": [
+    {
+      "path": "knowledge-base/stemist-01-product-and-scope.txt",
+      "bytes": 2573,
+      "sha256": "7675ef7aa94c89fa2436871879ec567641bedfb46a4e89f6741c483c5e50232f"
+    },
+    {
+      "path": "knowledge-base/stemist-02-course-navigation.txt",
+      "bytes": 4110,
+      "sha256": "660928146ae3b749ebc1c8529fb948ab6f57a6b1eaa944f616966007f6cf172c"
+    },
+    {
+      "path": "knowledge-base/stemist-03-operations-faq.txt",
+      "bytes": 3487,
+      "sha256": "d30181019ba70bd9c6a46b3292311465741a337176c56dca05f2c20f5c7b9345"
+    },
+    {
+      "path": "knowledge-base/stemist-04-account-privacy-ai-boundaries.txt",
+      "bytes": 1440,
+      "sha256": "d06b73fd633aa60948e0eb81a24502be1076d483ce120966bde69c20512d4309"
+    }
+  ],
+  "uploadOrder": [
+    "knowledge-base/stemist-01-product-and-scope.txt",
+    "knowledge-base/stemist-02-course-navigation.txt",
+    "knowledge-base/stemist-03-operations-faq.txt",
+    "knowledge-base/stemist-04-account-privacy-ai-boundaries.txt"
+  ],
+  "evaluation": {
+    "file": "evaluation/ai-mode-learning-navigation.json",
+    "total": 50,
+    "positive": 42,
+    "negative": 8,
+    "complexSourceCases": 27,
+    "unregistered": 2,
+    "locationTagged": 0,
+    "timeTagged": 0,
+    "platformPreflightVerified": false,
+    "privateDataTagNote": "The private_data case navigates to a protected record page only. Platform preflight may remove the tag because this Skill does not return private record contents."
+  }
+}

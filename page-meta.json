@@ -1,0 +1,14 @@
+{
+  "pages": [
+    {
+      "path": "bundles/ai-entry/index",
+      "name": "STEMist 学习入口",
+      "description": "按课程体系、学科、阶段和学习任务选择真实原生页面"
+    },
+    {
+      "path": "pages/index/index",
+      "name": "STEMist 首页",
+      "description": "查看 A-Level、IGCSE、AP、IB、IELTS、竞赛与学习工具入口"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "选择学习入口",
+  "usingComponents": {
+    "stemist-header": "/components/stemist-header/index"
+  }
+}

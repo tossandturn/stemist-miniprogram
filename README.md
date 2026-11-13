@@ -6,6 +6,12 @@ The product and interaction baseline is documented in [`docs/mini-program-produc
 
 ## Product scope
 
+### WeChat AI learning navigator
+
+The Mini Program now contains a general WeChat AI navigation Skill. It resolves course system, subject, stage, route and study task, then hands off to a registered native page after the student confirms the choice. The Skill does not replace AI Coach, read private records, start device input, create payments or submit answers.
+
+Run `npm run generate:ai-learning` to regenerate the two runtime registries, four upload-ready UTF-8 knowledge-base TXT files and the 50-case WeChat evaluation set. Run `npm run test:ai-mode` for the navigation, Handoff, manifest, knowledge and entry-gate contracts. See [`docs/ai-mode-general-learning-entry-2026-11-12.md`](docs/ai-mode-general-learning-entry-2026-11-12.md) and the current [`docs/ai-mode-integration-2026-11-13.md`](docs/ai-mode-integration-2026-11-13.md).
+
 - Home: exactly four primary entrances — A-Level subjects, IELTS, competitions/admissions, and a Casio-style scientific calculator.
 - Calculator: native international fx-991CW key arrangement, LCD menus and fraction display; local scientific arithmetic, nine variables, f/g functions, real quadratic/2-variable equations, one-variable statistics, tables, ratio and signed 32-bit base conversion. This is not Casio firmware or a complete official emulator. [Current CW scope and QA](docs/calculator-cw-qa-2026-09-06.md).
 - Competitions/admissions open the past-paper catalog directly. There is no competition Topic generator or readiness gate in this entrance.

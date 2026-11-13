@@ -14,14 +14,16 @@ const storage = {
 }
 let pageConfig
 let syncedPayload
+const coachRequests=[]
 let syncShouldFail = false
 const progressModule=miniRuntime({wx:{getStorageSync:key=>storage[key],setStorageSync:(key,value)=>{storage[key]=value}}}).load('utils/operationProgress')
 const fakeRequire = (name) => {
   if(name==='../../utils/coachEffort')return miniRuntime().load('utils/coachEffort')
+  if(name==='../../utils/coachDiagramOffer')return miniRuntime().load('utils/coachDiagramOffer')
   if (name === '../../utils/coachSource') return {offerCoachSource(){},lookupCoachSource(){},clearCoachSource(){}}
   if (name === '../../utils/coachSession') return miniRuntime().load('utils/coachSession')
   if (name === '../../utils/image') return { readAsJpegDataUrl: async () => 'data:image/jpeg;base64,ZmFrZQ==' }
-  if (name === '../../utils/coach') return { HELP_INTENTS:{HINT:'hint',WORKED_SOLUTION:'worked-solution',CHECK_WORK:'check-work'},coachHelpPolicy:()=>({solutionDisabled:false}),normalizeHelpIntent:value=>String(value||''),runCoach: async ({onStage}) => {onStage?.('calling');onStage?.('analysis');onStage?.('arranging');return { mode: 'ai', providerStatus: 'connected', answer: 'feedback', coachState: { label: 'AI 已连接', warning: '' } }} }
+  if (name === '../../utils/coach') return { HELP_INTENTS:{HINT:'hint',WORKED_SOLUTION:'worked-solution',CHECK_WORK:'check-work'},coachHelpPolicy:()=>({solutionDisabled:false}),normalizeHelpIntent:value=>String(value||''),runCoach: async request => {coachRequests.push(request);request.onStage?.('calling');request.onStage?.('analysis');request.onStage?.('arranging');return request.diagramIntent==='draw'?{mode:'ai',providerStatus:'connected',completed:true,answer:'diagram follow-up'}:{ mode: 'ai', providerStatus: 'connected', completed:true,answer: 'feedback',diagramOffer:{type:'force',question:'需要我补一张受力图说明吗？'}, coachState: { label: 'AI 已连接', warning: '' } }} }
   if (name === '../../utils/operationProgress') return progressModule
   if (name === '../../utils/attemptSync') return { nextAttemptId: () => 'mini-photo-test', syncStemPhotoAttempt: async (payload) => { syncedPayload = payload; if (syncShouldFail) throw new Error('offline'); return { ok: true, clientAttemptId: payload.attemptId, attempt: { attemptId: payload.attemptId } } } }
   if (name === '../../utils/page') return { deviceState: (value) => value, syncDevice: () => {} }
@@ -65,6 +67,9 @@ assert.equal(page.data.syncStatus, '已同步到 STEM 学习记录')
 assert.equal(page.data.progress.phase,'complete')
 assert.equal(page.data.progress.percentage,null)
 assert.equal(syncedPayload.context.routeId, 'cie-9702-as-physics')
+assert.equal(page.data.diagramOffer.question,'需要我补一张受力图说明吗？')
+const beforeDecline=coachRequests.length;page.declineDiagram();assert.equal(coachRequests.length,beforeDecline);assert.equal(page.data.diagramOffer,null)
+const drawPage=createPage();await drawPage.ask.call(drawPage);await drawPage.confirmDiagram.call(drawPage);assert.equal(coachRequests.at(-1).diagramIntent,'draw');assert.equal(drawPage.data.answer,'feedback');assert.equal(drawPage.data.diagramAnswer,'diagram follow-up')
 
 syncShouldFail = true
 const failedPage = createPage()

@@ -41,10 +41,10 @@ function walkFiles(directory) {
 }
 
 function copyFixture(fixtureRoot) {
-  for (const directory of ['bundles', 'components', 'design-system', 'pages', 'scripts', 'third_party', 'utils']) {
+  for (const directory of ['agent', 'bundles', 'components', 'design-system', 'pages', 'scripts', 'skills', 'third_party', 'utils']) {
     fs.cpSync(path.join(root, directory), path.join(fixtureRoot, directory), { recursive: true })
   }
-  for (const name of ['.gitattributes', '.gitignore', 'app.js', 'app.json', 'app.wxss', 'package.json', 'package-lock.json', 'project.config.json', 'sitemap.json']) {
+  for (const name of ['.gitattributes', '.gitignore', 'app.js', 'app.json', 'app.wxss', 'package.json', 'package-lock.json', 'page-meta.json', 'project.config.json', 'sitemap.json']) {
     fs.copyFileSync(path.join(root, name), path.join(fixtureRoot, name))
   }
   fs.mkdirSync(path.join(fixtureRoot, 'node_modules'), { recursive: true })
@@ -180,6 +180,10 @@ assert.equal(pdfTransform.id,'esbuild-pdf-transfer-compact-v1','PDF transfer get
 assert.equal(pdfTransform.options.minifySyntax,true)
 assert.equal(pdfTransform.options.keepNames,true)
 assert.deepEqual([...pdfTransform.paths].sort(),['utils/pdfDownload.js','utils/pdfRangeCache.js'])
+const aiModeHeadroom=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.id==='esbuild-ai-mode-headroom-v1')
+assert.ok(aiModeHeadroom,'AI mode integration retains the existing 128 KiB main-package reserve with an explicit reviewed allowlist')
+assert.equal(aiModeHeadroom.options.minifyIdentifiers,true);assert.equal(aiModeHeadroom.options.minifySyntax,true);assert.equal(aiModeHeadroom.options.keepNames,true)
+assert.deepEqual([...aiModeHeadroom.paths].sort(),['pages/ielts/home.js','pages/ielts/speaking.js','pages/ielts/vocabulary.js','pages/ielts/writing-full.js','pages/ielts/writing.js','pages/ielts/writingReportDownload.js','pages/progress/index.js','utils/agentHandoff.js','utils/calculatorCalcController.js','utils/coachDiagram.js','utils/cwMath.js','utils/cwTouchCursor.js','utils/entryAccess.js','utils/ieltsLearning.js','utils/ieltsUnits.js','utils/ieltsWriting.js','utils/inventory.js','utils/learningSummary.js','utils/listeningAudioCache.js','utils/nativeCaptions.js','utils/nativeNavigation.js','utils/nativePaper.js','utils/nativeSpeaking.js','utils/speakingStore.js','utils/wechatAuth.js','utils/writingSourceArchive.js'].sort())
 assert.equal(NATIVE_PACKAGE_TRANSFORM.engine, 'esbuild')
 assert.equal(NATIVE_PACKAGE_TRANSFORM.version, '0.28.2')
 assert.deepEqual(NATIVE_PACKAGE_TRANSFORM.options, {
