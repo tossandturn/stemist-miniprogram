@@ -20,7 +20,7 @@
           "status": { "type": "string" },
           "missing": { "type": "array", "items": { "type": "string" } },
           "choiceDimension": { "type": "string" },
-          "choices": { "type": "array", "items": { "type": "object", "properties": { "kind": { "type": "string" }, "id": { "type": "string" }, "title": { "type": "string" }, "detail": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "filters": { "type": "object", "properties": { "courseSystem": { "type": "string" }, "subjectCode": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "task": { "type": "string" } } } } } },
+          "choices": { "type": "array", "items": { "type": "object", "properties": { "kind": { "type": "string" }, "id": { "type": "string" }, "title": { "type": "string" }, "detail": { "type": "string" }, "courseSystem": { "type": "string" }, "task": { "type": "string" }, "subjectCode": { "type": "string" }, "subjectLabel": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "routeLabel": { "type": "string" }, "pagePath": { "type": "string" }, "filters": { "type": "object", "properties": { "courseSystem": { "type": "string" }, "subjectCode": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "task": { "type": "string" } } } } } },
           "destinationId": { "type": "string" },
           "navigationLabel": { "type": "string" },
           "navigationPath": { "type": "string", "format": "page-link", "x-link-text-field": "navigationLabel" }
@@ -48,7 +48,7 @@
           "status": { "type": "string" },
           "missing": { "type": "array", "items": { "type": "string" } },
           "choiceDimension": { "type": "string" },
-          "choices": { "type": "array", "items": { "type": "object", "properties": { "kind": { "type": "string" }, "id": { "type": "string" }, "title": { "type": "string" }, "detail": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "filters": { "type": "object", "properties": { "courseSystem": { "type": "string" }, "subjectCode": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "task": { "type": "string" } } } } } },
+          "choices": { "type": "array", "items": { "type": "object", "properties": { "kind": { "type": "string" }, "id": { "type": "string" }, "title": { "type": "string" }, "detail": { "type": "string" }, "courseSystem": { "type": "string" }, "task": { "type": "string" }, "subjectCode": { "type": "string" }, "subjectLabel": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "routeLabel": { "type": "string" }, "pagePath": { "type": "string" }, "filters": { "type": "object", "properties": { "courseSystem": { "type": "string" }, "subjectCode": { "type": "string" }, "stage": { "type": "string" }, "routeId": { "type": "string" }, "task": { "type": "string" } } } } } },
           "destinationId": { "type": "string" },
           "navigationLabel": { "type": "string" },
           "navigationPath": { "type": "string", "format": "page-link", "x-link-text-field": "navigationLabel" }

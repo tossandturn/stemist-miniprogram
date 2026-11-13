@@ -68,4 +68,45 @@ for (const result of [stageChoice, routeChoice, exact, mismatch, forbidden]) {
   assert.doesNotMatch(serialized, /Bearer|data:image|session[_-]?key|cookie/i)
 }
 
-console.log(JSON.stringify({ status: 'passed', APIs: 2, stageChoices: stageChoice.structuredContent.choices.length, routeChoices: routeChoice.structuredContent.choices.length }))
+// WeChat's AI compiler warns for every returned field missing from outputSchema,
+// including nested choice fields, even when the JSON Schema permits extras.
+const apiSchemas = JSON.parse(fs.readFileSync(path.join(root, 'skills/learning-navigator/mcp.json'), 'utf8')).apis
+function assertDeclaredOutput(value, schema, location) {
+  assert.ok(schema, `${location}: schema must exist`)
+  if (schema.type === 'object') {
+    assert.ok(value && typeof value === 'object' && !Array.isArray(value), `${location}: expected object`)
+    for (const [key, child] of Object.entries(value)) {
+      assert.ok(Object.hasOwn(schema.properties || {}, key), `${location}.${key}: returned field is not declared`)
+      assertDeclaredOutput(child, schema.properties[key], `${location}.${key}`)
+    }
+  } else if (schema.type === 'array') {
+    assert.ok(Array.isArray(value), `${location}: expected array`)
+    value.forEach((child, index) => assertDeclaredOutput(child, schema.items, `${location}[${index}]`))
+  } else if (schema.type === 'string') {
+    assert.equal(typeof value, 'string', `${location}: expected string`)
+  } else {
+    assert.fail(`${location}: unsupported test schema type ${schema.type}`)
+  }
+}
+
+for (const [name, api, inputs] of [
+  ['discoverLearningOptions', discover, [{}, { courseSystem: 'cambridge' }, { courseSystem: 'cambridge', subjectCode: '9702', task: 'topics' }, { courseSystem: 'cambridge', subjectCode: '9709', stage: 'AS', task: 'papers' }, { courseSystem: 'edexcel' }, { courseSystem: 'ielts', task: 'listening' }]],
+  ['openLearningDestination', open, [{}, { courseSystem: 'cambridge' }, { courseSystem: 'cambridge', subjectCode: '9702', task: 'topics' }, { destinationId: 'cambridge-cie-9702-a2-physics-topics' }, { destinationId: 'ielts-listening' }, { courseSystem: 'tools', task: 'coach' }]],
+]) {
+  const schema = apiSchemas.find(item => item.name === name)?.outputSchema
+  for (const input of inputs) {
+    const result = await api(input)
+    assert.equal(result.isError, false, `${name}: expected success for ${JSON.stringify(input)}`)
+    assertDeclaredOutput(result.structuredContent, schema, `${name}.structuredContent`)
+  }
+}
+
+const { REGISTRY } = load('skills/learning-navigator/data/registry.generated')
+const openOutputSchema = apiSchemas.find(item => item.name === 'openLearningDestination').outputSchema
+for (const destination of REGISTRY.destinations) {
+  const result = await open({ destinationId: destination.id })
+  assert.equal(result.isError, false, `destination should resolve: ${destination.id}`)
+  assertDeclaredOutput(result.structuredContent, openOutputSchema, `destination[${destination.id}]`)
+}
+
+console.log(JSON.stringify({ status: 'passed', APIs: 2, declaredDestinations: REGISTRY.destinations.length, stageChoices: stageChoice.structuredContent.choices.length, routeChoices: routeChoice.structuredContent.choices.length }))
