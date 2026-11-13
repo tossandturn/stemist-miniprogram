@@ -84,7 +84,7 @@ saveTask:this.data.saveTask===true&&['high','max'].includes(this.data.reasoningE
 message: this.data.message.trim(),
 helpIntent,
 imageDataUrls: [dataUrl],
-diagramIntent:'ask',
+diagramIntent:this.__diagramDeclinedKey===diagramKey?'decline':'ask',
 context: { ...this.data.context, stage: this.data.context.stage || 'practice' },
 onStage:stage=>progress.stage(stage),
 onCancelReady:cancel=>{if(this.current())this.__cancelCoach=cancel;else cancel()},
@@ -97,6 +97,7 @@ if(!completed||!String(result.answer||'').trim())throw Object.assign(new Error(r
 const answer = result.answer,diagramOffer=this.__diagramDeclinedKey!==diagramKey?normalizeDiagramOffer(result.diagramOffer,true):null
 const coachState = result.coachState || {}
 progress.finish(true)
+diagramRequest.history=[{role:'user',content:result.requestMessage||diagramRequest.message},{role:'assistant',content:answer}]
 this.__diagramRequestKey=diagramKey;this.__diagramRequest={owner:this.__owner,epoch:this.__epoch,key:diagramKey,request:diagramRequest}
 this.setData({answer,coachStatus:coachState.label||'反馈状态待确认',syncStatus:'正在同步学习记录…',diagramOffer,diagramAnswer:'',diagramError:''})
 offerCoachSource(this,{message:this.data.message.trim(),context:{...this.data.context,stage:this.data.context.stage||'practice'},imageDataUrls:[dataUrl]},{...result,completed})

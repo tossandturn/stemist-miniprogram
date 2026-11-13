@@ -6,7 +6,7 @@ import vm from 'node:vm'
 import { fileURLToPath } from 'node:url'
 import { buildAiLearningRegistry } from './lib/ai-learning-registry.mjs'
 import { AI_LEARNING_EVALUATION_CASES } from './lib/ai-learning-evaluation.mjs'
-import { generateAiLearningArtifacts } from './generate-ai-learning-assets.mjs'
+import { generateAiLearningArtifacts,platformKnowledgeMatches } from './generate-ai-learning-assets.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'))
@@ -81,6 +81,14 @@ assert.deepEqual(uploadManifest.officialUploadFormats, ['PDF', 'DOC', 'DOCX', 'P
 assert.equal(uploadManifest.maxFiles, 10)
 assert.equal(uploadManifest.maxBytesPerFile, 10 * 1024 * 1024)
 assert.equal(uploadManifest.files.length, 4)
+const publishedEvidence=JSON.parse(fs.readFileSync(path.join(root,'knowledge-base','platform-verification.json'),'utf8'))
+assert.equal(platformKnowledgeMatches(publishedEvidence,uploadManifest.files),true)
+assert.equal(uploadManifest.actualPlatformUploadVerified,true)
+assert.equal(uploadManifest.actualPlatformParsingVerified,true)
+const changedFiles=structuredClone(uploadManifest.files);changedFiles[0].sha256='0'.repeat(64)
+assert.equal(platformKnowledgeMatches(publishedEvidence,changedFiles),false,'old platform evidence cannot certify changed knowledge content')
+assert.equal(platformKnowledgeMatches({...publishedEvidence,files:[...publishedEvidence.files.slice(1),publishedEvidence.files[1]]},uploadManifest.files),false)
+assert.equal(platformKnowledgeMatches(null,uploadManifest.files),false)
 for (const item of uploadManifest.files) {
   assert.match(item.path, /^knowledge-base\/stemist-0[1-4]-.+\.txt$/)
   const bytes = fs.readFileSync(path.join(root, item.path))
@@ -122,7 +130,7 @@ assert.match(allKnowledge,/第十三次落幕/)
 assert.match(allKnowledge,/18 岁同龄角色/)
 assert.match(allKnowledge,/不需要天文课外知识/)
 assert.match(allKnowledge,/非血腥、无突然惊吓/)
-assert.match(allKnowledge,/后端尚未部署/)
+assert.match(allKnowledge,/实际可用状态以当前发布版本和服务端目录为准/)
 assert.match(allKnowledge,/免费酒馆普通人格列表不受/)
 assert.match(allKnowledge,/旧.*房间.*继续/)
 assert.doesNotMatch(allKnowledge,/雨窗茶室|河岸档案室|无名信与银翼鸟|白汀渡/)

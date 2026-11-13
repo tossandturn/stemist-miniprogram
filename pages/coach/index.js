@@ -262,7 +262,7 @@ feature:this.__mode?this.data.feature:'',
 imageDataUrls,
 context: coachContext,
 history:this.__history.slice(-10),
-diagramIntent:'ask',
+diagramIntent:this.__diagramDeclinedKey===diagramKey?'decline':'ask',
 onStage:stage=>progress.stage(stage),
 ...(selected.product==='STEM Studio'?{
 onCancelReady:cancel=>{if(this.current())this.__cancelCoach=cancel;else cancel()},
@@ -281,6 +281,7 @@ this.setData({answer:result.partialAnswer||'',warning:coachState.warning||'',err
 return
 }
 const diagramOffer=selected.product==='STEM Studio'&&this.__diagramDeclinedKey!==diagramKey?normalizeDiagramOffer(result.diagramOffer,true):null
+diagramRequest.history=[...diagramRequest.history,{role:'user',content:result.requestMessage||typedMessage},{role:'assistant',content:result.answer}].slice(-10)
 this.__diagramRequestKey=diagramKey;this.__diagramRequest={owner:this.__owner,epoch:this.__epoch,key:diagramKey,request:diagramRequest}
 this.setData({ answer: result.answer, warning: coachState.warning || '', coachStatus: coachState.label || '反馈状态待确认', draftStatus: '已提交 · 可继续追问',diagramOffer,diagramAnswer:'',diagramError:'' })
 offerCoachSource(this,{message:typedMessage,context:coachContext,imageDataUrls},{...result,completed})

@@ -19,13 +19,14 @@
   "officialSourceMarkdownUrl": "https://developers.weixin.qq.com/miniprogram/dev/ai/integration.md",
   "officialSourceReadDate": "2026-11-13",
   "officialFormatSupportVerified": true,
-  "actualPlatformUploadVerified": false,
-  "actualPlatformParsingVerified": false,
+  "actualPlatformUploadVerified": true,
+  "actualPlatformParsingVerified": true,
+  "platformEvidence": "knowledge-base/platform-verification.json",
   "files": [
     {
       "path": "knowledge-base/stemist-01-product-and-scope.txt",
-      "bytes": 2573,
-      "sha256": "7675ef7aa94c89fa2436871879ec567641bedfb46a4e89f6741c483c5e50232f"
+      "bytes": 2570,
+      "sha256": "147b02de25e2cbb31a012c2a6f622f1167193fcbe5fe6855850683778f16ffa9"
     },
     {
       "path": "knowledge-base/stemist-02-course-navigation.txt",

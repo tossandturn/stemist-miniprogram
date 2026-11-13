@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "stemist-knowledge-platform-evidence-v1",
+  "platform": "mp.weixin.qq.com",
+  "observedOn": "2026-11-13",
+  "scope": "Four named TXT uploads, parsing, debug recall and publication. Not Mini Program code review, Handoff or overall AI activation.",
+  "files": [
+    {"path":"knowledge-base/stemist-01-product-and-scope.txt","sha256":"147b02de25e2cbb31a012c2a6f622f1167193fcbe5fe6855850683778f16ffa9","status":"published"},
+    {"path":"knowledge-base/stemist-02-course-navigation.txt","sha256":"660928146ae3b749ebc1c8529fb948ab6f57a6b1eaa944f616966007f6cf172c","status":"published"},
+    {"path":"knowledge-base/stemist-03-operations-faq.txt","sha256":"d30181019ba70bd9c6a46b3292311465741a337176c56dca05f2c20f5c7b9345","status":"published"},
+    {"path":"knowledge-base/stemist-04-account-privacy-ai-boundaries.txt","sha256":"d06b73fd633aa60948e0eb81a24502be1076d483ce120966bde69c20512d4309","status":"published"}
+  ],
+  "debugRecall": [
+    {"id":"download-quota-audio-retry-calculator","status":"PASS","attempts":1},
+    {"id":"board-clarification-sensitive-actions","status":"PASS_AFTER_RETRY","attempts":2,"firstAttempt":"retrieval_failed"},
+    {"id":"selective-diagram-three-books-personas","status":"PASS","attempts":1}
+  ],
+  "overallAiOnline": false,
+  "onlineObservation": "Online package does not contain the AI code; overall AI status is not effective."
+}
