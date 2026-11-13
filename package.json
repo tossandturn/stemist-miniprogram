@@ -83,6 +83,6 @@
     "test:coach-effort": "node scripts/test-coach-effort.mjs && node scripts/test-coach-effort-scenarios.mjs && node scripts/test-coach-effort-recovery.mjs && node scripts/test-coach-effort-selector.mjs && node scripts/test-coach-effort-requests.mjs && node scripts/test-coach-effort-page-state.mjs && node scripts/test-coach-effort-pending.mjs && node scripts/test-coach-effort-layout.mjs && node scripts/test-coach-effort-job-window.mjs",
     "test:audio-downloads": "node scripts/test-download-quota-ui.mjs && node scripts/test-audio-export-cache.mjs && node scripts/test-audio-download-controller.mjs && node scripts/test-ielts-audio-library.mjs && node scripts/test-ielts-unified-downloads.mjs",
     "generate:ai-learning": "node scripts/generate-ai-learning-assets.mjs",
-    "test:ai-mode": "npm run generate:ai-learning && node scripts/test-ai-learning-assets.mjs && node scripts/test-ai-mode-skill.mjs && node scripts/test-ai-handoff-page.mjs && node scripts/test-ai-mode-manifest.mjs && node scripts/test-entry-access.mjs"
+    "test:ai-mode": "npm run generate:ai-learning && node scripts/test-ai-learning-assets.mjs && node scripts/test-ai-mode-skill.mjs && node scripts/test-ai-handoff-page.mjs && node scripts/test-ai-mode-manifest.mjs && node scripts/test-ai-mode-upload-contract.mjs && node scripts/test-entry-access.mjs"
   }
 }

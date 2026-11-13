@@ -47,10 +47,11 @@
 - `npm run test:ai-mode`：PASS；168 个目的地、4 个知识文件、50 条 Intent（42 正例、8 负例），2 个原子接口与 Handoff 契约均通过。
 - `npm run test:coach`：PASS；文字优先、完整成功后 offer、本题本机拒绝、确认补图绑定原上下文、失败保留文字和身份重置均通过。
 - `npm run test:all`：PASS；最终工作树完整客户端套件 exit 0。
-- `npm run test:package-minification`：PASS；主包 1,961,319 字节，余量 135,833 字节；431 个运行文件两次构建一致
+- `npm run test:package-minification`：PASS；主包 1,961,603 字节，余量 135,549 字节；431 个运行文件两次构建一致。双构建 receipt 均逐一包含 `SKILL.md`、`index.js`、`mcp.json` 的源/输出 hash。
 - 微信 WXML/WXSS 编译：PASS（`npm run test:wechat`，由完整套件执行）。
 - 微信官方 CLI 自动化服务：PASS，开发者工具在 `127.0.0.1:9570` 可连接。
-- 微信官方 CLI 原子接口：NOT VERIFIED。CLI 已解析 `learning-navigator/discoverLearningOptions` 及参数，但返回 `agent compile mode is disabled`；进程错误地返回 exit 0，因此以结构化结果判失败。需要在开发者工具 UI 切换到“小程序 AI 编译”后复测。
+- 微信官方 CLI 原子接口：NOT VERIFIED。后台自动/开发模式已经开启，开发者工具重启后 `islogin=true`；但 1.0.94 上传返回 code 10 / `-80426`，平台报告 `skills/learning-navigator/mcp.json not found`，没有上传回执，1.0.94 未成功。
+- 失败冻结目录与本地 manifest 实际包含完整 `mcp.json`。对照微信官方 `ai-mode-demo@240d61873714c0e488df95529df160a12d4f131f` 后修正两项上传契约：Skill 路径与 `createSkill()` 改为无前导斜线的 `skills/learning-navigator`；冻结 `project.config.json` 明确设置 `ignoreUploadUnusedFiles=false`、`ignoreDevUnusedFiles=false`，避免空 pages 的独立 Skill 分包资源被上传优化移除。
 - 卡片 Handoff、知识库平台上传/解析/实际召回：NOT VERIFIED；本任务没有上传或伪造平台结果。
 
 本任务不连接服务器，不上传、提审、发布或修改生产配置；真实 AppID 不进入 Git。

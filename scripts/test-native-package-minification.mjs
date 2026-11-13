@@ -126,6 +126,7 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
   assert.equal(summary.mainPackageHeadroom, receipt.mainPackage.headroom)
   assert.equal(summary.runtimeManifestSha256, receipt.runtimeManifestSha256)
   assert.equal(summary.sourceManifestSha256, receipt.sourceManifestSha256)
+  assert.deepEqual(summary.aiSkills, receipt.aiSkills)
 
   const app = nativeAppManifest(JSON.parse(fs.readFileSync(path.join(fixtureRoot, 'app.json'), 'utf8')))
   const outputManifest = []
@@ -161,6 +162,15 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
     .reduce((sum, item) => sum + item.sourceBytes, 0)
   assert.equal(sourceMainBytes, receipt.sourceMainPackageBytes)
   assert.equal(sourceMainBytes - budget.mainPackageBytes, receipt.mainPackageSavingsBytes)
+  assert.equal(receipt.aiSkills.length,1)
+  const skill=receipt.aiSkills[0]
+  assert.equal(skill.path,'skills/learning-navigator')
+  assert.deepEqual(skill.requiredFiles.map(item=>item.path),['skills/learning-navigator/SKILL.md','skills/learning-navigator/index.js','skills/learning-navigator/mcp.json'])
+  for(const required of skill.requiredFiles){const item=receipt.files.find(row=>row.path===required.path);assert.ok(item,`upload receipt includes ${required.path}`);assert.equal(required.sourceSha256,item.sourceSha256);assert.equal(required.sha256,item.sha256);assert.equal(fs.existsSync(path.join(outputRoot,required.path)),true)}
+  const uploadConfig=JSON.parse(fs.readFileSync(path.join(outputRoot,'project.config.json'),'utf8'))
+  assert.equal(uploadConfig.setting.ignoreUploadUnusedFiles,false)
+  assert.equal(uploadConfig.setting.ignoreDevUnusedFiles,false)
+  assert.deepEqual(uploadConfig.packOptions,{ignore:[],include:[]})
 }
 
 assertMixedCommonJsTransform()

@@ -21,7 +21,7 @@ assert.equal(app.agent.pageMetadata, 'page-meta.json')
 assert.deepEqual(app.agent.skills, [{
   name: 'learning-navigator',
   description: '按课程体系、学科、阶段和学习任务发现真实入口，并接力进入 STEMist 原生页面',
-  path: '/skills/learning-navigator',
+  path: 'skills/learning-navigator',
 }])
 
 const skillPackage = manifest.subPackages.find(item => item.root === 'skills')

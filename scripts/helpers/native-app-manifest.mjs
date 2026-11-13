@@ -16,9 +16,9 @@ function unique(values,label){
  return values
 }
 
-function absoluteSkillPath(value,label){
- if(typeof value!=='string'||value!==value.trim()||!value.startsWith('/')||value.includes('\\'))throw new Error(`${label} must be an absolute Mini Program path`)
- return route(value.slice(1),label)
+function agentSkillPath(value,label){
+ if(typeof value!=='string'||value!==value.trim()||!value||value.startsWith('/')||value.includes('\\'))throw new Error(`${label} must be a relative Mini Program path without a leading slash`)
+ return route(value,label)
 }
 
 export function nativeAppManifest(app){
@@ -51,11 +51,11 @@ export function nativeAppManifest(app){
   if(!Array.isArray(app.agent.skills)||!app.agent.skills.length||app.agent.skills.length>30)throw new Error('app.agent.skills must contain 1 to 30 skills')
   const skills=app.agent.skills.map((skill,index)=>{
    if(!skill||typeof skill!=='object'||Array.isArray(skill))throw new Error(`app.agent.skills[${index}] must be an object`)
-   const name=String(skill.name||''),description=String(skill.description||''),skillPath=absoluteSkillPath(skill.path,`app.agent.skills[${index}].path`)
+   const name=String(skill.name||''),description=String(skill.description||''),skillPath=agentSkillPath(skill.path,`app.agent.skills[${index}].path`)
    if(!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)||!description.trim())throw new Error(`app.agent.skills[${index}] name and description are required`)
    const owner=subPackages.find(entry=>entry.independent&&(skillPath===entry.root||skillPath.startsWith(entry.root+'/')))
    if(!owner)throw new Error(`app.agent.skills[${index}] must live in an independent subpackage`)
-   return{name,description,path:`/${skillPath}`,packageRoot:owner.root}
+   return{name,description,path:skillPath,packageRoot:owner.root}
   })
   unique(skills.map(item=>item.name),'agent skill names');unique(skills.map(item=>item.path),'agent skill paths')
   agent={instruction,pageMetadata,skills}
