@@ -12,6 +12,7 @@ import {
 } from './helpers/native-package-transform.mjs'
 import {
   MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,
+  WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES,
   nativeAppManifest,
   packageRootForPath,
   runtimePackageBudgets,
@@ -119,6 +120,12 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
   assert.deepEqual(summary.transform, NATIVE_PACKAGE_TRANSFORM)
   assert.equal(receipt.minimumHeadroomBytes, MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES)
   assert.equal(summary.minimumHeadroom, MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES)
+  assert.equal(MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,224*1024)
+  assert.equal(WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES,160*1024)
+  assert.equal(receipt.officialCompileOverheadReserveBytes,WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES)
+  assert.equal(summary.officialCompileOverheadReserveBytes,WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES)
+  assert.equal(receipt.officialCompileHeadroomBytes,receipt.mainPackage.headroom-WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES)
+  assert.ok(receipt.officialCompileHeadroomBytes>=64*1024)
   assert.ok(receipt.mainPackageSavingsBytes >= MINIMUM_MAIN_PACKAGE_SAVINGS_BYTES)
   assert.equal(summary.mainPackageSavingsBytes, receipt.mainPackageSavingsBytes)
   assert.equal(summary.sourceMainPackageBytes, receipt.sourceMainPackageBytes)
@@ -141,7 +148,7 @@ function validatePackage({ fixtureRoot, outputRoot, receipt, summary }) {
     assert.equal(item.bytes, output.length, `${item.path} output byte count`)
     assert.equal(item.sha256, hash(output), `${item.path} output hash`)
     const transformId=NATIVE_PACKAGE_TRANSFORM.overrides.find(override=>override.paths.includes(item.path))?.id||NATIVE_PACKAGE_TRANSFORM.id
-    assert.equal(item.transform, item.path.endsWith('.js') ? transformId : 'identity')
+    assert.equal(item.transform, item.path.endsWith('.js') ? transformId : item.path.endsWith('.wxss')?'esbuild-wxss-compact-v1':'identity')
     if (item.transform === 'identity') assert.equal(item.sha256, item.sourceSha256)
     if (item.path.endsWith('.js')) new vm.Script(output.toString('utf8'), { filename: item.path })
     outputManifest.push({ path: item.path, bytes: item.bytes })
@@ -183,6 +190,12 @@ assert.deepEqual([...uploadTransform.paths].sort(),['pages/calculator/index.js',
 const directoryTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('pages/index/index.js'))
 assert.equal(directoryTransform.id,'esbuild-directory-home-compact-v1')
 assert.deepEqual([...directoryTransform.paths].sort(),['pages/index/index.js','utils/productConfig.js'])
+const platformOverheadTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('app.js'))
+assert.equal(platformOverheadTransform.id,'esbuild-platform-overhead-headroom-v1')
+assert.equal(platformOverheadTransform.options.keepNames,true)
+assert.equal(platformOverheadTransform.options.minifyIdentifiers,true)
+assert.equal(platformOverheadTransform.options.minifySyntax,true)
+assert.deepEqual([...platformOverheadTransform.paths].sort(),['app.js','pages/ielts/library.js','utils/cameraPermission.js','utils/downloadMetrics.js','utils/ieltsTopicIndex.js','utils/ieltsTopics.js','utils/nativeVocabulary.js','utils/questionFocus.js','utils/recordPermission.js','utils/speakingDirect.js','utils/vocabularyStudy.js'].sort())
 assert.equal(directoryTransform.options.keepNames,true)
 assert.equal(directoryTransform.options.minifySyntax,true)
 const pdfTransform=NATIVE_PACKAGE_TRANSFORM.overrides.find(item=>item.paths.includes('utils/pdfRangeCache.js'))
@@ -270,7 +283,7 @@ try {
   for(const suite of cropSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
   const taskSuites=['test-coach-compact-ui.mjs','test-coach-mode-copy.mjs','test-coach-task-defaults.mjs','test-coach-task-progress.mjs','test-coach-task-selection.mjs','test-coach-task-job.mjs','test-coach-task-controls.mjs','test-coach-task-history.mjs','test-coach-task-page.mjs','test-native-answer.mjs','test-coach-service.mjs','test-device-profile.mjs','test-private-page-owner-boundaries.mjs','test-calculator.mjs','test-cw-calculator.mjs','test-cw-natural-input.mjs','test-cw-touch-cursor.mjs','test-cw-solver.mjs','test-cw-solver-page.mjs','test-cw-complex.mjs','test-cw-complex-page.mjs']
   for(const suite of taskSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
-  const compiledHeadroomSuites=['test-practice-entry.mjs','test-notebook-entry-scope.mjs','test-paper-page-service.mjs','test-ielts-bootstrap-packed.mjs','test-entry-access.mjs','test-coach-diagram.mjs','test-coach-diagram-requests.mjs','test-advisor-research-progress.mjs','test-admissions-sources.mjs','test-directory-target.mjs','test-directory-coach-entry.mjs','test-admissions-advisor.mjs','test-coach-answer-modules.mjs']
+  const compiledHeadroomSuites=['test-practice-entry.mjs','test-notebook-entry-scope.mjs','test-paper-page-service.mjs','test-ielts-bootstrap-packed.mjs','test-entry-access.mjs','test-coach-diagram.mjs','test-coach-diagram-requests.mjs','test-advisor-research-progress.mjs','test-admissions-sources.mjs','test-directory-target.mjs','test-directory-coach-entry.mjs','test-admissions-advisor.mjs','test-coach-answer-modules.mjs','test-ai-handoff-page.mjs','test-ielts-topic-integrity.mjs','test-ielts-shared-topics.mjs','test-native-topic-directory.mjs','test-vocabulary-study.mjs','test-download-metrics-fast.mjs','test-camera-lifecycle.mjs','test-speaking-direct.mjs','test-speaking-direct-lifecycle.mjs','test-record-permission.mjs','test-question-correspondence.mjs','test-wechat-compile.mjs']
   for(const suite of compiledHeadroomSuites)execFileSync(process.execPath,[path.join('scripts',suite)],{cwd:fixtureRoot,encoding:'utf8',windowsHide:true,env:{...process.env,STEMIST_TEST_RUNTIME_ROOT:firstOutput},stdio:['ignore','pipe','pipe']})
 
   assert.equal(check.mainPackageBytes, firstReceipt.mainPackage.bytes)

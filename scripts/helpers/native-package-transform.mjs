@@ -12,7 +12,7 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
   engine: 'esbuild',
   version: EXPECTED_ESBUILD_VERSION,
   overrides: Object.freeze([Object.freeze({
-    id: 'lossless-native-task-text-v2-ascii',
+    id: 'lossless-native-task-text-v3-ascii-pairs',
     paths: Object.freeze(['utils/ieltsTaskBootstrap.js']),
     losslessTaskText: true,
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
@@ -81,6 +81,10 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
     paths: Object.freeze(['utils/nativePractice.js','utils/nativeCoachPhoto.js','utils/session.js','pages/stem/practice.js']),
     options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
   }),Object.freeze({
+    id: 'esbuild-platform-overhead-headroom-v1',
+    paths: Object.freeze(['app.js','pages/ielts/library.js','utils/cameraPermission.js','utils/downloadMetrics.js','utils/ieltsTopicIndex.js','utils/ieltsTopics.js','utils/nativeVocabulary.js','utils/questionFocus.js','utils/recordPermission.js','utils/speakingDirect.js','utils/vocabularyStudy.js']),
+    options: Object.freeze({ minifyIdentifiers: true, minifySyntax: true, keepNames: true, format: 'cjs' }),
+  }),Object.freeze({
     id: 'esbuild-coach-stream-identifiers-v1',
     paths: Object.freeze(['utils/coach.js','utils/nativeSession.js','utils/coachSession.js','utils/coachStream.js','utils/operationProgress.js','utils/nativeCoachPhoto.js','pages/coach/index.js','pages/stem/coach.js']),
     options: Object.freeze({ minifyIdentifiers: true, keepNames: true, format: 'cjs' }),
@@ -103,16 +107,21 @@ export const NATIVE_PACKAGE_TRANSFORM = Object.freeze({
 
 export function transformNativePackageFile(relative, sourceBytes) {
   if (typeof relative !== 'string' || !Buffer.isBuffer(sourceBytes)) throw new TypeError('Native package transform requires a path and Buffer')
-  if (!relative.endsWith('.js')) return { bytes: sourceBytes, transform: 'identity' }
+  const normalized=relative.replaceAll('\\','/')
+  if(normalized.endsWith('.wxss')){
+    const source=sourceBytes.toString('utf8');if(!Buffer.from(source,'utf8').equals(sourceBytes))throw new Error(`Runtime WXSS is not valid UTF-8: ${relative}`)
+    try{const result=esbuild.transformSync(source,{charset:'utf8',legalComments:'inline',loader:'css',minifyIdentifiers:false,minifySyntax:true,minifyWhitespace:true,sourcemap:false,logLevel:'silent',sourcefile:normalized});return{bytes:Buffer.from(result.code,'utf8'),transform:'esbuild-wxss-compact-v1'}}catch(error){throw new Error(`Unable to transform runtime WXSS ${relative}: ${error?.message||error}`,{cause:error})}
+  }
+  if (!normalized.endsWith('.js')) return { bytes: sourceBytes, transform: 'identity' }
   const source = sourceBytes.toString('utf8')
   if (!Buffer.from(source, 'utf8').equals(sourceBytes)) throw new Error(`Runtime JavaScript is not valid UTF-8: ${relative}`)
   try {
-    const override = NATIVE_PACKAGE_TRANSFORM.overrides.find(item => item.paths.includes(relative.replaceAll('\\', '/')))
+    const override = NATIVE_PACKAGE_TRANSFORM.overrides.find(item => item.paths.includes(normalized))
     const result = esbuild.transformSync(override?.losslessTaskText ? packNativeTaskData(source) : source, {
       ...NATIVE_PACKAGE_TRANSFORM.options,
       ...override?.options,
       logLevel: 'silent',
-      sourcefile: relative.replaceAll('\\', '/'),
+      sourcefile: normalized,
     })
     return { bytes: Buffer.from(result.code, 'utf8'), transform: override?.id || NATIVE_PACKAGE_TRANSFORM.id }
   } catch (error) {

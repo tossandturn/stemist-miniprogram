@@ -4,7 +4,7 @@ import path from 'node:path'
 import vm from 'node:vm'
 import { fileURLToPath } from 'node:url'
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const root = process.env.STEMIST_TEST_RUNTIME_ROOT ? path.resolve(process.env.STEMIST_TEST_RUNTIME_ROOT) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 function commonJs(relative, modules = {}) {
   const cache = new Map()

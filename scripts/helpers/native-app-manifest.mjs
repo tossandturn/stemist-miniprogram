@@ -1,7 +1,8 @@
 import path from 'node:path'
 
 export const WECHAT_PACKAGE_LIMIT_BYTES=2*1024*1024
-export const MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES=128*1024
+export const WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES=160*1024
+export const MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES=224*1024
 
 function route(value,label){
  if(typeof value!=='string'||value!==value.trim()||!value||value.includes('\\')||path.posix.isAbsolute(value))throw new Error(`${label} must be a relative Mini Program route`)
@@ -73,13 +74,14 @@ export function runtimePackageBudgets(manifest,subPackages){
  if(!Array.isArray(manifest)||!Array.isArray(subPackages))throw new Error('Runtime manifest and subpackages must be arrays')
  for(const [index,item] of manifest.entries())if(!item||typeof item.path!=='string'||!Number.isSafeInteger(item.bytes)||item.bytes<0)throw new Error(`Invalid runtime manifest item ${index}`)
  const mainFiles=manifest.filter(item=>packageRootForPath(item.path,subPackages)===null)
- const mainPackageBytes=mainFiles.reduce((sum,item)=>sum+item.bytes,0),mainPackageHeadroom=WECHAT_PACKAGE_LIMIT_BYTES-mainPackageBytes
- if(mainPackageHeadroom<MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES)throw new Error('Main package must leave at least 128 KiB below this project\'s 2 MiB performance budget')
+ const mainPackageBytes=mainFiles.reduce((sum,item)=>sum+item.bytes,0),mainPackageHeadroom=WECHAT_PACKAGE_LIMIT_BYTES-mainPackageBytes,officialCompileHeadroomBytes=mainPackageHeadroom-WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES
+ if(mainPackageHeadroom<MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES)throw new Error('Main package must leave at least 224 KiB below this project\'s 2 MiB performance budget')
+ if(officialCompileHeadroomBytes<64*1024)throw new Error('Main package must retain at least 64 KiB after the 160 KiB official compiler overhead reserve')
  const packages=subPackages.map(entry=>{
   const packageFiles=manifest.filter(item=>packageRootForPath(item.path,subPackages)===entry.root)
   const bytes=packageFiles.reduce((sum,item)=>sum+item.bytes,0),headroom=WECHAT_PACKAGE_LIMIT_BYTES-bytes
   if(headroom<0)throw new Error(`Subpackage ${entry.root} exceeds the 2 MiB package limit`)
   return {root:entry.root,pages:entry.pages,files:packageFiles.length,bytes,headroom,budget:WECHAT_PACKAGE_LIMIT_BYTES}
  })
- return {mainFiles,mainPackageBytes,mainPackageHeadroom,subPackages:packages,totalRuntimeFiles:manifest.length,totalRuntimeBytes:manifest.reduce((sum,item)=>sum+item.bytes,0)}
+ return {mainFiles,mainPackageBytes,mainPackageHeadroom,officialCompileHeadroomBytes,subPackages:packages,totalRuntimeFiles:manifest.length,totalRuntimeBytes:manifest.reduce((sum,item)=>sum+item.bytes,0)}
 }

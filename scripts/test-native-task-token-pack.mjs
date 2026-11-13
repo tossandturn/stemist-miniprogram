@@ -9,7 +9,7 @@ const source=fs.readFileSync(path.resolve(import.meta.dirname,'../utils/ieltsTas
 const load=bytes=>{const module={exports:{}};vm.runInNewContext(bytes.toString(),{module},{timeout:2000});return module.exports}
 const packed=transformNativePackageFile('utils/ieltsTaskBootstrap.js',source)
 assert.equal(/[\uE000-\uE03F]/.test(packed.bytes.toString()),false,'use ASCII markers so the WeChat compiler cannot inflate each marker into a Unicode escape')
-assert.ok(source.length-packed.bytes.length>=25000,'release transform must remove at least 25 KB of repeated data text, not only JS whitespace')
+assert.ok(source.length-packed.bytes.length>=120*1024,'lossless task dictionary must recover at least 120 KiB for the official compiler overhead reserve')
 const started=performance.now(),decoded=load(packed.bytes),duration=performance.now()-started
 assert.equal(JSON.stringify(decoded),JSON.stringify(load(source)),'every key, value, type, property order and URL must survive packing')
 assert.ok(duration<250,`task data restore should stay bounded; ${duration.toFixed(2)} ms`)

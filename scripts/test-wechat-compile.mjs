@@ -4,7 +4,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const root = process.env.STEMIST_TEST_RUNTIME_ROOT ? path.resolve(process.env.STEMIST_TEST_RUNTIME_ROOT) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const toolRoot = process.env.WECHAT_DEVTOOLS_ROOT || 'D:\\微信web开发者工具'
 const wcc = path.join(toolRoot, 'resources', 'app.asar.unpacked', 'node_modules', 'wcc-exec', 'wcc.exe')
 const wcsc = path.join(toolRoot, 'resources', 'app.asar.unpacked', 'node_modules', 'wcc-exec', 'wcsc.exe')
@@ -37,7 +37,7 @@ function compilationFiles(entry, extension, seen = new Set()) {
   if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Compiler import escapes the project')
   seen.add(absolute)
   const source = fs.readFileSync(absolute, 'utf8')
-  const pattern = extension === '.wxss' ? /@import\s+["']([^"']+)["']/g : /<(?:include|import)\s+src=["']([^"']+)["']/g
+  const pattern = extension === '.wxss' ? /@import\s*["']([^"']+)["']/g : /<(?:include|import)\s+src=["']([^"']+)["']/g
   const dependencies = [...source.matchAll(pattern)].flatMap(match => compilationFiles(
     match[1].startsWith('/') ? path.join(root, match[1].slice(1)) : path.resolve(path.dirname(absolute), match[1]), extension, seen))
   return [relative.replace(/\\/g, '/'), ...dependencies]

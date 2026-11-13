@@ -5,7 +5,7 @@ import path from 'node:path'
 import {performance} from 'node:perf_hooks'
 import {execFileSync} from 'node:child_process'
 import {miniRuntime} from './helpers/mini-runtime.mjs'
-import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,packageRootForPath,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
+import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,packageRootForPath,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
 import {MINIMUM_MAIN_PACKAGE_SAVINGS_BYTES,NATIVE_PACKAGE_TRANSFORM} from './helpers/native-package-transform.mjs'
 
 const root=path.resolve(import.meta.dirname,'..')
@@ -26,8 +26,9 @@ assert.throws(()=>nativeAppManifest({pages:['pages/index/index'],subPackages:[{r
 assert.throws(()=>nativeAppManifest({pages:['pages/index/index'],subPackages:[{root:'bundles',pages:['one']},{root:'bundles/marking',pages:['two']}]}),/overlap/i)
 const boundaryBudgets=runtimePackageBudgets([{path:'app.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES},{path:'bundles/marking/index.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES}],fixtureManifest.subPackages)
 assert.equal(boundaryBudgets.mainPackageBytes,WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES)
+assert.equal(boundaryBudgets.officialCompileHeadroomBytes,MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES-WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES)
 assert.equal(boundaryBudgets.subPackages[0].bytes,WECHAT_PACKAGE_LIMIT_BYTES)
-assert.throws(()=>runtimePackageBudgets([{path:'app.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES+1}],[]),/Main package.*128 KiB/i)
+assert.throws(()=>runtimePackageBudgets([{path:'app.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES-MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES+1}],[]),/Main package.*224 KiB/i)
 assert.throws(()=>runtimePackageBudgets([{path:'app.js',bytes:1},{path:'bundles/marking/index.js',bytes:WECHAT_PACKAGE_LIMIT_BYTES+1}],fixtureManifest.subPackages),/Subpackage bundles\/marking exceeds.*2 MiB/i)
 
 const v2={schemaVersion:'stemist-native-task-pack-v2',names:['id','values'],values:['shared'],tasks:{legacy:['o',0,'legacy',1,['a',['r',0],-5]]}}

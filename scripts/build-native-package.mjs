@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import {execFileSync} from 'node:child_process'
-import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,packageRootForPath,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
+import {MAIN_PACKAGE_MINIMUM_HEADROOM_BYTES,WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES,WECHAT_PACKAGE_LIMIT_BYTES,nativeAppManifest,packageRootForPath,runtimePackageBudgets} from './helpers/native-app-manifest.mjs'
 import {aiSkillUploadContract,nativeUploadProjectConfig} from './helpers/native-ai-upload-contract.mjs'
 import {MINIMUM_MAIN_PACKAGE_SAVINGS_BYTES,NATIVE_PACKAGE_TRANSFORM,transformNativePackageFile} from './helpers/native-package-transform.mjs'
 
@@ -67,11 +67,11 @@ const manifestByPath=new Map(receiptFiles.map(item=>[item.path,item]))
 const aiSkills=aiUpload.skills.map(skill=>({name:skill.name,path:skill.path,packageRoot:skill.packageRoot,apiNames:skill.apiNames,requiredFiles:skill.requiredFiles.map(file=>{const source=skill.required.find(item=>item.path===file),packaged=manifestByPath.get(file);if(!source||!packaged||source.sha256!==packaged.sourceSha256)throw Error('AI skill required file is missing or drifted from upload package: '+file);return{path:file,sourceBytes:source.bytes,sourceSha256:source.sha256,bytes:packaged.bytes,sha256:packaged.sha256,transform:packaged.transform}}),files:skill.files.length}))
 const runtimeManifestSha256=crypto.createHash('sha256').update(JSON.stringify(receiptFiles.map(({path,bytes,sha256,transform})=>({path,bytes,sha256,transform})))).digest('hex')
 const sourceManifestSha256=crypto.createHash('sha256').update(JSON.stringify(receiptFiles.map(({path,sourceBytes,sourceSha256})=>({path,sourceBytes,sourceSha256})))).digest('hex')
-const {mainFiles,mainPackageBytes,mainPackageHeadroom,subPackages,totalRuntimeFiles,totalRuntimeBytes}=runtimePackageBudgets(manifest,app.subPackages)
+const {mainFiles,mainPackageBytes,mainPackageHeadroom,officialCompileHeadroomBytes,subPackages,totalRuntimeFiles,totalRuntimeBytes}=runtimePackageBudgets(manifest,app.subPackages)
 const sourceMainPackageBytes=manifest.filter(item=>packageRootForPath(item.path,app.subPackages)===null).reduce((sum,item)=>sum+item.sourceBytes,0)
 const sourceTotalRuntimeBytes=manifest.reduce((sum,item)=>sum+item.sourceBytes,0),mainPackageSavingsBytes=sourceMainPackageBytes-mainPackageBytes,totalRuntimeSavingsBytes=sourceTotalRuntimeBytes-totalRuntimeBytes
 if(mainPackageSavingsBytes<MINIMUM_MAIN_PACKAGE_SAVINGS_BYTES)throw new Error(`Native package transform must recover at least 35 KiB in the main package; recovered ${mainPackageSavingsBytes} bytes`)
-const summary={status:'pass',transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeFiles:mainFiles.length,runtimeBytes:mainPackageBytes,headroom:mainPackageHeadroom,minimumHeadroom:MINIMUM_HEADROOM,budget:MAX_RUNTIME_BYTES,mainPackageFiles:mainFiles.length,sourceMainPackageBytes,mainPackageBytes,mainPackageSavingsBytes,mainPackageHeadroom,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,subPackages,aiSkills,webViews:0}
+const summary={status:'pass',transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeFiles:mainFiles.length,runtimeBytes:mainPackageBytes,headroom:mainPackageHeadroom,minimumHeadroom:MINIMUM_HEADROOM,budget:MAX_RUNTIME_BYTES,officialCompileOverheadReserveBytes:WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES,officialCompileHeadroomBytes,mainPackageFiles:mainFiles.length,sourceMainPackageBytes,mainPackageBytes,mainPackageSavingsBytes,mainPackageHeadroom,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,subPackages,aiSkills,webViews:0}
 if(checkOnly){console.log(JSON.stringify(summary));process.exit(0)}
 fs.mkdirSync(out)
 for(const item of manifest){const target=path.join(out,item.path);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,item.output)}
@@ -81,6 +81,6 @@ if(appIdIndex>=0&&!/^wx[a-f0-9]{16}$/.test(appId||''))throw Error('Explicit appi
 const config=nativeUploadProjectConfig(original,{appId,projectName:'stemist-native'})
 fs.writeFileSync(path.join(out,'project.config.json'),JSON.stringify(config,null,2)+'\n','utf8')
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim()
-const receipt={schemaVersion:'stemist-native-upload-v3',commit,transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeBytes:mainPackageBytes,runtimeHeadroomBytes:mainPackageHeadroom,minimumHeadroomBytes:MINIMUM_HEADROOM,sourceMainPackageBytes,mainPackageSavingsBytes,mainPackage:{files:mainFiles.length,bytes:mainPackageBytes,headroom:mainPackageHeadroom,budget:MAX_RUNTIME_BYTES},subPackages,aiSkills,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,files:receiptFiles,originalProjectConfigChanged:false}
+const receipt={schemaVersion:'stemist-native-upload-v3',commit,transform:NATIVE_PACKAGE_TRANSFORM,runtimeManifestSha256,sourceManifestSha256,runtimeBytes:mainPackageBytes,runtimeHeadroomBytes:mainPackageHeadroom,minimumHeadroomBytes:MINIMUM_HEADROOM,officialCompileOverheadReserveBytes:WECHAT_OFFICIAL_COMPILE_OVERHEAD_RESERVE_BYTES,officialCompileHeadroomBytes,sourceMainPackageBytes,mainPackageSavingsBytes,mainPackage:{files:mainFiles.length,bytes:mainPackageBytes,headroom:mainPackageHeadroom,budget:MAX_RUNTIME_BYTES},subPackages,aiSkills,totalRuntimeFiles,sourceTotalRuntimeBytes,totalRuntimeBytes,totalRuntimeSavingsBytes,files:receiptFiles,originalProjectConfigChanged:false}
 fs.writeFileSync(out+'-manifest.json',JSON.stringify(receipt,null,2)+'\n','utf8')
 console.log(JSON.stringify({directory:out,manifest:out+'-manifest.json',commit,...summary,originalProjectConfigChanged:false}))
