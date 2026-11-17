@@ -60,6 +60,22 @@ test('offline renewal preserves identity and retries on page resume without logi
  offline=false;await page.onShow();await settle()
  assert.equal(f.navigations.length,0);assert.equal(f.counts.loads,1);assert.equal(page.data.__entryGateBlocked,false)
 })
+test('an incomplete renewal response preserves the account and consent for retry',async()=>{
+ const f=fixture({request:o=>{o.success({statusCode:200,data:{authenticated:true,id:'ielts:42'}});return{abort(){}}}});identity(f.runtime)
+ const page=protectedPage(f.runtime,f.counts);await page.onLoad({});await settle()
+ assert.equal(f.navigations.length,0,'an invalid success response does not prove the user logged out')
+ assert.equal(f.runtime.storage.get('stemistUser').id,'ielts:42')
+ assert.equal(f.runtime.storage.get('stemistSessionToken'),'old-token')
+ assert.equal(f.runtime.load('utils/entryAccess').consentAccepted(),true)
+ assert.match(page.data.__entryRecoveryMessage,/连接暂时失败/)
+})
+test('an explicitly expired password session requires login without erasing consent',async()=>{
+ const f=fixture({request:o=>{o.success({statusCode:200,data:{authenticated:false}});return{abort(){}}}});identity(f.runtime,{kind:'password'})
+ const page=protectedPage(f.runtime,f.counts);await page.onLoad({});await settle()
+ assert.match(f.navigations[0],/account\/auth/)
+ assert.equal(f.runtime.storage.get('stemistSessionToken'),undefined)
+ assert.equal(f.runtime.load('utils/entryAccess').consentAccepted(),true)
+})
 test('leaving during renewal cannot initialize or navigate a discarded page',async()=>{
  const delayed=deferred();const f=fixture({request:o=>{delayed.promise.then(()=>o.success({statusCode:200,data:renewed()}));return{abort(){}}}});identity(f.runtime)
  const page=protectedPage(f.runtime,f.counts),work=page.onLoad({});page.onUnload();delayed.resolve();await work;await settle()

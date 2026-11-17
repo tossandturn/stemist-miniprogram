@@ -46,7 +46,12 @@ async function refreshNativeSession({aheadMs=45000,force=false,rejectedToken=''}
   })})
   if(!current())throw sessionError('账号已变化。','account_changed',409)
   const id=String(result?.id||result?.identity?.id||result?.user?.id||'')
-  if(id!==started.owner||!result.authenticated||typeof result.accessToken!=='string'||!result.accessToken.trim()||Date.parse(result.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(result.expiresAt)))throw sessionError('账号续期状态未确认，请重新登录。','auth_required',401)
+  // The password session-status endpoint explicitly uses 200/false for an
+  // expired or revoked cookie; that is different from an incomplete reply.
+  if(meta.kind==='password'&&result?.authenticated===false)throw sessionError('登录已失效，请重新登录；草稿仍保留。','auth_required',401)
+  // A malformed or inconsistent 200 response is not proof of revoked
+  // credentials. Keep the old account isolated and offer a safe retry.
+  if(id!==started.owner||!result.authenticated||typeof result.accessToken!=='string'||!result.accessToken.trim()||Date.parse(result.expiresAt)<=Date.now()||!Number.isFinite(Date.parse(result.expiresAt)))throw sessionError('账号续期状态暂未确认，请重试。','session_unavailable')
   wx.setStorageSync('stemistSessionToken',result.accessToken);rememberNativeSession(result,meta.kind)
   const profile=result.identity||result.user||result,saved=wx.getStorageSync('stemistUser')||{}
   wx.setStorageSync('stemistUser',{...saved,displayName:profile.displayName??saved.displayName??'',avatarDataUrl:profile.avatarDataUrl??saved.avatarDataUrl??''})
