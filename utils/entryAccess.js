@@ -1,6 +1,6 @@
 // Client entry UX only. APIs still verify identity and quota on the server.
 const CONSENT_KEY='stemistEntryConsent:v1',VERSION=1
-let privacyReady=false,preparing=null,privacyRevision=0
+let privacyReady=false,preparing=null,privacyRevision=0,entryRedirect=null
 function consentAccepted(){const value=wx.getStorageSync(CONSENT_KEY);return value?.version===VERSION&&value.accepted===true}
 function hasValidSession(){const user=wx.getStorageSync('stemistUser'),meta=wx.getStorageSync('stemistSessionMeta');return /^ielts:\d+$/.test(String(user?.id||''))&&!!String(wx.getStorageSync('stemistSessionToken')||'').trim()&&meta?.owner===user.id&&Number.isFinite(Date.parse(meta.expiresAt))&&Date.parse(meta.expiresAt)>Date.now()}
 function canEnter(){return privacyReady&&consentAccepted()&&hasValidSession()}
@@ -30,11 +30,14 @@ function publicReturn(route,options){
  return '/'+path+(query?'?'+query:'')
 }
 function requireEntry(page,options){
- page.setData({__entryGateBlocked:true});if(page.__entryRedirected)return
+ page.setData({__entryGateBlocked:true});if(page.__entryRedirected||entryRedirect)return
  page.__entryRedirected=true
  const state=getApp()?.globalData
  if(state&&!state.entryReturn)state.entryReturn={url:publicReturn(page.route,options),owner:String(wx.getStorageSync('stemistUser')?.id||'')}
- wx.reLaunch({url:'/bundles/account/auth?required=1',fail:()=>{page.__entryRedirected=false}})
+ const attempt={};entryRedirect=attempt
+ const release=()=>{if(entryRedirect===attempt)entryRedirect=null}
+ const fail=()=>{page.__entryRedirected=false;release()}
+ try{wx.reLaunch({url:'/bundles/account/auth?required=1',success:release,fail})}catch{fail()}
 }
 function completeEntry(onFailure){
  if(!canEnter())return ''

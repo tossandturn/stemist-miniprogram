@@ -76,6 +76,39 @@ test('an explicitly expired password session requires login without erasing cons
  assert.equal(f.runtime.storage.get('stemistSessionToken'),undefined)
  assert.equal(f.runtime.load('utils/entryAccess').consentAccepted(),true)
 })
+test('password sign-in retains a renewal cookie supplied in headers even when the SDK cookie array is empty',async()=>{
+ const cookie='synthetic-fixture-cookie-0123456789abcd'
+ const f=fixture({request:o=>{
+  if(o.url.endsWith('/api/auth/login'))o.success({statusCode:200,data:renewed(),cookies:[],header:{'Set-Cookie':`stem_session=${cookie}; Path=/; HttpOnly`}})
+  else {
+   assert.ok(o.url.endsWith('/api/auth/status'))
+   assert.equal(o.header.Cookie,`stem_session=${cookie}`)
+   o.success({statusCode:200,data:{...renewed(),accessToken:'background-renewed-token'}})
+  }
+  return{abort(){}}
+ }})
+ f.runtime.load('utils/entryAccess').acceptConsent()
+ await f.runtime.load('utils/auth').signIn('synthetic_user','synthetic-password')
+ f.runtime.storage.set('stemistSessionMeta',{...f.runtime.storage.get('stemistSessionMeta'),expiresAt:new Date(0).toISOString()})
+ const page=protectedPage(f.runtime,f.counts)
+ await page.onLoad({});await settle()
+ assert.equal(f.navigations.length,0,'a valid server cookie should renew without opening login')
+ assert.equal(page.data.__entryGateBlocked,false)
+ assert.equal(f.runtime.storage.get('stemistSessionToken'),'background-renewed-token')
+})
+test('overlapping protected page callbacks open just one login and retain the first destination',()=>{
+ const navigations=[],app={globalData:{}}
+ const runtime=miniRuntime({globals:{getApp:()=>app},wx:{reLaunch:options=>navigations.push(options)}})
+ const counts={loads:0,shows:0,hides:0}
+ const first=protectedPage(runtime,counts),second=protectedPage(runtime,counts)
+ second.route='pages/stem/topics'
+ first.onLoad({source:'alevel'});second.onLoad({routeId:'cie-9700-as-biology'})
+ assert.equal(navigations.length,1,'a pending native login navigation must not be replaced by another relaunch')
+ assert.match(app.globalData.entryReturn.url,/\/pages\/coach\/index\?source=alevel$/)
+ navigations[0].fail()
+ first.onShow()
+ assert.equal(navigations.length,2,'the originating page can retry a failed native navigation')
+})
 test('leaving during renewal cannot initialize or navigate a discarded page',async()=>{
  const delayed=deferred();const f=fixture({request:o=>{delayed.promise.then(()=>o.success({statusCode:200,data:renewed()}));return{abort(){}}}});identity(f.runtime)
  const page=protectedPage(f.runtime,f.counts),work=page.onLoad({});page.onUnload();delayed.resolve();await work;await settle()

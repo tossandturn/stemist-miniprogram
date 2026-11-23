@@ -11,8 +11,9 @@ function rememberNativeSession(payload,kind){
 
 function captureNativeCookie(origin,path,response){
  if(origin!==(safeApiBase(getApp()?.globalData?.apiBaseUrl)||DEFAULT_API_BASE)||!/^\/api\/auth\/(?:login|register)$/.test(path))return
- const values=Array.isArray(response.cookies)?response.cookies:[response.cookies||response.header?.['Set-Cookie']||response.header?.['set-cookie']||'']
- const cookie=values.join(';').match(/(?:^|[,;]\s*)stem_session=([a-zA-Z0-9_-]{32,128})(?:;|$)/)
+ const headerCookies=Object.entries(response.header||{}).filter(([name])=>name.toLowerCase()==='set-cookie').map(([,value])=>value).flat()
+ const values=[...(Array.isArray(response.cookies)?response.cookies:[response.cookies]),...headerCookies]
+ const cookie=values.filter(value=>typeof value==='string').join('; ').match(/(?:^|[,;]\s*)stem_session=([a-zA-Z0-9_-]{32,128})(?:;|,|$)/)
  if(cookie)wx.setStorageSync('stemistNativeSessionCookie',cookie[1])
 }
 
